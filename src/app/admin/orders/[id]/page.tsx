@@ -12,6 +12,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import OrderActions from '@/components/admin/OrderActions';
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -245,17 +246,12 @@ export default async function AdminOrderDetailPage({
             </Card>
 
             <Card label="Actions">
-              <div style={{ display: 'grid', gap: 6 }}>
-                <ActionBtn label="✉ Renvoyer la confirmation" />
-                <ActionBtn label="↻ Resync status Sinalite" />
-                <ActionBtn label="↻ Replay les webhooks" />
-                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '8px 0' }} />
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--danger)', fontWeight: 600, marginBottom: 4 }}>
-                  Zone dangereuse
-                </div>
-                <ActionBtn label="💰 Émettre un refund" danger />
-                <ActionBtn label="✕ Annuler la commande" danger />
-              </div>
+              <OrderActions
+                orderId={order.id}
+                status={order.status}
+                amountCents={order.amountCents}
+                hasSinaliteId={!!order.sinaliteOrderId}
+              />
             </Card>
 
           </aside>
@@ -293,27 +289,6 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <span style={{ color: bold ? 'var(--text-primary)' : 'var(--text-muted)' }}>{label}</span>
       <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{value}</span>
     </div>
-  );
-}
-
-function ActionBtn({ label, danger }: { label: string; danger?: boolean }) {
-  // TODO : wire to real API endpoints (POST /api/admin/orders/[id]/refund, etc.)
-  return (
-    <button
-      style={{
-        textAlign: 'left',
-        padding: '8px 12px',
-        background: 'transparent',
-        border: '1px solid var(--border-default)',
-        borderRadius: 'var(--r-sm)',
-        fontSize: 13,
-        color: danger ? 'var(--danger)' : 'var(--text-primary)',
-        cursor: 'pointer',
-        fontWeight: 500,
-      }}
-    >
-      {label}
-    </button>
   );
 }
 
