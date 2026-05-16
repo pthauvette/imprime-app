@@ -1,0 +1,225 @@
+// Imprime — Prisma schema (SQLite for dev).
+// SQLite n'a pas d'enums natifs — on stocke en string + on contraint via Zod
+// côté app. JSON sérialisé en string aussi (pas de Json natif).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USER + AUTH.JS ───────────────────────────────────────────────────────
+// User est utilisé à la fois par Auth.js (sessions) et nos features (orders).
+// Les champs `name`, `image`, `emailVerified` sont attendus par Auth.js.
+// `firstName`/`lastName`/`phone` sont nos extensions métier.
+//
+// Pattern guest → user :
+//   1. Visiteur passe une commande sans compte → on crée un User par email
+//   2. Plus tard, il sign-in via Email magic link → Auth.js link-or-create
+//      par email → tombe sur le même User → historique préservé.
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+
+  // Champs métier
+  firstName String?
+  lastName  String?
+  phone     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts  Account[]
+  sessions  Session[]
+  orders    Order[]
+  addresses Address[]
+  drafts    Draft[]
+
+  @@index([email])
+}
+
+// Auth.js tables — schéma standard Prisma adapter
+// https://authjs.dev/getting-started/adapters/prisma
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── ORDER ────────────────────────────────────────────────────────────────
+// Source of truth pour les commandes payées. Créé par le webhook Stripe
+// payment_intent.succeeded. status reflète le lifecycle:
+//   PAID → SUBMITTED (envoyé à Sinalite) → IN_PRODUCTION → SHIPPED → DELIVERED
+//   CANCELLED / FAILED si Sinalite refuse (on refund Stripe dans ce cas).
+
+model Order {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+
+  // Stripe
+  paymentIntentId  String   @unique
+  amountCents      Int
+  currency         String   @default("CAD")
+  paidAt           DateTime?
+
+  // Sinalite — null jusqu'à ce que /order/new ait répondu
+  sinaliteOrderId  String?  @unique
+
+  // Lifecycle: PENDING | PAID | SUBMITTED | IN_PRODUCTION | SHIPPED | DELIVERED | CANCELLED | FAILED
+  status           String   @default("PENDING")
+  failureReason    String?
+
+  // Snapshot complet du payload envoyé à Sinalite (JSON string)
+  // Permet de rejouer ou debug sans dépendre d'une refetch.
+  sinalitePayload  String
+
+  // Snapshot pour /orders UI (évite roundtrip Sinalite à chaque view)
+  itemsCount       Int
+  subtotalCents    Int
+  shippingCents    Int
+  taxCents         Int
+  shippingMethod   String
+  province         String
+
+  // Addresses (snapshot — on découple de Address pour ne pas casser
+  // l'historique si user update son adresse plus tard)
+  shipName         String
+  shipLine1        String
+  shipLine2        String?
+  shipCity         String
+  shipProvince     String
+  shipPostalCode   String
+  shipPhone        String
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  events           OrderEvent[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// ─── ORDER EVENT ──────────────────────────────────────────────────────────
+// Audit trail. Chaque transition d'état + webhook reçu.
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // PAYMENT_SUCCEEDED | SINALITE_SUBMITTED | SINALITE_STATUS_CHANGED | REFUND_ISSUED | ERROR
+  kind      String
+  data      String?  // JSON payload du webhook ou contexte
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+// ─── ADDRESS ──────────────────────────────────────────────────────────────
+// Carnet d'adresses utilisateur (page /account/addresses). Indépendant des
+// snapshots dans Order (qui doivent rester immutables pour l'historique).
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // SHIPPING | BILLING — un user peut avoir N de chaque
+  kind       String
+  label      String?  // ex: "Bureau", "Maison"
+  isDefault  Boolean  @default(false)
+
+  firstName  String
+  lastName   String
+  company    String?
+  line1      String
+  line2      String?
+  city       String
+  province   String   // CA codes — AB, BC, ON, QC, ...
+  postalCode String
+  phone      String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, kind])
+}
+
+// ─── DRAFT ────────────────────────────────────────────────────────────────
+// Sauvegarde le wizard en cours pour qu'un user puisse reprendre.
+// Auto-expire après 30 jours (cleanup via cron — pas implémenté pour MVP).
+
+model Draft {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId  Int
+  optionIds  String   // JSON: number[]
+  files      String   // JSON: { type: 'front'|'back', url: string }[]
+  lastStep   String   // "configure" | "quantity" | "upload" | "shipping" | "review"
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime
+
+  @@index([userId, updatedAt])
+  @@index([expiresAt])
+}
+
+// ─── WEBHOOK EVENT ────────────────────────────────────────────────────────
+// Idempotence des webhooks. Stripe et Sinalite peuvent retry — on ne
+// re-traite jamais un eventId déjà vu.
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  // STRIPE | SINALITE
+  source      String
+  // ID unique du webhook (evt_xxx pour Stripe, généré pour Sinalite)
+  eventId     String
+  // Type d'event pour log/debug (ex: payment_intent.succeeded)
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@unique([source, eventId])
+  @@index([source, processedAt])
+}

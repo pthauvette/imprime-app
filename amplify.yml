@@ -1,0 +1,26 @@
+version: 1
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            # Active pnpm via Corepack — Amplify n'a pas pnpm par défaut.
+            - corepack enable
+            - corepack prepare pnpm@10.33.2 --activate
+            - pnpm install --frozen-lockfile
+            # Génère le client Prisma (sinon next build échoue à l'import).
+            - pnpm exec prisma generate
+            # Apply les migrations DB (Neon Postgres) — idempotent.
+            - pnpm exec prisma migrate deploy
+        build:
+          commands:
+            - pnpm build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+          - .next/cache/**/*
+          - ~/.pnpm-store/**/*
