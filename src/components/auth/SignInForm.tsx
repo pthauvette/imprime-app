@@ -3,27 +3,43 @@
 /**
  * Formulaire de connexion — magic link uniquement pour MVP. OAuth providers
  * (Google/Apple/GitHub) seront branchés quand on aura les credentials.
+ *
+ * On call signIn() avec redirect: false pour intercepter le résultat et
+ * router.push() vers /sign-in/sent?email=xxx — sans ça, Auth.js redirige
+ * nu vers /sign-in/sent et la page ne sait pas quel email afficher.
  */
 
 import { useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
 export default function SignInForm({ callbackUrl }: { callbackUrl?: string }) {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) return;
     setSubmitting(true);
     setError(null);
     try {
-      // signIn redirige vers /sign-in/sent (pages.verifyRequest dans auth.ts)
-      await signIn('nodemailer', {
-        email: email.trim().toLowerCase(),
+      const result = await signIn('nodemailer', {
+        email: cleanEmail,
         callbackUrl: callbackUrl ?? '/orders',
+        redirect: false,
       });
+
+      // signIn() avec redirect:false retourne un objet { error?, ok?, url? }.
+      // On manually navigate vers /sign-in/sent avec l'email en query param.
+      if (result?.error) {
+        throw new Error(decodeAuthError(result.error));
+      }
+      // Navigate via window pour s'assurer que la page recharge avec le query
+      // param visible (Server Component lira searchParams.email)
+      window.location.href = `/sign-in/sent?email=${encodeURIComponent(cleanEmail)}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
       setSubmitting(false);
@@ -40,7 +56,7 @@ export default function SignInForm({ callbackUrl }: { callbackUrl?: string }) {
             type="email"
             required
             autoFocus
-            placeholder="patrick@democratik.org"
+            placeholder="ton@adresse.ca"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={submitting}
@@ -79,4 +95,14 @@ export default function SignInForm({ callbackUrl }: { callbackUrl?: string }) {
       </div>
     </form>
   );
+}
+
+function decodeAuthError(code: string): string {
+  // Auth.js v5 error codes — mappe les plus communs en français
+  const map: Record<string, string> = {
+    EmailSignin: 'Impossible d\'envoyer le lien magique. Vérifie ton email ou réessaie.',
+    Configuration: 'Configuration serveur invalide. Contacte le support.',
+    Default: 'Erreur lors de la connexion. Réessaie dans un instant.',
+  };
+  return map[code] ?? `Erreur: ${code}`;
 }
