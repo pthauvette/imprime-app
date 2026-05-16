@@ -1,0 +1,185 @@
+import Link from 'next/link';
+import type { Route } from 'next';
+
+/**
+ * Sidebar admin — réutilisée par les 10 pages /admin/*.
+ *
+ * Les counts sont passés en props (ou fallback hardcodé). Pour la prod,
+ * passer les vraies stats via les Server Components.
+ */
+
+export type AdminSidebarKey =
+  | 'dashboard'
+  | 'orders'
+  | 'webhooks'
+  | 'templates'
+  | 'products'
+  | 'users'
+  | 'finances'
+  | 'settings';
+
+interface NavItem {
+  key: AdminSidebarKey;
+  href: Route;
+  label: string;
+  icon: React.ReactNode;
+  count?: number | string;
+  urgent?: boolean;
+}
+
+const ICONS = {
+  dashboard: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z" />
+    </svg>
+  ),
+  orders: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path d="M2 4h12v9H2zM2 7h12M5 10h2" />
+    </svg>
+  ),
+  webhooks: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx={4} cy={8} r={2} />
+      <circle cx={12} cy={4} r={2} />
+      <circle cx={12} cy={12} r={2} />
+      <path d="M5.8 7.2L10.4 5M5.8 8.8L10.4 11" />
+    </svg>
+  ),
+  templates: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <rect x={2} y={3} width={12} height={10} rx={1} />
+      <path d="M2 6h12M5 9h6M5 11h4" />
+    </svg>
+  ),
+  products: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path d="M3 5l5-3 5 3v6l-5 3-5-3zM3 5l5 3 5-3M8 8v6" />
+    </svg>
+  ),
+  users: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx={8} cy={5} r={2.5} />
+      <path d="M3 13c0-2.5 2.5-4 5-4s5 1.5 5 4" />
+    </svg>
+  ),
+  finances: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path d="M2 12V4M5 12V7M8 12V5M11 12V8M14 12V3" />
+    </svg>
+  ),
+  settings: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx={8} cy={8} r={2.5} />
+      <path d="M8 2v2M8 12v2M14 8h-2M4 8H2M12.2 3.8l-1.4 1.4M5.2 10.8l-1.4 1.4M12.2 12.2l-1.4-1.4M5.2 5.2L3.8 3.8" />
+    </svg>
+  ),
+};
+
+export interface AdminSidebarProps {
+  active: AdminSidebarKey;
+  counts?: Partial<Record<AdminSidebarKey, number | string>>;
+  user?: {
+    name: string | null;
+    email: string;
+    role?: 'USER' | 'ADMIN' | string;
+  };
+  urgents?: Partial<Record<AdminSidebarKey, boolean>>;
+}
+
+export default function AdminSidebar({ active, counts = {}, user, urgents = {} }: AdminSidebarProps) {
+  const sections: { label: string; items: NavItem[] }[] = [
+    {
+      label: 'Opérations',
+      items: [
+        { key: 'dashboard', href: '/admin' as Route, label: 'Tableau de bord', icon: ICONS.dashboard },
+        { key: 'orders', href: '/admin/orders' as Route, label: 'Commandes', icon: ICONS.orders, count: counts.orders },
+        { key: 'webhooks', href: '/admin/webhooks' as Route, label: 'Webhooks', icon: ICONS.webhooks, count: counts.webhooks, urgent: urgents.webhooks },
+      ],
+    },
+    {
+      label: 'Catalogue',
+      items: [
+        { key: 'templates', href: '/admin/templates' as Route, label: 'Templates', icon: ICONS.templates, count: counts.templates },
+        { key: 'products', href: '/admin/products' as Route, label: 'Produits Sinalite', icon: ICONS.products, count: counts.products },
+      ],
+    },
+    {
+      label: 'Audience',
+      items: [
+        { key: 'users', href: '/admin/users' as Route, label: 'Utilisateurs', icon: ICONS.users, count: counts.users },
+      ],
+    },
+    {
+      label: 'Finance',
+      items: [
+        { key: 'finances', href: '/admin/finances' as Route, label: 'Finances', icon: ICONS.finances },
+      ],
+    },
+    {
+      label: 'Système',
+      items: [
+        { key: 'settings', href: '/admin' as Route, label: 'Réglages', icon: ICONS.settings },
+      ],
+    },
+  ];
+
+  const initials = userInitials(user);
+
+  return (
+    <aside className="adm-nav">
+      <div className="adm-nav-brand">
+        <span className="adm-nav-brand-mark">Imprime.</span>
+        <span className="adm-nav-brand-tag">Admin</span>
+      </div>
+
+      {sections.map((section) => (
+        <div key={section.label}>
+          <div className="adm-nav-section">{section.label}</div>
+          <ul className="adm-nav-list">
+            {section.items.map((item) => (
+              <li key={item.key}>
+                <Link
+                  href={item.href}
+                  className={`adm-nav-link${active === item.key ? ' active' : ''}`}
+                >
+                  <span className="adm-nav-link-text">
+                    {item.icon}
+                    {item.label}
+                  </span>
+                  {item.count !== undefined && (
+                    <span className={`adm-nav-count${item.urgent ? ' urgent' : ''}`}>
+                      {item.count}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {user && (
+        <div className="adm-nav-user">
+          <div className="adm-nav-user-avatar">{initials}</div>
+          <div className="adm-nav-user-info">
+            <div className="adm-nav-user-name">{user.name ?? user.email.split('@')[0]}</div>
+            <div className="adm-nav-user-role">{user.role === 'ADMIN' ? 'Owner · ★★★' : 'Admin'}</div>
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function userInitials(user?: { name: string | null; email: string }): string {
+  if (!user) return '··';
+  if (user.name) {
+    return user.name
+      .split(' ')
+      .slice(0, 2)
+      .map((s) => s[0]?.toUpperCase() ?? '')
+      .join('') || '··';
+  }
+  return user.email.slice(0, 2).toUpperCase();
+}

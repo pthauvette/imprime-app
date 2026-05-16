@@ -1,446 +1,322 @@
 /**
- * Auto-migrated from Open Design HTML artifact `admin-order-detail.html`.
+ * /admin/orders/[id] — order detail Server Component.
  *
- * NOTE: Lift-and-shift static rendering. Scripts ont été strip, data hardcodée.
- * Pour brancher la vraie data DB ou ajouter de l'interactivité, convertir en
- * Client Component ('use client') ou ajouter du data fetching Server Component.
+ * Charge l'order avec user + events depuis Prisma. Timeline render
+ * chronologique de OrderEvent (créés par les webhooks Stripe + Sinalite +
+ * les emails envoyés).
  */
 
-export const metadata = { title: "Admin — Détail commande" };
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import type { Route } from 'next';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import AdminSidebar from '@/components/admin/AdminSidebar';
+import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
+import { formatCurrency, formatDate } from '@/lib/format';
 
-export default function AdminOrderDetail() {
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return { title: `Admin — Commande ${id.slice(-6).toUpperCase()}` };
+}
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  PENDING: 'En attente paiement',
+  PAID: 'Payée',
+  SUBMITTED: 'Soumise',
+  IN_PRODUCTION: 'En production',
+  SHIPPED: 'Expédiée',
+  DELIVERED: 'Livrée',
+  CANCELLED: 'Annulée',
+  FAILED: 'Échec',
+};
+
+const STATUS_CLASS: Record<OrderStatus, string> = {
+  PENDING: 'submitted',
+  PAID: 'paid',
+  SUBMITTED: 'submitted',
+  IN_PRODUCTION: 'production',
+  SHIPPED: 'shipped',
+  DELIVERED: 'delivered',
+  CANCELLED: 'failed',
+  FAILED: 'failed',
+};
+
+const EVENT_LABEL: Record<OrderEventKind, { title: string; type: string; dot: string; icon: string }> = {
+  PAYMENT_SUCCEEDED: { title: 'Paiement confirmé', type: 'PAYMENT_SUCCEEDED', dot: 'paid', icon: '$' },
+  PAYMENT_FAILED: { title: 'Échec de paiement', type: 'PAYMENT_FAILED', dot: 'failed', icon: '✕' },
+  SINALITE_SUBMITTED: { title: 'Commande soumise à Sinalite', type: 'SINALITE_SUBMITTED', dot: 'submitted', icon: '→' },
+  SINALITE_STATUS_CHANGED: { title: 'Mise à jour Sinalite', type: 'SINALITE_STATUS_CHANGED', dot: 'production', icon: '⚙' },
+  REFUND_ISSUED: { title: 'Remboursement émis', type: 'REFUND_ISSUED', dot: 'failed', icon: '↩' },
+  ERROR: { title: 'Erreur enregistrée', type: 'ERROR', dot: 'failed', icon: '!' },
+};
+
+export default async function AdminOrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await auth();
+  const { id } = await params;
+
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: {
+      user: true,
+      events: { orderBy: { createdAt: 'desc' } },
+    },
+  });
+
+  if (!order) notFound();
+
+  const status = order.status as OrderStatus;
+  const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
+
+  const [ordersCount, usersCount] = await Promise.all([
+    prisma.order.count(),
+    prisma.user.count(),
+  ]);
+
   return (
-    <>
-      <div className="adm-shell">
-      
-          {/* ─── SIDEBAR ───────────────────────────────────────────────── */}
-          <aside className="adm-nav">
-            <div className="adm-nav-brand">
-              <span className="adm-nav-brand-mark">Imprime.</span>
-              <span className="adm-nav-brand-tag">Admin</span>
-            </div>
-      
-            <div className="adm-nav-section">Opérations</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-dashboard.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z" /></svg>
-                  Tableau de bord
-                </span>
-              </a></li>
-              <li><a href="admin-orders.html" className="adm-nav-link active">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v9H2zM2 7h12M5 10h2" /></svg>
-                  Commandes
-                </span>
-                <span className="adm-nav-count">142</span>
-              </a></li>
-              <li><a href="admin-webhooks.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="8" r="2" /><circle cx="12" cy="4" r="2" /><circle cx="12" cy="12" r="2" /><path d="M5.8 7.2L10.4 5M5.8 8.8L10.4 11" /></svg>
-                  Webhooks
-                </span>
-                <span className="adm-nav-count urgent">3</span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Catalogue</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-templates.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1" /><path d="M2 6h12M5 9h6M5 11h4" /></svg>
-                  Templates
-                </span>
-                <span className="adm-nav-count">3</span>
-              </a></li>
-              <li><a href="admin-products.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l5-3 5 3v6l-5 3-5-3zM3 5l5 3 5-3M8 8v6" /></svg>
-                  Produits Sinalite
-                </span>
-                <span className="adm-nav-count">468</span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Audience</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-users.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="2.5" /><path d="M3 13c0-2.5 2.5-4 5-4s5 1.5 5 4" /></svg>
-                  Utilisateurs
-                </span>
-                <span className="adm-nav-count">218</span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Finance</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-finances.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V4M5 12V7M8 12V5M11 12V8M14 12V3" /></svg>
-                  Finances
-                </span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Système</div>
-            <ul className="adm-nav-list">
-              <li><a href="#" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5" /><path d="M8 2v2M8 12v2M14 8h-2M4 8H2M12.2 3.8l-1.4 1.4M5.2 10.8l-1.4 1.4M12.2 12.2l-1.4-1.4M5.2 5.2L3.8 3.8" /></svg>
-                  Réglages
-                </span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-user">
-              <div className="adm-nav-user-avatar">PT</div>
-              <div className="adm-nav-user-info">
-                <div className="adm-nav-user-name">Patrick Thauvette</div>
-                <div className="adm-nav-user-role">Owner · ★★★</div>
-              </div>
-            </div>
-          </aside>
-      
-          {/* ─── MAIN ──────────────────────────────────────────────────── */}
-          <main className="adm-main">
-      
-            <nav className="od-breadcrumb">
-              <a href="admin-orders.html">← Commandes</a>
-              <span style={{ color: "var(--border-strong)" } as React.CSSProperties}>/</span>
-              <span className="od-breadcrumb-current">#SIN-48298</span>
-            </nav>
-      
-            <header className="od-header">
-              <div className="od-header-left">
-                <h1 className="od-id-big"><span className="hash">#</span>SIN-48298</h1>
-                <span className="od-status-pill">Expédiée</span>
-              </div>
-              <div className="od-header-meta">
-                <div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: "600" } as React.CSSProperties}>Total payé</div>
-                  <div className="total">187,42 $ <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" } as React.CSSProperties}>CAD</span></div>
-                </div>
-                <span style={{ borderLeft: "1px solid var(--border-subtle)", height: "32px" } as React.CSSProperties}></span>
-                <div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: "600" } as React.CSSProperties}>Paiement</div>
-                  <div style={{ fontSize: "13px", color: "var(--text-primary)", marginTop: "4px" } as React.CSSProperties}>Visa •••• 4242</div>
-                </div>
-              </div>
-            </header>
-      
-            <div className="od-grid">
-      
-              {/* ─── LEFT ──────────────────────────────────────────────── */}
-              <div className="od-col-left">
-      
-                {/* Timeline */}
-                <div className="od-panel">
-                  <div className="od-panel-head">
-                    <h2 className="od-panel-title">Historique <span className="od-panel-title-meta">8 événements</span></h2>
-                    <a href="#" className="od-panel-link">Exporter JSON</a>
-                  </div>
-                  <div className="od-timeline">
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot shipped">↗</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">SHIPMENT_DELIVERED</div>
-                        <div className="od-tl-title">Livrée à Montréal QC</div>
-                        <div className="od-tl-desc">UPS Standard · Signature requise · livrée à <strong>Sophie Beauchamp</strong></div>
-                        <details className="od-tl-payload">
-                          <summary>payload</summary>
-      <pre>&#123;
-        <span className="json-key">"carrier"</span>: <span className="json-str">"UPS"</span>,
-        <span className="json-key">"tracking"</span>: <span className="json-str">"1Z8Y2W92039482104"</span>,
-        <span className="json-key">"delivered_at"</span>: <span className="json-str">"2026-05-16T10:24:00-04:00"</span>,
-        <span className="json-key">"signed_by"</span>: <span className="json-str">"S. BEAUCHAMP"</span>
-      &#125;</pre>
-                        </details>
-                      </div>
-                      <span className="od-tl-time">16 mai · 10:24</span>
-                    </div>
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot shipped">↗</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">SHIPMENT_IN_TRANSIT</div>
-                        <div className="od-tl-title">En transit · Toronto → Montréal</div>
-                        <div className="od-tl-desc">Tracking <span className="ref">1Z8Y2W92039482104</span></div>
-                      </div>
-                      <span className="od-tl-time">15 mai · 18:02</span>
-                    </div>
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot shipped">↗</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">SHIPMENT_CREATED</div>
-                        <div className="od-tl-title">Étiquette d'expédition générée</div>
-                        <div className="od-tl-desc">UPS Standard · 1 colis · 0,8 kg · service 3 j ouvrables</div>
-                      </div>
-                      <span className="od-tl-time">15 mai · 14:48</span>
-                    </div>
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot production">⚙</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">PRODUCTION_COMPLETE</div>
-                        <div className="od-tl-title">Production terminée chez Sinalite</div>
-                        <div className="od-tl-desc">Sinalite ID <span className="ref">SL-8842165</span> · usine Toronto · QA passé</div>
-                      </div>
-                      <span className="od-tl-time">15 mai · 11:30</span>
-                    </div>
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot production">⚙</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">PRODUCTION_STARTED</div>
-                        <div className="od-tl-title">En production</div>
-                        <div className="od-tl-desc">Prepress OK · planifié pour 36 h · Sinalite a confirmé le délai</div>
-                      </div>
-                      <span className="od-tl-time">14 mai · 16:12</span>
-                    </div>
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot submitted">→</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">SINALITE_SUBMITTED</div>
-                        <div className="od-tl-title">Commande soumise à Sinalite</div>
-                        <div className="od-tl-desc">Order créé chez Sinalite avec ID <span className="ref">SL-8842165</span> · attentes prepress checks</div>
-                        <details className="od-tl-payload">
-                          <summary>payload</summary>
-      <pre>&#123;
-        <span className="json-key">"sinalite_id"</span>: <span className="json-str">"SL-8842165"</span>,
-        <span className="json-key">"product_code"</span>: <span className="json-str">"BC_16PT_UV_HIGH_GLOSS"</span>,
-        <span className="json-key">"qty"</span>: <span className="json-num">250</span>,
-        <span className="json-key">"size"</span>: <span className="json-str">"3.5x2"</span>,
-        <span className="json-key">"sides"</span>: <span className="json-num">2</span>,
-        <span className="json-key">"ship_to"</span>: <span className="json-str">"Montréal, QC, CA"</span>,
-        <span className="json-key">"due"</span>: <span className="json-str">"2026-05-16"</span>
-      &#125;</pre>
-                        </details>
-                      </div>
-                      <span className="od-tl-time">14 mai · 10:31</span>
-                    </div>
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot email">✉</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">EMAIL_SENT</div>
-                        <div className="od-tl-title">Confirmation de commande envoyée</div>
-                        <div className="od-tl-desc">SES message <span className="ref">ses-msg-9182838</span> · delivered · opened à 10:24</div>
-                      </div>
-                      <span className="od-tl-time">14 mai · 10:19</span>
-                    </div>
-      
-                    <div className="od-tl-event">
-                      <div className="od-tl-dot paid">$</div>
-                      <div className="od-tl-body">
-                        <div className="od-tl-type">PAYMENT_SUCCEEDED</div>
-                        <div className="od-tl-title">Paiement réussi · 187,42 $ CAD</div>
-                        <div className="od-tl-desc">Visa •••• 4242 · PaymentIntent <span className="ref">pi_3PJh9KKkLfg2</span> · charge <span className="ref">ch_3PJh9K</span></div>
-                        <details className="od-tl-payload">
-                          <summary>payload</summary>
-      <pre>&#123;
-        <span className="json-key">"payment_intent"</span>: <span className="json-str">"pi_3PJh9KKkLfg2Cv4j1OdK28Yz"</span>,
-        <span className="json-key">"amount"</span>: <span className="json-num">18742</span>,
-        <span className="json-key">"currency"</span>: <span className="json-str">"cad"</span>,
-        <span className="json-key">"customer"</span>: <span className="json-str">"cus_QnPx9KkLfg2Cv4"</span>,
-        <span className="json-key">"status"</span>: <span className="json-str">"succeeded"</span>
-      &#125;</pre>
-                        </details>
-                      </div>
-                      <span className="od-tl-time">14 mai · 10:18</span>
-                    </div>
-                  </div>
-                </div>
-      
-                {/* Items */}
-                <div className="od-panel">
-                  <div className="od-panel-head">
-                    <h2 className="od-panel-title">Articles <span className="od-panel-title-meta">1 article · 250 unités</span></h2>
-                  </div>
-                  <div>
-                    <div className="od-item">
-                      <div className="od-item-thumb">3,5×2</div>
-                      <div className="od-item-info">
-                        <h3 className="od-item-name">Cartes d'affaires premium 16pt</h3>
-                        <div className="od-item-opts">
-                          <span className="od-chip"><strong>Stock</strong> 16pt</span>
-                          <span className="od-chip"><strong>Coating</strong> UV high gloss</span>
-                          <span className="od-chip"><strong>Size</strong> 3,5×2</span>
-                          <span className="od-chip"><strong>Sides</strong> 2 (R/V)</span>
-                          <span className="od-chip"><strong>Coupe</strong> droite</span>
-                          <span className="od-chip"><strong>Qty</strong> 250</span>
-                        </div>
-                      </div>
-                      <div className="od-item-price">
-                        <div className="od-item-price-unit">0,72 $/u</div>
-                        <div className="od-item-price-sub">180,00 $</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-      
-                {/* Files */}
-                <div className="od-panel">
-                  <div className="od-panel-head">
-                    <h2 className="od-panel-title">Fichiers d'impression <span className="od-panel-title-meta">2 PDF · prepress validé</span></h2>
-                    <a href="#" className="od-panel-link">↓ Télécharger tout</a>
-                  </div>
-                  <div className="od-files">
-                    <div className="od-file">
-                      <div className="od-file-thumb">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /><path d="M8 14h8M8 17h5" /></svg>
-                        <span className="face">Recto</span>
-                      </div>
-                      <div className="od-file-meta">
-                        <div className="od-file-name">beauchamp_bc_recto_v2.pdf</div>
-                        <div className="od-file-specs">
-                          <span>3,75×2,25 in</span>
-                          <span>1,8 MB</span>
-                          <span>300 DPI</span>
-                        </div>
-                        <div className="od-file-checks">
-                          <span className="od-check">CMYK</span>
-                          <span className="od-check">Bleed 0,125"</span>
-                          <span className="od-check">Fonts embedded</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="od-file">
-                      <div className="od-file-thumb">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /><path d="M8 14h8M8 17h5" /></svg>
-                        <span className="face">Verso</span>
-                      </div>
-                      <div className="od-file-meta">
-                        <div className="od-file-name">beauchamp_bc_verso_v2.pdf</div>
-                        <div className="od-file-specs">
-                          <span>3,75×2,25 in</span>
-                          <span>1,2 MB</span>
-                          <span>300 DPI</span>
-                        </div>
-                        <div className="od-file-checks">
-                          <span className="od-check">CMYK</span>
-                          <span className="od-check">Bleed 0,125"</span>
-                          <span className="od-check">Fonts embedded</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-      
-              {/* ─── RIGHT ─────────────────────────────────────────────── */}
-              <aside className="od-col-right">
-      
-                {/* Customer */}
-                <div className="od-card">
-                  <div className="od-card-label">Client</div>
-                  <div className="od-customer-card">
-                    <div className="od-customer-avatar">SB</div>
-                    <div>
-                      <div className="od-customer-name">Sophie Beauchamp</div>
-                      <div className="od-customer-email">sophie@boreal.studio</div>
-                    </div>
-                    <div className="od-customer-extras">
-                      <div className="row"><span className="label">Téléphone</span><span>+1 (514) 555-0182</span></div>
-                      <div className="row"><span className="label">LTV</span><span>1 847 $ · 7 commandes</span></div>
-                      <div className="row"><span className="label">Inscrit</span><span>14 fév 2026</span></div>
-                      <div className="row" style={{ marginTop: "4px" } as React.CSSProperties}>
-                        <a href="admin-user-detail.html" className="od-customer-link">Voir profil complet →</a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-      
-                {/* Shipping address */}
-                <div className="od-card">
-                  <div className="od-card-label">Adresse d'expédition</div>
-                  <div className="od-addr">
-                    <div className="name">Sophie Beauchamp</div>
-                    <div>Boréal Studio</div>
-                    <div>4218 rue Saint-Denis, app. 3</div>
-                    <div>Montréal, QC  H2J 2L1</div>
-                    <div>Canada</div>
-                    <div className="meta">UPS Standard · 3 j ouvrables · 14,50 $</div>
-                  </div>
-                </div>
-      
-                {/* Billing summary */}
-                <div className="od-card">
-                  <div className="od-card-label">Facturation</div>
-                  <div className="od-summary">
-                    <div className="row"><span className="label">Sous-total</span><span className="value">160,00 $</span></div>
-                    <div className="row"><span className="label">Livraison</span><span className="value">14,50 $</span></div>
-                    <div className="row"><span className="label">TPS (5 %)</span><span className="value">8,73 $</span></div>
-                    <div className="row"><span className="label">TVQ (9,975 %)</span><span className="value">17,40 $</span></div>
-                    <div className="row"><span className="label" style={{ color: "var(--success)" } as React.CSSProperties}>Code RABAIS-10</span><span className="value" style={{ color: "var(--success)" } as React.CSSProperties}>−13,21 $</span></div>
-                    <div className="od-summary-total">
-                      <span className="label">Total CAD</span>
-                      <span className="value">187,42 $</span>
-                    </div>
-                  </div>
-                </div>
-      
-                {/* Sinalite */}
-                <div className="od-card">
-                  <div className="od-card-label">↗ Sinalite</div>
-                  <div className="od-kv">
-                    <div className="row"><span className="label">Order ID</span><span className="value">SL-8842165</span></div>
-                    <div className="row"><span className="label">Status</span><span className="value" style={{ color: "var(--success)" } as React.CSSProperties}>SHIPPED</span></div>
-                    <div className="row"><span className="label">Last sync</span><span className="value">il y a 32 min</span></div>
-                    <div className="row" style={{ marginTop: "4px" } as React.CSSProperties}><a href="#" className="value-link">Ouvrir dans portail Sinalite ↗</a></div>
-                  </div>
-                </div>
-      
-                {/* Stripe */}
-                <div className="od-card">
-                  <div className="od-card-label">↗ Stripe</div>
-                  <div className="od-kv">
-                    <div className="row"><span className="label">PaymentIntent</span><span className="value" style={{ fontSize: "10.5px" } as React.CSSProperties}>pi_3PJh9KKkLfg2…</span></div>
-                    <div className="row"><span className="label">Charge</span><span className="value" style={{ fontSize: "10.5px" } as React.CSSProperties}>ch_3PJh9K6L02…</span></div>
-                    <div className="row"><span className="label">Customer</span><span className="value" style={{ fontSize: "10.5px" } as React.CSSProperties}>cus_QnPx9KkLfg…</span></div>
-                    <div className="row"><span className="label">Risk score</span><span className="value" style={{ color: "var(--success)" } as React.CSSProperties}>12 / 100 · normal</span></div>
-                    <div className="row" style={{ marginTop: "4px" } as React.CSSProperties}><a href="#" className="value-link">Ouvrir dans Stripe ↗</a></div>
-                  </div>
-                </div>
-      
-                {/* Actions */}
-                <div className="od-card od-actions-card">
-                  <div className="od-card-label">Actions</div>
-                  <button className="od-action-btn">
-                    <span>✉ Renvoyer email confirmation</span>
-                    <span className="kbd">⌘E</span>
-                  </button>
-                  <button className="od-action-btn">
-                    <span>🔄 Resync Sinalite status</span>
-                    <span className="kbd">⌘S</span>
-                  </button>
-                  <button className="od-action-btn">
-                    <span>↻ Replay webhook</span>
-                    <span className="kbd">⌘R</span>
-                  </button>
-                  <button className="od-action-btn">
-                    <span>↗ Ouvrir tracking UPS</span>
-                  </button>
-      
-                  <div className="od-action-divider"></div>
-                  <div className="od-action-danger-label">Zone dangereuse</div>
-                  <button className="od-action-btn danger">
-                    <span>↩ Émettre un refund</span>
-                    <span className="kbd">⌘F</span>
-                  </button>
-                  <button className="od-action-btn danger">
-                    <span>✕ Annuler commande</span>
-                  </button>
-                </div>
-      
-              </aside>
-            </div>
-      
-          </main>
+    <div className="adm-shell">
+      <AdminSidebar
+        active="orders"
+        counts={{ orders: ordersCount, users: usersCount, webhooks: 3, templates: 3, products: 468 }}
+        user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
+      />
+
+      <main className="adm-main">
+        <div className="od-breadcrumb" style={{ marginBottom: 24 }}>
+          <Link href={'/admin/orders' as Route} style={{ color: 'var(--text-muted)' }}>← Commandes</Link>
+          <span className="od-breadcrumb-current" style={{ marginLeft: 8 }}>{displayId}</span>
         </div>
-    </>
+
+        <div className="od-header" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
+          <div className="od-header-left">
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+              <span className="od-id-big" style={{ fontFamily: 'var(--font-display)', fontSize: 48, letterSpacing: '-0.02em', fontWeight: 400 }}>
+                {displayId}
+              </span>
+              <span className={`od-status-pill ord-status ${STATUS_CLASS[status]}`}>
+                {STATUS_LABELS[status]}
+              </span>
+            </div>
+            <div className="od-header-meta" style={{ marginTop: 8, color: 'var(--text-muted)', fontSize: 14 }}>
+              Passée le {formatDate(order.createdAt.toISOString())} · {order.shipName} · {order.shipCity}, {order.shipProvince}
+            </div>
+          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, letterSpacing: '-0.02em', color: 'var(--accent-primary)' }}>
+            {formatCurrency(order.amountCents / 100)}
+          </div>
+        </div>
+
+        <div className="od-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, alignItems: 'start' }}>
+
+          {/* ─── Left column ─── */}
+          <div style={{ display: 'grid', gap: 24 }}>
+
+            <section className="od-panel adm-panel">
+              <div className="od-panel-head adm-panel-header">
+                <h2 className="od-panel-title adm-panel-title">
+                  Historique
+                  <span className="od-panel-title-meta adm-panel-title-meta">
+                    {order.events.length} événement{order.events.length > 1 ? 's' : ''}
+                  </span>
+                </h2>
+              </div>
+              <div className="od-timeline">
+                {order.events.length === 0 ? (
+                  <div style={{ padding: '32px 22px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+                    Aucun événement encore.
+                  </div>
+                ) : (
+                  order.events.map((evt) => {
+                    const meta = EVENT_LABEL[evt.kind as OrderEventKind];
+                    return (
+                      <div
+                        key={evt.id}
+                        className="od-tl-event"
+                        style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, padding: '14px 22px', borderTop: '1px solid var(--border-subtle)' }}
+                      >
+                        <div className={`od-tl-dot ${meta.dot}`}>{meta.icon}</div>
+                        <div className="od-tl-body">
+                          <div className="od-tl-type">{meta.type}</div>
+                          <div className="od-tl-title">{meta.title}</div>
+                          {evt.data && (
+                            <details className="od-tl-payload" style={{ marginTop: 6 }}>
+                              <summary style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>payload</summary>
+                              <pre style={{ fontSize: 11, padding: 10, background: 'var(--bg-sunken)', borderRadius: 'var(--r-sm)', marginTop: 6, overflowX: 'auto' }}>
+{evt.data}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                        <span className="od-tl-time">
+                          {formatDate(evt.createdAt.toISOString())} · {timeOf(evt.createdAt)}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+
+            <section className="od-panel adm-panel">
+              <div className="od-panel-head adm-panel-header">
+                <h2 className="od-panel-title adm-panel-title">
+                  Articles
+                  <span className="od-panel-title-meta adm-panel-title-meta">
+                    {order.itemsCount} article{order.itemsCount > 1 ? 's' : ''}
+                  </span>
+                </h2>
+              </div>
+              <div style={{ padding: 22 }}>
+                <div className="od-item" style={{ display: 'grid', gridTemplateColumns: '72px 1fr auto', gap: 16, padding: '14px 0' }}>
+                  <div className="od-item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)' }}></div>
+                  <div className="od-item-info">
+                    <div className="od-item-name" style={{ fontWeight: 600, fontSize: 14 }}>Cartes de visite</div>
+                    <div className="od-item-opts" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                      <span className="od-chip badge badge-neutral">Qté · {order.itemsCount}</span>
+                      <span className="od-chip badge badge-neutral">{order.shippingMethod}</span>
+                      <span className="od-chip badge badge-neutral">{order.province}</span>
+                    </div>
+                  </div>
+                  <div className="od-item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600 }}>
+                    {formatCurrency(order.subtotalCents / 100)}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gap: 6, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)', fontSize: 13 }}>
+                  <Row label="Sous-total" value={formatCurrency(order.subtotalCents / 100)} />
+                  <Row label="Livraison" value={formatCurrency(order.shippingCents / 100)} />
+                  <Row label="Taxes" value={formatCurrency(order.taxCents / 100)} />
+                  <Row label="Total payé" value={`${formatCurrency(order.amountCents / 100)} CAD`} bold />
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          {/* ─── Right sticky rail ─── */}
+          <aside style={{ position: 'sticky', top: 32, display: 'grid', gap: 16, alignSelf: 'start' }}>
+
+            <Card label="Client">
+              <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{order.user.name ?? order.shipName}</div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{order.user.email}</div>
+              {order.user.phone && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{order.user.phone}</div>}
+              <Link
+                href={`/admin/users/${order.userId}` as Route}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent-primary)', marginTop: 8, display: 'inline-block', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}
+              >
+                Voir le profil →
+              </Link>
+            </Card>
+
+            <Card label="Adresse de livraison">
+              <div className="od-addr" style={{ fontSize: 13, lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 600 }}>{order.shipName}</div>
+                <div>{order.shipLine1}</div>
+                {order.shipLine2 && <div>{order.shipLine2}</div>}
+                <div>{order.shipCity}, {order.shipProvince} {order.shipPostalCode}</div>
+                <div style={{ color: 'var(--text-muted)' }}>{order.shipPhone}</div>
+              </div>
+            </Card>
+
+            <Card label="Sinalite">
+              <KV k="Order ID" v={order.sinaliteOrderId ?? '—'} mono />
+              <KV k="Status" v={STATUS_LABELS[status]} />
+              {order.failureReason && <KV k="Échec" v={order.failureReason} />}
+            </Card>
+
+            <Card label="Stripe">
+              <KV k="PaymentIntent" v={order.paymentIntentId.slice(0, 24) + '…'} mono />
+              <KV k="Montant" v={`${formatCurrency(order.amountCents / 100)} ${order.currency}`} />
+              {order.paidAt && <KV k="Payé le" v={formatDate(order.paidAt.toISOString())} />}
+              <a
+                href={`https://dashboard.stripe.com/test/payments/${order.paymentIntentId}`}
+                target="_blank"
+                rel="noopener"
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent-primary)', marginTop: 8, display: 'inline-block', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}
+              >
+                Voir sur Stripe ↗
+              </a>
+            </Card>
+
+            <Card label="Actions">
+              <div style={{ display: 'grid', gap: 6 }}>
+                <ActionBtn label="✉ Renvoyer la confirmation" />
+                <ActionBtn label="↻ Resync status Sinalite" />
+                <ActionBtn label="↻ Replay les webhooks" />
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '8px 0' }} />
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--danger)', fontWeight: 600, marginBottom: 4 }}>
+                  Zone dangereuse
+                </div>
+                <ActionBtn label="💰 Émettre un refund" danger />
+                <ActionBtn label="✕ Annuler la commande" danger />
+              </div>
+            </Card>
+
+          </aside>
+        </div>
+      </main>
+    </div>
   );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────
+
+function Card({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="od-card" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', padding: 18 }}>
+      <div className="od-card-label" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 10 }}>
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function KV({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0', fontSize: 13 }}>
+      <span style={{ color: 'var(--text-muted)' }}>{k}</span>
+      <span style={{ color: 'var(--text-primary)', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontWeight: mono ? 500 : 400, marginLeft: 12, textAlign: 'right' }}>{v}</span>
+    </div>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0', fontSize: bold ? 15 : 13, fontWeight: bold ? 600 : 400 }}>
+      <span style={{ color: bold ? 'var(--text-primary)' : 'var(--text-muted)' }}>{label}</span>
+      <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{value}</span>
+    </div>
+  );
+}
+
+function ActionBtn({ label, danger }: { label: string; danger?: boolean }) {
+  // TODO : wire to real API endpoints (POST /api/admin/orders/[id]/refund, etc.)
+  return (
+    <button
+      style={{
+        textAlign: 'left',
+        padding: '8px 12px',
+        background: 'transparent',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--r-sm)',
+        fontSize: 13,
+        color: danger ? 'var(--danger)' : 'var(--text-primary)',
+        cursor: 'pointer',
+        fontWeight: 500,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function timeOf(d: Date): string {
+  return d.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
