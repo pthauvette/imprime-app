@@ -25,12 +25,35 @@ const PROTECTED_PREFIXES = [
   '/referrals',
   '/samples',
   '/reseller',
+  '/onboarding',
   // /templates et /design sont publics — browser le catalog/éditeur sans
   // compte ; auth requise au moment de la finalisation/checkout.
 ];
 
+// /admin/* exige role ADMIN — gate plus strict que juste auth.
+const ADMIN_PREFIX = '/admin';
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  // Admin gate : pathname === '/admin' OR /admin/*
+  const isAdminPath = pathname === ADMIN_PREFIX || pathname.startsWith(ADMIN_PREFIX + '/');
+  if (isAdminPath) {
+    if (!req.auth) {
+      const signInUrl = new URL('/sign-in', req.url);
+      signInUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+    // Role check : authConfig.callbacks.authorized() returns true so we
+    // verify role here. session.user.role est set par le jwt callback.
+    const role = (req.auth.user as { role?: 'USER' | 'ADMIN' } | undefined)?.role;
+    if (role !== 'ADMIN') {
+      // Redirige vers home avec un flag (non-affiché côté UI pour MVP)
+      return NextResponse.redirect(new URL('/?forbidden=admin', req.url));
+    }
+    return;
+  }
+
   const needsAuth = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p + '/'),
   );

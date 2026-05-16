@@ -31,5 +31,17 @@ export const authConfig = {
     async authorized() {
       return true;
     },
+    // Le middleware lit req.auth.user.* — on doit propager les fields que
+    // auth.ts set dans le JWT. Sans ça req.auth.user.role est undefined.
+    // (auth.ts override ces callbacks avec la logique complète Prisma).
+    async session({ session, token }) {
+      if (session.user) {
+        if (token.userId) session.user.id = token.userId as string;
+        if (token.role) {
+          (session.user as { role?: 'USER' | 'ADMIN' }).role = token.role as 'USER' | 'ADMIN';
+        }
+      }
+      return session;
+    },
   },
 } satisfies NextAuthConfig;

@@ -14,11 +14,25 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import Nodemailer from 'next-auth/providers/nodemailer';
 import { prisma } from '@/lib/db';
 import { authConfig } from '@/auth.config';
+import { renderEmail } from '@/lib/emails/render';
 
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const DEV_LINK_LOGGER = !SES_CONFIGURED;
 const SES_HOST = process.env.SES_SMTP_HOST ?? 'email-smtp.ca-central-1.amazonaws.com';
 const SES_FROM = process.env.SES_FROM ?? 'Imprime <noreply@imprime.co>';
+
+// Bootstrap admin via env var — list d'emails séparés par virgule. Tout user
+// qui se sign-in avec un de ces emails est promu ADMIN automatiquement.
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+function isAdminEmail(email: string | null | undefined): boolean {
+  return !!email && ADMIN_EMAILS.has(email.toLowerCase());
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -59,36 +73,62 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return;
         }
         // Prod : SMTP SES via nodemailer (provider.server est passé par Auth.js)
+        // HTML rendu via le template designed dans Open Design.
         const { createTransport } = await import('nodemailer');
         const transport = createTransport(provider.server);
         const host = new URL(url).host;
+        const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://imprime.co'}/settings#email-preferences`;
+        const html = renderEmail('magic-link', {
+          MAGIC_LINK_URL: url,
+          UNSUBSCRIBE_URL: unsubscribeUrl,
+        });
         await transport.sendMail({
           to: identifier,
           from: provider.from,
           subject: `Ton lien de connexion Imprime`,
           text: `Clique pour te connecter à ${host} :\n${url}\n\nLe lien expire dans 24h.`,
-          html: `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:40px auto;padding:32px;border:1px solid #e8e6e1;border-radius:12px">
-                   <h1 style="font-size:20px;margin:0 0 16px">Connexion à Imprime</h1>
-                   <p style="color:#555;line-height:1.5">Clique sur ce lien pour te connecter :</p>
-                   <p><a href="${url}" style="display:inline-block;background:#234d3a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500">Se connecter →</a></p>
-                   <p style="color:#999;font-size:13px;margin-top:24px">Le lien expire dans 24h. Si tu n'as pas demandé ça, ignore ce courriel.</p>
-                 </div>`,
+          html,
         });
       },
     }),
   ],
 
+  events: {
+    // À la signin, on synchronise le role User en DB depuis ADMIN_EMAILS.
+    // Idempotent : si user déjà ADMIN ou pas dans la liste, no-op.
+    async signIn({ user }) {
+      if (!user.id || !user.email) return;
+      const shouldBeAdmin = isAdminEmail(user.email);
+      if (!shouldBeAdmin) return;
+      // Promote silently — éviter d'overwrite si déjà admin
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'ADMIN' },
+      }).catch(() => {/* user may not exist yet in some flows — non-fatal */});
+    },
+  },
   callbacks: {
     ...authConfig.callbacks,
-    // JWT strategy : on stash user.id dans le token à la signin, puis on
-    // l'expose sur session pour Server Components / API routes.
+    // JWT strategy : on stash user.id + role dans le token à la signin.
     async jwt({ token, user }) {
-      if (user?.id) token.userId = user.id;
+      if (user?.id) {
+        token.userId = user.id;
+        // Lookup role from DB (PrismaAdapter user has only Auth.js base fields)
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { role: true, email: true },
+        });
+        // Fast-path : si email ADMIN, on hisse immédiatement même si le DB
+        // sync events.signIn n'a pas encore committed (race condition)
+        token.role = (dbUser?.role === 'ADMIN' || isAdminEmail(dbUser?.email ?? user.email))
+          ? 'ADMIN' : 'USER';
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.userId) {
-        session.user.id = token.userId as string;
+      if (session.user) {
+        if (token.userId) session.user.id = token.userId as string;
+        if (token.role) session.user.role = token.role as 'USER' | 'ADMIN';
       }
       return session;
     },
