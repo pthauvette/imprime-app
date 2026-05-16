@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>C'est imprim&eacute;. Confirmation #SIN-48312</title>
+  <title>C'est imprim&eacute;. Confirmation #SIN-{{ORDER_ID}}</title>
 </head>
 <body style="margin:0; padding:0; background:#FAFAF7; color:#141C16; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased;">
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">Production d&eacute;marre sous 2h. Num&eacute;ro de commande Sinalite &agrave; venir.</div>
@@ -38,7 +38,7 @@
                 C'est <em style="font-style:italic; color:#1F3D2B;">imprim&eacute;!</em>
               </h1>
               <p style="margin:0 0 4px 0; font-size:16px; line-height:1.55; color:#4A554D;">
-                Sophie, on a bien re&ccedil;u ta commande <strong style="color:#141C16; font-weight:600;">#SIN-48312</strong>.
+                {{CUSTOMER_FIRST_NAME}}, on a bien re&ccedil;u ta commande <strong style="color:#141C16; font-weight:600;">#SIN-{{ORDER_ID}}</strong>.
               </p>
               <p style="margin:0; font-size:14px; line-height:1.5; color:#7A8780;">
                 Production d&eacute;marre sous 2h.
@@ -56,7 +56,7 @@
               </p>
 
               <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#141C16;">
-                Business cards 16pt + UV (High Gloss) &mdash; 250 unit&eacute;s
+                {{PRODUCT_NAME}} &mdash; {{QUANTITY}} unit&eacute;s
               </p>
 
               <!-- Chips -->
@@ -78,20 +78,20 @@
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   <td style="padding:8px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#4A554D;">Sous-total</td>
-                  <td align="right" style="padding:8px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">152,75 $</td>
+                  <td align="right" style="padding:8px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{SUBTOTAL}} $</td>
                 </tr>
                 <tr>
-                  <td style="padding:8px 0; font-size:14px; color:#4A554D;">Livraison <span style="color:#7A8780;">(UPS Standard)</span></td>
-                  <td align="right" style="padding:8px 0; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">12,50 $</td>
+                  <td style="padding:8px 0; font-size:14px; color:#4A554D;">Livraison <span style="color:#7A8780;">({{SHIPPING_METHOD}})</span></td>
+                  <td align="right" style="padding:8px 0; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{SHIPPING}} $</td>
                 </tr>
                 <tr>
                   <td style="padding:8px 0; font-size:14px; color:#4A554D;">TPS + TVQ <span style="color:#7A8780;">(QC)</span></td>
-                  <td align="right" style="padding:8px 0; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">22,17 $</td>
+                  <td align="right" style="padding:8px 0; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{TAX}} $</td>
                 </tr>
                 <tr>
                   <td style="padding:16px 0 0 0; border-top:2px solid #141C16; font-size:14px; font-weight:600; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace; letter-spacing:0.04em; text-transform:uppercase;">Total</td>
                   <td align="right" style="padding:16px 0 0 0; border-top:2px solid #141C16; font-family:Georgia,'Times New Roman',serif; font-size:24px; color:#1F3D2B; font-weight:400; letter-spacing:-0.01em;">
-                    187,42 $ <span style="font-size:12px; color:#7A8780; font-family:ui-monospace,'SF Mono',Menlo,monospace;">CAD</span>
+                    {{TOTAL}} $ <span style="font-size:12px; color:#7A8780; font-family:ui-monospace,'SF Mono',Menlo,monospace;">CAD</span>
                   </td>
                 </tr>
               </table>
@@ -106,10 +106,8 @@
                 Livraison
               </p>
               <p style="margin:0; font-size:15px; line-height:1.55; color:#141C16;">
-                Sophie Beauchamp<br />
-                2055 rue Drummond, app. 312<br />
-                Montr&eacute;al QC H3G 2X3<br />
-                <span style="color:#7A8780; font-size:13px;">UPS Standard &middot; arriv&eacute;e pr&eacute;vue jeudi 21 mai</span>
+                {{SHIP_ADDRESS_HTML}}
+                <span style="color:#7A8780; font-size:13px;">{{SHIPPING_METHOD}} &middot; arriv&eacute;e pr&eacute;vue &agrave; {{SHIP_CITY}}</span>
               </p>
             </td>
           </tr>

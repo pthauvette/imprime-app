@@ -22,6 +22,12 @@ import {
   OrderNotFoundError,
   type SinaliteStatus,
 } from '@/lib/db/orders';
+import { prisma } from '@/lib/db';
+import {
+  sendOrderShippedEmail,
+  sendOrderDeliveredEmail,
+  sendOrderCancelledEmail,
+} from '@/lib/emails/send';
 
 const WEBHOOK_SECRET = process.env.SINALITE_WEBHOOK_SECRET;
 
@@ -85,26 +91,41 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  // ─── Side effects (à brancher avec ton service email) ────────────────
-  switch (payload.status) {
-    case 'IN_PRODUCTION':
-      // await email.sendInProduction({ orderId: payload.orderId });
-      break;
-    case 'SHIPPED':
-      // await email.sendShipped({
-      //   orderId: payload.orderId,
-      //   trackingNumber: payload.trackingNumber,
-      //   carrier: payload.carrier,
-      // });
-      break;
-    case 'DELIVERED':
-      // await email.sendDelivered({ orderId: payload.orderId });
-      break;
-    case 'CANCELLED':
-      // await email.sendCancelled({ orderId: payload.orderId, reason: payload.notes });
-      break;
-    case 'NEW':
-      break;
+  // ─── Email notifications (best-effort, ne bloque pas le webhook) ─────
+  // On fetch l'order + user pour avoir le contexte complet (le payload Sinalite
+  // n'a que l'orderId — pas le customer email ni l'adresse de shipping).
+  if (payload.status === 'SHIPPED' || payload.status === 'DELIVERED' || payload.status === 'CANCELLED') {
+    const order = await prisma.order.findUnique({
+      where: { sinaliteOrderId: String(payload.orderId) },
+      include: { user: true },
+    });
+    if (order) {
+      switch (payload.status) {
+        case 'SHIPPED':
+          await sendOrderShippedEmail({
+            order,
+            user: order.user,
+            trackingNumber: payload.trackingNumber,
+            carrier: payload.carrier,
+          });
+          break;
+        case 'DELIVERED':
+          await sendOrderDeliveredEmail({
+            order,
+            user: order.user,
+            deliveredAt: new Date(payload.timestamp),
+          });
+          break;
+        case 'CANCELLED':
+          await sendOrderCancelledEmail({
+            order,
+            user: order.user,
+            reason: payload.notes ?? 'Annulation par Sinalite',
+            refundAmountCents: order.amountCents,
+          });
+          break;
+      }
+    }
   }
 
   return NextResponse.json({ received: true, orderId: payload.orderId });

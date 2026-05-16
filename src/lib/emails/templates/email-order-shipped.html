@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Ta commande #SIN-48298 est en route</title>
+  <title>Ta commande #SIN-{{ORDER_ID}} est en route</title>
 </head>
 <body style="margin:0; padding:0; background:#FAFAF7; color:#141C16; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased;">
-  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">UPS &middot; Tracking 1Z8Y2W&hellip; &middot; Livraison estim&eacute;e dans 2 jours ouvrables</div>
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">{{CARRIER}} &middot; Tracking {{TRACKING_NUMBER}} &middot; Livraison estim&eacute;e dans 2 jours ouvrables</div>
 
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#FAFAF7;">
     <tr>
@@ -28,7 +28,7 @@
                 En <em style="font-style:italic; color:#1F3D2B;">route.</em>
               </h1>
               <p style="margin:0; font-size:16px; line-height:1.55; color:#4A554D;">
-                Ta commande <strong style="color:#141C16; font-weight:600;">#SIN-48298</strong> a quitt&eacute; notre presse. UPS prend la rel&egrave;ve.
+                Ta commande <strong style="color:#141C16; font-weight:600;">#SIN-{{ORDER_ID}}</strong> a quitt&eacute; notre presse. {{CARRIER}} prend la rel&egrave;ve.
               </p>
             </td>
           </tr>
@@ -41,28 +41,28 @@
                 Transporteur
               </p>
               <p style="margin:0 0 24px 0; font-size:18px; font-weight:600; color:#FAFAF7;">
-                UPS &middot; <span style="color:#E5EDE8; font-weight:400;">Standard</span>
+                {{CARRIER}} &middot; <span style="color:#E5EDE8; font-weight:400;">{{CARRIER_SERVICE}}</span>
               </p>
 
               <p style="margin:0 0 6px 0; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#7A8780; font-weight:600;">
                 Num&eacute;ro de suivi
               </p>
               <p style="margin:0 0 24px 0; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:22px; color:#FAFAF7; letter-spacing:0.04em; word-break:break-all;">
-                1Z8Y2WX12345
+                {{TRACKING_NUMBER}}
               </p>
 
               <p style="margin:0 0 6px 0; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#7A8780; font-weight:600;">
                 Livraison estim&eacute;e
               </p>
               <p style="margin:0 0 28px 0; font-family:Georgia,'Times New Roman',serif; font-size:24px; color:#FAFAF7; font-weight:400; letter-spacing:-0.01em;">
-                mercredi 18 mai
+                {{ETA_FORMATTED}}
               </p>
 
               <!-- CTA -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td>
-                    <a href="https://www.ups.com/track?tracknum=1Z8Y2WX12345" style="display:inline-block; background:#FAFAF7; color:#1F3D2B; padding:14px 28px; border-radius:9999px; text-decoration:none; font-weight:500; font-size:15px;">Suivre le colis sur UPS.com &rarr;</a>
+                    <a href="{{TRACK_URL}}" style="display:inline-block; background:#FAFAF7; color:#1F3D2B; padding:14px 28px; border-radius:9999px; text-decoration:none; font-weight:500; font-size:15px;">Suivre le colis &rarr;</a>
                   </td>
                 </tr>
               </table>
@@ -108,9 +108,7 @@
                 Adresse de livraison
               </p>
               <p style="margin:0; font-size:15px; line-height:1.55; color:#141C16;">
-                Sophie Beauchamp<br />
-                2055 rue Drummond, app. 312<br />
-                Montr&eacute;al QC H3G 2X3
+                {{SHIP_ADDRESS_HTML}}
               </p>
             </td>
           </tr>

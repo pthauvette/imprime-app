@@ -29,6 +29,11 @@ import {
   recordWebhookEvent,
   OrderNotFoundError,
 } from '@/lib/db/orders';
+import {
+  sendOrderConfirmationEmail,
+  sendOrderCancelledEmail,
+  sendRefundIssuedEmail,
+} from '@/lib/emails/send';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-02-24.acacia',
@@ -131,6 +136,15 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
       'for PI',
       intent.id,
     );
+
+    // Best-effort confirmation email — fetch fresh order to get sinaliteOrderId
+    const fresh = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: { user: true },
+    });
+    if (fresh) {
+      await sendOrderConfirmationEmail({ order: fresh, user: fresh.user });
+    }
   } catch (err) {
     console.error('[stripe webhook] Sinalite createOrder FAILED', err);
 
@@ -152,6 +166,30 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
         data: { refundId: refund.id },
       });
       console.log('[stripe webhook] auto-refunded payment intent', intent.id);
+
+      // Best-effort cancellation + refund emails au customer
+      const fresh = await prisma.order.findUnique({
+        where: { id: order.id },
+        include: { user: true },
+      });
+      if (fresh) {
+        const reason = err instanceof Error ? err.message : 'Erreur de production interne';
+        const cardLast4 = extractCardLast4(intent);
+        await sendOrderCancelledEmail({
+          order: fresh,
+          user: fresh.user,
+          reason,
+          refundAmountCents: order.amountCents,
+          cardLast4,
+        });
+        await sendRefundIssuedEmail({
+          order: fresh,
+          user: fresh.user,
+          refundAmountCents: order.amountCents,
+          reason,
+          cardLast4,
+        });
+      }
     } catch (refundErr) {
       console.error(
         '[stripe webhook] CRITICAL: refund failed after Sinalite failure',
@@ -170,6 +208,16 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
 
     throw err;
   }
+}
+
+/** Best-effort extraction du last4 de la card. Stripe expand needed pour
+ *  avoir charges[0].payment_method_details — sinon undefined. */
+function extractCardLast4(intent: Stripe.PaymentIntent): string | undefined {
+  // PaymentIntent expanded peut contenir charges.data[0]
+  const charges = (intent as Stripe.PaymentIntent & {
+    charges?: { data?: Array<{ payment_method_details?: { card?: { last4?: string } } }> };
+  }).charges;
+  return charges?.data?.[0]?.payment_method_details?.card?.last4;
 }
 
 async function handlePaymentFailed(intent: Stripe.PaymentIntent) {

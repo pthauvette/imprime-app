@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Remboursement trait&eacute; &mdash; 54,20 $</title>
+  <title>Remboursement trait&eacute; &mdash; {{AMOUNT}} $</title>
 </head>
 <body style="margin:0; padding:0; background:#FAFAF7; color:#141C16; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased;">
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">Tu reverras le montant dans 5-10 jours ouvrables.</div>
@@ -28,7 +28,7 @@
                 Remboursement <em style="font-style:italic; color:#1F3D2B;">trait&eacute;.</em>
               </h1>
               <p style="margin:0; font-size:16px; line-height:1.55; color:#4A554D;">
-                On a initi&eacute; ton remboursement de <strong style="color:#141C16; font-weight:600;">54,20 $</strong>.
+                On a initi&eacute; ton remboursement de <strong style="color:#141C16; font-weight:600;">{{AMOUNT}} $</strong>.
               </p>
             </td>
           </tr>
@@ -38,7 +38,7 @@
           <tr>
             <td style="background:#E1F0E8; border-radius:24px; padding:48px 32px; text-align:center;">
               <p style="margin:0 0 12px 0; font-family:Georgia,'Times New Roman',serif; font-size:64px; line-height:1; letter-spacing:-0.04em; color:#1F3D2B; font-weight:400;">
-                54,20 $
+                {{AMOUNT}} $
               </p>
               <p style="margin:0; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:#1F7A4D; font-weight:600;">
                 Rembours&eacute;
@@ -57,15 +57,15 @@
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   <td style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#7A8780; width:45%;">Commande</td>
-                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-weight:600;">#SIN-48289</td>
+                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-weight:600;">#SIN-{{ORDER_ID}}</td>
                 </tr>
                 <tr>
                   <td style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#7A8780;">Date du remboursement</td>
-                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16;">16 mai 2026</td>
+                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16;">{{REFUND_DATE_FORMATTED}}</td>
                 </tr>
                 <tr>
                   <td style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#7A8780;">M&eacute;thode</td>
-                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">Visa &bull;&bull;&bull;&bull; 4242</td>
+                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{CARD_LAST4_DISPLAY}}</td>
                 </tr>
                 <tr>
                   <td style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#7A8780;">D&eacute;lai bancaire estim&eacute;</td>
@@ -73,7 +73,7 @@
                 </tr>
                 <tr>
                   <td style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#7A8780;">Raison</td>
-                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16;">Erreur de stock</td>
+                  <td align="right" style="padding:12px 0; border-top:1px solid #ECEAE3; font-size:14px; color:#141C16;">{{REFUND_REASON}}</td>
                 </tr>
               </table>
 
