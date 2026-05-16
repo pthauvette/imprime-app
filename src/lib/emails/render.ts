@@ -55,7 +55,7 @@ export function renderEmail(
  * arg dans sendEmail() si tu veux du custom (ex: split-test).
  */
 export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string | number>) => string> = {
-  'magic-link': () => 'Ton lien de connexion Imprime',
+  'magic-link': () => 'Ton lien de connexion Plio',
   'order-confirmation': (v) => `C'est imprimé. Confirmation #SIN-${v.ORDER_ID ?? ''}`,
   'order-shipped': (v) => `Ta commande #SIN-${v.ORDER_ID ?? ''} est en route`,
   'order-delivered': (v) => `C'est arrivé. Merci #SIN-${v.ORDER_ID ?? ''}`,
@@ -67,7 +67,7 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
 
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const SES_HOST = process.env.SES_SMTP_HOST ?? 'email-smtp.ca-central-1.amazonaws.com';
-const SES_FROM = process.env.SES_FROM ?? 'Imprime <noreply@imprime.co>';
+const SES_FROM = process.env.SES_FROM ?? 'Plio <bonjour@plio.ca>';
 
 export async function sendEmail(opts: {
   to: string;

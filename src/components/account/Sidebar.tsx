@@ -41,7 +41,7 @@ export default function Sidebar({ active }: { active: string }) {
   return (
     <aside className="acct-nav">
       <div className="acct-nav-brand">
-        <Link href={'/' as Route} style={{ color: 'inherit' }}>Imprime.</Link>
+        <Link href={'/' as Route} style={{ color: 'inherit' }}>Plio.</Link>
       </div>
       {SECTIONS.map((section) => (
         <div key={section.title}>

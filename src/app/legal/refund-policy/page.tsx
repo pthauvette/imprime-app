@@ -6,13 +6,13 @@
  * Client Component ('use client') ou ajouter du data fetching Server Component.
  */
 
-export const metadata = { title: "Remboursement — Imprime" };
+export const metadata = { title: "Remboursement — Plio" };
 
 export default function RefundPolicyPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="landing.html" className="mkt-brand">Imprime.</a>
+          <a href="landing.html" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="landing.html#products" className="mkt-nav-link">Produits</a>
             <a href="about.html" className="mkt-nav-link">Notre histoire</a>
@@ -49,7 +49,7 @@ export default function RefundPolicyPage() {
                 <div className="scenario-icon">!</div>
                 <div className="scenario-num">★ Cas 02</div>
                 <h2>Défaut de qualité</h2>
-                <p>Inspecte ton colis à la réception. Si tu trouves un défaut imputable à la presse (taches, mauvaise coupe, papier abîmé), envoie une photo dans les <strong>48 heures</strong> à <a href="mailto:hello@imprime.co" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>hello@imprime.co</a>.</p>
+                <p>Inspecte ton colis à la réception. Si tu trouves un défaut imputable à la presse (taches, mauvaise coupe, papier abîmé), envoie une photo dans les <strong>48 heures</strong> à <a href="mailto:bonjour@plio.ca" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>bonjour@plio.ca</a>.</p>
                 <p>On rembourse et on réimprime. Délai de remboursement : <strong>5 à 10 jours bancaires</strong> après acceptation.</p>
                 <div className="scenario-meta">
                   <span className="scenario-pill">48 h pour réclamer</span>
@@ -81,7 +81,7 @@ export default function RefundPolicyPage() {
                   <div className="timeline-num">01</div>
                   <div>
                     <h3>Photo + courriel</h3>
-                    <p>Tu nous écris à hello@imprime.co avec ton numéro de commande et une ou deux photos du défaut.</p>
+                    <p>Tu nous écris à bonjour@plio.ca avec ton numéro de commande et une ou deux photos du défaut.</p>
                     <div className="timeline-time">~ 2 minutes côté toi</div>
                   </div>
                 </div>
@@ -178,7 +178,7 @@ export default function RefundPolicyPage() {
         <footer>
           <div className="footer-grid">
             <div className="footer-brand">
-              <span className="footer-brand-mark">Imprime.</span>
+              <span className="footer-brand-mark">Plio.</span>
               <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 1 à 7 jours. Imprimé à Markham (ON).</p>
             </div>
             <div className="footer-col">
@@ -207,7 +207,7 @@ export default function RefundPolicyPage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <span>★ © Imprime 2026 · Imprimé au Canada 🇨🇦</span>
+            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
             <span>Démocratik inc. · Montréal</span>
           </div>
         </footer>

@@ -6,7 +6,7 @@
  *
  * Setup côté Sinalite :
  *   apifrontend_stage.sinaliteuppy.com → Account → Web Hooks
- *   → Status Update Callback URL: https://imprime.co/api/webhooks/sinalite
+ *   → Status Update Callback URL: https://plio.ca/api/webhooks/sinalite
  *
  * Sécurité : on vérifie un secret partagé via le header `x-sinalite-signature`.
  * Sinalite ne fournit pas d'eventId stable → on construit un fingerprint

@@ -11,7 +11,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import SignInForm from '@/components/auth/SignInForm';
 
-export const metadata = { title: 'Connexion — Imprime' };
+export const metadata = { title: 'Connexion — Plio' };
 
 export default async function SignInPage({
   searchParams,
@@ -25,7 +25,7 @@ export default async function SignInPage({
   return (
     <div className="auth-shell">
       <aside className="auth-side">
-        <Link href={'/' as Route} className="auth-side-brand">Imprime.</Link>
+        <Link href={'/' as Route} className="auth-side-brand">Plio.</Link>
 
         <div>
           <div className="floating-cards">
@@ -70,7 +70,7 @@ export default async function SignInPage({
 
       <main className="auth-form-side">
         <div className="auth-form">
-          <Link href={'/' as Route} className="auth-form-brand">Imprime.</Link>
+          <Link href={'/' as Route} className="auth-form-brand">Plio.</Link>
           <Link href={'/' as Route} className="auth-back">← Retour</Link>
 
           <h1>

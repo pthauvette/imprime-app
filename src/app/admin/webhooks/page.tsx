@@ -16,7 +16,7 @@ export default function AdminWebhooks() {
           {/* ─── SIDEBAR (identical, "Webhooks" active) ─────────── */}
           <aside className="adm-nav">
             <div className="adm-nav-brand">
-              <span className="adm-nav-brand-mark">Imprime.</span>
+              <span className="adm-nav-brand-mark">Plio.</span>
               <span className="adm-nav-brand-tag">Admin</span>
             </div>
       
@@ -559,7 +559,7 @@ export default function AdminWebhooks() {
                       Production endpoint
                       <span className="badge badge-success">Active</span>
                     </div>
-                    <span className="adm-endpoint-url">https://imprime.ca/api/webhooks/stripe</span>
+                    <span className="adm-endpoint-url">https://plio.ca/api/webhooks/stripe</span>
                   </div>
                   <div className="adm-endpoint-last">
                     Dernier succès<br/>
@@ -577,7 +577,7 @@ export default function AdminWebhooks() {
                       Status callback
                       <span className="badge badge-warning">Dégradé</span>
                     </div>
-                    <span className="adm-endpoint-url">https://imprime.ca/api/webhooks/sinalite</span>
+                    <span className="adm-endpoint-url">https://plio.ca/api/webhooks/sinalite</span>
                   </div>
                   <div className="adm-endpoint-last">
                     Dernier succès<br/>

@@ -5,13 +5,13 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Programme reseller — Imprime" };
+export const metadata = { title: "Programme reseller — Plio" };
 
 export default function ResellerPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Imprime.</a>
+          <a href="/" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="#" className="mkt-nav-link">Produits</a>
             <a href="/pricing" className="mkt-nav-link">Tarifs</a>
@@ -91,7 +91,7 @@ export default function ResellerPage() {
               <div className="benefit-card">
                 <div className="benefit-icon">📦</div>
                 <h3 className="benefit-title">Blind shipping</h3>
-                <p className="benefit-text">Tes commandes sont expédiées directement à tes clients dans des boîtes neutres, avec ton adresse de retour. Personne ne voit le mot « Imprime » nulle part.</p>
+                <p className="benefit-text">Tes commandes sont expédiées directement à tes clients dans des boîtes neutres, avec ton adresse de retour. Personne ne voit le mot « Plio » nulle part.</p>
                 <div className="benefit-stat">Inclus dès le tier <strong>Studio</strong></div>
               </div>
               <div className="benefit-card">
@@ -157,7 +157,7 @@ export default function ResellerPage() {
                   <div className="wf-num">04</div>
                   <h3 className="wf-title">Livraison blind</h3>
                   <p className="wf-text">UPS livre directement chez ton client. Boîte neutre, ton adresse de retour.</p>
-                  <div className="wf-meta">0 mention Imprime</div>
+                  <div className="wf-meta">0 mention Plio</div>
                 </div>
               </div>
             </div>

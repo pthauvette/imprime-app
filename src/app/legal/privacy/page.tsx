@@ -6,13 +6,13 @@
  * Client Component ('use client') ou ajouter du data fetching Server Component.
  */
 
-export const metadata = { title: "Confidentialité — Imprime" };
+export const metadata = { title: "Confidentialité — Plio" };
 
 export default function PrivacyPage() {
   return (
     <>
       <nav className="legal-nav">
-          <a href="landing.html" className="legal-brand">Imprime.</a>
+          <a href="landing.html" className="legal-brand">Plio.</a>
           <a href="landing.html" className="legal-back">← Retour à l'accueil</a>
         </nav>
       
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
             <article className="legal-content">
               <section id="s1">
                 <h2><span className="h-num">Article 01</span>Quelles données on collecte</h2>
-                <p>Imprime collecte uniquement les informations strictement nécessaires à l'exécution de ta commande, à la sécurité de ton compte et à l'amélioration mesurée de notre service. Aucune donnée n'est collectée à des fins de profilage publicitaire externe.</p>
+                <p>Plio collecte uniquement les informations strictement nécessaires à l'exécution de ta commande, à la sécurité de ton compte et à l'amélioration mesurée de notre service. Aucune donnée n'est collectée à des fins de profilage publicitaire externe.</p>
                 <p>Les catégories de données sont détaillées dans le tableau ci-dessous, à des fins de transparence. Pour chaque donnée, nous précisons son origine, l'usage que nous en faisons et sa durée de conservation.</p>
       
                 <div className="data-table-wrap">
@@ -134,13 +134,13 @@ export default function PrivacyPage() {
       
               <section id="s3">
                 <h2><span className="h-num">Article 03</span>Partage avec des tiers</h2>
-                <p>Imprime travaille avec un nombre volontairement restreint de sous-traitants techniques, chacun lié par un accord de traitement de données conforme à la Loi 25 et au RGPD. La liste exhaustive est la suivante :</p>
+                <p>Plio travaille avec un nombre volontairement restreint de sous-traitants techniques, chacun lié par un accord de traitement de données conforme à la Loi 25 et au RGPD. La liste exhaustive est la suivante :</p>
       
                 <div className="third-party-grid">
                   <div className="tp-card">
                     <div className="tp-name">Stripe</div>
                     <div className="tp-role">Paiement</div>
-                    <div className="tp-desc">Traite la carte bancaire. Imprime ne voit jamais le numéro complet — uniquement les 4 derniers chiffres et le type de carte.</div>
+                    <div className="tp-desc">Traite la carte bancaire. Plio ne voit jamais le numéro complet — uniquement les 4 derniers chiffres et le type de carte.</div>
                   </div>
                   <div className="tp-card">
                     <div className="tp-name">Sinalite</div>
@@ -174,7 +174,7 @@ export default function PrivacyPage() {
       
               <section id="s4">
                 <h2><span className="h-num">Article 04</span>Cookies et tracking</h2>
-                <p>Imprime applique une politique cookies minimaliste : aucun cookie tiers publicitaire, aucun pixel de tracking cross-site, aucun outil de fingerprinting comportemental.</p>
+                <p>Plio applique une politique cookies minimaliste : aucun cookie tiers publicitaire, aucun pixel de tracking cross-site, aucun outil de fingerprinting comportemental.</p>
                 <p>Les cookies utilisés se limitent à ceux strictement nécessaires au fonctionnement du service :</p>
                 <ul>
                   <li><strong>od_session</strong> — maintien de la session utilisateur (HTTPOnly, SameSite=Strict);</li>
@@ -195,7 +195,7 @@ export default function PrivacyPage() {
                   <li>Données techniques (logs, IP) : 90 jours;</li>
                   <li>Compte inactif : suppression automatique après 24 mois d'inactivité, sur notification préalable.</li>
                 </ul>
-                <p>Tu peux demander la suppression anticipée de toutes les données non soumises à une obligation légale de conservation en écrivant à notre déléguée à la protection des données à <a href="mailto:dpo@imprime.co">dpo@imprime.co</a>.</p>
+                <p>Tu peux demander la suppression anticipée de toutes les données non soumises à une obligation légale de conservation en écrivant à notre déléguée à la protection des données à <a href="mailto:dpo@plio.ca">dpo@plio.ca</a>.</p>
               </section>
       
               <section id="s6">
@@ -235,7 +235,7 @@ export default function PrivacyPage() {
                   </div>
                 </div>
       
-                <p>Pour exercer ces droits, écris à <a href="mailto:dpo@imprime.co">dpo@imprime.co</a> avec ton adresse courriel de compte. Nous répondons dans un délai maximal de <strong>30 jours</strong>, gratuitement. Si la réponse ne te satisfait pas, tu peux saisir la Commission d'accès à l'information du Québec.</p>
+                <p>Pour exercer ces droits, écris à <a href="mailto:dpo@plio.ca">dpo@plio.ca</a> avec ton adresse courriel de compte. Nous répondons dans un délai maximal de <strong>30 jours</strong>, gratuitement. Si la réponse ne te satisfait pas, tu peux saisir la Commission d'accès à l'information du Québec.</p>
               </section>
       
               <section id="s7">
@@ -262,14 +262,14 @@ export default function PrivacyPage() {
               <section id="s9">
                 <h2><span className="h-num">Article 09</span>Modifications de la politique</h2>
                 <p>La présente politique peut être révisée pour refléter une évolution de notre service, de nos sous-traitants ou de la législation applicable. Toute modification substantielle te sera notifiée par courriel au moins 15 jours avant son entrée en vigueur.</p>
-                <p>L'historique complet des versions est disponible sur demande à <a href="mailto:dpo@imprime.co">dpo@imprime.co</a>. La date de la dernière mise à jour figure en haut du présent document.</p>
+                <p>L'historique complet des versions est disponible sur demande à <a href="mailto:dpo@plio.ca">dpo@plio.ca</a>. La date de la dernière mise à jour figure en haut du présent document.</p>
               </section>
       
               <section id="s10">
                 <h2><span className="h-num">Article 10</span>Contact</h2>
                 <p>Pour toute question relative à la protection de tes données ou à la présente politique, notre déléguée à la protection des données reste joignable :</p>
                 <ul>
-                  <li>Courriel : <a href="mailto:dpo@imprime.co">dpo@imprime.co</a></li>
+                  <li>Courriel : <a href="mailto:dpo@plio.ca">dpo@plio.ca</a></li>
                   <li>Postal : Démocratik inc. · À l'attention de la DPD · 4220 boul. St-Laurent, suite 200, Montréal QC H2W 1Z3</li>
                 </ul>
                 <div className="legal-callout">
@@ -282,7 +282,7 @@ export default function PrivacyPage() {
       
         <footer>
           <div className="footer-bottom">
-            <span>★ © Imprime 2026 · Imprimé au Canada 🇨🇦</span>
+            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
             <span><a href="terms.html">Conditions</a> · <a href="refund-policy.html">Remboursements</a> · <a href="contact.html">Contact</a></span>
           </div>
         </footer>

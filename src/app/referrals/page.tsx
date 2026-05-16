@@ -5,14 +5,14 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Parrainage — Imprime" };
+export const metadata = { title: "Parrainage — Plio" };
 
 export default function ReferralsPage() {
   return (
     <>
       <div className="acct-shell">
           <aside className="acct-nav">
-            <div className="acct-nav-brand">Imprime.</div>
+            <div className="acct-nav-brand">Plio.</div>
             <div className="acct-nav-section">Compte</div>
             <ul className="acct-nav-list">
               <li><a href="/orders" className="acct-nav-link">Mes commandes <span className="count">12</span></a></li>
@@ -71,7 +71,7 @@ export default function ReferralsPage() {
                     <button className="ref-share-btn">📱<span className="lbl">SMS</span></button>
                   </div>
                   <div className="ref-link-box">
-                    <code>imprime.co/?r=PATRICK-25</code>
+                    <code>plio.ca/?r=PATRICK-25</code>
                     <button>Copier lien</button>
                   </div>
                 </div>

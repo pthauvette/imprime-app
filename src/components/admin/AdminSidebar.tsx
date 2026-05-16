@@ -129,7 +129,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
   return (
     <aside className="adm-nav">
       <div className="adm-nav-brand">
-        <span className="adm-nav-brand-mark">Imprime.</span>
+        <span className="adm-nav-brand-mark">Plio.</span>
         <span className="adm-nav-brand-tag">Admin</span>
       </div>
 

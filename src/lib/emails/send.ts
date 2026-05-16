@@ -23,7 +23,7 @@ import type {
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://imprime.co';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
 const cad = (cents: number) =>
   (cents / 100).toFixed(2).replace('.', ',');

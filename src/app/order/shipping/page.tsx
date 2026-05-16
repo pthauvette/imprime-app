@@ -137,7 +137,7 @@ function ShippingPageInner() {
     <div className="shell">
       <header className="shell-header">
         <div className="shell-header-left">
-          <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>Imprime.</Link>
+          <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>Plio.</Link>
           <span className="breadcrumb-sep">/</span>
           <span className="breadcrumb">Adresse & livraison</span>
         </div>

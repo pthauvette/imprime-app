@@ -5,14 +5,14 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "404 — Imprime" };
+export const metadata = { title: "404 — Plio" };
 
 export default function NotFound() {
   return (
     <>
       <div className="err-shell">
           <nav className="err-nav">
-            <a href="/" className="err-nav-brand">Imprime.</a>
+            <a href="/" className="err-nav-brand">Plio.</a>
           </nav>
       
           <main className="err-main">
@@ -53,7 +53,7 @@ export default function NotFound() {
       
           <footer className="err-footer">
             <span className="err-footer-id">★ ERROR_ID: 404 · 2026-05-15T15:42:08Z · TRACE_X9F2H</span>
-            <span>★ HELLO@IMPRIME.CO · © IMPRIME 2026 🇨🇦</span>
+            <span>★ BONJOUR@PLIO.CA · © PLIO 2026 🇨🇦</span>
           </footer>
         </div>
     </>

@@ -6,7 +6,7 @@
  * Client Component ('use client') ou ajouter du data fetching Server Component.
  */
 
-export const metadata = { title: "Bienvenue — Imprime" };
+export const metadata = { title: "Bienvenue — Plio" };
 
 export default function OnboardingPage() {
   return (
@@ -15,7 +15,7 @@ export default function OnboardingPage() {
           {/* HEADER */}
           <header className="onb-header">
             <div className="onb-header-left">★ Bienvenue · session #001</div>
-            <span className="wordmark">Imprime.</span>
+            <span className="wordmark">Plio.</span>
             <a href="orders.html" className="onb-skip">Skip le tour →</a>
           </header>
       
@@ -144,7 +144,7 @@ export default function OnboardingPage() {
             {/* ASIDE */}
             <aside className="onb-aside">
               <div className="trust-block">
-                <div className="trust-label">Pourquoi Imprime</div>
+                <div className="trust-label">Pourquoi Plio</div>
                 <div className="stats-grid">
                   <div className="stat">
                     <span className="stat-num">12k+</span>

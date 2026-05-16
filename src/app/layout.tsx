@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'Imprime — Print wholesale au Canada',
+  title: 'Plio — Print wholesale au Canada',
   description: 'Devis instantané, prix wholesale, livraison Canada en 1 à 7 jours.',
 };
 

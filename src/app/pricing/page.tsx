@@ -5,13 +5,13 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Tarifs — Imprime" };
+export const metadata = { title: "Tarifs — Plio" };
 
 export default function PricingPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Imprime.</a>
+          <a href="/" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="#" className="mkt-nav-link">Produits</a>
             <a href="/pricing" className="mkt-nav-link active">Tarifs</a>

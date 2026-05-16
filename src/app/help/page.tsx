@@ -5,13 +5,13 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Centre d'aide — Imprime" };
+export const metadata = { title: "Centre d'aide — Plio" };
 
 export default function HelpPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Imprime.</a>
+          <a href="/" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="#" className="mkt-nav-link">Produits</a>
             <a href="/pricing" className="mkt-nav-link">Tarifs</a>
@@ -207,7 +207,7 @@ export default function HelpPage() {
                 <a href="#" className="article-card">
                   <div className="article-info">
                     <span className="article-cat">▶ Vidéo · 8 min</span>
-                    <span className="article-title">Premier devis dans Imprime — de A à Z</span>
+                    <span className="article-title">Premier devis dans Plio — de A à Z</span>
                     <span className="article-meta">Tutoriel débutant</span>
                   </div>
                   <div className="article-arrow">→</div>
@@ -237,10 +237,10 @@ export default function HelpPage() {
                   </div>
                   <span className="contact-status online">En ligne</span>
                 </a>
-                <a href="mailto:hello@imprime.co" className="contact-channel">
+                <a href="mailto:bonjour@plio.ca" className="contact-channel">
                   <div className="contact-icon">📧</div>
                   <div className="contact-info">
-                    <span className="contact-name">hello@imprime.co</span>
+                    <span className="contact-name">bonjour@plio.ca</span>
                     <span className="contact-meta">Réponse sous 4h</span>
                   </div>
                 </a>

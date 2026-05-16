@@ -5,14 +5,14 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Paramètres — Imprime" };
+export const metadata = { title: "Paramètres — Plio" };
 
 export default function SettingsPage() {
   return (
     <>
       <div className="acct-shell">
           <aside className="acct-nav">
-            <div className="acct-nav-brand">Imprime.</div>
+            <div className="acct-nav-brand">Plio.</div>
             <div className="acct-nav-section">Compte</div>
             <ul className="acct-nav-list">
               <li><a href="/orders" className="acct-nav-link">Mes commandes <span className="count">12</span></a></li>

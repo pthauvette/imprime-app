@@ -5,14 +5,14 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Vérifie ta boîte courriel — Imprime" };
+export const metadata = { title: "Vérifie ta boîte courriel — Plio" };
 
 export default function MagicLinkSentPage() {
   return (
     <>
       <div className="ml-shell">
           <nav className="ml-nav">
-            <a href="/" className="ml-nav-brand">Imprime.</a>
+            <a href="/" className="ml-nav-brand">Plio.</a>
           </nav>
       
           <main className="ml-main">
@@ -48,7 +48,7 @@ export default function MagicLinkSentPage() {
                   <div className="ml-step-num">1</div>
                   <div className="ml-step-text">
                     <strong>Ouvre ton courriel</strong>
-                    <span>Cherche un message de <code style={{ fontFamily: "var(--font-mono)", fontSize: "12px", padding: "1px 6px", background: "var(--bg-sunken)", borderRadius: "3px" } as React.CSSProperties}>noreply@imprime.co</code> avec sujet « ✱ Ton lien magique Imprime ».</span>
+                    <span>Cherche un message de <code style={{ fontFamily: "var(--font-mono)", fontSize: "12px", padding: "1px 6px", background: "var(--bg-sunken)", borderRadius: "3px" } as React.CSSProperties}>bonjour@plio.ca</code> avec sujet « ✱ Ton lien magique Plio ».</span>
                   </div>
                 </div>
                 <div className="ml-step">
@@ -108,8 +108,8 @@ export default function MagicLinkSentPage() {
           </main>
       
           <footer className="ml-footer">
-            <span>★ HELLO@IMPRIME.CO</span>
-            <span>★ © IMPRIME 2026 🇨🇦</span>
+            <span>★ BONJOUR@PLIO.CA</span>
+            <span>★ © PLIO 2026 🇨🇦</span>
           </footer>
         </div>
     </>

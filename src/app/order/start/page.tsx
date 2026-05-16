@@ -29,7 +29,7 @@ export default async function OrderStartPage() {
       <header className="shell-header">
         <div className="shell-header-left">
           <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>
-            Imprime.
+            Plio.
           </Link>
         </div>
         <div className="progress-block">

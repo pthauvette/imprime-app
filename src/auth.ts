@@ -19,7 +19,7 @@ import { renderEmail } from '@/lib/emails/render';
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const DEV_LINK_LOGGER = !SES_CONFIGURED;
 const SES_HOST = process.env.SES_SMTP_HOST ?? 'email-smtp.ca-central-1.amazonaws.com';
-const SES_FROM = process.env.SES_FROM ?? 'Imprime <noreply@imprime.co>';
+const SES_FROM = process.env.SES_FROM ?? 'Plio <bonjour@plio.ca>';
 
 // Bootstrap admin via env var — list d'emails séparés par virgule. Tout user
 // qui se sign-in avec un de ces emails est promu ADMIN automatiquement.
@@ -77,7 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { createTransport } = await import('nodemailer');
         const transport = createTransport(provider.server);
         const host = new URL(url).host;
-        const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://imprime.co'}/settings#email-preferences`;
+        const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca'}/settings#email-preferences`;
         const html = renderEmail('magic-link', {
           MAGIC_LINK_URL: url,
           UNSUBSCRIBE_URL: unsubscribeUrl,
@@ -85,7 +85,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await transport.sendMail({
           to: identifier,
           from: provider.from,
-          subject: `Ton lien de connexion Imprime`,
+          subject: `Ton lien de connexion Plio`,
           text: `Clique pour te connecter à ${host} :\n${url}\n\nLe lien expire dans 24h.`,
           html,
         });

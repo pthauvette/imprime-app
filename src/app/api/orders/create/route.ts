@@ -141,7 +141,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     capture_method: 'automatic',
     automatic_payment_methods: { enabled: true },
     receipt_email: payload.contact.email,
-    description: `Imprime — ${payload.items.length} article(s)`,
+    description: `Plio — ${payload.items.length} article(s)`,
     metadata: {
       // Stripe metadata is string-only, max 50 keys, values max 500 chars.
       // We keep only short pointers here; the full sinalitePayload lives in our DB.

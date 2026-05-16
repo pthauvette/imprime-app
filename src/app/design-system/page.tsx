@@ -5,14 +5,14 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Design System — Imprime" };
+export const metadata = { title: "Design System — Plio" };
 
 export default function DesignSystemPage() {
   return (
     <>
       <div className="app">
           <aside className="nav">
-            <div className="wordmark">Imprime.</div>
+            <div className="wordmark">Plio.</div>
             <div className="wordmark-sub">Design System v0.1</div>
             <ul>
               <li><a href="#brand" className="active">Brand <kbd>1</kbd></a></li>
@@ -47,7 +47,7 @@ export default function DesignSystemPage() {
             <section id="brand" className="hero">
               <div className="hero-eyebrow">Design System · Canada · CAD</div>
               <h1>Devis instantané.<br /><em>Commande en deux minutes.</em></h1>
-              <p>Le système visuel d'Imprime — un site reseller de print wholesale connecté à l'API Sinalite. Calme, précis, intemporel.</p>
+              <p>Le système visuel d'Plio — un site reseller de print wholesale connecté à l'API Sinalite. Calme, précis, intemporel.</p>
               <div className="hero-meta">
                 <div>VOIX<strong>Linear × MUJI × Stripe</strong></div>
                 <div>MARCHÉ<strong>Canada · Bilingue FR/EN</strong></div>
@@ -109,7 +109,7 @@ export default function DesignSystemPage() {
               <div className="type-ramp">
                 <div className="type-row">
                   <div className="type-meta"><strong>display-2xl</strong>display, 600<br />clamp(56px, 9vw, 128px)<br />line 0.95 / -0.04em</div>
-                  <div className="t-display-2xl">Imprime.</div>
+                  <div className="t-display-2xl">Plio.</div>
                 </div>
                 <div className="type-row">
                   <div className="type-meta"><strong>display-xl</strong>display, 600<br />clamp(40px, 6vw, 88px)<br />line 0.98 / -0.03em</div>
@@ -243,7 +243,7 @@ export default function DesignSystemPage() {
                     <div>
                       <div className="field">
                         <label>Email</label>
-                        <input type="email" value="patrick@imprime.co" />
+                        <input type="email" value="patrick@plio.ca" />
                       </div>
                     </div>
                     <div>
@@ -494,7 +494,7 @@ export default function DesignSystemPage() {
                   <div className="card card-elevated" style={{ padding: "0", overflow: "hidden" } as React.CSSProperties}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid var(--border-subtle)" } as React.CSSProperties}>
                       <div style={{ display: "flex", alignItems: "center", gap: "16px" } as React.CSSProperties}>
-                        <span style={{ fontFamily: "var(--font-display)", fontSize: "22px", color: "var(--accent-primary)", letterSpacing: "-0.02em" } as React.CSSProperties}>Imprime.</span>
+                        <span style={{ fontFamily: "var(--font-display)", fontSize: "22px", color: "var(--accent-primary)", letterSpacing: "-0.02em" } as React.CSSProperties}>Plio.</span>
                         <span style={{ color: "var(--border-strong)" } as React.CSSProperties}>/</span>
                         <span className="t-body-sm" style={{ color: "var(--text-muted)" } as React.CSSProperties}>Cartes de visite › 14pt + UV</span>
                       </div>

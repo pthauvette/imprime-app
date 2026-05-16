@@ -6,7 +6,7 @@
  *
  * Crée un DesignDraft persistant en DB avec le PDF généré stocké en
  * data URL (MVP — pas encore d'upload S3). Auth optional : si pas de session,
- * on persiste sous un user "guest@imprime.local" anonyme — il sera réattaché
+ * on persiste sous un user "guest@plio.local" anonyme — il sera réattaché
  * via findOrCreateUserByEmail au moment du checkout.
  */
 
@@ -23,7 +23,7 @@ const BodySchema = z.object({
   values: z.record(z.string(), z.string()),
 });
 
-const GUEST_EMAIL = 'guest@imprime.local';
+const GUEST_EMAIL = 'guest@plio.local';
 
 export const POST = withErrorHandler(async (req: Request) => {
   const body = await parseBody(req, BodySchema);

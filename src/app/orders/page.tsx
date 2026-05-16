@@ -18,7 +18,7 @@ import { formatCurrency } from '@/lib/format';
 import { listOrdersForUser, type OrderStatus } from '@/lib/db/orders';
 import { auth } from '@/auth';
 
-export const metadata = { title: 'Mes commandes — Imprime' };
+export const metadata = { title: 'Mes commandes — Plio' };
 
 export const dynamic = 'force-dynamic';
 

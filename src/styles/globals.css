@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   IMPRIME — Tokens
+   PLIO — Tokens
 ═══════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -146,7 +146,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .t-mono        { font-family: var(--font-mono); }
 
 /* ═══════════════════════════════════════════════════════════════════
-   IMPRIME — Composants
+   PLIO — Composants
 ═══════════════════════════════════════════════════════════════════ */
 
 /* App shell */
@@ -557,7 +557,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 
 /* ═══════════════════════════════════════════════════════════════════
-   APP-LEVEL — Imprime overrides
+   APP-LEVEL — Plio overrides
    ═══════════════════════════════════════════════════════════════════ */
 
 /* Subtle grain background applied app-wide */

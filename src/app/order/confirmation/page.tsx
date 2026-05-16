@@ -14,7 +14,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import Stripe from 'stripe';
 
-export const metadata = { title: "C'est imprimé — Imprime" };
+export const metadata = { title: "C'est imprimé — Plio" };
 export const dynamic = 'force-dynamic';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -59,7 +59,7 @@ export default async function ConfirmationPage({
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, var(--bg-canvas) 0%, var(--accent-soft) 50%, var(--bg-canvas) 100%)' }}>
       <header style={{ display: 'flex', alignItems: 'center', padding: '24px 48px' }}>
         <Link href={'/' as Route} style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--accent-primary)', letterSpacing: '-0.02em' }}>
-          Imprime.
+          Plio.
         </Link>
       </header>
 

@@ -36,7 +36,7 @@ export default async function ProductPickerPage({
       <header className="shell-header">
         <div className="shell-header-left">
           <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>
-            Imprime.
+            Plio.
           </Link>
           <span className="breadcrumb-sep">/</span>
           <span className="breadcrumb">

@@ -7,7 +7,7 @@
  *  • GST + PST (BC, SK, MB) — GST 5% fédéral + PST/RST provincial
  *  • GST seul (AB + 3 territoires NT/NU/YT) — 5% fédéral uniquement
  *
- * Imprime ne facture pas les territoires hors CA (export US = différent).
+ * Plio ne facture pas les territoires hors CA (export US = différent).
  */
 
 import type { CaProvince } from '../sinalite/types';

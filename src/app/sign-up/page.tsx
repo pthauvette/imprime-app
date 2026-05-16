@@ -5,7 +5,7 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Créer un compte — Imprime" };
+export const metadata = { title: "Créer un compte — Plio" };
 
 export default function SignUpPage() {
   return (
@@ -14,7 +14,7 @@ export default function SignUpPage() {
           {/* Form side LEFT */}
           <main className="auth-form-side">
             <div className="auth-form">
-              <a href="/" className="auth-form-brand">Imprime.</a>
+              <a href="/" className="auth-form-brand">Plio.</a>
               <a href="/" className="auth-back">← Retour</a>
       
               <h1>Crée ton compte, <em>imprime gratuitement.</em></h1>
@@ -60,7 +60,7 @@ export default function SignUpPage() {
               {/* Terms */}
               <div className="terms-row">
                 <span className="checkbox">✓</span>
-                <span>J'accepte les <a href="#">conditions d'utilisation</a> et la <a href="#">politique de confidentialité</a> d'Imprime.</span>
+                <span>J'accepte les <a href="#">conditions d'utilisation</a> et la <a href="#">politique de confidentialité</a> de Plio.</span>
               </div>
               <div className="terms-row" style={{ paddingTop: "0" } as React.CSSProperties}>
                 <span className="checkbox unchecked"></span>

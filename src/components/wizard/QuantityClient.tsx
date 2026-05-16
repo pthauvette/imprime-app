@@ -115,7 +115,7 @@ export default function QuantityClient({
     <div className="qty-shell">
       <header className="shell-header">
         <div className="shell-header-left">
-          <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>Imprime.</Link>
+          <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>Plio.</Link>
           <span className="breadcrumb-sep">/</span>
           <span className="breadcrumb">{product.name.trim()}</span>
         </div>

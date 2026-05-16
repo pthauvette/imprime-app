@@ -115,7 +115,7 @@ function ReviewPageInner() {
             shippingMethod: ship.method,
             shippingPrice: ship.price,
             expectedSubtotal,
-            notes: `Test commande Imprime ${new Date().toISOString()}`,
+            notes: `Test commande Plio ${new Date().toISOString()}`,
           }),
         });
 
@@ -146,7 +146,7 @@ function ReviewPageInner() {
     <div className="shell">
       <header className="shell-header">
         <div className="shell-header-left">
-          <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>Imprime.</Link>
+          <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>Plio.</Link>
           <span className="breadcrumb-sep">/</span>
           <span className="breadcrumb">Récapitulatif & paiement</span>
         </div>

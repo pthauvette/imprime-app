@@ -9,7 +9,7 @@
 
 import { z } from 'zod';
 
-/** "en_ca" | "en_us" — Imprime ne supporte que en_ca. */
+/** "en_ca" | "en_us" — Plio ne supporte que en_ca. */
 export const StoreCode = z.enum(['en_ca', 'en_us']);
 export type StoreCode = z.infer<typeof StoreCode>;
 
@@ -107,7 +107,7 @@ export const ShipMethod = z.enum([
 ]);
 export type ShipMethod = z.infer<typeof ShipMethod>;
 
-/** CA only — pour Imprime. */
+/** CA only — pour Plio. */
 export const CaProvince = z.enum([
   'AB', 'BC', 'MB', 'NL', 'NB', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT',
 ]);

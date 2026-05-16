@@ -11,7 +11,7 @@ import Sidebar from '@/components/account/Sidebar';
 import { ALL_TEMPLATES, listProductTypes } from '@/lib/templates/registry';
 import type { AppTemplate } from '@/lib/templates/types';
 
-export const metadata = { title: 'Templates — Imprime' };
+export const metadata = { title: 'Templates — Plio' };
 
 export default function TemplatesPage() {
   const productTypes = listProductTypes();

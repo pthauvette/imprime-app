@@ -3,7 +3,7 @@
  *
  * - Token cache : OAuth2 client credentials, refresh à exp - 5 min.
  * - Toutes les méthodes lèvent SinaliteError sur 4xx/5xx.
- * - storeCode hardcodé à env.SINALITE_STORE_CODE (en_ca pour Imprime).
+ * - storeCode hardcodé à env.SINALITE_STORE_CODE (en_ca pour Plio).
  *
  * Usage:
  *   const products = await sinalite.listProducts();

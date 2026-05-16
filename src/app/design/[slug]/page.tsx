@@ -18,7 +18,7 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const t = getTemplateBySlug(slug);
-  return { title: t ? `${t.name} — Imprime` : 'Template — Imprime' };
+  return { title: t ? `${t.name} — Plio` : 'Template — Plio' };
 }
 
 export default async function DesignPage({

@@ -5,13 +5,13 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Imprime — Print wholesale au Canada" };
+export const metadata = { title: "Plio — Print wholesale au Canada" };
 
 export default function LandingPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="#" className="mkt-brand">Imprime.</a>
+          <a href="#" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="#products" className="mkt-nav-link">Produits</a>
             <a href="#how" className="mkt-nav-link">Comment ça marche</a>
@@ -210,7 +210,7 @@ export default function LandingPage() {
                 </div>
                 <div className="testimonial-card">
                   <div className="testimonial-stars">★★★★★</div>
-                  <p className="testimonial-quote">« On commande 5 fois par mois pour nos clients. Imprime nous fait gagner 3h par semaine en allers-retours avec l'imprimeur. »</p>
+                  <p className="testimonial-quote">« On commande 5 fois par mois pour nos clients. Plio nous fait gagner 3h par semaine en allers-retours avec l'imprimeur. »</p>
                   <div className="testimonial-author">
                     <div className="testimonial-avatar"></div>
                     <div className="testimonial-meta"><strong>Maxime Roy</strong><span>Agence Boréal · Québec</span></div>
@@ -255,7 +255,7 @@ export default function LandingPage() {
               </div>
               <div className="faq-item">
                 <div className="faq-q">Êtes-vous une vraie imprimerie ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Imprime travaille avec Sinalite, une presse wholesale canadienne établie à Markham (ON). On gère ton expérience web, la prépresse et le service client — Sinalite gère la presse.</div>
+                <div className="faq-a">Plio travaille avec Sinalite, une presse wholesale canadienne établie à Markham (ON). On gère ton expérience web, la prépresse et le service client — Sinalite gère la presse.</div>
               </div>
             </div>
           </section>
@@ -271,7 +271,7 @@ export default function LandingPage() {
         <footer>
           <div className="footer-grid">
             <div className="footer-brand">
-              <span className="footer-brand-mark">Imprime.</span>
+              <span className="footer-brand-mark">Plio.</span>
               <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 1 à 7 jours. Imprimé à Markham (ON).</p>
             </div>
             <div className="footer-col">
@@ -305,7 +305,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <span>★ © Imprime 2026 · Imprimé au Canada 🇨🇦</span>
+            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
             <span>Politique de confidentialité · Conditions d'utilisation</span>
           </div>
         </footer>

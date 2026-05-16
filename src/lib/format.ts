@@ -1,5 +1,5 @@
 /**
- * Helpers de formatage pour Imprime — CAD, locale fr-CA / en-CA.
+ * Helpers de formatage pour Plio — CAD, locale fr-CA / en-CA.
  */
 
 export type Locale = 'fr-CA' | 'en-CA';

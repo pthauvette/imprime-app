@@ -6,13 +6,13 @@
  * Client Component ('use client') ou ajouter du data fetching Server Component.
  */
 
-export const metadata = { title: "Parle-nous — Imprime" };
+export const metadata = { title: "Parle-nous — Plio" };
 
 export default function ContactPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="landing.html" className="mkt-brand">Imprime.</a>
+          <a href="landing.html" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="landing.html#products" className="mkt-nav-link">Produits</a>
             <a href="about.html" className="mkt-nav-link">Notre histoire</a>
@@ -88,7 +88,7 @@ export default function ContactPage() {
               <div className="info-card">
                 <div className="info-card-eyebrow">★ Support client</div>
                 <h3>Pour les commandes en cours</h3>
-                <div className="row"><span className="ic">@</span><a href="mailto:hello@imprime.co">hello@imprime.co</a></div>
+                <div className="row"><span className="ic">@</span><a href="mailto:bonjour@plio.ca">bonjour@plio.ca</a></div>
                 <div className="row"><span className="ic">💬</span>Chat en direct dans l'app</div>
                 <div className="hours">Lun–Ven · 9 h–18 h ET</div>
               </div>
@@ -96,7 +96,7 @@ export default function ContactPage() {
               <div className="info-card">
                 <div className="info-card-eyebrow">★ Ventes &amp; partenariats</div>
                 <h3>Volumes, resellers, B2B</h3>
-                <div className="row"><span className="ic">@</span><a href="mailto:sales@imprime.co">sales@imprime.co</a></div>
+                <div className="row"><span className="ic">@</span><a href="mailto:sales@plio.ca">sales@plio.ca</a></div>
                 <div className="row"><span className="ic">☎</span><a href="tel:+15145550144">+1 514 555 0144</a></div>
                 <div className="hours">Lun–Ven · 9 h–17 h ET</div>
               </div>
@@ -136,7 +136,7 @@ export default function ContactPage() {
         <footer>
           <div className="footer-grid">
             <div className="footer-brand">
-              <span className="footer-brand-mark">Imprime.</span>
+              <span className="footer-brand-mark">Plio.</span>
               <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 1 à 7 jours. Imprimé à Markham (ON).</p>
             </div>
             <div className="footer-col">
@@ -167,7 +167,7 @@ export default function ContactPage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <span>★ © Imprime 2026 · Imprimé au Canada 🇨🇦</span>
+            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
             <span>Démocratik inc. · Montréal</span>
           </div>
         </footer>

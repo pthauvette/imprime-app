@@ -6,13 +6,13 @@
  * Client Component ('use client') ou ajouter du data fetching Server Component.
  */
 
-export const metadata = { title: "L'histoire d'Imprime" };
+export const metadata = { title: "L'histoire d'Plio" };
 
 export default function AboutPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="landing.html" className="mkt-brand">Imprime.</a>
+          <a href="landing.html" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="landing.html#products" className="mkt-nav-link">Produits</a>
             <a href="about.html" className="mkt-nav-link active">Notre histoire</a>
@@ -27,17 +27,17 @@ export default function AboutPage() {
           <section className="about-hero">
             <div className="page-eyebrow">Fondée à Montréal · 2026</div>
             <h1>Le print méritait <em>mieux.</em></h1>
-            <p>On a passé trop d'années à attendre 3 jours pour un devis. Imprime existe pour donner aux pros un accès direct, transparent, instantané à l'impression wholesale canadienne.</p>
+            <p>On a passé trop d'années à attendre 3 jours pour un devis. Plio existe pour donner aux pros un accès direct, transparent, instantané à l'impression wholesale canadienne.</p>
           </section>
       
           {/* MISSION */}
           <section className="mission">
             <div>
               <div className="mission-eyebrow">★ Notre mission</div>
-              <h2>Pourquoi on a démarré <em>Imprime.</em></h2>
-              <p>Avant Imprime, commander 500 cartes de visite voulait dire <strong>trois courriels, deux relances, 72 heures d'attente</strong> et un PDF de devis rempli de mentions floues. Et quand ton fichier était refusé, personne ne t'expliquait pourquoi — juste « renvoie-le ».</p>
+              <h2>Pourquoi on a démarré <em>Plio.</em></h2>
+              <p>Avant Plio, commander 500 cartes de visite voulait dire <strong>trois courriels, deux relances, 72 heures d'attente</strong> et un PDF de devis rempli de mentions floues. Et quand ton fichier était refusé, personne ne t'expliquait pourquoi — juste « renvoie-le ».</p>
               <p>On a vécu cette douleur trop souvent. Alors on a bâti l'inverse : un <strong>devis instantané</strong> qui change à chaque clic, une <strong>tarification publique</strong> au cent près, et un module de prépresse qui te montre <strong>visuellement</strong> ce qui cloche avant que ça parte sur la presse.</p>
-              <p>Imprime ne réinvente pas l'impression. On rebrasse l'expérience autour. La presse, c'est Sinalite — un partenaire wholesale canadien établi à Markham. Notre travail à nous, c'est de te faire gagner ton vendredi après-midi.</p>
+              <p>Plio ne réinvente pas l'impression. On rebrasse l'expérience autour. La presse, c'est Sinalite — un partenaire wholesale canadien établi à Markham. Notre travail à nous, c'est de te faire gagner ton vendredi après-midi.</p>
             </div>
             <div className="mission-visual">
               <div className="mission-stamp">Made in<br />MTL</div>
@@ -74,7 +74,7 @@ export default function AboutPage() {
           <section className="founders">
             <div className="founders-head">
               <div className="mission-eyebrow">★ Équipe fondatrice</div>
-              <h2>Les gens derrière <em>Imprime.</em></h2>
+              <h2>Les gens derrière <em>Plio.</em></h2>
               <p>Trois personnes basées à Montréal, avec un bureau ouvert sur le boulevard Saint-Laurent et un téléphone qui sonne en français.</p>
             </div>
             <div className="founders-grid">
@@ -155,7 +155,7 @@ export default function AboutPage() {
         <footer>
           <div className="footer-grid">
             <div className="footer-brand">
-              <span className="footer-brand-mark">Imprime.</span>
+              <span className="footer-brand-mark">Plio.</span>
               <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 1 à 7 jours. Imprimé à Markham (ON).</p>
             </div>
             <div className="footer-col">
@@ -186,7 +186,7 @@ export default function AboutPage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <span>★ © Imprime 2026 · Imprimé au Canada 🇨🇦</span>
+            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
             <span>Démocratik inc. · Montréal</span>
           </div>
         </footer>
