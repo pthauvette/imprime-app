@@ -11,7 +11,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 
 const PLACEHOLDER_RECTO = 'https://www.sinalite.com/documents/recto-placeholder.pdf';
 const PLACEHOLDER_VERSO = 'https://www.sinalite.com/documents/verso-placeholder.pdf';
@@ -29,9 +29,18 @@ function UploadPageInner() {
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId');
   const options = searchParams.get('options') ?? '';
+  const designId = searchParams.get('designId');
 
   const [recto, setRecto] = useState<string | null>(null);
   const [verso, setVerso] = useState<string | null>(null);
+
+  // Auto-fill recto si l'utilisateur arrive depuis l'éditeur de template
+  // (designId présent dans l'URL) — le PDF généré est servi par /api/designs/[id]/pdf
+  useEffect(() => {
+    if (!designId || recto !== null) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    setRecto(`${origin}/api/designs/${designId}/pdf`);
+  }, [designId, recto]);
 
   const filesParam = [
     recto ? `front:${encodeURIComponent(recto)}` : null,
@@ -40,8 +49,9 @@ function UploadPageInner() {
     .filter(Boolean)
     .join('|');
 
-  const nextHref = `/order/shipping?productId=${productId}&options=${options}&files=${filesParam}` as Route;
-  const prevHref = `/order/quantity?productId=${productId}&options=${options}` as Route;
+  const designSuffix = designId ? `&designId=${designId}` : '';
+  const nextHref = `/order/shipping?productId=${productId}&options=${options}&files=${filesParam}${designSuffix}` as Route;
+  const prevHref = `/order/quantity?productId=${productId}&options=${options}${designSuffix}` as Route;
   const canContinue = recto !== null;
 
   return (

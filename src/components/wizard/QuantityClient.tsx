@@ -19,6 +19,8 @@ interface Props {
   variantIndex: Record<string, number>;
   /** ID de turnaround par défaut (déjà dans baseOptionIds si Step 3 l'avait pickée). */
   defaultTurnaroundId?: number;
+  /** Si set, propagé vers /order/upload pour auto-load le PDF du design. */
+  designId: string | null;
 }
 
 /**
@@ -39,6 +41,7 @@ export default function QuantityClient({
   turnaroundOptions,
   variantIndex,
   defaultTurnaroundId,
+  designId,
 }: Props) {
   const router = useRouter();
 
@@ -101,8 +104,9 @@ export default function QuantityClient({
 
   // Continue → /order/upload
   const nextOptions = [...baseWithoutTurnaround, ...(currentQty ? [currentQty.id] : []), ...(turnaroundId ? [turnaroundId] : [])];
-  const nextHref = `/order/upload?productId=${product.id}&options=${nextOptions.join(',')}` as Route;
-  const prevHref = `/order/configure?productId=${product.id}` as Route;
+  const designSuffix = designId ? `&designId=${designId}` : '';
+  const nextHref = `/order/upload?productId=${product.id}&options=${nextOptions.join(',')}${designSuffix}` as Route;
+  const prevHref = `/order/configure?productId=${product.id}${designSuffix}` as Route;
 
   // Snap percentage for slider fill width
   const snapPct = sortedQty.length > 1 ? (qtyIdx / (sortedQty.length - 1)) * 100 : 50;

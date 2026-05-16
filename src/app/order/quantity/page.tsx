@@ -27,7 +27,7 @@ const ParamsSchema = z.object({
 export default async function QuantityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ productId?: string; options?: string }>;
+  searchParams: Promise<{ productId?: string; options?: string; designId?: string }>;
 }) {
   const raw = await searchParams;
   const parsed = ParamsSchema.safeParse({
@@ -35,6 +35,7 @@ export default async function QuantityPage({
     options: raw.options ?? '',
   });
   if (!parsed.success) notFound();
+  const designId = raw.designId ?? null;
 
   const { productId, options: baseOptionIds } = parsed.data;
 
@@ -76,6 +77,7 @@ export default async function QuantityPage({
       turnaroundOptions={turnaroundOptions}
       variantIndex={variantIndex}
       defaultTurnaroundId={defaultTurnaroundId}
+      designId={designId}
     />
   );
 }

@@ -28,6 +28,14 @@ export interface AppTemplate {
   sampleValues: Record<string, string>;
   /** Le template pdfme (basePdf + schemas) */
   pdfme: PdfmeTemplate;
+  /**
+   * Default mapping vers le wizard de commande. Pour business cards on cible
+   * "Business cards 14pt Profit Maximizer" (ID 1) — entry-level standard.
+   * Le user reste libre de switcher de produit/options dans /order/configure.
+   */
+  defaultSinalite: {
+    productId: number;
+  };
 }
 
 /**

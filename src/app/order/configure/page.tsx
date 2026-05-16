@@ -22,13 +22,14 @@ const ParamsSchema = z.object({
 export default async function ConfigurePage({
   searchParams,
 }: {
-  searchParams: Promise<{ productId?: string }>;
+  searchParams: Promise<{ productId?: string; designId?: string }>;
 }) {
   const params = await searchParams;
   const parsed = ParamsSchema.safeParse(params);
   if (!parsed.success) notFound();
 
   const { productId } = parsed.data;
+  const designId = params.designId ?? null;
 
   let product, detail;
   try {
@@ -63,6 +64,7 @@ export default async function ConfigurePage({
       optionGroups={optionGroups}
       metadata={detail.metadata}
       defaultSelection={defaultSelection}
+      designId={designId}
     />
   );
 }

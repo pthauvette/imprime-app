@@ -105,20 +105,30 @@ export default function DesignEditor({ template }: { template: AppTemplate }) {
       });
   }
 
-  function addToCart() {
+  async function addToCart() {
     setAdding(true);
-    // For MVP : on stocke le design dans sessionStorage et on link au wizard
-    // d'ordering. Plus tard : POST /api/designs pour persister en DB.
-    sessionStorage.setItem(
-      'imprime:pending-design',
-      JSON.stringify({
-        templateSlug: template.slug,
-        values,
-        productType: template.productType,
-        variant: template.variant,
-      }),
-    );
-    router.push('/order/start' as Route);
+    setError(null);
+    try {
+      // Finalize → DesignDraft persisté en DB avec le PDF généré
+      const res = await fetch('/api/designs/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateSlug: template.slug, values }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      const { designId, productId } = await res.json();
+      // Saute directement à /order/configure avec le produit pré-sélectionné +
+      // le designId qui sera lu par /order/upload pour auto-fill le fichier
+      router.push(
+        `/order/configure?productId=${productId}&designId=${designId}` as Route,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur ajout au panier');
+      setAdding(false);
+    }
   }
 
   return (

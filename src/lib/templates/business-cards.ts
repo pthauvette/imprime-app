@@ -37,6 +37,7 @@ export const BC_MINIMAL_BW: AppTemplate = {
     email: 'sophie@boreal.studio',
     phone: '+1 514 555 0123',
   },
+  defaultSinalite: { productId: 1 },
   pdfme: {
     basePdf: COMMON_BASEPDF,
     schemas: [[
@@ -112,6 +113,7 @@ export const BC_ACCENT_BLOCK: AppTemplate = {
     phone: '+1 438 555 7890',
     web: 'agenceboreal.ca',
   },
+  defaultSinalite: { productId: 1 },
   pdfme: {
     basePdf: COMMON_BASEPDF,
     schemas: [[
@@ -196,6 +198,7 @@ export const BC_EDITORIAL: AppTemplate = {
     email: 'hello@margueritedubois.com',
     phone: '+1 514 555 4422',
   },
+  defaultSinalite: { productId: 1 },
   pdfme: {
     basePdf: COMMON_BASEPDF,
     schemas: [[

@@ -14,6 +14,9 @@ interface Props {
   metadata: string[];
   /** Default combo computed server-side (lowest qty + first of each). */
   defaultSelection: Record<string, number>;
+  /** Si set, l'utilisateur arrive depuis /design/[slug] et son PDF est déjà
+   *  généré — on propage l'ID jusqu'à /order/upload qui auto-load le fichier. */
+  designId: string | null;
 }
 
 /**
@@ -27,6 +30,7 @@ export default function ConfigureClient({
   optionGroups,
   metadata,
   defaultSelection,
+  designId,
 }: Props) {
   const router = useRouter();
   const [selection, setSelection] = useState<Record<string, number>>(defaultSelection);
@@ -50,7 +54,8 @@ export default function ConfigureClient({
     .filter((v): v is number => typeof v === 'number')
     .join(',');
 
-  const nextHref = `/order/quantity?productId=${product.id}&options=${optionsParam}` as Route;
+  const designSuffix = designId ? `&designId=${designId}` : '';
+  const nextHref = `/order/quantity?productId=${product.id}&options=${optionsParam}${designSuffix}` as Route;
   const prevHref = `/order/product?category=${guessCategorySlug(product.category)}` as Route;
 
   return (
