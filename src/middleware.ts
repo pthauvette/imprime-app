@@ -25,7 +25,8 @@ const PROTECTED_PREFIXES = [
   '/referrals',
   '/samples',
   '/reseller',
-  '/templates',
+  // /templates et /design sont publics — browser le catalog/éditeur sans
+  // compte ; auth requise au moment de la finalisation/checkout.
 ];
 
 export default auth((req) => {

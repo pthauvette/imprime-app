@@ -36,11 +36,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts  Account[]
-  sessions  Session[]
-  orders    Order[]
-  addresses Address[]
-  drafts    Draft[]
+  accounts     Account[]
+  sessions     Session[]
+  orders       Order[]
+  addresses    Address[]
+  drafts       Draft[]
+  designDrafts DesignDraft[]
 
   @@index([email])
 }
@@ -204,6 +205,60 @@ model Draft {
 
   @@index([userId, updatedAt])
   @@index([expiresAt])
+}
+
+// ─── TEMPLATE ─────────────────────────────────────────────────────────────
+// Templates pdfme paramétrables. Le `data` est le JSON pdfme complet
+// (basePdf + schemas). Pour MVP les templates sont créés par nous (admin)
+// et stockés en DB ; pas de UI Designer côté user.
+
+model Template {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  name         String
+  description  String?
+  // BUSINESS_CARD | FLYER | POSTCARD | BROCHURE
+  productType  String
+  // "3.5x2", "8.5x11", "5x7", "tri-fold", etc. — dimensions canoniques
+  variant      String
+  // FRONT | BACK | BOTH (pour les produits recto-verso)
+  side         String  @default("FRONT")
+  // URL d'aperçu PNG (généré une fois lors du seed)
+  thumbnailUrl String?
+  // JSON pdfme : { basePdf, schemas: [[...]] }
+  data         String
+  isPublic     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  designs DesignDraft[]
+
+  @@index([productType, variant])
+}
+
+// ─── DESIGN DRAFT ─────────────────────────────────────────────────────────
+// Une instance customisée d'un Template par un user. Stocke les valeurs
+// saisies dans le form ainsi que l'URL du PDF final (si finalisé).
+// À l'add-to-cart, on convertit ce draft en `Order.files`.
+
+model DesignDraft {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId String
+  template   Template @relation(fields: [templateId], references: [id])
+
+  // JSON : { fieldName: value, ... } selon le schema du template
+  values String
+
+  // URL S3 (ou data: URL en dev) vers le PDF print-ready généré
+  finalPdfUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 // ─── WEBHOOK EVENT ────────────────────────────────────────────────────────

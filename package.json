@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
+    "@pdfme/common": "^6.1.2",
+    "@pdfme/generator": "^6.1.2",
+    "@pdfme/schemas": "^6.1.2",
     "@prisma/client": "^6.19.3",
     "@stripe/react-stripe-js": "^6.3.0",
     "@stripe/stripe-js": "^9.5.0",
