@@ -14,6 +14,13 @@ applications:
             - pnpm exec prisma migrate deploy
         build:
           commands:
+            # Amplify Console expose les env vars au BUILD mais pas toujours
+            # au RUNTIME des Server Components. Workaround documenté : on
+            # écrit toutes les vars qui nous intéressent dans .env.production
+            # — Next.js les charge à `next start` automatiquement.
+            # Whitelist explicite pour ne pas leak AWS_* internal vars.
+            - >-
+              env | grep -E '^(DATABASE_URL|AUTH_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_)=' >> .env.production || true
             - pnpm build
       artifacts:
         baseDirectory: .next

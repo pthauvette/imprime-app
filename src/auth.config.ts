@@ -20,6 +20,10 @@ export const authConfig = {
   },
   // Doit matcher auth.ts pour que le middleware lise le JWT cookie correctement.
   session: { strategy: 'jwt' },
+  // Amplify Hosting est derrière CloudFront — Auth.js doit faire confiance
+  // aux headers x-forwarded-* sinon refuse toutes les requêtes (UntrustedHost).
+  // Pareil que AUTH_TRUST_HOST=true mais en code pour éviter la dépendance env.
+  trustHost: true,
   providers: [],
   callbacks: {
     // Pour le middleware uniquement : autorise tout, le check de gating
