@@ -83,6 +83,8 @@ export type CreateOrderInput = {
   shipPostalCode: string;
   shipPhone: string;
   sinalitePayload: SinaliteOrderRequest;
+  /** Human-readable product summary for emails + admin without refetching Sinalite. */
+  productSummary?: string;
 };
 
 export async function createPendingOrder(input: CreateOrderInput) {
@@ -93,6 +95,7 @@ export async function createPendingOrder(input: CreateOrderInput) {
       amountCents: input.amountCents,
       status: 'PENDING',
       sinalitePayload: JSON.stringify(input.sinalitePayload),
+      productSummary: input.productSummary,
       itemsCount: input.itemsCount,
       subtotalCents: input.subtotalCents,
       shippingCents: input.shippingCents,

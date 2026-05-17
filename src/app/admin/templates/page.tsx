@@ -1,387 +1,275 @@
 /**
- * Auto-migrated from Open Design HTML artifact `admin-templates.html`.
+ * /admin/templates — Templates CRUD live data.
  *
- * NOTE: Lift-and-shift static rendering. Scripts ont été strip, data hardcodée.
- * Pour brancher la vraie data DB ou ajouter de l'interactivité, convertir en
- * Client Component ('use client') ou ajouter du data fetching Server Component.
+ * Source of truth : registry hardcodé en TS (src/lib/templates/registry.ts).
+ * Stats DB : pour chaque template, on lookup le Template row shadow (créé
+ * lors du premier /api/designs/finalize) et on compte DesignDraft.
+ *
+ * "Brouillons" section : DesignDraft sans finalPdfUrl (en cours de design).
  */
 
-export const metadata = { title: "Admin — Templates" };
+import Link from 'next/link';
+import type { Route } from 'next';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import AdminSidebar from '@/components/admin/AdminSidebar';
+import { ALL_TEMPLATES, listProductTypes } from '@/lib/templates/registry';
+import type { AppTemplate } from '@/lib/templates/types';
+import { formatDate } from '@/lib/format';
 
-export default function AdminTemplates() {
+export const metadata = { title: 'Admin — Templates · Plio' };
+export const dynamic = 'force-dynamic';
+
+export default async function AdminTemplatesPage() {
+  const session = await auth();
+
+  const [usersCount, ordersCount, allDbTemplates, draftsCount, recentDrafts, designs30d] = await Promise.all([
+    prisma.user.count(),
+    prisma.order.count(),
+    prisma.template.findMany({
+      include: { _count: { select: { designs: true } } },
+    }),
+    prisma.designDraft.count({ where: { finalPdfUrl: null } }),
+    prisma.designDraft.findMany({
+      where: { finalPdfUrl: null },
+      orderBy: { updatedAt: 'desc' },
+      take: 5,
+      include: { user: { select: { email: true } } },
+    }),
+    prisma.designDraft.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) } } }),
+  ]);
+
+  const dbBySlug = new Map(allDbTemplates.map((t) => [t.slug, t]));
+  const productTypes = listProductTypes();
+  const totalDesigns = allDbTemplates.reduce((a, t) => a + t._count.designs, 0);
+
+  const topPerformer = [...allDbTemplates].sort((a, b) => b._count.designs - a._count.designs)[0];
+  const topPerformerTpl = topPerformer ? ALL_TEMPLATES.find((t) => t.slug === topPerformer.slug) : null;
+
   return (
-    <>
-      <div className="adm-shell">
-      
-          {/* ─── ADMIN SIDEBAR (identical to dashboard, active = Templates) ─ */}
-          <aside className="adm-nav">
-            <div className="adm-nav-brand">
-              <span className="adm-nav-brand-mark">Plio.</span>
-              <span className="adm-nav-brand-tag">Admin</span>
+    <div className="adm-shell">
+      <AdminSidebar
+        active="templates"
+        counts={{ orders: ordersCount, users: usersCount, templates: ALL_TEMPLATES.length }}
+        user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
+      />
+
+      <main className="adm-main">
+        <header className="adm-topbar">
+          <div>
+            <h1 className="adm-page-title">Templates</h1>
+            <p className="adm-page-subtitle">
+              {ALL_TEMPLATES.length} publié{ALL_TEMPLATES.length > 1 ? 's' : ''} · {draftsCount} brouillon{draftsCount > 1 ? 's' : ''} · {designs30d} design{designs30d > 1 ? 's' : ''} créé{designs30d > 1 ? 's' : ''} ce mois-ci
+            </p>
+          </div>
+          <div className="adm-topbar-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              disabled
+              title="Édition de templates pas encore wirée — utilise le code (src/lib/templates/)"
+            >
+              + Nouveau template
+            </button>
+          </div>
+        </header>
+
+        <div className="adm-pills" style={{ marginBottom: 24 }}>
+          <div className="adm-pill active">
+            Tous <span className="adm-pill-count">{ALL_TEMPLATES.length}</span>
+          </div>
+          {productTypes.map((pt) => (
+            <div key={pt.type} className="adm-pill">
+              {pt.label} <span className="adm-pill-count">{pt.count}</span>
             </div>
-      
-            <div className="adm-nav-section">Opérations</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-dashboard.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z" /></svg>
-                  Tableau de bord
-                </span>
-              </a></li>
-              <li><a href="admin-orders.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v9H2zM2 7h12M5 10h2" /></svg>
-                  Commandes
-                </span>
-                <span className="adm-nav-count">142</span>
-              </a></li>
-              <li><a href="admin-webhooks.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="8" r="2" /><circle cx="12" cy="4" r="2" /><circle cx="12" cy="12" r="2" /><path d="M5.8 7.2L10.4 5M5.8 8.8L10.4 11" /></svg>
-                  Webhooks
-                </span>
-                <span className="adm-nav-count urgent">3</span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Catalogue</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-templates.html" className="adm-nav-link active">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1" /><path d="M2 6h12M5 9h6M5 11h4" /></svg>
-                  Templates
-                </span>
-                <span className="adm-nav-count">3</span>
-              </a></li>
-              <li><a href="admin-products.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l5-3 5 3v6l-5 3-5-3zM3 5l5 3 5-3M8 8v6" /></svg>
-                  Produits Sinalite
-                </span>
-                <span className="adm-nav-count">468</span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Audience</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-users.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="2.5" /><path d="M3 13c0-2.5 2.5-4 5-4s5 1.5 5 4" /></svg>
-                  Utilisateurs
-                </span>
-                <span className="adm-nav-count">218</span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Finance</div>
-            <ul className="adm-nav-list">
-              <li><a href="admin-finances.html" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V4M5 12V7M8 12V5M11 12V8M14 12V3" /></svg>
-                  Finances
-                </span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-section">Système</div>
-            <ul className="adm-nav-list">
-              <li><a href="#" className="adm-nav-link">
-                <span className="adm-nav-link-text">
-                  <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5" /><path d="M8 2v2M8 12v2M14 8h-2M4 8H2M12.2 3.8l-1.4 1.4M5.2 10.8l-1.4 1.4M12.2 12.2l-1.4-1.4M5.2 5.2L3.8 3.8" /></svg>
-                  Réglages
-                </span>
-              </a></li>
-            </ul>
-      
-            <div className="adm-nav-user">
-              <div className="adm-nav-user-avatar">PT</div>
-              <div className="adm-nav-user-info">
-                <div className="adm-nav-user-name">Patrick Thauvette</div>
-                <div className="adm-nav-user-role">Owner · ★★★</div>
-              </div>
+          ))}
+          {draftsCount > 0 && (
+            <div className="adm-pill">
+              Brouillons <span className="adm-pill-count">{draftsCount}</span>
             </div>
-          </aside>
-      
-          {/* ─── MAIN ──────────────────────────────────────────────────── */}
-          <main className="adm-main">
-      
-            <header className="adm-topbar">
-              <div>
-                <h1 className="adm-page-title">Templates</h1>
-                <p className="adm-page-subtitle">3 publiés · 0 brouillon · 247 designs créés ce mois-ci</p>
-              </div>
-              <div className="adm-topbar-actions">
-                <button className="btn btn-secondary btn-sm">↗ Importer JSON</button>
-                <button className="btn btn-secondary btn-sm">Réordonner</button>
-                <button className="btn btn-primary btn-sm">+ Nouveau template</button>
-              </div>
-            </header>
-      
-            {/* Filter pills */}
-            <div className="adm-pills">
-              <button className="adm-pill active">Tous <span className="adm-pill-count">5</span></button>
-              <button className="adm-pill">Cartes de visite <span className="adm-pill-count">3</span></button>
-              <button className="adm-pill">Flyers <span className="adm-pill-count">0</span></button>
-              <button className="adm-pill">Postcards <span className="adm-pill-count">0</span></button>
-              <button className="adm-pill">Brochures <span className="adm-pill-count">0</span></button>
-              <button className="adm-pill">Brouillons <span className="adm-pill-count">2</span></button>
-              <button className="adm-pill">Archived <span className="adm-pill-count">0</span></button>
-            </div>
-      
-            {/* Mini stats */}
-            <section className="adm-stats">
-              <div className="adm-stat-card">
-                <div className="adm-stat-label">Designs créés — 30 j</div>
-                <div className="adm-stat-value">247<span className="unit">designs</span></div>
-                <div className="adm-stat-detail">↑ 42 vs 30 j précédents · <strong>8,2 / jour</strong></div>
-              </div>
-              <div className="adm-stat-card">
-                <div className="adm-stat-label">Top performer</div>
-                <div className="adm-stat-value">142<span className="unit">designs</span></div>
-                <div className="adm-stat-detail"><strong>Bloc accent</strong> · 57 % du volume</div>
-              </div>
-              <div className="adm-stat-card">
-                <div className="adm-stat-label">Conversion design → order</div>
-                <div className="adm-stat-value">71<span className="unit">%</span></div>
-                <div className="adm-stat-detail">175 orders sur 247 designs · panier moy. <strong>184 $</strong></div>
-              </div>
-              <div className="adm-stat-card">
-                <div className="adm-stat-label">Templates les plus utilisés</div>
-                <div className="adm-stat-value">3<span className="unit">/ 3 actifs</span></div>
-                <div className="adm-stat-detail">Aucun template inutilisé · <strong>tous performants</strong></div>
-              </div>
-            </section>
-      
-            {/* Section: published */}
-            <div className="adm-section-head">
-              <h2 className="adm-section-title">Publiés <span className="count">3 actifs</span></h2>
-              <span className="adm-section-meta">Trier : Plus utilisés ↓</span>
-            </div>
-      
-            {/* Template grid */}
-            <section className="adm-tpl-grid">
-      
-              {/* 1. Minimal noir & blanc */}
-              <article className="adm-tpl-card">
-                <div className="adm-tpl-thumb">
-                  <span className="badge badge-success adm-tpl-thumb-badge">★ Top</span>
-                  <span className="adm-tpl-thumb-status">Publié</span>
-                  <div className="adm-tpl-thumb-card var-minimal">
-                    <p className="nm">Sophie Beauchamp</p>
-                    <p className="ti">Directrice créative</p>
-                    <div className="div"></div>
-                    <p className="det">sophie@studio.ca<br/>+1 514 555 0182</p>
-                  </div>
-                </div>
-                <div className="adm-tpl-body">
-                  <div className="adm-tpl-head">
-                    <div>
-                      <h3 className="adm-tpl-name">Minimal — noir & blanc</h3>
-                      <div className="adm-tpl-slug">bc-minimal-bw · v1.4</div>
-                    </div>
-                    <div className="adm-tpl-meta">
-                      <span className="badge badge-accent">Carte de visite</span>
-                    </div>
-                  </div>
-                  <div className="adm-tpl-stats">
-                    <strong>87 designs</strong> créés · <strong>62 commandes</strong> · <strong>71 %</strong> conversion
-                  </div>
-                </div>
-                <div className="adm-tpl-foot">
-                  <a href="admin-template-editor.html" className="adm-tpl-edit-link">→ Éditer</a>
-                  <div className="adm-tpl-menu">
-                    <button className="adm-tpl-menu-btn" title="Aperçu">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" /><circle cx="8" cy="8" r="2" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn" title="Dupliquer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1" /><path d="M2 11V3a1 1 0 011-1h8" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn" title="Archiver">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="3" /><rect x="3" y="6" width="10" height="8" /><path d="M6 9h4" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn danger" title="Supprimer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10" /></svg>
-                    </button>
-                  </div>
-                </div>
-              </article>
-      
-              {/* 2. Bloc accent vert forêt */}
-              <article className="adm-tpl-card">
-                <div className="adm-tpl-thumb">
-                  <span className="badge badge-success adm-tpl-thumb-badge">★ Top</span>
-                  <span className="adm-tpl-thumb-status">Publié</span>
-                  <div className="adm-tpl-thumb-card var-accent">
-                    <div className="inner">
-                      <p className="nm">Maxime Roy</p>
-                      <p className="ti">Architecte paysagiste</p>
-                      <p className="det">maxime@roy.studio<br/>+1 438 555 0294</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="adm-tpl-body">
-                  <div className="adm-tpl-head">
-                    <div>
-                      <h3 className="adm-tpl-name">Bloc accent vert forêt</h3>
-                      <div className="adm-tpl-slug">bc-accent-block · v2.1</div>
-                    </div>
-                    <div className="adm-tpl-meta">
-                      <span className="badge badge-accent">Carte de visite</span>
-                    </div>
-                  </div>
-                  <div className="adm-tpl-stats">
-                    <strong>142 designs</strong> créés · <strong>104 commandes</strong> · <strong>73 %</strong> conversion
-                  </div>
-                </div>
-                <div className="adm-tpl-foot">
-                  <a href="admin-template-editor.html" className="adm-tpl-edit-link">→ Éditer</a>
-                  <div className="adm-tpl-menu">
-                    <button className="adm-tpl-menu-btn" title="Aperçu">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" /><circle cx="8" cy="8" r="2" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn" title="Dupliquer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1" /><path d="M2 11V3a1 1 0 011-1h8" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn" title="Archiver">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="3" /><rect x="3" y="6" width="10" height="8" /><path d="M6 9h4" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn danger" title="Supprimer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10" /></svg>
-                    </button>
-                  </div>
-                </div>
-              </article>
-      
-              {/* 3. Editorial serif */}
-              <article className="adm-tpl-card">
-                <div className="adm-tpl-thumb">
-                  <span className="adm-tpl-thumb-status">Publié</span>
-                  <div className="adm-tpl-thumb-card var-editorial">
-                    <p className="nm">Marguerite<br/>Dubois</p>
-                    <p className="ti">Curatrice — Galerie Saint-Vallier</p>
-                    <div className="div"></div>
-                    <p className="det">marguerite@galerie-sv.qc<br/>+1 418 555 0166</p>
-                  </div>
-                </div>
-                <div className="adm-tpl-body">
-                  <div className="adm-tpl-head">
-                    <div>
-                      <h3 className="adm-tpl-name">Editorial — serif</h3>
-                      <div className="adm-tpl-slug">bc-editorial · v1.0</div>
-                    </div>
-                    <div className="adm-tpl-meta">
-                      <span className="badge badge-accent">Carte de visite</span>
-                    </div>
-                  </div>
-                  <div className="adm-tpl-stats">
-                    <strong>18 designs</strong> créés · <strong>9 commandes</strong> · <strong>50 %</strong> conversion
-                  </div>
-                </div>
-                <div className="adm-tpl-foot">
-                  <a href="admin-template-editor.html" className="adm-tpl-edit-link">→ Éditer</a>
-                  <div className="adm-tpl-menu">
-                    <button className="adm-tpl-menu-btn" title="Aperçu">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" /><circle cx="8" cy="8" r="2" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn" title="Dupliquer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1" /><path d="M2 11V3a1 1 0 011-1h8" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn" title="Archiver">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="3" /><rect x="3" y="6" width="10" height="8" /><path d="M6 9h4" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn danger" title="Supprimer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10" /></svg>
-                    </button>
-                  </div>
-                </div>
-              </article>
-      
-            </section>
-      
-            {/* Section: drafts */}
-            <div className="adm-section-head">
-              <h2 className="adm-section-title">Brouillons <span className="count">2 en cours</span></h2>
-              <span className="adm-section-meta">Non-publiés · invisible côté client</span>
-            </div>
-      
-            <section className="adm-tpl-grid">
-      
-              {/* Draft 1 */}
-              <article className="adm-tpl-card adm-tpl-card-draft">
-                <div className="adm-tpl-thumb">
-                  <span className="adm-tpl-thumb-status" style={{ background: "rgba(180, 95, 31, 0.85)" } as React.CSSProperties}>Brouillon</span>
-                  <div className="adm-tpl-thumb-empty">
-                    <div className="adm-tpl-thumb-empty-ico">⊕</div>
-                    <div className="adm-tpl-thumb-empty-text">Pas encore d'aperçu</div>
-                  </div>
-                </div>
-                <div className="adm-tpl-body">
-                  <div className="adm-tpl-head">
-                    <div>
-                      <h3 className="adm-tpl-name">Flyer événement — pleine page</h3>
-                      <div className="adm-tpl-slug">fl-event-fullpage · v0.3</div>
-                    </div>
-                    <div className="adm-tpl-meta">
-                      <span className="badge badge-warning">Flyer</span>
-                    </div>
-                  </div>
-                  <div className="adm-tpl-stats">
-                    <strong>4 / 8</strong> champs définis · grille en cours · schéma non validé
-                  </div>
-                </div>
-                <div className="adm-tpl-foot">
-                  <a href="admin-template-editor.html" className="adm-tpl-edit-link">→ Continuer</a>
-                  <div className="adm-tpl-menu">
-                    <button className="adm-tpl-menu-btn" title="Dupliquer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1" /><path d="M2 11V3a1 1 0 011-1h8" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn danger" title="Supprimer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10" /></svg>
-                    </button>
-                  </div>
-                </div>
-              </article>
-      
-              {/* Draft 2 */}
-              <article className="adm-tpl-card adm-tpl-card-draft">
-                <div className="adm-tpl-thumb">
-                  <span className="adm-tpl-thumb-status" style={{ background: "rgba(180, 95, 31, 0.85)" } as React.CSSProperties}>Brouillon</span>
-                  <div className="adm-tpl-thumb-empty">
-                    <div className="adm-tpl-thumb-empty-ico">⊕</div>
-                    <div className="adm-tpl-thumb-empty-text">Pas encore d'aperçu</div>
-                  </div>
-                </div>
-                <div className="adm-tpl-body">
-                  <div className="adm-tpl-head">
-                    <div>
-                      <h3 className="adm-tpl-name">Postcard 5×7 — recto verso</h3>
-                      <div className="adm-tpl-slug">pc-5x7-duplex · v0.1</div>
-                    </div>
-                    <div className="adm-tpl-meta">
-                      <span className="badge badge-warning">Postcard</span>
-                    </div>
-                  </div>
-                  <div className="adm-tpl-stats">
-                    <strong>1 / 6</strong> champs définis · canvas vierge
-                  </div>
-                </div>
-                <div className="adm-tpl-foot">
-                  <a href="admin-template-editor.html" className="adm-tpl-edit-link">→ Continuer</a>
-                  <div className="adm-tpl-menu">
-                    <button className="adm-tpl-menu-btn" title="Dupliquer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1" /><path d="M2 11V3a1 1 0 011-1h8" /></svg>
-                    </button>
-                    <button className="adm-tpl-menu-btn danger" title="Supprimer">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10" /></svg>
-                    </button>
-                  </div>
-                </div>
-              </article>
-      
-            </section>
-      
-          </main>
+          )}
         </div>
-    </>
+
+        <section className="adm-stats" style={{ marginBottom: 24 }}>
+          <StatCard label="Designs créés 30 j" value={String(designs30d)} sub="via /design/[slug]" />
+          <StatCard label="Total designs" value={String(totalDesigns)} sub="depuis le launch" />
+          <StatCard label="Conversion design → order" value="—" sub="à wirer (DesignDraft ↔ Order)" />
+          <StatCard
+            label="Top performer"
+            value={topPerformerTpl?.name.split(' — ')[0] ?? '—'}
+            sub={topPerformer ? `${topPerformer._count.designs} design${topPerformer._count.designs > 1 ? 's' : ''}` : 'aucun encore'}
+          />
+        </section>
+
+        <section>
+          <div className="adm-section-head" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 className="adm-section-title" style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '-0.01em', margin: 0, fontWeight: 400 }}>
+              Templates publiés
+            </h2>
+            <span className="adm-section-meta" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              source : src/lib/templates/registry.ts
+            </span>
+          </div>
+
+          <div className="adm-tpl-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {ALL_TEMPLATES.map((t) => (
+              <TemplateCard
+                key={t.slug}
+                template={t}
+                designCount={dbBySlug.get(t.slug)?._count.designs ?? 0}
+              />
+            ))}
+          </div>
+        </section>
+
+        {draftsCount > 0 && (
+          <section style={{ marginTop: 48 }}>
+            <div className="adm-section-head" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h2 className="adm-section-title" style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '-0.01em', margin: 0, fontWeight: 400 }}>
+                Brouillons users{' '}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  ({draftsCount})
+                </span>
+              </h2>
+            </div>
+
+            <div className="adm-tpl-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {recentDrafts.map((d) => {
+                const tpl = ALL_TEMPLATES.find((t) =>
+                  allDbTemplates.find((dbt) => dbt.id === d.templateId)?.slug === t.slug,
+                );
+                return (
+                  <div
+                    key={d.id}
+                    className="adm-tpl-card adm-tpl-card-draft"
+                    style={{
+                      padding: 16,
+                      background: 'var(--bg-surface)',
+                      border: '1px dashed var(--border-default)',
+                      borderRadius: 'var(--r-lg)',
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                      {tpl?.name ?? 'Template inconnu'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {d.user.email} · {formatDate(d.updatedAt.toISOString())}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--warning)', marginTop: 8, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+                      ⚠ Non finalisé
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="adm-stat-card">
+      <div className="adm-stat-label">{label}</div>
+      <div className="adm-stat-value">{value}</div>
+      <div className="adm-stat-detail" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+function TemplateCard({ template, designCount }: { template: AppTemplate; designCount: number }) {
+  return (
+    <Link
+      href={`/design/${template.slug}` as Route}
+      className="adm-tpl-card"
+      style={{
+        padding: 16,
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--r-lg)',
+        textDecoration: 'none',
+        color: 'inherit',
+        display: 'grid',
+        gap: 12,
+      }}
+    >
+      <div
+        className="adm-tpl-thumb"
+        style={{
+          aspectRatio: '7/4',
+          background: template.accentColor + '15',
+          borderRadius: 'var(--r-md)',
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          position: 'relative',
+        }}
+      >
+        <div style={{ fontSize: 12, fontWeight: 600, color: template.accentColor, marginBottom: 2 }}>
+          {template.sampleValues.name}
+        </div>
+        <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>
+          {template.sampleValues.title ?? template.sampleValues.studio ?? ''}
+        </div>
+        <span
+          className="badge badge-success adm-tpl-thumb-badge"
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            letterSpacing: '0.04em',
+          }}
+        >
+          {template.variant}"
+        </span>
+      </div>
+
+      <div className="adm-tpl-body">
+        <div className="adm-tpl-name" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+          {template.name}
+        </div>
+        <div className="adm-tpl-slug" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+          {template.slug}
+        </div>
+        <div className="adm-tpl-meta" style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.4 }}>
+          {template.description}
+        </div>
+      </div>
+
+      <div
+        className="adm-tpl-foot"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingTop: 8,
+          borderTop: '1px solid var(--border-subtle)',
+        }}
+      >
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+          {designCount} design{designCount !== 1 ? 's' : ''} créé{designCount !== 1 ? 's' : ''}
+        </span>
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            color: 'var(--accent-primary)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+          }}
+        >
+          Aperçu →
+        </span>
+      </div>
+    </Link>
   );
 }

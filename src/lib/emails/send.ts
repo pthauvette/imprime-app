@@ -73,7 +73,7 @@ export async function sendOrderConfirmationEmail(input: {
     CUSTOMER_NAME: fullName(user),
     ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
     QUANTITY: order.itemsCount,
-    PRODUCT_NAME: 'Cartes de visite', // TODO: resolve via Sinalite product detail
+    PRODUCT_NAME: order.productSummary ?? 'Ta commande Plio',
     SUBTOTAL: cad(order.subtotalCents),
     SHIPPING: cad(order.shippingCents),
     TAX: cad(order.taxCents),
@@ -137,7 +137,7 @@ export async function sendOrderDeliveredEmail(input: {
     ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
     DELIVERED_AT_FORMATTED: `${timeFr(deliveredAt)} le ${dateFr(deliveredAt)}`,
     QUANTITY: order.itemsCount,
-    PRODUCT_NAME: 'Cartes de visite', // TODO: resolve via Sinalite product detail
+    PRODUCT_NAME: order.productSummary ?? 'Ta commande Plio',
     TOTAL: cad(order.amountCents),
     REORDER_URL: `${APP_URL}/order/start?reorder=${order.id}`,
     FEEDBACK_URL: `${APP_URL}/orders/${order.id}?feedback=true`,

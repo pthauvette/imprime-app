@@ -96,6 +96,8 @@ export const POST = withErrorHandler(async (req: Request) => {
   let subtotal = 0;
   // Cache product details across items for the same productId
   const detailCache = new Map<number, Awaited<ReturnType<typeof sinalite.getProductDetail>>>();
+  // Map productId → human name, populated via sinalite.getProduct (cheap)
+  const productNames = new Map<number, string>();
   for (const item of payload.items) {
     const { index } = await getVariantIndex(item.productId);
     const local = lookupVariant(item.optionIds, index);
@@ -111,7 +113,23 @@ export const POST = withErrorHandler(async (req: Request) => {
     if (!detailCache.has(item.productId)) {
       detailCache.set(item.productId, await sinalite.getProductDetail(item.productId));
     }
+    // Pre-fetch product name (best-effort, fallback à "Produit Plio")
+    if (!productNames.has(item.productId)) {
+      const prod = await sinalite.getProduct(item.productId).catch(() => null);
+      productNames.set(item.productId, prod?.name ?? 'Produit Plio');
+    }
   }
+
+  // Build human-readable summary : "Cartes 14pt Profit Maximizer (250)"
+  // ou multi-items "Cartes (250) + Flyers (100)"
+  const productSummary = payload.items
+    .map((item, idx) => {
+      const name = productNames.get(item.productId) ?? `Produit #${item.productId}`;
+      // Pour MVP : 1 unité par item (Sinalite gère la quantité via les optionIds)
+      // À enrichir si on a un vrai item.quantity dans le futur.
+      return idx === 0 ? name : `+ ${name}`;
+    })
+    .join(' ');
 
   // Tolerate $0.01 of rounding diff between client and server
   if (Math.abs(subtotal - payload.expectedSubtotal) > 0.05) {
@@ -194,6 +212,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     shipPostalCode: payload.shippingAddress.postalCode,
     shipPhone: payload.contact.phone,
     sinalitePayload,
+    productSummary,
   });
 
   return NextResponse.json({

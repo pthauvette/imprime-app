@@ -117,6 +117,11 @@ model Order {
   // Permet de rejouer ou debug sans dépendre d'une refetch.
   sinalitePayload  String
 
+  // Snapshot human-readable du produit pour affichage emails + admin sans
+  // refetch. Format libre : "Cartes 14pt + UV (250)" ou multi-items
+  // "Cartes 14pt (250) + Flyers 8.5×11 (100)".
+  productSummary   String?
+
   // Snapshot pour /orders UI (évite roundtrip Sinalite à chaque view)
   itemsCount       Int
   subtotalCents    Int
