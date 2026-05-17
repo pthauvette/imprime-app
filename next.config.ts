@@ -11,6 +11,7 @@ import type { NextConfig } from 'next';
  * Seules les SERVER-SIDE vars vont ici. `NEXT_PUBLIC_*` sont déjà publiques
  * et inlinées par Next automatiquement.
  */
+// Last forced rebuild trigger: 2026-05-17 (pickup S3_BUCKET + STRIPE_WEBHOOK_SECRET from Amplify Console)
 const SERVER_ENV_KEYS = [
   'DATABASE_URL',
   'AUTH_SECRET',
