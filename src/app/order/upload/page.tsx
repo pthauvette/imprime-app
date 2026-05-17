@@ -173,6 +173,8 @@ interface UploadedFile {
   size: number;
   contentType: string;
   isTemplate?: boolean;
+  /** Data URL JPEG (~50KB) de la page 1 si PDF rendu avec succès. */
+  thumbnailDataUrl?: string;
 }
 
 interface UploadProgress {
@@ -241,8 +243,21 @@ function Dropzone({
     setPending(null);
     setProgress({ pct: 0, filename: f.name });
     try {
-      const uploaded = await uploadFileToS3(f, kind, (pct) => setProgress({ pct, filename: f.name }));
-      onChange(uploaded);
+      // Render thumbnail en parallèle avec l'upload S3 — pdfjs-dist (~1MB)
+      // dynamic-imported, ne charge que la 1ère fois qu'un PDF est upload.
+      // Si le render échoue (encrypted, malformed), retourne null → fallback
+      // au preview text-only existant.
+      const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+      const thumbnailPromise = isPdf
+        ? import('@/lib/print/pdf-thumbnail').then((m) => m.renderPdfThumbnail(f))
+        : Promise.resolve(null);
+
+      const [uploaded, thumbnailDataUrl] = await Promise.all([
+        uploadFileToS3(f, kind, (pct) => setProgress({ pct, filename: f.name })),
+        thumbnailPromise,
+      ]);
+
+      onChange({ ...uploaded, ...(thumbnailDataUrl ? { thumbnailDataUrl } : {}) });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur upload');
     } finally {
@@ -468,6 +483,60 @@ function UploadingState({ progress }: { progress: UploadProgress }) {
 }
 
 function UploadedPreview({ file, label }: { file: UploadedFile; label: string }) {
+  // Si on a un thumbnail PDF rendu, affiche-le centré dans la carte avec
+  // le filename en overlay bas. Sinon fallback au preview text-only.
+  if (file.thumbnailDataUrl) {
+    return (
+      <div
+        style={{
+          width: '92%',
+          aspectRatio: '7/4',
+          background: 'white',
+          border: '1px solid var(--border-default)',
+          borderRadius: 2,
+          boxShadow: 'var(--shadow-md)',
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'grid',
+          placeItems: 'center',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={file.thumbnailDataUrl}
+          alt={`Aperçu de ${file.name}`}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            objectFit: 'contain',
+            background: 'white',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0, left: 0, right: 0,
+            background: 'linear-gradient(0deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%)',
+            padding: '24px 12px 8px',
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: 8,
+            color: 'white',
+            fontSize: 11,
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {file.name}
+          </span>
+          <span style={{ opacity: 0.8, whiteSpace: 'nowrap' }}>page 1 / aperçu</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback : preview text-only (non-PDF formats ou thumbnail render failed)
   return (
     <div
       style={{
