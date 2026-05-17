@@ -95,6 +95,34 @@ export type OrderCancelledVars = {
   UNSUBSCRIBE_URL: string;
 };
 
+export type AdminDailySummaryVars = {
+  /** Pre-formatted date (e.g. "samedi 17 mai 2026"). */
+  DATE_FORMATTED: string;
+  /** Headline phrase, e.g. "12 commandes hier" or "Journée tranquille". */
+  HEADLINE: string;
+  /** Inbox preview line (hidden in body but shown in mail list). */
+  HEADLINE_PREVIEW: string;
+  REVENUE_24H: string;
+  ORDERS_24H: string | number;
+  FAILURES_24H: string | number;
+  /** CSS color literal for failures count (#B83A2C if >0, #4A554D if 0). */
+  FAILURES_COLOR: string;
+  /** Pre-rendered HTML block of failed-order rows; empty string if none. */
+  FAILURES_BLOCK_HTML: string;
+  COUNT_PAID: string | number;
+  COUNT_SUBMITTED: string | number;
+  COUNT_IN_PRODUCTION: string | number;
+  COUNT_SHIPPED: string | number;
+  COUNT_DELIVERED: string | number;
+  COUNT_FAILED: string | number;
+  NEW_USERS_24H: string | number;
+  /** "" (singular) or "s" (plural) — pre-formatted. */
+  NEW_USERS_PLURAL: string;
+  AVG_BASKET: string;
+  DASHBOARD_URL: string;
+  UNSUBSCRIBE_URL: string;
+};
+
 export type RefundIssuedVars = {
   /** Refund amount, pre-formatted (e.g. "54,20"). Currency symbol is in the template. */
   AMOUNT: string;
@@ -123,4 +151,5 @@ export type EmailVarsMap = {
   'order-delivered': OrderDeliveredVars;
   'order-cancelled': OrderCancelledVars;
   'refund-issued': RefundIssuedVars;
+  'admin-daily-summary': AdminDailySummaryVars;
 };

@@ -21,6 +21,7 @@ import type {
   OrderCancelledVars,
   RefundIssuedVars,
   WelcomeVars,
+  AdminDailySummaryVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -210,6 +211,22 @@ export async function sendOrderCancelledEmail(input: {
     template: 'order-cancelled',
     vars: vars as unknown as Record<string, string | number>,
   }), 'order-cancelled', order.id);
+}
+
+/**
+ * Récap quotidien envoyé chaque matin à l'admin (tous les ADMIN_EMAILS).
+ * Toutes les vars sont pré-calculées par le caller — ce helper fait juste
+ * l'envoi typé. À schedule via /api/cron/daily-summary + GH Actions.
+ */
+export async function sendAdminDailySummaryEmail(input: {
+  to: string;
+  vars: AdminDailySummaryVars;
+}) {
+  return tryCatch(() => sendEmail({
+    to: input.to,
+    template: 'admin-daily-summary',
+    vars: input.vars as unknown as Record<string, string | number>,
+  }), 'admin-daily-summary', 'daily-summary');
 }
 
 /** Envoyé séparément quand un refund est traité (peut être partial). */

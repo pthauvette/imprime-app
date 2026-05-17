@@ -20,7 +20,8 @@ export type EmailTemplate =
   | 'order-shipped'
   | 'order-delivered'
   | 'order-cancelled'
-  | 'refund-issued';
+  | 'refund-issued'
+  | 'admin-daily-summary';
 
 // Cache des templates chargés (au premier render)
 const cache = new Map<EmailTemplate, string>();
@@ -64,6 +65,7 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
   'order-delivered': (v) => `C'est arrivé. Merci #SIN-${v.ORDER_ID ?? ''}`,
   'order-cancelled': (v) => `Ta commande #SIN-${v.ORDER_ID ?? ''} a été annulée`,
   'refund-issued': (v) => `Remboursement traité — ${v.AMOUNT ?? ''} $`,
+  'admin-daily-summary': (v) => `Plio · ${v.ORDERS_24H ?? 0} commandes · ${v.REVENUE_24H ?? '0,00'} $ (${v.DATE_FORMATTED ?? ''})`,
 };
 
 // ─── ACTUAL SEND (via SES SMTP) ───────────────────────────────────────────
