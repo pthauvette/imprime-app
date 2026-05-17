@@ -95,6 +95,19 @@ export type OrderCancelledVars = {
   UNSUBSCRIBE_URL: string;
 };
 
+export type AdminCustomMessageVars = {
+  ORDER_ID: string | number;
+  /** Subject de l'email (devient aussi le H1 de l'email). */
+  SUBJECT: string;
+  /** Preview du body affiché dans l'inbox preview. */
+  PREVIEW: string;
+  /** Body HTML pré-formaté (paragraphes <p>) — caller sanitize. */
+  BODY_HTML: string;
+  ORDER_URL: string;
+  SENDER_NAME: string;
+  SENDER_EMAIL: string;
+};
+
 export type AdminDailySummaryVars = {
   /** Pre-formatted date (e.g. "samedi 17 mai 2026"). */
   DATE_FORMATTED: string;
@@ -152,4 +165,5 @@ export type EmailVarsMap = {
   'order-cancelled': OrderCancelledVars;
   'refund-issued': RefundIssuedVars;
   'admin-daily-summary': AdminDailySummaryVars;
+  'admin-custom-message': AdminCustomMessageVars;
 };

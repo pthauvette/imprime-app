@@ -56,6 +56,7 @@ const baseOrder: Order = {
   taxCents: 2217,
   discountCents: 0,
   promoCodeId: null,
+  adminNotes: null,
   shippingMethod: 'UPS Standard',
   province: 'QC',
   shipName: 'Test User',

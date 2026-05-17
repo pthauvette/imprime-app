@@ -22,6 +22,7 @@ import type {
   RefundIssuedVars,
   WelcomeVars,
   AdminDailySummaryVars,
+  AdminCustomMessageVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -211,6 +212,29 @@ export async function sendOrderCancelledEmail(input: {
     template: 'order-cancelled',
     vars: vars as unknown as Record<string, string | number>,
   }), 'order-cancelled', order.id);
+}
+
+/**
+ * Message custom écrit par admin pour un customer. Body est du texte brut
+ * fourni par admin — on l'escape + on le split en <p> dans le caller pour
+ * éviter qu'un admin distrait paste du HTML qui casserait l'email.
+ *
+ * Reply-To set sur sender email pour que le customer puisse répondre direct
+ * à l'admin (pas à bonjour@plio.ca générique).
+ */
+export async function sendAdminCustomMessageEmail(input: {
+  to: string;
+  vars: AdminCustomMessageVars;
+  /** Reply-To header — typiquement l'email de l'admin envoyeur. */
+  replyTo: string;
+}) {
+  return tryCatch(() => sendEmail({
+    to: input.to,
+    template: 'admin-custom-message',
+    vars: input.vars as unknown as Record<string, string | number>,
+    subject: input.vars.SUBJECT,
+    replyTo: input.replyTo,
+  }), 'admin-custom-message', String(input.vars.ORDER_ID));
 }
 
 /**

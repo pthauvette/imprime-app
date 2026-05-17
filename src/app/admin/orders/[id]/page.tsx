@@ -13,6 +13,8 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import OrderActions from '@/components/admin/OrderActions';
+import AdminNotesPanel from '@/components/admin/AdminNotesPanel';
+import SendCustomMessageButton from '@/components/admin/SendCustomMessageButton';
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -252,6 +254,13 @@ export default async function AdminOrderDetailPage({
                 amountCents={order.amountCents}
                 hasSinaliteId={!!order.sinaliteOrderId}
               />
+              <div style={{ marginTop: 8 }}>
+                <SendCustomMessageButton orderId={order.id} customerEmail={order.user.email} />
+              </div>
+            </Card>
+
+            <Card label="Notes internes (admin)">
+              <AdminNotesPanel orderId={order.id} initialNotes={order.adminNotes} />
             </Card>
 
           </aside>

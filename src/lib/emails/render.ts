@@ -21,7 +21,8 @@ export type EmailTemplate =
   | 'order-delivered'
   | 'order-cancelled'
   | 'refund-issued'
-  | 'admin-daily-summary';
+  | 'admin-daily-summary'
+  | 'admin-custom-message';
 
 // Cache des templates chargés (au premier render)
 const cache = new Map<EmailTemplate, string>();
@@ -66,6 +67,8 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
   'order-cancelled': (v) => `Ta commande #SIN-${v.ORDER_ID ?? ''} a été annulée`,
   'refund-issued': (v) => `Remboursement traité — ${v.AMOUNT ?? ''} $`,
   'admin-daily-summary': (v) => `Plio · ${v.ORDERS_24H ?? 0} commandes · ${v.REVENUE_24H ?? '0,00'} $ (${v.DATE_FORMATTED ?? ''})`,
+  // Subject explicit — l'admin l'écrit lui-même, on prend tel quel
+  'admin-custom-message': (v) => String(v.SUBJECT ?? `Plio · message sur ta commande #${v.ORDER_ID ?? ''}`),
 };
 
 // ─── ACTUAL SEND (via SES SMTP) ───────────────────────────────────────────
@@ -79,6 +82,9 @@ export async function sendEmail(opts: {
   template: EmailTemplate;
   vars: Record<string, string | number>;
   subject?: string;
+  /** Reply-To header — pour que les replies aillent vers l'admin sender,
+   *  pas vers bonjour@plio.ca (qui n'est pas monitoré). */
+  replyTo?: string;
 }) {
   const html = renderEmail(opts.template, opts.vars);
   const subject = opts.subject ?? EMAIL_SUBJECTS[opts.template](opts.vars);
@@ -86,7 +92,7 @@ export async function sendEmail(opts: {
   if (!SES_CONFIGURED) {
     // Dev mode : log au lieu d'envoyer
     logEmail.info(
-      { to: opts.to, template: opts.template, subject, vars: opts.vars },
+      { to: opts.to, template: opts.template, subject, vars: opts.vars, replyTo: opts.replyTo },
       'email (dev — not sent, SES not configured)',
     );
     return { sent: false, dev: true };
@@ -106,6 +112,7 @@ export async function sendEmail(opts: {
   await transport.sendMail({
     from: SES_FROM,
     to: opts.to,
+    ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
     subject,
     html,
     // text fallback : strip HTML tags
