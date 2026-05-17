@@ -67,6 +67,10 @@ jobs:
             "https://www.plio.ca/sign-in|lien magique|200"
             "https://www.plio.ca/sitemap.xml|<urlset|200"
             "https://www.plio.ca/robots.txt|User-agent|200"
+            "https://www.plio.ca/legal/privacy|Loi 25|200"
+            "https://www.plio.ca/legal/terms|Plio|200"
+            "https://www.plio.ca/legal/refund-policy|emboursement|200"
+            "https://www.plio.ca/contact|ontact|200"
           )
 
           failed=0

@@ -12,13 +12,13 @@ export default function RefundPolicyPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="landing.html" className="mkt-brand">Plio.</a>
+          <a href="/" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
-            <a href="landing.html#products" className="mkt-nav-link">Produits</a>
-            <a href="about.html" className="mkt-nav-link">Notre histoire</a>
-            <a href="help.html" className="mkt-nav-link">Aide</a>
-            <a href="contact.html" className="mkt-nav-link">Contact</a>
-            <a href="welcome.html" className="mkt-nav-cta">Commander →</a>
+            <a href="/order/start" className="mkt-nav-link">Produits</a>
+            <a href="/about" className="mkt-nav-link">Notre histoire</a>
+            <a href="/contact" className="mkt-nav-link">Aide</a>
+            <a href="/contact" className="mkt-nav-link">Contact</a>
+            <a href="/order/start" className="mkt-nav-cta">Commander →</a>
           </div>
         </nav>
       
@@ -53,7 +53,7 @@ export default function RefundPolicyPage() {
                 <p>On rembourse et on réimprime. Délai de remboursement : <strong>5 à 10 jours bancaires</strong> après acceptation.</p>
                 <div className="scenario-meta">
                   <span className="scenario-pill">48 h pour réclamer</span>
-                  <a href="contact.html" className="scenario-link">Ouvrir un ticket →</a>
+                  <a href="/contact" className="scenario-link">Ouvrir un ticket →</a>
                 </div>
               </div>
       
@@ -65,7 +65,7 @@ export default function RefundPolicyPage() {
                 <p>Après le démarrage de la presse, ce n'est plus possible : on a déjà engagé du matériel, de l'encre et du temps machine.</p>
                 <div className="scenario-meta">
                   <span className="scenario-pill">2 h pour annuler</span>
-                  <a href="orders.html" className="scenario-link">Mes commandes →</a>
+                  <a href="/orders" className="scenario-link">Mes commandes →</a>
                 </div>
               </div>
             </div>
@@ -169,8 +169,8 @@ export default function RefundPolicyPage() {
             <h2>Un problème <em>maintenant ?</em></h2>
             <p>Notre équipe répond en moins de 4 h ouvrables. On préfère résoudre vite plutôt que de t'écrire un courriel par jour pendant deux semaines.</p>
             <div className="cta-actions">
-              <a href="contact.html" className="cta-btn-primary">Ouvrir un ticket →</a>
-              <a href="help.html" className="cta-btn-secondary">Centre d'aide</a>
+              <a href="/contact" className="cta-btn-primary">Ouvrir un ticket →</a>
+              <a href="/contact" className="cta-btn-secondary">Centre d'aide</a>
             </div>
           </div>
         </main>
@@ -184,25 +184,25 @@ export default function RefundPolicyPage() {
             <div className="footer-col">
               <h4>Entreprise</h4>
               <ul>
-                <li><a href="about.html">Notre histoire</a></li>
-                <li><a href="contact.html">Contact</a></li>
+                <li><a href="/about">Notre histoire</a></li>
+                <li><a href="/contact">Contact</a></li>
                 <li><a href="#">Carrières</a></li>
               </ul>
             </div>
             <div className="footer-col">
               <h4>Aide</h4>
               <ul>
-                <li><a href="help.html">Centre d'aide</a></li>
-                <li><a href="contact.html">Contact</a></li>
+                <li><a href="/contact">Centre d'aide</a></li>
+                <li><a href="/contact">Contact</a></li>
                 <li><a href="#">Specs techniques</a></li>
               </ul>
             </div>
             <div className="footer-col">
               <h4>Légal</h4>
               <ul>
-                <li><a href="terms.html">Conditions</a></li>
-                <li><a href="privacy.html">Confidentialité</a></li>
-                <li><a href="refund-policy.html">Remboursements</a></li>
+                <li><a href="/legal/terms">Conditions</a></li>
+                <li><a href="/legal/privacy">Confidentialité</a></li>
+                <li><a href="/legal/refund-policy">Remboursements</a></li>
               </ul>
             </div>
           </div>

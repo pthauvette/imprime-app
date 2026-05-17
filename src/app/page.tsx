@@ -288,25 +288,24 @@ export default function LandingPage() {
               <h4>Aide</h4>
               <ul>
                 <li><a href="#faq">FAQ</a></li>
-                <li><a href="#">Templates</a></li>
-                <li><a href="#">Specs techniques</a></li>
-                <li><a href="#">Statut système</a></li>
-                <li><a href="#">Contact</a></li>
+                <li><a href="/templates">Templates</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/about">À propos</a></li>
               </ul>
             </div>
             <div className="footer-col">
-              <h4>Compte</h4>
+              <h4>Légal</h4>
               <ul>
-                <li><a href="/orders">Mes commandes</a></li>
-                <li><a href="#">Adresses</a></li>
-                <li><a href="#">Paiements</a></li>
-                <li><a href="#">Programme de parrainage</a></li>
+                <li><a href="/legal/privacy">Politique de confidentialité</a></li>
+                <li><a href="/legal/terms">Conditions d'utilisation</a></li>
+                <li><a href="/legal/refund-policy">Politique de remboursement</a></li>
+                <li><a href="/contact">Nous contacter</a></li>
               </ul>
             </div>
           </div>
           <div className="footer-bottom">
             <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
-            <span>Politique de confidentialité · Conditions d'utilisation</span>
+            <span><a href="/legal/privacy" style={{ color: 'inherit' }}>Confidentialité</a> · <a href="/legal/terms" style={{ color: 'inherit' }}>Conditions</a> · <a href="/legal/refund-policy" style={{ color: 'inherit' }}>Remboursement</a></span>
           </div>
         </footer>
     </>

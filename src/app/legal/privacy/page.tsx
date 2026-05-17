@@ -12,8 +12,8 @@ export default function PrivacyPage() {
   return (
     <>
       <nav className="legal-nav">
-          <a href="landing.html" className="legal-brand">Plio.</a>
-          <a href="landing.html" className="legal-back">← Retour à l'accueil</a>
+          <a href="/" className="legal-brand">Plio.</a>
+          <a href="/" className="legal-back">← Retour à l'accueil</a>
         </nav>
       
         <main>
@@ -273,7 +273,7 @@ export default function PrivacyPage() {
                   <li>Postal : Démocratik inc. · À l'attention de la DPD · 4220 boul. St-Laurent, suite 200, Montréal QC H2W 1Z3</li>
                 </ul>
                 <div className="legal-callout">
-                  <strong>Une question simple ?</strong> Avant de saisir la DPD, n'hésite pas à essayer le <a href="contact.html">formulaire de contact général</a>. Nous redirigeons vers la bonne personne en interne.
+                  <strong>Une question simple ?</strong> Avant de saisir la DPD, n'hésite pas à essayer le <a href="/contact">formulaire de contact général</a>. Nous redirigeons vers la bonne personne en interne.
                 </div>
               </section>
             </article>
@@ -283,7 +283,7 @@ export default function PrivacyPage() {
         <footer>
           <div className="footer-bottom">
             <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
-            <span><a href="terms.html">Conditions</a> · <a href="refund-policy.html">Remboursements</a> · <a href="contact.html">Contact</a></span>
+            <span><a href="/legal/terms">Conditions</a> · <a href="/legal/refund-policy">Remboursements</a> · <a href="/contact">Contact</a></span>
           </div>
         </footer>
     </>

@@ -12,8 +12,8 @@ export default function TermsPage() {
   return (
     <>
       <nav className="legal-nav">
-          <a href="landing.html" className="legal-brand">Plio.</a>
-          <a href="landing.html" className="legal-back">← Retour à l'accueil</a>
+          <a href="/" className="legal-brand">Plio.</a>
+          <a href="/" className="legal-back">← Retour à l'accueil</a>
         </nav>
       
         <main>
@@ -86,7 +86,7 @@ export default function TermsPage() {
                 <h2><span className="h-num">Article 06</span>Garantie et retours</h2>
                 <p>Plio garantit la conformité des produits livrés au bon à tirer (BAT) numérique validé par l'utilisateur lors de l'étape de prépresse. Toute réclamation pour non-conformité doit être adressée dans un délai de <strong>trente (30) jours</strong> à compter de la livraison, accompagnée de photographies du défaut allégué et du numéro de commande.</p>
                 <p>Les défauts couverts incluent notamment : erreurs d'impression imputables à la presse, défauts de coupe ou de finition supérieurs aux tolérances industrielles, livraison de quantités inférieures à la commande. En revanche, ne sont pas couverts les écarts colorimétriques inférieurs à un Delta-E de 4, les différences entre rendu écran et rendu imprimé, ni les défauts résultant d'un fichier source défaillant n'ayant pas été détecté par le validateur automatique.</p>
-                <p>En cas de défaut reconnu, Plio procédera, à sa discrétion, soit à la réimpression gratuite de la commande, soit au remboursement intégral du prix payé, dans un délai de cinq (5) à dix (10) jours ouvrables après acceptation de la réclamation. Pour davantage de détails, l'utilisateur est invité à consulter notre <a href="refund-policy.html">politique de remboursement</a>.</p>
+                <p>En cas de défaut reconnu, Plio procédera, à sa discrétion, soit à la réimpression gratuite de la commande, soit au remboursement intégral du prix payé, dans un délai de cinq (5) à dix (10) jours ouvrables après acceptation de la réclamation. Pour davantage de détails, l'utilisateur est invité à consulter notre <a href="/legal/refund-policy">politique de remboursement</a>.</p>
               </section>
       
               <section id="s7">
@@ -140,7 +140,7 @@ export default function TermsPage() {
         <footer>
           <div className="footer-bottom">
             <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
-            <span><a href="privacy.html">Confidentialité</a> · <a href="refund-policy.html">Remboursements</a> · <a href="contact.html">Contact</a></span>
+            <span><a href="/legal/privacy">Confidentialité</a> · <a href="/legal/refund-policy">Remboursements</a> · <a href="/contact">Contact</a></span>
           </div>
         </footer>
     </>

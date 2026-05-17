@@ -12,13 +12,13 @@ export default function ContactPage() {
   return (
     <>
       <nav className="mkt-nav">
-          <a href="landing.html" className="mkt-brand">Plio.</a>
+          <a href="/" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
-            <a href="landing.html#products" className="mkt-nav-link">Produits</a>
-            <a href="about.html" className="mkt-nav-link">Notre histoire</a>
-            <a href="help.html" className="mkt-nav-link">Aide</a>
-            <a href="contact.html" className="mkt-nav-link active">Contact</a>
-            <a href="welcome.html" className="mkt-nav-cta">Commander →</a>
+            <a href="/order/start" className="mkt-nav-link">Produits</a>
+            <a href="/about" className="mkt-nav-link">Notre histoire</a>
+            <a href="/contact" className="mkt-nav-link">Aide</a>
+            <a href="/contact" className="mkt-nav-link active">Contact</a>
+            <a href="/order/start" className="mkt-nav-cta">Commander →</a>
           </div>
         </nav>
       
@@ -78,7 +78,7 @@ export default function ContactPage() {
               </div>
       
               <div className="form-submit-row">
-                <div className="small">En soumettant, tu acceptes notre <a href="privacy.html" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>politique de confidentialité</a>.</div>
+                <div className="small">En soumettant, tu acceptes notre <a href="/legal/privacy" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>politique de confidentialité</a>.</div>
                 <button className="submit-btn" type="submit">Envoyer →</button>
               </div>
             </form>
@@ -128,7 +128,7 @@ export default function ContactPage() {
                 <h2>Avant de nous écrire — <em>peut-être qu'on a déjà la réponse.</em></h2>
                 <p>Notre centre d'aide couvre 90 % des questions, avec des réponses claires sans jargon. Délais, fichiers, retours, paiements — tout est là.</p>
               </div>
-              <a href="help.html" className="faq-teaser-btn">Centre d'aide →</a>
+              <a href="/contact" className="faq-teaser-btn">Centre d'aide →</a>
             </div>
           </section>
         </main>
@@ -142,8 +142,8 @@ export default function ContactPage() {
             <div className="footer-col">
               <h4>Entreprise</h4>
               <ul>
-                <li><a href="about.html">Notre histoire</a></li>
-                <li><a href="contact.html">Contact</a></li>
+                <li><a href="/about">Notre histoire</a></li>
+                <li><a href="/contact">Contact</a></li>
                 <li><a href="#">Carrières</a></li>
                 <li><a href="#">Presse</a></li>
               </ul>
@@ -151,8 +151,8 @@ export default function ContactPage() {
             <div className="footer-col">
               <h4>Aide</h4>
               <ul>
-                <li><a href="help.html">Centre d'aide</a></li>
-                <li><a href="contact.html">Contact</a></li>
+                <li><a href="/contact">Centre d'aide</a></li>
+                <li><a href="/contact">Contact</a></li>
                 <li><a href="#">Specs techniques</a></li>
                 <li><a href="#">Statut système</a></li>
               </ul>
@@ -160,9 +160,9 @@ export default function ContactPage() {
             <div className="footer-col">
               <h4>Légal</h4>
               <ul>
-                <li><a href="terms.html">Conditions d'utilisation</a></li>
-                <li><a href="privacy.html">Confidentialité</a></li>
-                <li><a href="refund-policy.html">Remboursements</a></li>
+                <li><a href="/legal/terms">Conditions d'utilisation</a></li>
+                <li><a href="/legal/privacy">Confidentialité</a></li>
+                <li><a href="/legal/refund-policy">Remboursements</a></li>
               </ul>
             </div>
           </div>
