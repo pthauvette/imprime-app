@@ -14,21 +14,73 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import OrderRow, { type OrderRowProps } from '@/components/account/OrderRow';
+import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { formatCurrency } from '@/lib/format';
 import { listOrdersForUser, type OrderStatus } from '@/lib/db/orders';
 import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import { recordAdminAudit } from '@/lib/db/admin-audit';
 
 export const metadata = { title: 'Mes commandes — Plio' };
 
 export const dynamic = 'force-dynamic';
 
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ viewAsUserId?: string }>;
+}) {
   const session = await auth();
   // Middleware déjà rejette si non authentifié, mais on garde un fallback
   // pour les Server Components qui pourraient être rendus différemment.
   if (!session?.user) redirect('/sign-in?callbackUrl=/orders' as Route);
 
-  const dbOrders = await listOrdersForUser({ userId: session.user.id, limit: 50 });
+  // ─── Admin "view as user" — read-only impersonation ───────────────────
+  // Feature support : un admin peut voir cette page comme un user
+  // spécifique en passant `?viewAsUserId=...`. Strictement read-only :
+  // les actions write (cancel, refund, etc.) ne sont JAMAIS exécutées
+  // sous l'identité du target user — elles passent toujours par
+  // /api/admin/* qui utilise session.user.id (l'admin).
+  //
+  // Gating :
+  //   - Requiert session.user.role === 'ADMIN' (vérifié par auth.config
+  //     middleware déjà, mais on re-check ici par défense en profondeur).
+  //   - Si non-admin passe le param → silently ignoré (pas d'erreur pour
+  //     ne pas leak l'existence d'un userId).
+  //
+  // Audit : chaque view-as logue un AdminAuditEvent kind=ADMIN_VIEW_AS_USER
+  // avec adminId + targetId pour traçabilité interne.
+  const { viewAsUserId } = await searchParams;
+  const wantsImpersonate = !!viewAsUserId && viewAsUserId !== session.user.id;
+  const isAdmin = session.user.role === 'ADMIN';
+  const isImpersonating = wantsImpersonate && isAdmin;
+  const targetUserId = isImpersonating ? viewAsUserId! : session.user.id;
+
+  const impersonatedUser = isImpersonating
+    ? await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { email: true, name: true, firstName: true },
+      })
+    : null;
+
+  // Si l'admin demande un userId qui n'existe pas, on bascule sur ses
+  // propres données plutôt que de planter — UX dégradée mais pas cassée.
+  const effectiveUserId = impersonatedUser ? targetUserId : session.user.id;
+
+  if (isImpersonating && impersonatedUser) {
+    // Fire-and-forget — le helper ne throw jamais. On n'attend pas pour
+    // garder la page rapide.
+    void recordAdminAudit({
+      kind: 'ADMIN_VIEW_AS_USER',
+      adminId: session.user.id,
+      adminEmail: session.user.email ?? '',
+      targetType: 'USER',
+      targetId: targetUserId,
+      data: { page: '/orders' },
+    });
+  }
+
+  const dbOrders = await listOrdersForUser({ userId: effectiveUserId, limit: 50 });
 
   const orders: OrderRowProps[] = dbOrders.map((o) => ({
     id: o.id,
@@ -48,6 +100,9 @@ export default async function OrdersPage() {
 
   return (
     <div className="acct-shell">
+      {impersonatedUser && (
+        <ViewAsBanner targetUser={impersonatedUser} exitHref="/orders" />
+      )}
       <Sidebar active="/orders" />
 
       <main className="acct-main" style={{ padding: '56px 64px', maxWidth: 1280 }}>

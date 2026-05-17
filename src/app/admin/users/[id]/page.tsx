@@ -147,9 +147,9 @@ export default async function AdminUserDetailPage({
           <span className="ud-breadcrumb-current">{displayName || user.email}</span>
         </nav>
 
-        <header className="ud-header">
+        <header className="ud-header" style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
           <div className="ud-avatar-big">{initials}</div>
-          <div>
+          <div style={{ flex: 1 }}>
             <h1 className="ud-name">{displayName || user.email}</h1>
             <div className="ud-name-meta">
               <strong>{user.email}</strong> · membre depuis le {formatDate(user.createdAt.toISOString())} · ID <span style={{ color: 'var(--text-muted)' }}>{user.id}</span>
@@ -168,6 +168,28 @@ export default async function AdminUserDetailPage({
               )}
             </div>
           </div>
+          {/* View-as : ouvre /orders en mode admin pour voir la même chose
+              que le user. Read-only, audit log automatique côté target page. */}
+          {user.id !== session?.user?.id && (
+            <Link
+              href={`/orders?viewAsUserId=${user.id}` as Route}
+              title="Voir les commandes comme ce client (mode admin, read-only)"
+              style={{
+                fontSize: 12,
+                padding: '8px 14px',
+                background: 'var(--bg-sunken)',
+                color: 'var(--text-primary)',
+                borderRadius: 'var(--r-sm)',
+                textDecoration: 'none',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              👁 Voir comme ce client
+            </Link>
+          )}
         </header>
 
         {/* ─── Quick stats ──────────────────────────────────────── */}

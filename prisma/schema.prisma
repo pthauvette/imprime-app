@@ -313,3 +313,27 @@ model WebhookEvent {
   @@index([success, processedAt])
   @@index([orderId])
 }
+
+// ─── ADMIN AUDIT EVENT ────────────────────────────────────────────────────
+// Trace des actions admin sensibles (impersonation/view-as, refunds manuels,
+// cancellation manuelle, etc.). Append-only — jamais update/delete. Sert
+// pour audit interne + compliance + détection d'abus admin.
+
+model AdminAuditEvent {
+  id          String   @id @default(cuid())
+  /** ADMIN_VIEW_AS_USER | ADMIN_MANUAL_REFUND | ADMIN_MANUAL_CANCEL | ADMIN_RESEND_EMAIL | ADMIN_TEMPLATE_EDIT */
+  kind        String
+  /** L'admin qui a posé l'action (toujours présent — admin auth required). */
+  adminId     String
+  adminEmail  String
+  /** Le target (user, order, template…) si applicable. */
+  targetType  String?  // 'USER' | 'ORDER' | 'TEMPLATE'
+  targetId    String?
+  /** JSON arbitraire pour stocker le contexte (URL visitée, montant refund, etc.). */
+  data        String?
+  createdAt   DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([kind, createdAt])
+  @@index([targetType, targetId])
+}

@@ -16,6 +16,8 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
+import ViewAsBanner from '@/components/admin/ViewAsBanner';
+import { recordAdminAudit } from '@/lib/db/admin-audit';
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -74,6 +76,20 @@ export default async function CustomerOrderDetailPage({
   const isAdmin = session.user.role === 'ADMIN';
   if (!isOwner && !isAdmin) notFound();
 
+  // Admin viewing another user's order → audit log + banner. Pas besoin
+  // de query param ici parce que l'URL identifie déjà l'order spécifique.
+  const isImpersonating = isAdmin && !isOwner;
+  if (isImpersonating) {
+    void recordAdminAudit({
+      kind: 'ADMIN_VIEW_AS_USER',
+      adminId: session.user.id,
+      adminEmail: session.user.email ?? '',
+      targetType: 'ORDER',
+      targetId: order.id,
+      data: { page: `/orders/${order.id}`, customerId: order.userId, customerEmail: order.user.email },
+    });
+  }
+
   const status = order.status as OrderStatus;
   const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
 
@@ -87,6 +103,12 @@ export default async function CustomerOrderDetailPage({
 
   return (
     <div className="acct-shell">
+      {isImpersonating && (
+        <ViewAsBanner
+          targetUser={order.user}
+          exitHref={`/admin/orders/${order.id}`}
+        />
+      )}
       <Sidebar active="/orders" />
 
       <main className="detail-main" style={{ padding: '40px 48px 80px', maxWidth: 1280 }}>
