@@ -391,6 +391,31 @@ model EmailDelivery {
   @@index([createdAt])
 }
 
+// ─── NEWSLETTER ──────────────────────────────────────────────────────────
+// Lead capture pour les visiteurs qui ne convertissent pas immédiatement.
+// CASL-compliant : consentement EXPRESS via la coche du form (pas
+// d'auto-subscribe). Unsubscribe self-serve via /api/newsletter/unsubscribe.
+//
+// Source = trace d'où l'inscription vient (landing-footer, popup, etc.)
+// pour mesurer la conversion par placement.
+
+model NewsletterSubscriber {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  /** D'où vient l'inscription (landing-footer, popup, /pricing, etc.). */
+  source        String?
+  /** IP au moment de l'inscription — preuve de consentement CASL en cas de litige. */
+  consentIp     String?
+  consentUa     String?
+  status        String    @default("ACTIVE") // ACTIVE | UNSUBSCRIBED | BOUNCED
+  subscribedAt  DateTime  @default(now())
+  unsubscribedAt DateTime?
+  /** Last campaign sent (pour stats engagement plus tard). */
+  lastSentAt    DateTime?
+
+  @@index([status, subscribedAt])
+}
+
 // ─── PROMO CODE ───────────────────────────────────────────────────────────
 // Codes promo appliqués au checkout. Discount soit en pourcentage soit en
 // cents fixes (XOR — un seul des deux est non-null). Restrictions

@@ -5,6 +5,8 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
+import NewsletterSignup from '@/components/marketing/NewsletterSignup';
+
 export const metadata = { title: "Plio — Print wholesale au Canada" };
 
 export default function LandingPage() {
@@ -273,6 +275,9 @@ export default function LandingPage() {
             <div className="footer-brand">
               <span className="footer-brand-mark">Plio.</span>
               <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 1 à 7 jours. Imprimé à Markham (ON).</p>
+              <div style={{ marginTop: 24, maxWidth: 380 }}>
+                <NewsletterSignup source="landing-footer" />
+              </div>
             </div>
             <div className="footer-col">
               <h4>Produits</h4>
