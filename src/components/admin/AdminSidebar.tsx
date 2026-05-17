@@ -13,6 +13,7 @@ export type AdminSidebarKey =
   | 'orders'
   | 'webhooks'
   | 'emails'
+  | 'reviews'
   | 'templates'
   | 'products'
   | 'users'
@@ -82,6 +83,11 @@ const ICONS = {
       <path d="M2 5l6 4l6-4" />
     </svg>
   ),
+  reviews: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 6.3l4-.6z" />
+    </svg>
+  ),
   settings: (
     <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
       <circle cx={8} cy={8} r={2.5} />
@@ -123,6 +129,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
       label: 'Audience',
       items: [
         { key: 'users', href: '/admin/users' as Route, label: 'Utilisateurs', icon: ICONS.users, count: counts.users },
+        { key: 'reviews', href: '/admin/reviews' as Route, label: 'Reviews', icon: ICONS.reviews, count: counts.reviews, urgent: urgents.reviews },
       ],
     },
     {

@@ -6,6 +6,7 @@
  */
 
 import NewsletterSignup from '@/components/marketing/NewsletterSignup';
+import TestimonialsSection from '@/components/marketing/TestimonialsSection';
 
 export const metadata = { title: "Plio — Print wholesale au Canada" };
 
@@ -195,40 +196,8 @@ export default function LandingPage() {
             </div>
           </section>
       
-          {/* TESTIMONIALS */}
-          <section className="testimonials-section" style={{ maxWidth: "none", padding: "0", margin: "0" } as React.CSSProperties}>
-            <div className="testimonials-section-inner">
-              <div className="section-eyebrow">Témoignages</div>
-              <h2 className="section-title">Pourquoi ils sont <em>revenus.</em></h2>
-              <p className="section-lede">Studios, photographes, agences, restaurants — quand on essaie, on revient.</p>
-              <div className="testimonials-grid">
-                <div className="testimonial-card">
-                  <div className="testimonial-stars">★★★★★</div>
-                  <p className="testimonial-quote">« Devis instantané, fichier validé en direct, livré en 4 jours. C'est le meilleur outil que j'ai utilisé pour gérer mon print. »</p>
-                  <div className="testimonial-author">
-                    <div className="testimonial-avatar"></div>
-                    <div className="testimonial-meta"><strong>Sophie Beauchamp</strong><span>Studio Vingt-deux · Montréal</span></div>
-                  </div>
-                </div>
-                <div className="testimonial-card">
-                  <div className="testimonial-stars">★★★★★</div>
-                  <p className="testimonial-quote">« On commande 5 fois par mois pour nos clients. Plio nous fait gagner 3h par semaine en allers-retours avec l'imprimeur. »</p>
-                  <div className="testimonial-author">
-                    <div className="testimonial-avatar"></div>
-                    <div className="testimonial-meta"><strong>Maxime Roy</strong><span>Agence Boréal · Québec</span></div>
-                  </div>
-                </div>
-                <div className="testimonial-card">
-                  <div className="testimonial-stars">★★★★★</div>
-                  <p className="testimonial-quote">« Le soft touch 18pt est exactement la qualité qu'on cherchait. Mes clients pensent que ça coûte 4 fois le prix. »</p>
-                  <div className="testimonial-author">
-                    <div className="testimonial-avatar"></div>
-                    <div className="testimonial-meta"><strong>Élise Tremblay</strong><span>Studio Loup &amp; Cie · Sherbrooke</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+          {/* TESTIMONIALS — dynamic depuis DB (revalidate 10min) */}
+          <TestimonialsSection />
       
           {/* FAQ */}
           <section id="faq">
