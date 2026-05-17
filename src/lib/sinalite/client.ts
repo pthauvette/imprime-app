@@ -104,6 +104,19 @@ async function getToken(): Promise<string> {
   }
 
   const json = await res.json();
+  // Sinalite live répond HTTP 200 même quand les credentials sont rejetées,
+  // avec un body `{"message": "Invalid authentication request"}` au lieu du
+  // OAuth standard. Détecter ce cas explicitement pour donner un message
+  // d'erreur clair (sinon on a un ZodError opaque sur access_token).
+  if (json && typeof json === 'object' && 'message' in json && !('access_token' in json)) {
+    const msg = String((json as { message: unknown }).message);
+    throw new SinaliteError(
+      `Sinalite auth refusée : ${msg}. Vérifie que client_id/client_secret matchent l'environnement de SINALITE_API_BASE (stage vs live).`,
+      401, // on traite comme un 401 logique même si HTTP était 200
+      '/auth/token',
+      json,
+    );
+  }
   const parsed = SinaliteTokenResponse.parse(json);
 
   // Decode JWT exp from payload (no verification — we trust Auth0's response)
