@@ -43,6 +43,7 @@ const SERVER_ENV_KEYS = [
   'SES_SMTP_PASS',
   'SES_SMTP_HOST',
   'SES_FROM',
+  'CRON_SECRET',
 ] as const;
 
 const env: Record<string, string> = {};
