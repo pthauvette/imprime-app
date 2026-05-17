@@ -1,0 +1,67 @@
+name: E2E tests (Playwright)
+
+# Tape les vraies pages prod (www.plio.ca) via headless Chromium.
+# Catch les regressions visuelles + JS + scroll + layout que les unit
+# tests ne voient pas (ex: le bug overflow:hidden global qui a bloqué
+# le scroll de tout le site, attrapé par e2e/smoke.spec.ts).
+#
+# Triggers :
+#   - push main (avec sleep 180s pour Amplify deploy)
+#   - schedule */60min (catch regressions externes : CDN, fonts, etc.)
+#   - manual run
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'tests/**'
+      - 'prisma/**'
+  schedule:
+    - cron: '15 * * * *'  # toutes les heures à :15
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-prod
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Wait for Amplify deploy (push only)
+        if: github.event_name == 'push'
+        run: |
+          echo "Sleeping 180s pour laisser Amplify deploy..."
+          sleep 180
+
+      - name: Run E2E smoke tests against prod
+        env:
+          E2E_BASE_URL: https://www.plio.ca
+          CI: 'true'
+        run: pnpm exec playwright test e2e/smoke.spec.ts
+
+      - name: Upload Playwright report (failure only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 30
