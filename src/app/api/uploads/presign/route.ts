@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { createUploadPresign, isAllowedMime, MAX_FILE_SIZE_BYTES } from '@/lib/storage/s3';
 import { auth } from '@/auth';
+import { rateLimit, clientIp } from '@/lib/ratelimit';
 
 const BodySchema = z.object({
   kind: z.enum(['front', 'back', 'other']),
@@ -29,6 +30,10 @@ const BodySchema = z.object({
 });
 
 export const POST = withErrorHandler(async (req: Request) => {
+  // Rate limit AVANT le parsing pour pas wast du compute sur du spam
+  const limit = await rateLimit('upload', clientIp(req));
+  if (!limit.ok) return limit.response;
+
   const body = await parseBody(req, BodySchema);
 
   if (!isAllowedMime(body.contentType)) {

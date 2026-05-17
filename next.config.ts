@@ -12,7 +12,7 @@ import { withSentryConfig } from '@sentry/nextjs';
  * Seules les SERVER-SIDE vars vont ici. `NEXT_PUBLIC_*` sont déjà publiques
  * et inlinées par Next automatiquement.
  */
-// Last forced rebuild trigger: 2026-05-17 — picked up new plio-s3-uploader IAM credentials
+// Last forced rebuild trigger: 2026-05-17 — pickup UPSTASH_REDIS_* env vars for rate limiting
 const SERVER_ENV_KEYS = [
   'DATABASE_URL',
   'AUTH_SECRET',
@@ -28,6 +28,8 @@ const SERVER_ENV_KEYS = [
   'SENTRY_ORG',
   'SENTRY_PROJECT',
   'SENTRY_AUTH_TOKEN',
+  'UPSTASH_REDIS_REST_URL',
+  'UPSTASH_REDIS_REST_TOKEN',
   'SINALITE_CLIENT_ID',
   'SINALITE_CLIENT_SECRET',
   'SINALITE_API_BASE',
