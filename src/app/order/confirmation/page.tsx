@@ -13,6 +13,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import Stripe from 'stripe';
+import CartClearOnMount from '@/components/cart/CartClearOnMount';
 
 export const metadata = { title: "C'est imprimé — Plio" };
 export const dynamic = 'force-dynamic';
@@ -57,6 +58,8 @@ export default async function ConfirmationPage({
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, var(--bg-canvas) 0%, var(--accent-soft) 50%, var(--bg-canvas) 100%)' }}>
+      {/* Vide le cart localStorage maintenant que le payment est confirmé */}
+      <CartClearOnMount />
       <header style={{ display: 'flex', alignItems: 'center', padding: '24px 48px' }}>
         <Link href={'/' as Route} style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--accent-primary)', letterSpacing: '-0.02em' }}>
           Plio.

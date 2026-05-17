@@ -14,6 +14,7 @@ import type { Route } from 'next';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { useCart, type CartItem } from '@/lib/cart/store';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 function getStripe() {
@@ -63,16 +64,39 @@ export default function ReviewPage() {
 
 function ReviewPageInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const productId = searchParams.get('productId');
   const optionsParam = searchParams.get('options') ?? '';
   const filesParam = searchParams.get('files') ?? '';
   const shipParam = searchParams.get('ship');
   const designId = searchParams.get('designId');
 
+  // Cart : items ajoutés via "Ajouter un autre produit" lors de runs
+  // précédents du wizard. L'item COURANT (URL params) est ajouté à la
+  // soumission mais pas au cart tant que l'user n'a pas explicitement
+  // cliqué "Ajouter un autre produit".
+  const cart = useCart();
+
   const ship: ShipState | null = useMemo(() => {
     if (!shipParam) return null;
     try { return JSON.parse(shipParam); } catch { return null; }
   }, [shipParam]);
+
+  // Reconstruit l'item courant depuis l'URL pour les soumissions + display
+  const currentItem = useMemo(() => {
+    if (!productId) return null;
+    const optionIds = optionsParam.split(',').filter(Boolean).map(Number);
+    const files = filesParam
+      .split('|')
+      .filter(Boolean)
+      .map((f) => {
+        const idx = f.indexOf(':');
+        const type = f.slice(0, idx);
+        const url = f.slice(idx + 1);
+        return { type: type as 'front' | 'back', url: decodeURIComponent(url) };
+      });
+    return { productId: Number(productId), optionIds, files, designId: designId ?? undefined };
+  }, [productId, optionsParam, filesParam, designId]);
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
@@ -82,9 +106,50 @@ function ReviewPageInner() {
   // Promo code : code appliqué + status (ok/error/checking) + message FR
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
 
+  // Handler : sauve l'item courant dans le cart + navigate vers /order/start
+  // pour que l'user puisse en ajouter un autre. Pas de double-add si l'user
+  // refait le flow et arrive à /order/review avec ces mêmes params.
+  function handleAddAnother() {
+    if (!currentItem) return;
+    if (cart.isFull) {
+      alert(`Maximum ${cart.items.length} articles. Procède au paiement ou retire-en un.`);
+      return;
+    }
+    // Pour le snapshot product name/price on prend ce qu'on a — sera enrichi
+    // par le backend de toute façon. Le cart sert surtout au lookup multi-item
+    // dans la soumission.
+    cart.add({
+      productId: currentItem.productId,
+      productName: `Produit #${currentItem.productId}`,
+      optionIds: currentItem.optionIds,
+      optionLabels: [],
+      qty: 1, // qty réelle est encodée dans optionIds (Sinalite)
+      unitPriceCents: 0, // recalculé serveur-side au submit
+      files: currentItem.files,
+      ...(currentItem.designId ? { designId: currentItem.designId } : {}),
+    });
+    // Navigate vers /order/start mais préserve l'adresse de livraison dans
+    // localStorage si elle existe (à wirer plus tard — pour MVP user re-saisit).
+    router.push('/order/start' as Route);
+  }
+
+  // Build le tableau complet des items à submit : cart + item courant
+  const allItems = useMemo(() => {
+    const cartItems = cart.items.map((it) => ({
+      productId: it.productId,
+      optionIds: it.optionIds,
+      files: it.files,
+      designId: it.designId,
+    }));
+    if (currentItem) {
+      return [...cartItems, currentItem];
+    }
+    return cartItems;
+  }, [cart.items, currentItem]);
+
   // Create PaymentIntent on mount
   useEffect(() => {
-    if (!productId || !ship) {
+    if (allItems.length === 0 || !ship) {
       setError('Données manquantes — recommence le wizard.');
       setLoading(false);
       return;
@@ -92,32 +157,32 @@ function ReviewPageInner() {
     let cancelled = false;
     (async () => {
       try {
-        const optionIds = optionsParam.split(',').filter(Boolean).map(Number);
-
-        const files = filesParam
-          .split('|')
-          .filter(Boolean)
-          .map((f) => {
-            const idx = f.indexOf(':');
-            const type = f.slice(0, idx);
-            const url = f.slice(idx + 1);
-            return { type: type as 'front' | 'back', url: decodeURIComponent(url) };
-          });
-
-        // Fetch the live price first (server-side variant index lookup) to set expectedSubtotal
-        const lookupRes = await fetch(`/api/products/${productId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ optionIds }),
-        });
-        const lookupData = await lookupRes.json();
-        const expectedSubtotal = lookupData.price ?? 1;
+        // Pour le anti-tampering check, on doit envoyer un expectedSubtotal
+        // proche du compute serveur. On loop tous les items + appelle
+        // /api/products/[id] pour chacun (parallel pour la latence).
+        const prices = await Promise.all(
+          allItems.map(async (it) => {
+            const res = await fetch(`/api/products/${it.productId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ optionIds: it.optionIds }),
+            });
+            const data = await res.json();
+            return data.price ?? 0;
+          }),
+        );
+        const expectedSubtotal = prices.reduce((sum, p) => sum + (typeof p === 'number' ? p : 0), 0);
 
         const createRes = await fetch('/api/orders/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            items: [{ productId: Number(productId), optionIds, files, internalRef: `PLIO-${Date.now()}` }],
+            items: allItems.map((it, i) => ({
+              productId: it.productId,
+              optionIds: it.optionIds,
+              files: it.files,
+              internalRef: `PLIO-${Date.now()}-${i}`,
+            })),
             contact: { firstName: ship.firstName, lastName: ship.lastName, email: ship.email, phone: ship.phone },
             shippingAddress: { line1: ship.line1, line2: ship.line2, city: ship.city, province: ship.province, postalCode: ship.postalCode },
             shippingMethod: ship.method,
@@ -147,7 +212,10 @@ function ReviewPageInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [productId, optionsParam, filesParam, ship, appliedPromo, designId]);
+    // allItems dep : si user remove un item du cart pendant qu'il est sur
+    // la page, on re-create un PaymentIntent avec le nouveau total.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, optionsParam, filesParam, ship, appliedPromo, designId, allItems.length]);
 
   const stripe = getStripe();
   const prevHref = `/order/shipping?productId=${productId}&options=${optionsParam}&files=${filesParam}` as Route;
@@ -185,13 +253,70 @@ function ReviewPageInner() {
 
           {ship && (
             <div className="panel" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', padding: 28, marginBottom: 16, boxShadow: 'var(--shadow-xs)' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Récap commande</div>
-              <Row label="Produit" value={`#${productId}`} />
-              <Row label="Options" value={`${optionsParam.split(',').filter(Boolean).length} sélections`} />
-              <Row label="Fichiers" value={`${filesParam.split('|').filter(Boolean).length} fichier(s)`} />
-              <Row label="Destinataire" value={`${ship.firstName} ${ship.lastName}`} />
-              <Row label="Adresse" value={`${ship.line1}, ${ship.city} ${ship.province} ${ship.postalCode}`} />
-              <Row label="Livraison" value={`${ship.method} · ${ship.price.toFixed(2)} $`} />
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span>Récap commande</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  {allItems.length} article{allItems.length > 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* Items déjà dans le cart (ajoutés précédemment) */}
+              {cart.items.map((it, i) => (
+                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: 13 }}>
+                    <strong>Article {i + 1}</strong> · {it.productName} · {it.optionIds.length} options · {it.files.length} fichier(s)
+                  </span>
+                  <button
+                    onClick={() => cart.remove(it.id)}
+                    title="Retirer cet article"
+                    style={{ background: 'transparent', border: 'none', color: 'var(--danger)', fontSize: 11, fontFamily: 'var(--font-mono)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+                  >
+                    Retirer
+                  </button>
+                </div>
+              ))}
+
+              {/* Item courant (URL params) — pas encore "ajouté" au cart */}
+              {currentItem && (
+                <div style={{ padding: '8px 0', borderBottom: cart.items.length > 0 ? '1px solid var(--border-subtle)' : 'none' }}>
+                  <span style={{ fontSize: 13 }}>
+                    <strong>{cart.items.length > 0 ? `Article ${cart.items.length + 1}` : 'Cet article'}</strong>{' '}
+                    · Produit #{currentItem.productId} · {currentItem.optionIds.length} options · {currentItem.files.length} fichier(s)
+                  </span>
+                </div>
+              )}
+
+              <div style={{ marginTop: 12 }}>
+                <Row label="Destinataire" value={`${ship.firstName} ${ship.lastName}`} />
+                <Row label="Adresse" value={`${ship.line1}, ${ship.city} ${ship.province} ${ship.postalCode}`} />
+                <Row label="Livraison" value={`${ship.method} · ${ship.price.toFixed(2)} $`} />
+              </div>
+
+              {/* "Ajouter un autre produit" — visible si pas full */}
+              {!cart.isFull && (
+                <button
+                  onClick={handleAddAnother}
+                  style={{
+                    marginTop: 16,
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: 'transparent',
+                    border: '1px dashed var(--accent-primary)',
+                    borderRadius: 'var(--r-md)',
+                    color: 'var(--accent-primary)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Ajouter un autre produit à cette commande
+                </button>
+              )}
+              {cart.isFull && (
+                <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--warning-soft, #FFF6E5)', border: '1px solid var(--warning, #D97706)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-primary)' }}>
+                  Maximum atteint. Pour de plus gros volumes, contacte-nous à <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>bonjour@plio.ca</a>.
+                </div>
+              )}
             </div>
           )}
 
