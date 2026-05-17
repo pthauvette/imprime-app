@@ -1,299 +1,514 @@
 /**
- * Auto-migrated from Open Design HTML artifact `order-detail.html`.
+ * /orders/[id] — Page customer pour suivre une commande.
  *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * Server Component qui charge l'order depuis Prisma. Ownership check :
+ * le user doit posséder l'order OU être ADMIN. Sinon 404 silencieux (pas
+ * de fuite d'info sur l'existence d'autres orders).
+ *
+ * Layout : 2 colonnes (timeline + items à gauche, sticky tracking + actions
+ * à droite). Réutilise les classes `.live-*` `.tracking-*` `.item-*` migrées
+ * depuis order-detail.html dans migrated-pages.css.
  */
 
-export const metadata = { title: "Suivi commande — Plio" };
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import type { Route } from 'next';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import Sidebar from '@/components/account/Sidebar';
+import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
+import { formatCurrency, formatDate } from '@/lib/format';
 
-export default function OrderDetailPage() {
-  return (
-    <>
-      <div className="acct-shell">
-          <aside className="acct-nav">
-            <div className="acct-nav-brand">Plio.</div>
-            <div className="acct-nav-section">Compte</div>
-            <ul className="acct-nav-list">
-              <li><a href="/orders" className="acct-nav-link active">Mes commandes <span className="count">12</span></a></li>
-              <li><a href="#" className="acct-nav-link">Brouillons <span className="count">3</span></a></li>
-              <li><a href="#" className="acct-nav-link">Adresses</a></li>
-              <li><a href="#" className="acct-nav-link">Paiements</a></li>
-              <li><a href="#" className="acct-nav-link">Codes promo</a></li>
-            </ul>
-            <div className="acct-nav-section">Outils</div>
-            <ul className="acct-nav-list">
-              <li><a href="/order/start" className="acct-nav-link">+ Nouvelle commande</a></li>
-              <li><a href="#" className="acct-nav-link">Demander un échantillon</a></li>
-              <li><a href="#" className="acct-nav-link">Templates &amp; guides</a></li>
-              <li><a href="#" className="acct-nav-link">Devenir reseller</a></li>
-            </ul>
-            <div className="acct-nav-section">Support</div>
-            <ul className="acct-nav-list">
-              <li><a href="#" className="acct-nav-link">Aide &amp; FAQ</a></li>
-              <li><a href="#" className="acct-nav-link">Contact</a></li>
-            </ul>
-          </aside>
-      
-          <main className="detail-main">
-            <a href="/orders" className="back-link">← Toutes mes commandes</a>
-      
-            {/* Order header card */}
-            <div className="order-header-card">
-              <div className="header-mockup">
-                <div className="header-mockup-stack">
-                  <div className="header-mockup-card l3"></div>
-                  <div className="header-mockup-card l2"></div>
-                  <div className="header-mockup-card l1">
-                    <div className="pcm-name">Sophie Beauchamp</div>
-                    <div className="pcm-divider"></div>
-                    <div className="pcm-title">Directrice créative</div>
-                    <div className="pcm-meta">+1 514 555 0123</div>
-                  </div>
-                </div>
-              </div>
-              <div className="header-info">
-                <div className="order-id-row">
-                  <span className="order-id-big">#SIN-48201</span>
-                  <span className="order-status-big">En production</span>
-                </div>
-                <h1 className="header-product-name">Cartes 14pt + UV High Gloss</h1>
-                <div className="header-product-meta">
-                  <span>1 000 unités</span><span className="sep">·</span>
-                  <span>3,5 × 2"</span><span className="sep">·</span>
-                  <span>Bundling 50/pack</span><span className="sep">·</span>
-                  <span>Commandée 15 mai à 15:42</span>
-                </div>
-              </div>
-              <div className="header-eta">
-                <div className="header-eta-label">Arrivée prévue</div>
-                <div className="header-eta-date">22 mai</div>
-                <div className="header-eta-day">mardi · UPS Standard</div>
-              </div>
-            </div>
-      
-            {/* Quick actions */}
-            <div className="quick-actions">
-              <a href="#" className="qa-btn">
-                <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.7 1 6.4 2.6L21 8" /><path d="M21 3v5h-5" /></svg>
-                <div className="qa-btn-text"><div className="qa-btn-label">Re-commander</div><div className="qa-btn-meta">Avec mêmes options</div></div>
-              </a>
-              <a href="#" className="qa-btn">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
-                <div className="qa-btn-text"><div className="qa-btn-label">Télécharger facture</div><div className="qa-btn-meta">PDF · #INV-48201</div></div>
-              </a>
-              <a href="#" className="qa-btn">
-                <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
-                <div className="qa-btn-text"><div className="qa-btn-label">Contacter le support</div><div className="qa-btn-meta">Réponse sous 1h</div></div>
-              </a>
-              <a href="#" className="qa-btn danger">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
-                <div className="qa-btn-text"><div className="qa-btn-label">Annuler</div><div className="qa-btn-meta">Possible avant production</div></div>
-              </a>
-            </div>
-      
-            {/* Two-column detail */}
-            <div className="detail-grid">
-              {/* Left column */}
-              <div>
-                {/* Live timeline */}
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2 className="panel-title">Suivi en direct</h2>
-                    <span className="panel-action">★ Mises à jour live</span>
-                  </div>
-                  <div className="live-timeline">
-                    <div className="live-step done">
-                      <div className="live-dot"></div>
-                      <div className="live-content">
-                        <div className="live-title">Commande reçue &amp; paiement confirmé</div>
-                        <div className="live-meta">Visa •••• 4242 · 116,24 $ CAD · Stripe pi_3PXqwx2eZv...</div>
-                      </div>
-                      <span className="live-time">15 mai · 15:42</span>
-                    </div>
-                    <div className="live-step done">
-                      <div className="live-dot"></div>
-                      <div className="live-content">
-                        <div className="live-title">Vérification finale du fichier (prépresse)</div>
-                        <div className="live-meta">Bleed ✓ · CMYK ✓ · Fonts intégrées ✓ · Logo verso ajusté de 0,05"</div>
-                      </div>
-                      <span className="live-time">15 mai · 17:18</span>
-                    </div>
-                    <div className="live-step current">
-                      <div className="live-dot"></div>
-                      <div className="live-content">
-                        <div className="live-title">Production en presse</div>
-                        <div className="live-meta">Impression offset 4 couleurs · séchage UV en cours sur presse #4</div>
-                      </div>
-                      <span className="live-time">aujourd'hui · 09:00</span>
-                    </div>
-                    <div className="live-step">
-                      <div className="live-dot">4</div>
-                      <div className="live-content">
-                        <div className="live-title">Coupe &amp; bundling 50/pack</div>
-                        <div className="live-meta">Coupe précise au laser · regroupement par bandes papier</div>
-                      </div>
-                      <span className="live-time">17-18 mai</span>
-                    </div>
-                    <div className="live-step">
-                      <div className="live-dot">5</div>
-                      <div className="live-content">
-                        <div className="live-title">Préparation expédition</div>
-                        <div className="live-meta">Boîte 9 × 9 × 12" · poids 5,4 lb · pickup UPS</div>
-                      </div>
-                      <span className="live-time">19-20 mai</span>
-                    </div>
-                    <div className="live-step">
-                      <div className="live-dot">6</div>
-                      <div className="live-content">
-                        <div className="live-title">En transit avec UPS</div>
-                        <div className="live-meta">Tracking number envoyé par courriel à patrick@democratik.org</div>
-                      </div>
-                      <span className="live-time">20-21 mai</span>
-                    </div>
-                    <div className="live-step">
-                      <div className="live-dot">7</div>
-                      <div className="live-content">
-                        <div className="live-title">Livrée devant ta porte</div>
-                        <div className="live-meta">Signature non requise · livraison estimée matinée</div>
-                      </div>
-                      <span className="live-time">22 mai</span>
-                    </div>
-                  </div>
-                </div>
-      
-                {/* Items */}
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2 className="panel-title">Articles</h2>
-                    <span className="panel-action">1 article · 1 000 unités</span>
-                  </div>
-                  <div className="items-table">
-                    <div className="item-row">
-                      <div className="item-thumb"><div className="item-thumb-card"></div></div>
-                      <div className="item-info">
-                        <div className="item-name">Cartes de visite 14pt + UV (High Gloss)</div>
-                        <div className="item-options">Format 3,5 × 2" · Stock 14pt Coated · Coating UV High Gloss · 1 000 unités · 4-5 jours</div>
-                      </div>
-                      <div className="item-price">80,00 $</div>
-                    </div>
-                    <div className="item-divider"></div>
-                    <div className="item-row">
-                      <div></div>
-                      <div className="item-info">
-                        <div className="item-name" style={{ color: "var(--text-secondary)", fontWeight: "500", fontSize: "13px" } as React.CSSProperties}>└ Bundling 50/pack</div>
-                        <div className="item-options">Cartes regroupées par paquets de 50 avec bandes papier</div>
-                      </div>
-                      <div className="item-price" style={{ color: "var(--text-secondary)" } as React.CSSProperties}>+12,00 $</div>
-                    </div>
-                  </div>
-                </div>
-      
-                {/* Files */}
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2 className="panel-title">Fichiers d'impression</h2>
-                    <span className="panel-action">Validés par notre prépresse</span>
-                  </div>
-                  <div className="files-grid">
-                    <div className="file-row">
-                      <div className="file-row-thumb"><div className="file-row-thumb-inner"></div></div>
-                      <div>
-                        <div className="file-row-name">recto-final.pdf</div>
-                        <div className="file-row-meta">2,4 MB · 300 DPI · CMYK · Bleed 0,125"</div>
-                      </div>
-                      <button className="file-download" title="Télécharger">
-                        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                      </button>
-                    </div>
-                    <div className="file-row">
-                      <div className="file-row-thumb dark"><div className="file-row-thumb-inner"></div></div>
-                      <div>
-                        <div className="file-row-name">verso-logo.pdf <span style={{ color: "var(--text-muted)", fontWeight: "400" } as React.CSSProperties}>(v2 — ajusté)</span></div>
-                        <div className="file-row-meta">1,1 MB · 300 DPI · CMYK · Bleed 0,125"</div>
-                      </div>
-                      <button className="file-download" title="Télécharger">
-                        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-      
-              {/* Right column */}
-              <div>
-                {/* Address */}
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2 className="panel-title">Livraison</h2>
-                    <span className="panel-action">UPS Standard</span>
-                  </div>
-                  <div className="addr-card">
-                    <strong>Patrick Thauvette</strong>
-                    <span>2055 rue Drummond</span>
-                    <span>Montréal, QC H3G 2X3</span>
-                    <span>+1 514 555 0123</span>
-                  </div>
-                  <div className="addr-divider"></div>
-                  <div style={{ fontSize: "13px", color: "var(--text-secondary)" } as React.CSSProperties}>
-                    📦 1 boîte · 9 × 9 × 12" · 5,4 lb<br />
-                    🚚 Pickup UPS prévu le 20 mai
-                  </div>
-                  <div className="tracking-card">
-                    <div className="tracking-info">
-                      <span className="tracking-label">Tracking UPS</span>
-                      <span className="tracking-num">Disponible le 20 mai</span>
-                    </div>
-                    <span className="tracking-cta" style={{ background: "var(--bg-sunken)", color: "var(--text-muted)", cursor: "not-allowed" } as React.CSSProperties}>À venir</span>
-                  </div>
-                </div>
-      
-                {/* Billing */}
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2 className="panel-title">Facturation</h2>
-                  </div>
-                  <div className="addr-card">
-                    <strong>Patrick Thauvette</strong>
-                    <span>2055 rue Drummond, Montréal, QC H3G 2X3</span>
-                    <span style={{ marginTop: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" } as React.CSSProperties}>Visa •••• 4242 · expire 09/27</span>
-                  </div>
-                </div>
-      
-                {/* Total */}
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2 className="panel-title">Récapitulatif</h2>
-                  </div>
-                  <div className="total-breakdown">
-                    <div className="total-line"><span className="label">Sous-total impression</span><span className="value">92,00 $</span></div>
-                    <div className="total-line"><span className="label">Livraison (UPS Standard)</span><span className="value">9,10 $</span></div>
-                    <div className="total-line divider"><span className="label">Sous-total avant taxes</span><span className="value">101,10 $</span></div>
-                    <div className="total-line"><span className="label">TPS (5 %) — Canada</span><span className="value">5,06 $</span></div>
-                    <div className="total-line"><span className="label">TVQ (9,975 %) — Québec</span><span className="value">10,08 $</span></div>
-                    <div className="total-line final">
-                      <span className="label">Total payé</span>
-                      <span className="value">116,24 $</span>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "center" } as React.CSSProperties}>
-                    <span className="paid-badge">✓ Payé · 15 mai · 15:42</span>
-                  </div>
-                </div>
-      
-                {/* Notes */}
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2 className="panel-title">Note de commande</h2>
-                  </div>
-                  <div className="notes-row">
-                    « Si possible, prière de privilégier l'orientation portrait pour les paquets — j'aimerais distribuer les cartes lors d'un événement le 24 mai. Merci ! »
-                  </div>
-                </div>
-              </div>
-            </div>
-          </main>
-        </div>
-    </>
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return { title: `Commande ${id.slice(-6).toUpperCase()} — Plio` };
+}
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  PENDING: 'En attente',
+  PAID: 'Payée',
+  SUBMITTED: 'Soumise',
+  IN_PRODUCTION: 'En production',
+  SHIPPED: 'Expédiée',
+  DELIVERED: 'Livrée',
+  CANCELLED: 'Annulée',
+  FAILED: 'Échec',
+};
+
+const STATUS_CLASS: Record<OrderStatus, string> = {
+  PENDING: 'status-new',
+  PAID: 'status-new',
+  SUBMITTED: 'status-new',
+  IN_PRODUCTION: 'status-production',
+  SHIPPED: 'status-shipped',
+  DELIVERED: 'status-delivered',
+  CANCELLED: 'status-cancelled',
+  FAILED: 'status-cancelled',
+};
+
+export default async function CustomerOrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await auth();
+  const { id } = await params;
+
+  if (!session?.user?.id) {
+    redirect(`/sign-in?callbackUrl=/orders/${id}` as Route);
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: {
+      user: { select: { email: true, name: true, firstName: true } },
+      events: { orderBy: { createdAt: 'asc' } },
+    },
+  });
+
+  if (!order) notFound();
+
+  const isOwner = order.userId === session.user.id;
+  const isAdmin = session.user.role === 'ADMIN';
+  if (!isOwner && !isAdmin) notFound();
+
+  const status = order.status as OrderStatus;
+  const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
+
+  const shippedEvent = [...order.events].reverse().find(
+    (e) => e.kind === 'SINALITE_STATUS_CHANGED' && e.data?.includes('SHIPPED'),
   );
+  const tracking = shippedEvent ? extractTracking(shippedEvent.data) : null;
+  const eta = computeEta(order, shippedEvent?.createdAt);
+
+  const timeline = buildTimeline(order, status);
+
+  return (
+    <div className="acct-shell">
+      <Sidebar active="/orders" />
+
+      <main className="detail-main" style={{ padding: '40px 48px 80px', maxWidth: 1280 }}>
+        <Link
+          href={'/orders' as Route}
+          className="back-link"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            textDecoration: 'none',
+            marginBottom: 24,
+          }}
+        >
+          ← Toutes mes commandes
+        </Link>
+
+        <div
+          className="order-header-card"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr auto',
+            gap: 32,
+            padding: 32,
+            background: 'var(--bg-surface)',
+            borderRadius: 'var(--r-xl)',
+            border: '1px solid var(--border-subtle)',
+            marginBottom: 32,
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <div className="header-info">
+            <div className="order-id-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+              <span className="order-id-big" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em', fontWeight: 600 }}>
+                {displayId}
+              </span>
+              <span className={`order-status-big ${STATUS_CLASS[status]}`}>
+                {STATUS_LABELS[status]}
+              </span>
+              {order.paidAt && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>
+                  ✓ Payée le {formatDate(order.paidAt.toISOString())}
+                </span>
+              )}
+            </div>
+            <h1
+              className="header-product-name"
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(36px, 4vw, 56px)',
+                letterSpacing: '-0.025em',
+                margin: '4px 0 8px',
+                fontWeight: 400,
+                lineHeight: 1.05,
+              }}
+            >
+              {order.itemsCount} article{order.itemsCount > 1 ? 's' : ''}{' '}
+              <em style={{ color: 'var(--accent-primary)' }}>
+                imprimé{order.itemsCount > 1 ? 's' : ''}.
+              </em>
+            </h1>
+            <div className="header-product-meta" style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+              Vers <strong style={{ color: 'var(--text-primary)' }}>{order.shipName}</strong> à{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>{order.shipCity}, {order.shipProvince}</strong>{' '}
+              · {order.shippingMethod}
+            </div>
+          </div>
+
+          {eta && (
+            <div
+              style={{
+                textAlign: 'right',
+                padding: '16px 24px',
+                background: 'var(--accent-soft)',
+                borderRadius: 'var(--r-lg)',
+                minWidth: 200,
+              }}
+            >
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent-primary)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+                {status === 'DELIVERED' ? 'Livrée le' : 'Arrivée prévue'}
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: 'var(--accent-primary)', letterSpacing: '-0.02em', fontWeight: 400, lineHeight: 1.15, marginTop: 4 }}>
+                {eta.day}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                {eta.relative}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, alignItems: 'start' }}>
+
+          <div style={{ display: 'grid', gap: 24 }}>
+
+            <section className="panel" style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-xl)' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '-0.01em', margin: '0 0 20px', fontWeight: 400 }}>
+                Suivi en direct
+              </h2>
+              <div className="live-timeline" style={{ display: 'grid', gap: 18 }}>
+                {timeline.map((step, i) => (
+                  <div
+                    key={step.label}
+                    className="live-step"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '32px 1fr auto',
+                      alignItems: 'flex-start',
+                      gap: 16,
+                      opacity: step.done || step.current ? 1 : 0.4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: step.done ? 'var(--accent-primary)' : step.current ? 'var(--bg-surface)' : 'var(--bg-sunken)',
+                        border: step.current ? '2px solid var(--accent-primary)' : '1px solid var(--border-default)',
+                        color: step.done ? 'var(--text-on-accent)' : 'var(--accent-primary)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: 14,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {step.done ? '✓' : i + 1}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+                        {step.label}
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                        {step.description}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                      {step.timestamp ?? '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="panel" style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-xl)' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '-0.01em', margin: '0 0 20px', fontWeight: 400 }}>
+                Détails de la commande
+              </h2>
+              <div className="item-row" style={{ display: 'grid', gridTemplateColumns: '72px 1fr auto', gap: 16, padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div className="item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)' }} />
+                <div className="item-info">
+                  <div className="item-name" style={{ fontWeight: 600, fontSize: 14 }}>Cartes de visite</div>
+                  <div className="item-options" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                    Quantité · {order.itemsCount} · {order.shippingMethod}
+                  </div>
+                </div>
+                <div className="item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600 }}>
+                  {formatCurrency(order.subtotalCents / 100)}
+                </div>
+              </div>
+
+              <div className="total-breakdown" style={{ display: 'grid', gap: 6, marginTop: 16, fontSize: 13 }}>
+                <Line label="Sous-total" value={formatCurrency(order.subtotalCents / 100)} />
+                <Line label="Livraison" value={formatCurrency(order.shippingCents / 100)} />
+                <Line label="Taxes" value={formatCurrency(order.taxCents / 100)} />
+                <Line label="Total payé" value={`${formatCurrency(order.amountCents / 100)} ${order.currency}`} bold />
+              </div>
+            </section>
+          </div>
+
+          <aside style={{ position: 'sticky', top: 24, display: 'grid', gap: 16, alignSelf: 'start' }}>
+
+            {tracking?.number ? (
+              <div style={{ padding: 20, background: 'var(--accent-soft)', borderRadius: 'var(--r-lg)', border: '1px solid var(--accent-primary)' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent-primary)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Numéro de suivi
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--text-primary)', marginTop: 8, fontWeight: 600, wordBreak: 'break-all' }}>
+                  {tracking.number}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  {tracking.carrier ?? 'Carrier'}
+                </div>
+                {tracking.url && (
+                  <a
+                    href={tracking.url}
+                    target="_blank"
+                    rel="noopener"
+                    style={{
+                      display: 'block',
+                      marginTop: 14,
+                      padding: '10px 14px',
+                      background: 'var(--accent-primary)',
+                      color: 'var(--text-on-accent)',
+                      borderRadius: 'var(--r-md)',
+                      textDecoration: 'none',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                    }}
+                  >
+                    Suivre le colis →
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div style={{ padding: 20, background: 'var(--bg-sunken)', borderRadius: 'var(--r-lg)', border: '1px dashed var(--border-default)', fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
+                {status === 'SHIPPED' || status === 'DELIVERED'
+                  ? 'Numéro de suivi à venir.'
+                  : 'Le tracking apparaîtra ici dès l\'expédition.'}
+              </div>
+            )}
+
+            <Card label="Adresse de livraison">
+              <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 600 }}>{order.shipName}</div>
+                <div>{order.shipLine1}</div>
+                {order.shipLine2 && <div>{order.shipLine2}</div>}
+                <div>{order.shipCity}, {order.shipProvince} {order.shipPostalCode}</div>
+                <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{order.shipPhone}</div>
+              </div>
+            </Card>
+
+            <Card label="Détails">
+              <KV k="Commande" v={displayId} mono />
+              <KV k="Date" v={formatDate(order.createdAt.toISOString())} />
+              <KV k="Méthode" v={order.shippingMethod} />
+              <KV k="Total" v={formatCurrency(order.amountCents / 100)} bold />
+            </Card>
+
+            <Link
+              href={'/order/start' as Route}
+              style={{
+                display: 'block',
+                padding: '14px 18px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--r-md)',
+                textAlign: 'center',
+                fontSize: 14,
+                color: 'var(--text-primary)',
+                textDecoration: 'none',
+                fontWeight: 500,
+              }}
+            >
+              + Commander à nouveau
+            </Link>
+
+            <div style={{ padding: 16, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Une question ? On répond en moins de 4h ouvrables à{' '}
+              <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>bonjour@plio.ca</a>.
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────
+
+function Card({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ padding: 18, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function KV({ k, v, mono, bold }: { k: string; v: string; mono?: boolean; bold?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0', fontSize: 13 }}>
+      <span style={{ color: 'var(--text-muted)' }}>{k}</span>
+      <span style={{ color: 'var(--text-primary)', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontWeight: bold ? 600 : mono ? 500 : 400 }}>{v}</span>
+    </div>
+  );
+}
+
+function Line({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0', fontSize: bold ? 15 : 13, fontWeight: bold ? 600 : 400, paddingTop: bold ? 12 : 4, borderTop: bold ? '1px solid var(--border-subtle)' : 'none', marginTop: bold ? 8 : 0 }}>
+      <span style={{ color: bold ? 'var(--text-primary)' : 'var(--text-muted)' }}>{label}</span>
+      <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Timeline builder ─────────────────────────────────────────────────────
+
+interface TimelineStep {
+  label: string;
+  description: string;
+  done: boolean;
+  current: boolean;
+  timestamp: string | null;
+}
+
+function buildTimeline(
+  order: { paidAt: Date | null; events: { kind: string; createdAt: Date; data: string | null }[]; createdAt: Date },
+  status: OrderStatus,
+): TimelineStep[] {
+  const eventByKind = new Map<OrderEventKind, Date>();
+  for (const e of order.events) {
+    if (!eventByKind.has(e.kind as OrderEventKind)) eventByKind.set(e.kind as OrderEventKind, e.createdAt);
+  }
+
+  const sinaliteStatuses = order.events
+    .filter((e) => e.kind === 'SINALITE_STATUS_CHANGED' && e.data)
+    .map((e) => ({
+      status: extractSinaliteStatus(e.data!),
+      at: e.createdAt,
+    }))
+    .filter((x): x is { status: string; at: Date } => x.status !== null);
+
+  const findSinalite = (s: string) => sinaliteStatuses.find((x) => x.status === s)?.at ?? null;
+
+  const paymentAt = eventByKind.get('PAYMENT_SUCCEEDED') ?? order.paidAt;
+  const submittedAt = eventByKind.get('SINALITE_SUBMITTED');
+  const productionAt = findSinalite('IN_PRODUCTION');
+  const shippedAt = findSinalite('SHIPPED');
+  const deliveredAt = findSinalite('DELIVERED');
+
+  return [
+    {
+      label: 'Paiement confirmé',
+      description: paymentAt ? 'Carte chargée, début du workflow.' : 'En attente du paiement.',
+      done: !!paymentAt,
+      current: status === 'PAID' && !submittedAt,
+      timestamp: paymentAt ? formatDateTime(paymentAt) : null,
+    },
+    {
+      label: 'Envoi à la presse',
+      description: 'Sinalite reçoit ta commande pour prepress.',
+      done: !!submittedAt || ['IN_PRODUCTION', 'SHIPPED', 'DELIVERED'].includes(status),
+      current: status === 'SUBMITTED',
+      timestamp: submittedAt ? formatDateTime(submittedAt) : null,
+    },
+    {
+      label: 'En production',
+      description: 'Tes fichiers sont imprimés et finis.',
+      done: !!productionAt || ['SHIPPED', 'DELIVERED'].includes(status),
+      current: status === 'IN_PRODUCTION',
+      timestamp: productionAt ? formatDateTime(productionAt) : null,
+    },
+    {
+      label: 'Expédiée',
+      description: 'En route vers ton adresse.',
+      done: !!shippedAt || status === 'DELIVERED',
+      current: status === 'SHIPPED',
+      timestamp: shippedAt ? formatDateTime(shippedAt) : null,
+    },
+    {
+      label: 'Livrée',
+      description: 'Reçue à destination.',
+      done: status === 'DELIVERED',
+      current: false,
+      timestamp: deliveredAt ? formatDateTime(deliveredAt) : null,
+    },
+  ];
+}
+
+function extractSinaliteStatus(data: string): string | null {
+  try {
+    const parsed = JSON.parse(data) as { status?: string };
+    return parsed.status ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function extractTracking(data: string | null): { number?: string; carrier?: string; url?: string } | null {
+  if (!data) return null;
+  try {
+    const parsed = JSON.parse(data) as { trackingNumber?: string; carrier?: string };
+    if (!parsed.trackingNumber) return null;
+    const carrier = parsed.carrier ?? 'UPS';
+    const url = trackingDeepLink(carrier, parsed.trackingNumber);
+    return { number: parsed.trackingNumber, carrier, url };
+  } catch {
+    return null;
+  }
+}
+
+function trackingDeepLink(carrier: string, tracking: string): string | undefined {
+  const c = carrier.toLowerCase();
+  if (c.includes('ups')) return `https://www.ups.com/track?tracknum=${encodeURIComponent(tracking)}`;
+  if (c.includes('fedex')) return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(tracking)}`;
+  if (c.includes('canada') || c.includes('post')) return `https://www.canadapost-postescanada.ca/track-reperage/en#/details/${encodeURIComponent(tracking)}`;
+  return undefined;
+}
+
+function computeEta(
+  order: { createdAt: Date; status: string },
+  shippedAt?: Date,
+): { day: string; relative: string } | null {
+  if (order.status === 'CANCELLED' || order.status === 'FAILED') return null;
+  if (order.status === 'DELIVERED' && shippedAt) {
+    return { day: formatDateShort(shippedAt), relative: 'livrée' };
+  }
+  const base = shippedAt ?? order.createdAt;
+  const daysAhead = shippedAt ? 3 : 7;
+  const eta = new Date(base);
+  eta.setDate(eta.getDate() + daysAhead);
+  const today = new Date();
+  const diffDays = Math.round((eta.getTime() - today.getTime()) / (24 * 3600 * 1000));
+  const relative = diffDays <= 0 ? 'aujourd\'hui' : diffDays === 1 ? 'demain' : `dans ${diffDays} jours`;
+  return { day: formatDateShort(eta), relative };
+}
+
+function formatDateShort(d: Date): string {
+  return d.toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'short' });
+}
+
+function formatDateTime(d: Date): string {
+  return `${formatDate(d.toISOString())} · ${d.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
 }
