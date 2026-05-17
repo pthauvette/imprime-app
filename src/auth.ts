@@ -16,6 +16,7 @@ import { prisma } from '@/lib/db';
 import { authConfig } from '@/auth.config';
 import { renderEmail } from '@/lib/emails/render';
 import { sendWelcomeEmail } from '@/lib/emails/send';
+import { logAuth } from '@/lib/logger';
 
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const DEV_LINK_LOGGER = !SES_CONFIGURED;
@@ -63,14 +64,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       async sendVerificationRequest({ identifier, url, provider }) {
         if (DEV_LINK_LOGGER) {
-          console.log(
-            '\n' +
-              '═══════════════════════════════════════════════════════════════\n' +
-              '  🔑 AUTH MAGIC LINK (dev)\n' +
-              '  email : ' + identifier + '\n' +
-              '  url   : ' + url + '\n' +
-              '═══════════════════════════════════════════════════════════════\n',
-          );
+          // Dev convenience : log the magic link to stdout. We deliberately use
+          // a Pino-friendly structured payload (no fancy box drawing) so
+          // CloudWatch / log shippers can still index it if it ever ships.
+          logAuth.info({ email: identifier, url }, '🔑 AUTH MAGIC LINK (dev)');
           return;
         }
         // Prod : SMTP SES via nodemailer (provider.server est passé par Auth.js)
@@ -137,7 +134,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
       } catch (err) {
-        console.error('[auth.signIn] welcome email failed', err);
+        logAuth.error({ err, userId: user.id }, 'welcome email failed');
       }
     },
   },

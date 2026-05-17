@@ -29,6 +29,7 @@ import {
   sendOrderDeliveredEmail,
   sendOrderCancelledEmail,
 } from '@/lib/emails/send';
+import { logSinalite } from '@/lib/logger';
 
 const WEBHOOK_SECRET = process.env.SINALITE_WEBHOOK_SECRET;
 
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
   if (WEBHOOK_SECRET) {
     const signature = req.headers.get('x-sinalite-signature');
     if (signature !== WEBHOOK_SECRET) {
-      console.error('[sinalite webhook] invalid signature');
+      logSinalite.error('invalid signature on webhook');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
   }
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
   try {
     payload = SinaliteWebhookPayload.parse(await req.json());
   } catch (err) {
-    console.error('[sinalite webhook] payload validation failed', err);
+    logSinalite.error({ err }, 'payload validation failed');
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
@@ -77,7 +78,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true, deduped: true });
   }
 
-  console.log('[sinalite webhook] order', payload.orderId, '→', payload.status);
+  logSinalite.info(
+    { sinaliteOrderId: payload.orderId, status: payload.status },
+    'status update received',
+  );
 
   // Mutable context so we can stamp orderId onto the WebhookEvent row
   // even on the error path.
@@ -95,7 +99,10 @@ export async function POST(req: Request) {
         // L'order Sinalite n'a pas de match dans notre DB — possiblement créée
         // hors de notre app, ou avant le déploiement de la persistence.
         // On log et on accuse réception pour éviter les retries inutiles.
-        console.warn('[sinalite webhook] no DB order for', payload.orderId);
+        logSinalite.warn(
+          { sinaliteOrderId: payload.orderId, status: payload.status },
+          'no DB order matches Sinalite orderId',
+        );
         await updateWebhookOutcome({
           source: 'SINALITE',
           eventId: fingerprint,
@@ -164,7 +171,10 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ received: true, orderId: payload.orderId });
   } catch (err) {
-    console.error('[sinalite webhook] handler error', err);
+    logSinalite.error(
+      { err, sinaliteOrderId: payload.orderId, status: payload.status, orderId: dbOrderId },
+      'handler error',
+    );
     await updateWebhookOutcome({
       source: 'SINALITE',
       eventId: fingerprint,

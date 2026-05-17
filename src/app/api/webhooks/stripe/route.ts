@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, WEBHOOK_SECRET);
   } catch (err) {
-    console.error('[stripe webhook] signature verification failed', err);
+    logStripe.error({ err }, 'signature verification failed');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
         break;
       }
       default:
-        console.log('[stripe webhook] unhandled event:', event.type);
+        logStripe.info({ eventType: event.type }, 'unhandled event');
     }
     await updateWebhookOutcome({
       source: 'STRIPE',
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ received: true });
   } catch (err) {
-    console.error('[stripe webhook] handler error', err);
+    logStripe.error({ err, eventId: event.id, eventType: event.type, orderId: ctx.orderId }, 'handler error');
     await updateWebhookOutcome({
       source: 'STRIPE',
       eventId: event.id,
@@ -127,7 +127,7 @@ async function handlePaymentSucceeded(
   if (!order) {
     // Pas d'order DB pour cet intent → probablement un PI créé hors flow (test).
     // On log et on ignore plutôt que de planter — pas de re-try utile.
-    console.error('[stripe webhook] no Order for paymentIntent', intent.id);
+    logStripe.error({ intentId: intent.id }, 'no Order for paymentIntent');
     return;
   }
   ctx.orderId = order.id;
@@ -135,7 +135,7 @@ async function handlePaymentSucceeded(
   // Si déjà transitionnée (PAID/SUBMITTED), no-op — le replay a été dédupé
   // en amont via WebhookEvent, mais on garde la garde par sécurité.
   if (order.status !== 'PENDING') {
-    console.log('[stripe webhook] order already past PENDING', order.id, order.status);
+    logStripe.info({ orderId: order.id, status: order.status }, 'order already past PENDING');
     return;
   }
 
@@ -160,11 +160,9 @@ async function handlePaymentSucceeded(
       orderId: order.id,
       sinaliteOrderId: result.orderId,
     });
-    console.log(
-      '[stripe webhook] Sinalite order created:',
-      result.orderId,
-      'for PI',
-      intent.id,
+    logStripe.info(
+      { sinaliteOrderId: result.orderId, intentId: intent.id, orderId: order.id },
+      'Sinalite order created',
     );
 
     // Best-effort confirmation email — fetch fresh order to get sinaliteOrderId
@@ -176,7 +174,7 @@ async function handlePaymentSucceeded(
       await sendOrderConfirmationEmail({ order: fresh, user: fresh.user });
     }
   } catch (err) {
-    console.error('[stripe webhook] Sinalite createOrder FAILED', err);
+    logStripe.error({ err, orderId: order.id, intentId: intent.id }, 'Sinalite createOrder FAILED');
 
     // Refund — on a pris l'argent mais on peut pas livrer
     try {
@@ -195,7 +193,10 @@ async function handlePaymentSucceeded(
         reason: err instanceof Error ? err.message : 'Sinalite createOrder failed',
         data: { refundId: refund.id },
       });
-      console.log('[stripe webhook] auto-refunded payment intent', intent.id);
+      logStripe.info(
+        { intentId: intent.id, refundId: refund.id, orderId: order.id },
+        'auto-refunded payment intent',
+      );
 
       // Best-effort cancellation + refund emails au customer
       const fresh = await prisma.order.findUnique({
@@ -221,9 +222,9 @@ async function handlePaymentSucceeded(
         });
       }
     } catch (refundErr) {
-      console.error(
-        '[stripe webhook] CRITICAL: refund failed after Sinalite failure',
-        refundErr,
+      logStripe.fatal(
+        { err: refundErr, sinaliteErr: err, orderId: order.id, intentId: intent.id },
+        'CRITICAL: refund failed after Sinalite failure — manual intervention needed',
       );
       await markOrderFailed({
         orderId: order.id,
@@ -258,7 +259,7 @@ async function handlePaymentFailed(
     where: { paymentIntentId: intent.id },
   });
   if (!order) {
-    console.log('[stripe webhook] payment failed (no order):', intent.id);
+    logStripe.info({ intentId: intent.id }, 'payment failed (no matching order)');
     return;
   }
   ctx.orderId = order.id;

@@ -9,6 +9,7 @@
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
 import type { SinaliteOrderRequest } from '@/lib/sinalite/types';
+import { logWebhook } from '@/lib/logger';
 
 // ─── ENUM-LIKE ────────────────────────────────────────────────────────────
 // SQLite n'a pas d'enums — on contraint via TypeScript.
@@ -311,7 +312,10 @@ export async function updateWebhookOutcome(input: {
     });
   } catch (err) {
     // Race ou row absente — on ne veut pas masquer l'erreur originale du handler.
-    console.error('[webhook outcome] update failed', input.source, input.eventId, err);
+    logWebhook.error(
+      { err, source: input.source, eventId: input.eventId },
+      'outcome update failed',
+    );
   }
 }
 

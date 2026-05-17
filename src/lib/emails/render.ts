@@ -11,6 +11,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { logEmail } from '@/lib/logger';
 
 export type EmailTemplate =
   | 'magic-link'
@@ -82,8 +83,9 @@ export async function sendEmail(opts: {
 
   if (!SES_CONFIGURED) {
     // Dev mode : log au lieu d'envoyer
-    console.log(
-      `\n═══ EMAIL (dev) ═══\n  to: ${opts.to}\n  template: ${opts.template}\n  subject: ${subject}\n  vars: ${JSON.stringify(opts.vars)}\n═══════════════════\n`,
+    logEmail.info(
+      { to: opts.to, template: opts.template, subject, vars: opts.vars },
+      'email (dev — not sent, SES not configured)',
     );
     return { sent: false, dev: true };
   }

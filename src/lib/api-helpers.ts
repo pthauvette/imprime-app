@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { SinaliteError } from './sinalite/client';
+import { log } from './logger';
 
 export interface ApiError {
   error: string;
@@ -38,7 +39,7 @@ export function withErrorHandler<Args extends unknown[]>(
         );
       }
       const message = err instanceof Error ? err.message : 'Erreur interne';
-      console.error('[api]', err);
+      log.error({ err }, 'api handler error');
       return NextResponse.json<ApiError>(
         { error: message, code: 'INTERNAL' },
         { status: 500 },
