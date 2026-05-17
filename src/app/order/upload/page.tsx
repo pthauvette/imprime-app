@@ -181,6 +181,11 @@ interface UploadProgress {
   filename: string;
 }
 
+// Type-only import histoire que pdf-lib (~250kb) reste 100% dynamic — il
+// est chargé via `await import('@/lib/print/pdf-validator')` à la première
+// sélection d'un PDF, jamais au load de la page.
+import type { ValidationResult as PendingValidation } from '@/lib/print/pdf-validator';
+
 // ─── Dropzone ─────────────────────────────────────────────────────────────
 
 function Dropzone({
@@ -196,6 +201,10 @@ function Dropzone({
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Validation result : null = pas encore validé / pas un PDF, sinon
+  // résultat affiché sous la dropzone. Si level=error on bloque l'upload.
+  // Si level=warning on demande confirmation explicite avant upload.
+  const [pending, setPending] = useState<{ file: File; result: PendingValidation } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isUploaded = file !== null;
@@ -203,6 +212,33 @@ function Dropzone({
 
   async function handleFile(f: File) {
     setError(null);
+    setPending(null);
+
+    // PDF → validation client-side avant l'upload pour économiser bande passante
+    // + donner du feedback immédiat. Autres formats (PSD, AI, images) passent
+    // direct — Sinalite valide en production.
+    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+      // Dynamic import : pdf-lib ~250kb, on le charge seulement quand l'user
+      // choisit un PDF (pas au load de la page).
+      const { validatePdf } = await import('@/lib/print/pdf-validator');
+      const result = await validatePdf(f);
+      if (result.level === 'error') {
+        setError(result.issues.map((i) => i.message).join(' '));
+        return;
+      }
+      if (result.level === 'warning') {
+        // Stage l'upload : l'user voit les warnings + clique pour confirmer.
+        setPending({ file: f, result });
+        return;
+      }
+      // OK → upload direct
+    }
+
+    await doUpload(f);
+  }
+
+  async function doUpload(f: File) {
+    setPending(null);
     setProgress({ pct: 0, filename: f.name });
     try {
       const uploaded = await uploadFileToS3(f, kind, (pct) => setProgress({ pct, filename: f.name }));
@@ -305,6 +341,46 @@ function Dropzone({
           }}
         >
           ❌ {error}
+        </div>
+      )}
+
+      {pending && (
+        <div
+          style={{
+            padding: '12px 14px',
+            background: 'var(--warning-soft, #FFF6E5)',
+            border: '1px solid var(--warning, #D97706)',
+            borderRadius: 'var(--r-md)',
+            fontSize: 12,
+            color: 'var(--text-primary)',
+            display: 'grid',
+            gap: 10,
+          }}
+        >
+          <div style={{ fontWeight: 600, color: 'var(--warning, #D97706)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>⚠</span>
+            <span>{pending.result.issues.length} avertissement{pending.result.issues.length > 1 ? 's' : ''} sur ton PDF</span>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 16, display: 'grid', gap: 4 }}>
+            {pending.result.issues.map((issue, i) => (
+              <li key={i} style={{ fontSize: 11.5, lineHeight: 1.5 }}>{issue.message}</li>
+            ))}
+          </ul>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--warning, #D97706)20', paddingTop: 8 }}>
+            <button
+              onClick={() => setPending(null)}
+              style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}
+            >
+              Choisir un autre fichier
+            </button>
+            <button
+              onClick={() => void doUpload(pending.file)}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: '6px 12px' }}
+            >
+              Continuer quand même →
+            </button>
+          </div>
         </div>
       )}
 
