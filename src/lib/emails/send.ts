@@ -13,6 +13,7 @@
 
 import type { Order, User } from '@prisma/client';
 import { sendEmail } from './render';
+import { logEmail } from '@/lib/logger';
 import type {
   OrderConfirmationVars,
   OrderShippedVars,
@@ -123,7 +124,7 @@ export async function sendOrderShippedEmail(input: {
 }) {
   const { order, user } = input;
   if (!user.emailDeliveryNotifications) {
-    console.log(`[email] skipping shipped notification — user ${user.id} opted out`);
+    logEmail.info({ userId: user.id, kind: 'shipped' }, 'skipping notification — user opted out');
     return { sent: false, optedOut: true };
   }
   const eta = input.estimatedDelivery ?? new Date(Date.now() + 2 * 24 * 3600 * 1000);
@@ -157,7 +158,7 @@ export async function sendOrderDeliveredEmail(input: {
 }) {
   const { order, user } = input;
   if (!user.emailDeliveryNotifications) {
-    console.log(`[email] skipping delivered notification — user ${user.id} opted out`);
+    logEmail.info({ userId: user.id, kind: 'delivered' }, 'skipping notification — user opted out');
     return { sent: false, optedOut: true };
   }
   const deliveredAt = input.deliveredAt ?? new Date();
@@ -245,7 +246,7 @@ async function tryCatch<T>(fn: () => Promise<T>, label: string, orderId: string)
     return await fn();
   } catch (err) {
     // Email = best-effort. On log mais on ne crash pas le webhook.
-    console.error(`[email] ${label} failed for order ${orderId}:`, err);
+    logEmail.error({ err, label, orderId }, 'send failed');
     return null;
   }
 }
