@@ -1,0 +1,38 @@
+name: Daily cleanup
+
+# Tape /api/cron/cleanup une fois par jour pour supprimer :
+#   - Draft expirés (wizard order en cours, expiresAt < now)
+#   - DesignDraft orphelins (orderId null ET updatedAt < now - 30j)
+#
+# Auth via Bearer token : ajoute le secret `CRON_SECRET` dans
+# Settings → Secrets and variables → Actions, avec la même valeur que
+# la variable d'env CRON_SECRET configurée dans Amplify Console.
+#
+# Schedule : 06h00 UTC = 02h00 heure de Montréal — trafic minimal.
+# Bouton "Run workflow" dispo dans l'onglet Actions pour debug manuel.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/cron/cleanup
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant. Ajoute-le dans Settings → Secrets → Actions."
+            exit 1
+          fi
+          # -f : fail si HTTP >= 400. --show-error pour voir le body en cas d'erreur.
+          # On capture le body pour le log GitHub Actions (audit trail).
+          response=$(curl -fsS --show-error \
+            --max-time 60 \
+            -X GET https://plio.ca/api/cron/cleanup \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "$response" | jq .
