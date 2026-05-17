@@ -15,6 +15,7 @@ import Nodemailer from 'next-auth/providers/nodemailer';
 import { prisma } from '@/lib/db';
 import { authConfig } from '@/auth.config';
 import { renderEmail } from '@/lib/emails/render';
+import { sendWelcomeEmail } from '@/lib/emails/send';
 
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const DEV_LINK_LOGGER = !SES_CONFIGURED;
@@ -94,17 +95,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 
   events: {
-    // À la signin, on synchronise le role User en DB depuis ADMIN_EMAILS.
-    // Idempotent : si user déjà ADMIN ou pas dans la liste, no-op.
-    async signIn({ user }) {
+    // À la signin :
+    //   1. Synchronise le role User depuis ADMIN_EMAILS (bootstrap admin)
+    //   2. Si premier sign-in détecté (createdAt récent + 0 activité) →
+    //      envoie l'email de bienvenue
+    async signIn({ user, isNewUser }) {
       if (!user.id || !user.email) return;
-      const shouldBeAdmin = isAdminEmail(user.email);
-      if (!shouldBeAdmin) return;
-      // Promote silently — éviter d'overwrite si déjà admin
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { role: 'ADMIN' },
-      }).catch(() => {/* user may not exist yet in some flows — non-fatal */});
+
+      // Step 1: admin role sync
+      if (isAdminEmail(user.email)) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { role: 'ADMIN' },
+        }).catch(() => {/* non-fatal */});
+      }
+
+      // Step 2: welcome email (best-effort)
+      // Auth.js v5 fournit isNewUser=true sur le tout premier sign-in (création user).
+      // Fallback heuristique : si pas de orders ni de designs ET createdAt récent,
+      // c'est probablement le premier login (sur un user créé en guest order).
+      try {
+        let isFirstSignIn = isNewUser === true;
+        if (!isFirstSignIn) {
+          const counts = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: {
+              createdAt: true,
+              _count: { select: { orders: true, designDrafts: true } },
+            },
+          });
+          if (counts) {
+            const recentlyCreated = Date.now() - counts.createdAt.getTime() < 5 * 60 * 1000;
+            const noActivity = counts._count.orders === 0 && counts._count.designDrafts === 0;
+            isFirstSignIn = recentlyCreated && noActivity;
+          }
+        }
+        if (isFirstSignIn) {
+          const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
+          if (fullUser) {
+            await sendWelcomeEmail({ user: fullUser });
+          }
+        }
+      } catch (err) {
+        console.error('[auth.signIn] welcome email failed', err);
+      }
     },
   },
   callbacks: {

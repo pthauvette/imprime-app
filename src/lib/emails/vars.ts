@@ -24,6 +24,14 @@ export type MagicLinkVars = {
   UNSUBSCRIBE_URL: string;
 };
 
+export type WelcomeVars = {
+  CUSTOMER_FIRST_NAME: string;
+  TEMPLATES_URL: string;
+  ORDER_START_URL: string;
+  CATALOG_URL: string;
+  UNSUBSCRIBE_URL: string;
+};
+
 export type OrderConfirmationVars = {
   CUSTOMER_FIRST_NAME: string;
   CUSTOMER_NAME: string;
@@ -109,6 +117,7 @@ export type RefundIssuedVars = {
  */
 export type EmailVarsMap = {
   'magic-link': MagicLinkVars;
+  'welcome': WelcomeVars;
   'order-confirmation': OrderConfirmationVars;
   'order-shipped': OrderShippedVars;
   'order-delivered': OrderDeliveredVars;

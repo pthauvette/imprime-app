@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 /**
  * Workaround Amplify Hosting : les env vars de la console Amplify atteignent
@@ -22,6 +23,11 @@ const SERVER_ENV_KEYS = [
   'S3_BUCKET',
   'S3_ACCESS_KEY_ID',
   'S3_SECRET_ACCESS_KEY',
+  'SENTRY_DSN',
+  'NEXT_PUBLIC_SENTRY_DSN',
+  'SENTRY_ORG',
+  'SENTRY_PROJECT',
+  'SENTRY_AUTH_TOKEN',
   'SINALITE_CLIENT_ID',
   'SINALITE_CLIENT_SECRET',
   'SINALITE_API_BASE',
@@ -49,4 +55,19 @@ const nextConfig: NextConfig = {
   env,
 };
 
-export default nextConfig;
+// Wrap avec Sentry uniquement si auth token est configuré (sinon noop).
+// Le wrapper instrumente le build pour upload les sourcemaps + register
+// l'instrumentation hook. À runtime, src/instrumentation.ts gate sur DSN.
+const withSentry = (config: NextConfig): NextConfig =>
+  process.env.SENTRY_AUTH_TOKEN
+    ? withSentryConfig(config, {
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        silent: true,
+        sourcemaps: { disable: false },
+        disableLogger: true,
+      })
+    : config;
+
+export default withSentry(nextConfig);

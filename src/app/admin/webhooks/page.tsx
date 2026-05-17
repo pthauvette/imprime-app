@@ -4,14 +4,13 @@
  * Server Component. Query WebhookEvent avec filtres source/type/search +
  * pagination. searchParams: ?source=STRIPE|SINALITE&type=foo&q=evt_…&page=1
  *
- * IMPORTANT — limite du modèle DB actuel : la table WebhookEvent ne stocke
- * que les events PROCESSÉS AVEC SUCCÈS (c'est aussi notre table d'idempotence
- * — voir recordWebhookEvent dans lib/db/orders.ts). Donc :
- *   - on ne peut pas calculer un vrai "taux d'échec" depuis cette table seule
- *   - chaque row affiche "200 OK" (s2xx) puisque ce sont des succès
- *   - le compteur "échecs récents" approxime via Order.status = FAILED
- * Pour aller plus loin il faudrait stocker les essais ratés (success: boolean
- * + latencyMs + statusCode) — TODO post-MVP.
+ * Outcome tracking : depuis la migration enrich_webhook_event, chaque row
+ * WebhookEvent porte success/statusCode/latencyMs/error. Les handlers
+ * Stripe et Sinalite patchent ces champs en fin de POST via
+ * updateWebhookOutcome — donc les stats ci-dessous sont des vraies mesures
+ * (pas des approximations). Les rows historiques pré-migration ont
+ * success=true par défaut (cf default Prisma) — biais en faveur du succès
+ * tant qu'on n'a pas backfillé.
  */
 
 import Link from 'next/link';
@@ -52,6 +51,7 @@ export default async function AdminWebhooksPage({
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
   const previous24h = new Date(now.getTime() - 48 * 3600 * 1000);
+  const lastWeek = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
 
   // ─── WHERE clause for the listing ──────────────────────────────────────
   type WhWhere = NonNullable<NonNullable<Parameters<typeof prisma.webhookEvent.findMany>[0]>['where']>;
@@ -68,11 +68,16 @@ export default async function AdminWebhooksPage({
     typeGroups,
     total24h,
     totalPrev24h,
-    failedOrders24h,
+    failed24h,
+    success7dCount,
+    total7dCount,
+    latencyAgg7d,
     lastStripe,
     lastSinalite,
     stripe24hCount,
     sinalite24hCount,
+    stripeFailed24h,
+    sinaliteFailed24h,
     sidebarOrders,
     sidebarUsers,
   ] = await Promise.all([
@@ -96,16 +101,25 @@ export default async function AdminWebhooksPage({
     prisma.webhookEvent.count({
       where: { processedAt: { gte: previous24h, lt: yesterday } },
     }),
-    // Approximation : failures 24h ≈ Orders.status=FAILED dans la dernière 24h
-    prisma.order.count({
-      where: { status: 'FAILED', updatedAt: { gte: yesterday } },
+    prisma.webhookEvent.count({
+      where: { success: false, processedAt: { gte: yesterday } },
+    }),
+    prisma.webhookEvent.count({
+      where: { success: true, processedAt: { gte: lastWeek } },
+    }),
+    prisma.webhookEvent.count({
+      where: { processedAt: { gte: lastWeek } },
+    }),
+    prisma.webhookEvent.aggregate({
+      where: { processedAt: { gte: lastWeek }, latencyMs: { not: null } },
+      _avg: { latencyMs: true },
     }),
     prisma.webhookEvent.findFirst({
-      where: { source: 'STRIPE' },
+      where: { source: 'STRIPE', success: true },
       orderBy: { processedAt: 'desc' },
     }),
     prisma.webhookEvent.findFirst({
-      where: { source: 'SINALITE' },
+      where: { source: 'SINALITE', success: true },
       orderBy: { processedAt: 'desc' },
     }),
     prisma.webhookEvent.count({
@@ -114,12 +128,28 @@ export default async function AdminWebhooksPage({
     prisma.webhookEvent.count({
       where: { source: 'SINALITE', processedAt: { gte: yesterday } },
     }),
+    prisma.webhookEvent.count({
+      where: { source: 'STRIPE', success: false, processedAt: { gte: yesterday } },
+    }),
+    prisma.webhookEvent.count({
+      where: { source: 'SINALITE', success: false, processedAt: { gte: yesterday } },
+    }),
     prisma.order.count(),
     prisma.user.count(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(listTotal / PAGE_SIZE));
   const allEventsCount = sourceGroups.reduce((a, c) => a + c._count._all, 0);
+
+  // ─── Aggregates ─────────────────────────────────────────────────────────
+  // Success rate over 7d for a meaningful sample. If we have zero events
+  // in the window, show "—" rather than a misleading 100%.
+  const successRate7d = total7dCount > 0
+    ? Math.round((success7dCount / total7dCount) * 1000) / 10 // one decimal
+    : null;
+  const avgLatencyMs = latencyAgg7d._avg.latencyMs !== null
+    ? Math.round(latencyAgg7d._avg.latencyMs)
+    : null;
 
   const countBySource = (s: Source | null): number => {
     if (s === null) return allEventsCount;
@@ -143,7 +173,7 @@ export default async function AdminWebhooksPage({
       <AdminSidebar
         active="webhooks"
         counts={sidebarCounts}
-        urgents={{ webhooks: failedOrders24h > 0 }}
+        urgents={{ webhooks: failed24h > 0 }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 
@@ -173,19 +203,27 @@ export default async function AdminWebhooksPage({
           </div>
           <div className="adm-health-card">
             <div className="adm-health-label">Taux de succès</div>
-            <div className="adm-health-value">100<span className="unit">%</span></div>
-            <div className="adm-health-meta">tous les events stockés sont des succès</div>
+            <div className="adm-health-value">
+              {successRate7d !== null ? successRate7d : '—'}<span className="unit">%</span>
+            </div>
+            <div className="adm-health-meta">
+              {total7dCount > 0
+                ? `${success7dCount}/${total7dCount} events · 7 j`
+                : 'aucun event · 7 j'}
+            </div>
           </div>
           <div className="adm-health-card">
             <div className="adm-health-label">Latence moyenne</div>
-            <div className="adm-health-value">—<span className="unit">ms</span></div>
-            <div className="adm-health-meta">non instrumenté · TODO</div>
+            <div className="adm-health-value">
+              {avgLatencyMs !== null ? avgLatencyMs : '—'}<span className="unit">ms</span>
+            </div>
+            <div className="adm-health-meta">moyenne · 7 j</div>
           </div>
-          <div className={failedOrders24h > 0 ? 'adm-health-card danger' : 'adm-health-card'}>
-            <div className="adm-health-label">Échecs · action requise</div>
-            <div className={failedOrders24h > 0 ? 'adm-health-value danger' : 'adm-health-value'}>{failedOrders24h}</div>
-            <div className={failedOrders24h > 0 ? 'adm-health-meta down' : 'adm-health-meta'}>
-              {failedOrders24h > 0 ? 'Commandes en FAILED · 24 h' : 'rien à signaler'}
+          <div className={failed24h > 0 ? 'adm-health-card danger' : 'adm-health-card'}>
+            <div className="adm-health-label">Échecs · 24 h</div>
+            <div className={failed24h > 0 ? 'adm-health-value danger' : 'adm-health-value'}>{failed24h}</div>
+            <div className={failed24h > 0 ? 'adm-health-meta down' : 'adm-health-meta'}>
+              {failed24h > 0 ? 'Webhooks en erreur · 24 h' : 'rien à signaler'}
             </div>
           </div>
         </section>
@@ -261,8 +299,9 @@ export default async function AdminWebhooksPage({
                   <th style={{ width: 170 }}>Timestamp</th>
                   <th style={{ width: 90 }}>Source</th>
                   <th>Event type</th>
-                  <th style={{ width: 280 }}>Event ID</th>
-                  <th style={{ width: 90 }}>Status</th>
+                  <th style={{ width: 240 }}>Event ID</th>
+                  <th style={{ width: 100 }}>Status</th>
+                  <th style={{ width: 90 }}>Latence</th>
                   <th style={{ width: 80 }}>Actions</th>
                 </tr>
               </thead>
@@ -282,7 +321,16 @@ export default async function AdminWebhooksPage({
                     </td>
                     <td><span className="adm-wh-evt">{e.eventType}</span></td>
                     <td><span className="adm-wh-ref" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{e.eventId}</span></td>
-                    <td><span className="adm-wh-status s2xx">200 OK</span></td>
+                    <td>
+                      <StatusCell
+                        success={e.success}
+                        statusCode={e.statusCode}
+                        error={e.error}
+                      />
+                    </td>
+                    <td>
+                      <LatencyCell latencyMs={e.latencyMs} />
+                    </td>
                     <td>
                       <div className="adm-wh-actions">
                         <button className="adm-wh-action" disabled title="Replay non implémenté">↻</button>
@@ -328,6 +376,9 @@ export default async function AdminWebhooksPage({
                 Dernier succès<br/>
                 <strong>{lastStripe ? formatDateTime(lastStripe.processedAt.toISOString()) : '—'}</strong>
                 {' · '}{stripe24hCount} events / 24 h
+                {stripeFailed24h > 0 && (
+                  <> · <span style={{ color: 'var(--color-danger, #c0392b)' }}>{stripeFailed24h} échec{stripeFailed24h > 1 ? 's' : ''}</span></>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-secondary btn-sm" disabled>↻ Replay 24 h</button>
@@ -338,8 +389,8 @@ export default async function AdminWebhooksPage({
                 <div className="adm-endpoint-name">
                   <span className="adm-wh-source sinalite">Sinalite</span>
                   Status callback
-                  <span className={`badge ${failedOrders24h > 0 ? 'badge-warning' : 'badge-success'}`}>
-                    {failedOrders24h > 0 ? 'Dégradé' : 'Active'}
+                  <span className={`badge ${sinaliteFailed24h > 0 ? 'badge-warning' : 'badge-success'}`}>
+                    {sinaliteFailed24h > 0 ? 'Dégradé' : 'Active'}
                   </span>
                 </div>
                 <span className="adm-endpoint-url">https://www.plio.ca/api/webhooks/sinalite</span>
@@ -348,6 +399,9 @@ export default async function AdminWebhooksPage({
                 Dernier succès<br/>
                 <strong>{lastSinalite ? formatDateTime(lastSinalite.processedAt.toISOString()) : '—'}</strong>
                 {' · '}{sinalite24hCount} events / 24 h
+                {sinaliteFailed24h > 0 && (
+                  <> · <span style={{ color: 'var(--color-danger, #c0392b)' }}>{sinaliteFailed24h} échec{sinaliteFailed24h > 1 ? 's' : ''}</span></>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-secondary btn-sm" disabled>↻ Replay failed</button>
@@ -374,6 +428,55 @@ function buildParams(opts: {
   if (opts.q) params.set('q', opts.q);
   if (opts.page && opts.page > 1) params.set('page', String(opts.page));
   return params.toString();
+}
+
+function StatusCell({
+  success,
+  statusCode,
+  error,
+}: {
+  success: boolean;
+  statusCode: number | null;
+  error: string | null;
+}) {
+  // Categorize: 2xx green, 4xx yellow, 5xx (or success=false) red, unknown grey.
+  const code = statusCode ?? (success ? 200 : 500);
+  const klass = success && code < 400
+    ? 's2xx'
+    : code >= 400 && code < 500
+      ? 's4xx'
+      : 's5xx';
+  const label = success && code < 400
+    ? `${code} OK`
+    : code >= 500
+      ? `${code} ERR`
+      : `${code}`;
+  return (
+    <span
+      className={`adm-wh-status ${klass}`}
+      title={error ?? undefined}
+      style={!success && error ? { cursor: 'help' } : undefined}
+    >
+      {label}
+    </span>
+  );
+}
+
+function LatencyCell({ latencyMs }: { latencyMs: number | null }) {
+  if (latencyMs === null) {
+    return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  }
+  // Green <500ms, yellow 500-2000ms, red >2000ms.
+  const color = latencyMs < 500
+    ? 'var(--color-success, #16a34a)'
+    : latencyMs <= 2000
+      ? 'var(--color-warning, #d97706)'
+      : 'var(--color-danger, #c0392b)';
+  return (
+    <span style={{ color, fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
+      {latencyMs} ms
+    </span>
+  );
 }
 
 function EmptyState() {

@@ -19,6 +19,7 @@ import { OrderStatus } from '@/lib/sinalite/types';
 import {
   applySinaliteStatusChange,
   recordWebhookEvent,
+  updateWebhookOutcome,
   OrderNotFoundError,
   type SinaliteStatus,
 } from '@/lib/db/orders';
@@ -45,6 +46,10 @@ const SinaliteWebhookPayload = z.object({
 });
 
 export async function POST(req: Request) {
+  // Wall-clock starts BEFORE signature verification so latency matches
+  // what Sinalite observed end-to-end (including order lookup downstream).
+  const start = Date.now();
+
   if (WEBHOOK_SECRET) {
     const signature = req.headers.get('x-sinalite-signature');
     if (signature !== WEBHOOK_SECRET) {
@@ -74,59 +79,104 @@ export async function POST(req: Request) {
 
   console.log('[sinalite webhook] order', payload.orderId, '→', payload.status);
 
+  // Mutable context so we can stamp orderId onto the WebhookEvent row
+  // even on the error path.
+  let dbOrderId: string | undefined;
+
   try {
-    await applySinaliteStatusChange({
-      sinaliteOrderId: payload.orderId,
-      status: payload.status as SinaliteStatus,
-      data: payload,
-    });
-  } catch (err) {
-    if (err instanceof OrderNotFoundError) {
-      // L'order Sinalite n'a pas de match dans notre DB — possiblement créée
-      // hors de notre app, ou avant le déploiement de la persistence.
-      // On log et on accuse réception pour éviter les retries inutiles.
-      console.warn('[sinalite webhook] no DB order for', payload.orderId);
-      return NextResponse.json({ received: true, unknown: true });
-    }
-    throw err;
-  }
-
-  // ─── Email notifications (best-effort, ne bloque pas le webhook) ─────
-  // On fetch l'order + user pour avoir le contexte complet (le payload Sinalite
-  // n'a que l'orderId — pas le customer email ni l'adresse de shipping).
-  if (payload.status === 'SHIPPED' || payload.status === 'DELIVERED' || payload.status === 'CANCELLED') {
-    const order = await prisma.order.findUnique({
-      where: { sinaliteOrderId: String(payload.orderId) },
-      include: { user: true },
-    });
-    if (order) {
-      switch (payload.status) {
-        case 'SHIPPED':
-          await sendOrderShippedEmail({
-            order,
-            user: order.user,
-            trackingNumber: payload.trackingNumber,
-            carrier: payload.carrier,
-          });
-          break;
-        case 'DELIVERED':
-          await sendOrderDeliveredEmail({
-            order,
-            user: order.user,
-            deliveredAt: new Date(payload.timestamp),
-          });
-          break;
-        case 'CANCELLED':
-          await sendOrderCancelledEmail({
-            order,
-            user: order.user,
-            reason: payload.notes ?? 'Annulation par Sinalite',
-            refundAmountCents: order.amountCents,
-          });
-          break;
+    try {
+      await applySinaliteStatusChange({
+        sinaliteOrderId: payload.orderId,
+        status: payload.status as SinaliteStatus,
+        data: payload,
+      });
+    } catch (err) {
+      if (err instanceof OrderNotFoundError) {
+        // L'order Sinalite n'a pas de match dans notre DB — possiblement créée
+        // hors de notre app, ou avant le déploiement de la persistence.
+        // On log et on accuse réception pour éviter les retries inutiles.
+        console.warn('[sinalite webhook] no DB order for', payload.orderId);
+        await updateWebhookOutcome({
+          source: 'SINALITE',
+          eventId: fingerprint,
+          success: true,
+          statusCode: 200,
+          latencyMs: Date.now() - start,
+        });
+        return NextResponse.json({ received: true, unknown: true });
       }
+      throw err;
     }
-  }
 
-  return NextResponse.json({ received: true, orderId: payload.orderId });
+    // ─── Email notifications (best-effort, ne bloque pas le webhook) ─────
+    // On fetch l'order + user pour avoir le contexte complet (le payload Sinalite
+    // n'a que l'orderId — pas le customer email ni l'adresse de shipping).
+    if (payload.status === 'SHIPPED' || payload.status === 'DELIVERED' || payload.status === 'CANCELLED') {
+      const order = await prisma.order.findUnique({
+        where: { sinaliteOrderId: String(payload.orderId) },
+        include: { user: true },
+      });
+      if (order) {
+        dbOrderId = order.id;
+        switch (payload.status) {
+          case 'SHIPPED':
+            await sendOrderShippedEmail({
+              order,
+              user: order.user,
+              trackingNumber: payload.trackingNumber,
+              carrier: payload.carrier,
+            });
+            break;
+          case 'DELIVERED':
+            await sendOrderDeliveredEmail({
+              order,
+              user: order.user,
+              deliveredAt: new Date(payload.timestamp),
+            });
+            break;
+          case 'CANCELLED':
+            await sendOrderCancelledEmail({
+              order,
+              user: order.user,
+              reason: payload.notes ?? 'Annulation par Sinalite',
+              refundAmountCents: order.amountCents,
+            });
+            break;
+        }
+      }
+    } else {
+      // For non-email status transitions, still try to capture orderId for the
+      // outcome row so admin joins work — cheap follow-up lookup.
+      const o = await prisma.order.findUnique({
+        where: { sinaliteOrderId: String(payload.orderId) },
+        select: { id: true },
+      });
+      dbOrderId = o?.id;
+    }
+
+    await updateWebhookOutcome({
+      source: 'SINALITE',
+      eventId: fingerprint,
+      success: true,
+      statusCode: 200,
+      latencyMs: Date.now() - start,
+      orderId: dbOrderId,
+    });
+    return NextResponse.json({ received: true, orderId: payload.orderId });
+  } catch (err) {
+    console.error('[sinalite webhook] handler error', err);
+    await updateWebhookOutcome({
+      source: 'SINALITE',
+      eventId: fingerprint,
+      success: false,
+      statusCode: 500,
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : 'Internal error',
+      orderId: dbOrderId,
+    });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Internal error' },
+      { status: 500 },
+    );
+  }
 }

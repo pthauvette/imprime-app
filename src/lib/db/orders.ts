@@ -245,12 +245,31 @@ export async function getOrderById(id: string) {
   });
 }
 
-// ─── WEBHOOK IDEMPOTENCE ──────────────────────────────────────────────────
-// Pattern : INSERT-OR-IGNORE puis check si la row a été créée. Si oui →
-// premier traitement, on continue. Sinon → déjà processed, on no-op.
+// ─── WEBHOOK IDEMPOTENCE + OUTCOME TRACKING ──────────────────────────────
+// Pattern handler :
+//   const start = Date.now();
+//   const { isNew } = await recordWebhookEvent({ source, eventId, eventType });
+//   if (!isNew) return NextResponse.json({ deduped: true });
+//   try {
+//     // ... do work, get orderId once known ...
+//     await updateWebhookOutcome({ source, eventId, success: true,
+//       statusCode: 200, latencyMs: Date.now() - start, orderId });
+//     return NextResponse.json({ received: true });
+//   } catch (err) {
+//     await updateWebhookOutcome({ source, eventId, success: false,
+//       statusCode: 500, latencyMs: Date.now() - start, error: err.message });
+//     throw err;
+//   }
+//
+// recordWebhookEvent insert la row (idempotence). updateWebhookOutcome
+// la patch en fin de handler avec le résultat réel. updateWebhookOutcome
+// est best-effort : si la row n'existe pas (race), on no-op silencieusement
+// plutôt que de masquer l'erreur métier du handler.
+
+export type WebhookSource = 'STRIPE' | 'SINALITE';
 
 export async function recordWebhookEvent(input: {
-  source: 'STRIPE' | 'SINALITE';
+  source: WebhookSource;
   eventId: string;
   eventType: string;
 }): Promise<{ isNew: boolean }> {
@@ -259,6 +278,74 @@ export async function recordWebhookEvent(input: {
     return { isNew: true };
   } catch (err) {
     // Unique violation (P2002) = déjà processed
+    if (isPrismaUniqueError(err)) return { isNew: false };
+    throw err;
+  }
+}
+
+/**
+ * Patch la row WebhookEvent existante (créée par recordWebhookEvent) avec
+ * le résultat final du handler. À appeler dans le finally / catch du
+ * handler. Best-effort : on swallow les erreurs de DB pour ne pas masquer
+ * l'erreur métier originale.
+ */
+export async function updateWebhookOutcome(input: {
+  source: WebhookSource;
+  eventId: string;
+  success: boolean;
+  statusCode: number;
+  latencyMs: number;
+  error?: string;
+  orderId?: string;
+}): Promise<void> {
+  try {
+    await prisma.webhookEvent.update({
+      where: { source_eventId: { source: input.source, eventId: input.eventId } },
+      data: {
+        success: input.success,
+        statusCode: input.statusCode,
+        latencyMs: input.latencyMs,
+        error: input.error ? input.error.slice(0, 500) : null,
+        ...(input.orderId ? { orderId: input.orderId } : {}),
+      },
+    });
+  } catch (err) {
+    // Race ou row absente — on ne veut pas masquer l'erreur originale du handler.
+    console.error('[webhook outcome] update failed', input.source, input.eventId, err);
+  }
+}
+
+/**
+ * INSERT-or-IGNORE pour les cas où on veut enregistrer un outcome sans
+ * passer par le pattern recordWebhookEvent → updateWebhookOutcome (e.g.
+ * pour backfiller ou pour des handlers qui n'ont pas besoin de dedupe
+ * upfront). Si la row existe déjà, on ne touche à rien.
+ */
+export async function recordWebhookOutcome(input: {
+  source: WebhookSource;
+  eventId: string;
+  eventType: string;
+  success: boolean;
+  statusCode: number;
+  latencyMs: number;
+  error?: string;
+  orderId?: string;
+}): Promise<{ isNew: boolean }> {
+  try {
+    await prisma.webhookEvent.create({
+      data: {
+        source: input.source,
+        eventId: input.eventId,
+        eventType: input.eventType,
+        success: input.success,
+        statusCode: input.statusCode,
+        latencyMs: input.latencyMs,
+        error: input.error ? input.error.slice(0, 500) : null,
+        orderId: input.orderId,
+      },
+    });
+    return { isNew: true };
+  } catch (err) {
     if (isPrismaUniqueError(err)) return { isNew: false };
     throw err;
   }

@@ -290,6 +290,19 @@ model WebhookEvent {
   eventType   String
   processedAt DateTime @default(now())
 
+  // Outcome tracking — patché en fin de handler par updateWebhookOutcome.
+  // `success` est `true` par défaut pour rester compatible avec les rows
+  // historiques créées avant l'instrumentation. Les nouvelles rows
+  // démarrent en `success=true` puis sont écrasées en cas d'exception.
+  success     Boolean  @default(true)
+  statusCode  Int?
+  latencyMs   Int?
+  error       String?
+  // Link vers l'Order si on a pu résoudre — accélère les joins admin.
+  orderId     String?
+
   @@unique([source, eventId])
   @@index([source, processedAt])
+  @@index([success, processedAt])
+  @@index([orderId])
 }

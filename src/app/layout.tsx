@@ -40,20 +40,14 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: `Plio — ${TAGLINE}`,
     description: DESCRIPTION,
-    images: [
-      {
-        url: '/og-default.png',
-        width: 1200,
-        height: 630,
-        alt: 'Plio — print wholesale au Canada',
-      },
-    ],
+    // Image auto-générée par src/app/opengraph-image.tsx — Next.js injecte
+    // l'URL `/opengraph-image` dans la metadata automatiquement.
   },
   twitter: {
     card: 'summary_large_image',
     title: `Plio — ${TAGLINE}`,
     description: DESCRIPTION,
-    images: ['/og-default.png'],
+    // Twitter image suit l'OG image automatiquement aussi.
   },
   robots: {
     index: true,

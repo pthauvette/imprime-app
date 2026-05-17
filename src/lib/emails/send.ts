@@ -19,6 +19,7 @@ import type {
   OrderDeliveredVars,
   OrderCancelledVars,
   RefundIssuedVars,
+  WelcomeVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -61,6 +62,27 @@ function unsubscribeUrl(): string {
 }
 
 // ─── SEND HELPERS ─────────────────────────────────────────────────────────
+
+/**
+ * Envoyé sur le premier sign-in d'un nouveau user.
+ * Triggered par events.signIn() dans auth.ts avec garde "isNewUser" + DB
+ * column welcomeEmailSentAt pour éviter les doublons.
+ */
+export async function sendWelcomeEmail(input: { user: User }) {
+  const { user } = input;
+  const vars: WelcomeVars = {
+    CUSTOMER_FIRST_NAME: firstName(user),
+    TEMPLATES_URL: `${APP_URL}/templates`,
+    ORDER_START_URL: `${APP_URL}/order/start`,
+    CATALOG_URL: `${APP_URL}/templates`,
+    UNSUBSCRIBE_URL: unsubscribeUrl(),
+  };
+  return tryCatch(() => sendEmail({
+    to: user.email,
+    template: 'welcome',
+    vars: vars as unknown as Record<string, string | number>,
+  }), 'welcome', user.id);
+}
 
 /** Envoyé après payment_intent.succeeded + submission Sinalite réussie. */
 export async function sendOrderConfirmationEmail(input: {

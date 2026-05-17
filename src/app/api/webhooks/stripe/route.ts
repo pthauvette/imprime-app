@@ -27,6 +27,7 @@ import {
   markOrderFailed,
   markRefundIssued,
   recordWebhookEvent,
+  updateWebhookOutcome,
   OrderNotFoundError,
 } from '@/lib/db/orders';
 import {
@@ -42,6 +43,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(req: Request) {
+  // Wall-clock starts BEFORE signature verification so latency reflects
+  // what Stripe observed end-to-end.
+  const start = Date.now();
+
   const sig = req.headers.get('stripe-signature');
   if (!sig) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
@@ -68,22 +73,42 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true, deduped: true });
   }
 
+  // Mutable context so inner handlers can stamp orderId even if they throw.
+  const ctx: { orderId?: string } = {};
+
   try {
     switch (event.type) {
       case 'payment_intent.succeeded': {
-        await handlePaymentSucceeded(event.data.object);
+        await handlePaymentSucceeded(event.data.object, ctx);
         break;
       }
       case 'payment_intent.payment_failed': {
-        await handlePaymentFailed(event.data.object);
+        await handlePaymentFailed(event.data.object, ctx);
         break;
       }
       default:
         console.log('[stripe webhook] unhandled event:', event.type);
     }
+    await updateWebhookOutcome({
+      source: 'STRIPE',
+      eventId: event.id,
+      success: true,
+      statusCode: 200,
+      latencyMs: Date.now() - start,
+      orderId: ctx.orderId,
+    });
     return NextResponse.json({ received: true });
   } catch (err) {
     console.error('[stripe webhook] handler error', err);
+    await updateWebhookOutcome({
+      source: 'STRIPE',
+      eventId: event.id,
+      success: false,
+      statusCode: 500,
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : 'Internal error',
+      orderId: ctx.orderId,
+    });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Internal error' },
       { status: 500 },
@@ -91,7 +116,10 @@ export async function POST(req: Request) {
   }
 }
 
-async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
+async function handlePaymentSucceeded(
+  intent: Stripe.PaymentIntent,
+  ctx: { orderId?: string },
+): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { paymentIntentId: intent.id },
   });
@@ -101,6 +129,7 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
     console.error('[stripe webhook] no Order for paymentIntent', intent.id);
     return;
   }
+  ctx.orderId = order.id;
 
   // Si déjà transitionnée (PAID/SUBMITTED), no-op — le replay a été dédupé
   // en amont via WebhookEvent, mais on garde la garde par sécurité.
@@ -220,7 +249,10 @@ function extractCardLast4(intent: Stripe.PaymentIntent): string | undefined {
   return charges?.data?.[0]?.payment_method_details?.card?.last4;
 }
 
-async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
+async function handlePaymentFailed(
+  intent: Stripe.PaymentIntent,
+  ctx: { orderId?: string },
+): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { paymentIntentId: intent.id },
   });
@@ -228,6 +260,7 @@ async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
     console.log('[stripe webhook] payment failed (no order):', intent.id);
     return;
   }
+  ctx.orderId = order.id;
   try {
     await markOrderFailed({
       orderId: order.id,
