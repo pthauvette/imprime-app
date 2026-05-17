@@ -13,6 +13,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import type { CaProvince } from '@/lib/sinalite/types';
+import { readSavedShip, writeSavedShip } from '@/lib/cart/ship-store';
 
 const CA_PROVINCES: { code: CaProvince; name: string }[] = [
   { code: 'AB', name: 'Alberta' }, { code: 'BC', name: 'Colombie-Britannique' },
@@ -51,15 +52,34 @@ function ShippingPageInner() {
   const files = searchParams.get('files') ?? '';
 
   // Form state
-  const [firstName, setFirstName] = useState('Patrick');
-  const [lastName, setLastName] = useState('Thauvette');
-  const [email, setEmail] = useState('patrick@democratik.org');
-  const [phone, setPhone] = useState('(514) 555-0123');
-  const [line1, setLine1] = useState('2055 rue Drummond');
-  const [line2, setLine2] = useState('App. 405');
-  const [city, setCity] = useState('Montréal');
+  // Init avec strings vides — on hydrate depuis localStorage dans useEffect
+  // pour éviter hydration mismatch SSR/CSR. Si localStorage absent, le user
+  // tape ses infos. Si présent (multi-item ou commande précédente), pré-rempli.
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [line1, setLine1] = useState('');
+  const [line2, setLine2] = useState('');
+  const [city, setCity] = useState('');
   const [province, setProvince] = useState<CaProvince>('QC');
-  const [postalCode, setPostalCode] = useState('H3G 2X3');
+  const [postalCode, setPostalCode] = useState('');
+
+  // Hydrate depuis localStorage au mount (post-hydration pour éviter mismatch)
+  useEffect(() => {
+    const saved = readSavedShip();
+    if (saved) {
+      setFirstName(saved.firstName);
+      setLastName(saved.lastName);
+      setEmail(saved.email);
+      setPhone(saved.phone);
+      setLine1(saved.line1);
+      setLine2(saved.line2);
+      setCity(saved.city);
+      setProvince(saved.province as CaProvince);
+      setPostalCode(saved.postalCode);
+    }
+  }, []);
 
   // Shipping estimate state
   const [methods, setMethods] = useState<ShippingMethod[]>([]);
@@ -279,7 +299,14 @@ function ShippingPageInner() {
         <div className="shell-footer-right">
           <button
             className="btn btn-primary"
-            onClick={() => nextHref && router.push(nextHref)}
+            onClick={() => {
+              if (!nextHref) return;
+              // Persist le ship pour pré-remplir au prochain passage du
+              // wizard (cas multi-item où l'user ajoute un 2e produit).
+              // Auto-cleared sur /order/confirmation.
+              writeSavedShip({ firstName, lastName, email, phone, line1, line2, city, province, postalCode });
+              router.push(nextHref);
+            }}
             disabled={!canContinue}
             style={{ opacity: canContinue ? 1 : 0.4, cursor: canContinue ? 'pointer' : 'not-allowed' }}
           >
