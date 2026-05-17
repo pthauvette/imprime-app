@@ -346,7 +346,8 @@ export default async function CustomerOrderDetailPage({
             </Card>
 
             <Link
-              href={'/order/start' as Route}
+              href={`/order/start?reorder=${order.id}` as Route}
+              title="Repart avec les mêmes options · tu ré-uploads tes fichiers"
               style={{
                 display: 'block',
                 padding: '14px 18px',
@@ -360,7 +361,7 @@ export default async function CustomerOrderDetailPage({
                 fontWeight: 500,
               }}
             >
-              + Commander à nouveau
+              ↻ Recommander
             </Link>
 
             <div style={{ padding: 16, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>

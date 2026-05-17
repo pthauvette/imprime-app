@@ -22,7 +22,7 @@ const ParamsSchema = z.object({
 export default async function ConfigurePage({
   searchParams,
 }: {
-  searchParams: Promise<{ productId?: string; designId?: string }>;
+  searchParams: Promise<{ productId?: string; designId?: string; options?: string }>;
 }) {
   const params = await searchParams;
   const parsed = ParamsSchema.safeParse(params);
@@ -47,10 +47,25 @@ export default async function ConfigurePage({
     (optionGroups[opt.group] ??= []).push(opt);
   }
 
-  // Default combo: lowest qty + first of each other group
+  // Parse les options pré-sélectionnées depuis l'URL (flow reorder).
+  // Format : ?options=ID1,ID2,ID3 — on map chaque ID vers son groupe.
+  // Si un ID n'existe pas dans ce produit (ex: produit a changé de SKUs),
+  // on l'ignore silencieusement et le default kicks in.
+  const prefilledOptionIds = new Set<number>(
+    (params.options ?? '')
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0),
+  );
+
+  // Default combo: lowest qty + first of each other group, MAIS si on a des
+  // options pré-sélectionnées (reorder flow), on les utilise en priorité.
   const defaultSelection: Record<string, number> = {};
   for (const [group, opts] of Object.entries(optionGroups)) {
-    if (group === 'qty') {
+    const prefilled = opts.find((o) => prefilledOptionIds.has(o.id));
+    if (prefilled) {
+      defaultSelection[group] = prefilled.id;
+    } else if (group === 'qty') {
       const sorted = [...opts].sort((a, b) => Number(a.name) - Number(b.name));
       if (sorted[0]) defaultSelection[group] = sorted[0].id;
     } else if (opts[0]) {

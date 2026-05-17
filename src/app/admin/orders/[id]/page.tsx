@@ -257,6 +257,25 @@ export default async function AdminOrderDetailPage({
               <div style={{ marginTop: 8 }}>
                 <SendCustomMessageButton orderId={order.id} customerEmail={order.user.email} />
               </div>
+              <Link
+                href={`/order/start?reorder=${order.id}` as Route}
+                title="Repart le wizard avec les mêmes options pour ce client"
+                style={{
+                  display: 'block',
+                  marginTop: 8,
+                  padding: '10px 12px',
+                  background: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--r-sm)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textAlign: 'left',
+                  textDecoration: 'none',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                ↻ Recommander cette commande
+              </Link>
             </Card>
 
             <Card label="Notes internes (admin)">

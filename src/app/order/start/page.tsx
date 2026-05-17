@@ -7,16 +7,52 @@
  */
 
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import { sinalite } from '@/lib/sinalite/client';
 import { groupProductsByFamily } from '@/lib/catalogue';
 import CategoryIcon from '@/components/wizard/CategoryIcon';
 import { formatCurrency } from '@/lib/format';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import { buildReorderDeepLink } from '@/lib/orders/reorder';
 
 export const metadata = { title: "Quoi imprimer ?" };
 export const dynamic = 'force-dynamic';
 
-export default async function OrderStartPage() {
+export default async function OrderStartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reorder?: string }>;
+}) {
+  // ─── Reorder flow (lien depuis email delivered ou bouton /orders/[id]) ──
+  // Si ?reorder=ORDER_ID : on requiert auth, on vérifie ownership, on extrait
+  // productId + options de la commande originale, et on redirect direct vers
+  // /order/configure pour skipper la category picker. L'user repasse par
+  // upload + shipping + paiement — c'est intentionnel : files peuvent avoir
+  // expiré côté S3, et c'est une bonne pratique qualité de revérifier.
+  const { reorder } = await searchParams;
+  if (reorder) {
+    const session = await auth();
+    if (!session?.user?.id) {
+      redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/order/start?reorder=${reorder}`)}` as Route);
+    }
+    const order = await prisma.order.findUnique({
+      where: { id: reorder },
+      select: { userId: true, sinalitePayload: true },
+    });
+    // Si pas trouvé OU pas owner OU pas admin → fall through au flow normal
+    // (silencieusement — on ne leak pas l'existence de l'id).
+    const isOwner = order?.userId === session.user.id;
+    const isAdmin = session.user.role === 'ADMIN';
+    if (order && (isOwner || isAdmin)) {
+      const link = buildReorderDeepLink(order.sinalitePayload);
+      if (link.ok) redirect(link.url as Route);
+      // Si payload corrompu : on continue sur la page normale, l'user
+      // verra son catalog et choisira manuellement.
+    }
+  }
+
   const products = await sinalite.listProducts();
   const families = groupProductsByFamily(products)
     .filter((f) => f.productCount > 0)
