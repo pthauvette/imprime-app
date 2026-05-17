@@ -71,6 +71,7 @@ jobs:
             "https://www.plio.ca/legal/terms|Plio|200"
             "https://www.plio.ca/legal/refund-policy|emboursement|200"
             "https://www.plio.ca/contact|ontact|200"
+            "https://www.plio.ca/track|uivre ma commande|200"
           )
 
           failed=0

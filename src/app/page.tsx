@@ -288,6 +288,7 @@ export default function LandingPage() {
               <h4>Aide</h4>
               <ul>
                 <li><a href="#faq">FAQ</a></li>
+                <li><a href="/track">Suivre une commande</a></li>
                 <li><a href="/templates">Templates</a></li>
                 <li><a href="/contact">Contact</a></li>
                 <li><a href="/about">À propos</a></li>

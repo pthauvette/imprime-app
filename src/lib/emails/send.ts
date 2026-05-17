@@ -74,6 +74,17 @@ function orderUrl(order: Order): string {
   return `${APP_URL}/orders/${order.id}`;
 }
 
+/**
+ * URL publique de suivi (sans login required) pour les guests + customer
+ * qui n'ont pas le réflexe de signin. Pré-remplit orderId + email →
+ * customer voit son status en 1 click.
+ */
+function trackUrl(order: Order, user: { email: string }): string {
+  const orderRef = order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase();
+  const params = new URLSearchParams({ orderId: orderRef, email: user.email });
+  return `${APP_URL}/track?${params.toString()}`;
+}
+
 function unsubscribeUrl(): string {
   return `${APP_URL}/settings/email-preferences`;
 }
@@ -120,7 +131,9 @@ export async function sendOrderConfirmationEmail(input: {
     SHIPPING_METHOD: order.shippingMethod,
     SHIP_CITY: order.shipCity,
     SHIP_ADDRESS_HTML: shipAddressHtml(order),
-    TRACK_ORDER_URL: orderUrl(order),
+    // Lien /track : public (pas de login required), pré-rempli orderId + email
+    // → optimal pour les guests qui veulent voir status en 1 click depuis l'email.
+    TRACK_ORDER_URL: trackUrl(order, user),
     UNSUBSCRIBE_URL: unsubscribeUrl(),
     // Bloc reçu légal — populé depuis env vars Amplify
     COMPANY_LEGAL_NAME: COMPANY.legalName,
