@@ -36,6 +36,7 @@ import {
   sendRefundIssuedEmail,
 } from '@/lib/emails/send';
 import { logStripe } from '@/lib/logger';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-02-24.acacia',
@@ -198,6 +199,24 @@ async function handlePaymentSucceeded(
         'auto-refunded payment intent',
       );
 
+      // Warning Slack — recovered scenario (auto-refund a marché) mais on
+      // veut quand même savoir vite : ça peut indiquer un problème Sinalite
+      // général (down, mauvais credentials, wallet vide) qui va impacter
+      // toutes les prochaines commandes.
+      void sendCriticalAlert({
+        severity: 'warning',
+        title: 'Sinalite createOrder failed — auto-refund OK',
+        body: `Le customer a été automatiquement remboursé. Si tu vois plusieurs alertes comme ça en peu de temps, vérifie Sinalite (wallet, credentials, status).`,
+        context: {
+          orderId: order.id,
+          paymentIntentId: intent.id,
+          refundId: refund.id,
+          sinaliteError: err instanceof Error ? err.message : 'unknown',
+        },
+        actionUrl: `/admin/orders/${order.id}`,
+        actionLabel: 'Voir la commande',
+      });
+
       // Best-effort cancellation + refund emails au customer
       const fresh = await prisma.order.findUnique({
         where: { id: order.id },
@@ -234,7 +253,25 @@ async function handlePaymentSucceeded(
           refundError: refundErr instanceof Error ? refundErr.message : 'unknown',
         },
       });
-      // TODO: alert ops via Sentry — manual refund needed
+      // Slack alert — pire scénario : customer chargé mais commande pas
+      // créée chez Sinalite ET le refund auto a foiré. Manual action requise
+      // dans Stripe Dashboard pour rembourser le client.
+      void sendCriticalAlert({
+        severity: 'critical',
+        title: 'Refund FAILED after Sinalite failure — manual intervention required',
+        body:
+          `Le client a été chargé mais on n'a pas pu créer la commande Sinalite NI rembourser via API. ` +
+          `Action immédiate : ouvre Stripe Dashboard et rembourse manuellement, puis email le client.`,
+        context: {
+          orderId: order.id,
+          paymentIntentId: intent.id,
+          amountCents: order.amountCents,
+          sinaliteError: err instanceof Error ? err.message : 'unknown',
+          refundError: refundErr instanceof Error ? refundErr.message : 'unknown',
+        },
+        actionUrl: `/admin/orders/${order.id}`,
+        actionLabel: 'Voir la commande',
+      });
     }
 
     throw err;

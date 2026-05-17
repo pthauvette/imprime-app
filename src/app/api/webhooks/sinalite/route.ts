@@ -30,6 +30,7 @@ import {
   sendOrderCancelledEmail,
 } from '@/lib/emails/send';
 import { logSinalite } from '@/lib/logger';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 const WEBHOOK_SECRET = process.env.SINALITE_WEBHOOK_SECRET;
 
@@ -175,6 +176,21 @@ export async function POST(req: Request) {
       { err, sinaliteOrderId: payload.orderId, status: payload.status, orderId: dbOrderId },
       'handler error',
     );
+    // Alert Slack — webhook Sinalite raté = on perd potentiellement un
+    // status update important (shipped, delivered). Sinalite va retry mais
+    // si on a un bug persistent on veut le savoir vite.
+    void sendCriticalAlert({
+      severity: 'warning',
+      title: `Sinalite webhook handler error (${payload.status})`,
+      body: 'Le webhook Sinalite a échoué — Sinalite va probablement retry mais vérifie qu\'il n\'y a pas un bug persistent.',
+      context: {
+        sinaliteOrderId: payload.orderId,
+        status: payload.status,
+        orderId: dbOrderId,
+        error: err instanceof Error ? err.message : 'unknown',
+      },
+      ...(dbOrderId ? { actionUrl: `/admin/orders/${dbOrderId}`, actionLabel: 'Voir la commande' } : {}),
+    });
     await updateWebhookOutcome({
       source: 'SINALITE',
       eventId: fingerprint,

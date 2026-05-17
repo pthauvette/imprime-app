@@ -44,6 +44,7 @@ const SERVER_ENV_KEYS = [
   'SES_SMTP_HOST',
   'SES_FROM',
   'CRON_SECRET',
+  'SLACK_WEBHOOK_URL',
 ] as const;
 
 const env: Record<string, string> = {};
