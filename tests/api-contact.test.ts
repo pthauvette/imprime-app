@@ -128,7 +128,7 @@ describe('POST /api/contact', () => {
   });
 
   it('502 si toutes les sends échouent', async () => {
-    vi.mocked(sendAdminCustomMessageEmail).mockResolvedValue(null);
+    vi.mocked(sendAdminCustomMessageEmail).mockResolvedValue({ sent: false, id: 'del_fail' } as never);
     const POST = await importFresh();
     const res = await POST(makeReq({
       name: 'Test',
@@ -142,8 +142,8 @@ describe('POST /api/contact', () => {
   it('200 OK si au moins un des sends marche', async () => {
     vi.stubEnv('ADMIN_EMAILS', 'a@plio.ca,b@plio.ca');
     vi.mocked(sendAdminCustomMessageEmail)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ sent: true } as never);
+      .mockResolvedValueOnce({ sent: false, id: 'del_fail' } as never)
+      .mockResolvedValueOnce({ sent: true, id: 'del_ok' } as never);
     const POST = await importFresh();
     const res = await POST(makeReq({
       name: 'Test',

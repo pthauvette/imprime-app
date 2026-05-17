@@ -137,7 +137,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
           SENDER_EMAIL: order.user.email,
         },
       });
-      return { to, sent: r !== null };
+      return { to, sent: r.sent };
     }),
   );
 

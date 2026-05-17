@@ -346,6 +346,51 @@ model AdminAuditEvent {
   @@index([targetType, targetId])
 }
 
+// ─── EMAIL DELIVERY ──────────────────────────────────────────────────────
+// Queue + retry tracking pour tous les emails best-effort. Avant : un fail
+// SES = email perdu silencieusement (juste un log). Maintenant : row
+// persisté + retry exponential backoff via cron + visibilité admin.
+//
+// Status flow :
+//   PENDING → SENT (succès au premier essai)
+//   PENDING → FAILED (échec transitoire, sera retried)
+//   FAILED → SENT (retry réussi)
+//   FAILED → DEAD (3 attempts épuisés, manual intervention requise)
+
+model EmailDelivery {
+  id            String    @id @default(cuid())
+  /** Destinataire (UNE seule adresse — pas de multi-recipient pour simplifier le retry). */
+  to            String
+  /** Template name (correspond à EmailTemplate union). */
+  template      String
+  /** Vars JSON-serialized (replayable au retry sans avoir à recomposer). */
+  varsJson      String
+  /** Subject override optionnel (sinon généré depuis EMAIL_SUBJECTS). */
+  subject       String?
+  /** Reply-To header optionnel. */
+  replyTo       String?
+
+  /** PENDING (queued) | SENT (success) | FAILED (transitoire, sera retried) | DEAD (max attempts épuisés) */
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  /** Max attempts avant DEAD. Default 3 (initial + 2 retries). */
+  maxAttempts   Int       @default(3)
+  lastError     String?
+  /** Quand retry le prochain. NULL = retry ASAP au prochain cron. */
+  nextAttemptAt DateTime?
+  /** Set quand status passe à SENT. */
+  sentAt        DateTime?
+  /** Label optionnel pour grouper/dédup (orderId, action, etc.). */
+  label         String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([label])
+  @@index([createdAt])
+}
+
 // ─── PROMO CODE ───────────────────────────────────────────────────────────
 // Codes promo appliqués au checkout. Discount soit en pourcentage soit en
 // cents fixes (XOR — un seul des deux est non-null). Restrictions

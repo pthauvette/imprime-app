@@ -27,10 +27,13 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
 
   const result = await sendOrderConfirmationEmail({ order, user: order.user });
 
+  // Le queue helper retourne { sent, id }. Si sent=false, l'email est queued
+  // pour retry automatique — pas un échec final, juste pas envoyé du premier
+  // coup. Le cron /api/cron/email-retry retentera.
   return NextResponse.json({
     ok: true,
     to: order.user.email,
-    sent: result?.sent ?? false,
-    dev: result?.dev ?? false,
+    sent: result.sent,
+    deliveryId: result.id,
   });
 });

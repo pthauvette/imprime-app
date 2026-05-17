@@ -94,7 +94,7 @@ export const POST = withErrorHandler(async (req: Request) => {
           SENDER_EMAIL: body.email,
         },
       });
-      return { to, sent: r !== null };
+      return { to, sent: r.sent };
     }),
   );
 

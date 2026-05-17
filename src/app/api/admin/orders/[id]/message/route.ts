@@ -99,7 +99,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
 
   return NextResponse.json({
     ok: true,
-    sent: result !== null,
+    sent: result.sent,
     to: order.user.email,
   });
 });

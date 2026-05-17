@@ -224,11 +224,11 @@ describe('/api/cron/daily-summary — KPIs + send', () => {
     expect(j.recipients).toHaveLength(2);
   });
 
-  it('marque sent=false dans recipients si tryCatch retourne null', async () => {
-    // First call fails, second succeeds — verifies per-recipient tracking
+  it('marque sent=false dans recipients si queueEmail retourne sent=false', async () => {
+    // First call fails (queued for retry), second succeeds — verifies per-recipient tracking
     vi.mocked(sendAdminDailySummaryEmail)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ sent: true } as never);
+      .mockResolvedValueOnce({ sent: false, id: 'del_fail' } as never)
+      .mockResolvedValueOnce({ sent: true, id: 'del_ok' } as never);
     const { GET } = await import('@/app/api/cron/daily-summary/route');
     const res = await GET(makeReq({ authorization: 'Bearer sec' }));
     const j = await res.json();

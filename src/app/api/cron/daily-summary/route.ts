@@ -201,7 +201,7 @@ export async function GET(req: NextRequest) {
   const sends = await Promise.all(
     ADMIN_EMAILS.map(async (to) => {
       const r = await sendAdminDailySummaryEmail({ to, vars });
-      return { to, sent: r !== null };
+      return { to, sent: r.sent };
     }),
   );
 

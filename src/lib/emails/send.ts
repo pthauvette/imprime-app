@@ -12,7 +12,7 @@
  */
 
 import type { Order, User } from '@prisma/client';
-import { sendEmail } from './render';
+import { queueEmail } from './queue';
 import { logEmail } from '@/lib/logger';
 import type {
   OrderConfirmationVars,
@@ -105,11 +105,12 @@ export async function sendWelcomeEmail(input: { user: User }) {
     CATALOG_URL: `${APP_URL}/templates`,
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: user.email,
     template: 'welcome',
     vars: vars as unknown as Record<string, string | number>,
-  }), 'welcome', user.id);
+    label: `welcome:${user.id}`,
+  });
 }
 
 /** Envoyé après payment_intent.succeeded + submission Sinalite réussie. */
@@ -141,11 +142,12 @@ export async function sendOrderConfirmationEmail(input: {
     COMPANY_GST_NUMBER: COMPANY.gst,
     COMPANY_QST_NUMBER: COMPANY.qst,
   };
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: user.email,
     template: 'order-confirmation',
     vars: vars as unknown as Record<string, string | number>,
-  }), 'order-confirmation', order.id);
+    label: `order-confirmation:${order.id}`,
+  });
 }
 
 /** Envoyé sur webhook Sinalite status=SHIPPED. Skip si user opt-out. */
@@ -177,11 +179,12 @@ export async function sendOrderShippedEmail(input: {
     ORDER_URL: orderUrl(order),
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: user.email,
     template: 'order-shipped',
     vars: vars as unknown as Record<string, string | number>,
-  }), 'order-shipped', order.id);
+    label: `order-shipped:${order.id}`,
+  });
 }
 
 /** Envoyé sur webhook Sinalite status=DELIVERED. Skip si user opt-out. */
@@ -208,11 +211,12 @@ export async function sendOrderDeliveredEmail(input: {
     FEEDBACK_URL: `${APP_URL}/orders/${order.id}?feedback=true`,
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: user.email,
     template: 'order-delivered',
     vars: vars as unknown as Record<string, string | number>,
-  }), 'order-delivered', order.id);
+    label: `order-delivered:${order.id}`,
+  });
 }
 
 /**
@@ -239,11 +243,12 @@ export async function sendOrderCancelledEmail(input: {
     APOLOGY_PROMO_CODE: input.apologyPromoCode ?? 'DÉSOLÉ20',
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: user.email,
     template: 'order-cancelled',
     vars: vars as unknown as Record<string, string | number>,
-  }), 'order-cancelled', order.id);
+    label: `order-cancelled:${order.id}`,
+  });
 }
 
 /**
@@ -260,13 +265,14 @@ export async function sendAdminCustomMessageEmail(input: {
   /** Reply-To header — typiquement l'email de l'admin envoyeur. */
   replyTo: string;
 }) {
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: input.to,
     template: 'admin-custom-message',
     vars: input.vars as unknown as Record<string, string | number>,
     subject: input.vars.SUBJECT,
     replyTo: input.replyTo,
-  }), 'admin-custom-message', String(input.vars.ORDER_ID));
+    label: `admin-custom-message:${input.vars.ORDER_ID}`,
+  });
 }
 
 /**
@@ -278,11 +284,12 @@ export async function sendAdminDailySummaryEmail(input: {
   to: string;
   vars: AdminDailySummaryVars;
 }) {
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: input.to,
     template: 'admin-daily-summary',
     vars: input.vars as unknown as Record<string, string | number>,
-  }), 'admin-daily-summary', 'daily-summary');
+    label: `admin-daily-summary:${new Date().toISOString().slice(0, 10)}`,
+  });
 }
 
 /** Envoyé séparément quand un refund est traité (peut être partial). */
@@ -305,24 +312,17 @@ export async function sendRefundIssuedEmail(input: {
     ORDER_URL: orderUrl(order),
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
-  return tryCatch(() => sendEmail({
+  return queueEmail({
     to: user.email,
     template: 'refund-issued',
     vars: vars as unknown as Record<string, string | number>,
-  }), 'refund-issued', order.id);
+    label: `refund-issued:${order.id}`,
+  });
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
-
-async function tryCatch<T>(fn: () => Promise<T>, label: string, orderId: string): Promise<T | null> {
-  try {
-    return await fn();
-  } catch (err) {
-    // Email = best-effort. On log mais on ne crash pas le webhook.
-    logEmail.error({ err, label, orderId }, 'send failed');
-    return null;
-  }
-}
+// (tryCatch best-effort retiré — remplacé par queueEmail qui persiste +
+// schedule des retries automatiques via /api/cron/email-retry.)
 
 function extractCarrier(shippingMethod: string): string {
   // Sinalite formats: "UPS Standard", "FedEx Express", etc.

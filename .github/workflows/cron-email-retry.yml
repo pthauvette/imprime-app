@@ -1,0 +1,45 @@
+name: Email retry queue
+
+# Cron qui retry les EmailDelivery en status FAILED toutes les 5 min.
+# Backoff exponential dans le code : +5min, +15min, puis DEAD.
+#
+# Fenêtre totale de retry : ~20 min après le premier échec. Suffisant
+# pour les hiccups SES habituels.
+#
+# Auth via Bearer CRON_SECRET (même secret que /api/cron/cleanup et
+# /api/cron/daily-summary).
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # every 5 minutes
+  workflow_dispatch:
+
+concurrency:
+  group: email-retry
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/cron/email-retry
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          response=$(curl -fsS --show-error \
+            --max-time 60 \
+            -X GET https://www.plio.ca/api/cron/email-retry \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "$response" | jq .
+          # Si processed > 0 et stillFailed > 0 → certains retries n'ont pas
+          # marché. Pas un échec en soi (3e essai donnera DEAD + Slack alert).
+          # On affiche juste pour visibility dans le log du workflow.
+          processed=$(echo "$response" | jq -r '.processed // 0')
+          if [ "$processed" -gt 0 ]; then
+            echo "::notice::Retried $processed email(s)"
+          fi

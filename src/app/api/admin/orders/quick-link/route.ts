@@ -107,7 +107,7 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   return NextResponse.json({
     ok: true,
-    sent: result !== null,
+    sent: result.sent,
     to: body.customerEmail,
     deepLink,
   });
