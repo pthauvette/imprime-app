@@ -347,6 +347,26 @@ export default async function CustomerOrderDetailPage({
               <KV k="Total" v={formatCurrency(order.amountCents / 100)} bold />
             </Card>
 
+            <a
+              href={`/api/orders/${order.id}/invoice.pdf`}
+              download
+              title="Reçu PDF officiel avec TPS/TVQ — pour ta comptabilité"
+              style={{
+                display: 'block',
+                padding: '14px 18px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--r-md)',
+                textAlign: 'center',
+                fontSize: 14,
+                color: 'var(--text-primary)',
+                textDecoration: 'none',
+                fontWeight: 500,
+              }}
+            >
+              ⬇ Télécharger la facture PDF
+            </a>
+
             <Link
               href={`/order/start?reorder=${order.id}` as Route}
               title="Repart avec les mêmes options · tu ré-uploads tes fichiers"

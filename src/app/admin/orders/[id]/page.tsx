@@ -257,6 +257,26 @@ export default async function AdminOrderDetailPage({
               <div style={{ marginTop: 8 }}>
                 <SendCustomMessageButton orderId={order.id} customerEmail={order.user.email} />
               </div>
+              <a
+                href={`/api/orders/${order.id}/invoice.pdf`}
+                download
+                title="Télécharge la facture PDF officielle (TPS/TVQ) du client"
+                style={{
+                  display: 'block',
+                  marginTop: 8,
+                  padding: '10px 12px',
+                  background: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--r-sm)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textAlign: 'left',
+                  textDecoration: 'none',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                ⬇ Télécharger la facture PDF
+              </a>
               <Link
                 href={`/order/start?reorder=${order.id}` as Route}
                 title="Repart le wizard avec les mêmes options pour ce client"
