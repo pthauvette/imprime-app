@@ -57,9 +57,12 @@ export async function GET() {
   const [db, sinalite] = await Promise.all([
     timed(() => prisma.$queryRaw`SELECT 1`),
     timed(async () => {
-      // Lightest possible Sinalite ping — list products takes ~200ms.
-      // We just verify auth works.
-      const res = await fetch(`${process.env.SINALITE_API_BASE}/products/${process.env.SINALITE_STORE_CODE}`, {
+      // Lightest possible Sinalite ping : on tape /product/1 (un produit
+      // unique, retourne JSON minimal ~1KB) au lieu de /product qui
+      // retourne le catalog complet (~1MB). Si le token + le product fetch
+      // marchent, l'auth est valide + l'API répond.
+      // NOTE : pas `/products` (avec s) — l'API utilise `/product` singulier.
+      const res = await fetch(`${process.env.SINALITE_API_BASE}/product/1`, {
         signal: AbortSignal.timeout(TIMEOUT_MS),
         headers: { 'Authorization': `Bearer ${await getSinaliteToken()}` },
       });
