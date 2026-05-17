@@ -57,7 +57,7 @@ function orderUrl(order: Order): string {
 }
 
 function unsubscribeUrl(): string {
-  return `${APP_URL}/settings#email-preferences`;
+  return `${APP_URL}/settings/email-preferences`;
 }
 
 // ─── SEND HELPERS ─────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ export async function sendOrderConfirmationEmail(input: {
   }), 'order-confirmation', order.id);
 }
 
-/** Envoyé sur webhook Sinalite status=SHIPPED. */
+/** Envoyé sur webhook Sinalite status=SHIPPED. Skip si user opt-out. */
 export async function sendOrderShippedEmail(input: {
   order: Order;
   user: User;
@@ -100,6 +100,10 @@ export async function sendOrderShippedEmail(input: {
   estimatedDelivery?: Date;
 }) {
   const { order, user } = input;
+  if (!user.emailDeliveryNotifications) {
+    console.log(`[email] skipping shipped notification — user ${user.id} opted out`);
+    return { sent: false, optedOut: true };
+  }
   const eta = input.estimatedDelivery ?? new Date(Date.now() + 2 * 24 * 3600 * 1000);
   const carrier = input.carrier ?? extractCarrier(order.shippingMethod);
   const tracking = input.trackingNumber ?? '';
@@ -123,13 +127,17 @@ export async function sendOrderShippedEmail(input: {
   }), 'order-shipped', order.id);
 }
 
-/** Envoyé sur webhook Sinalite status=DELIVERED. */
+/** Envoyé sur webhook Sinalite status=DELIVERED. Skip si user opt-out. */
 export async function sendOrderDeliveredEmail(input: {
   order: Order;
   user: User;
   deliveredAt?: Date;
 }) {
   const { order, user } = input;
+  if (!user.emailDeliveryNotifications) {
+    console.log(`[email] skipping delivered notification — user ${user.id} opted out`);
+    return { sent: false, optedOut: true };
+  }
   const deliveredAt = input.deliveredAt ?? new Date();
   const vars: OrderDeliveredVars = {
     CUSTOMER_FIRST_NAME: firstName(user),

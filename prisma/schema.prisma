@@ -37,6 +37,12 @@ model User {
   // ensuite mutable via une UI admin (pas encore implémentée).
   role String @default("USER")
 
+  // Email preferences (CASL compliance — Canadian anti-spam law).
+  // Transactional emails (magic link, order confirmation, cancellation,
+  // refund) ne sont JAMAIS opt-out — requis pour que le service marche.
+  // Seuls les "delivery notifications" (shipped, delivered) sont opt-able.
+  emailDeliveryNotifications Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
