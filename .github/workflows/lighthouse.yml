@@ -1,0 +1,105 @@
+name: Lighthouse CI
+
+# Mesure perf / a11y / SEO / best-practices sur plio.ca prod après chaque
+# push main (sleep pour laisser Amplify deploy). Aussi schedulé une fois
+# par semaine pour catch les regressions externes (CDN, fonts loading
+# slow, etc.).
+#
+# Rapports HTML uploadés comme artifact GitHub Actions (téléchargeables
+# pendant 30j depuis l'onglet Actions du run). Pas de service externe
+# (pas besoin de LHCI server) — on assert juste les scores en place.
+#
+# Seuils initiaux : a11y 90, seo 90, best-practices 85, perf 70. Le
+# perf est tolérant parce qu'on tape la prod réelle (réseau variable).
+# À monter quand le baseline est connu.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - 'tests/**'
+  schedule:
+    # Lundi 13h UTC (= 9h Montréal) — perf baseline hebdo
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: lighthouse
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for Amplify deploy (push only)
+        if: github.event_name == 'push'
+        run: |
+          echo "Sleeping 180s pour laisser Amplify deploy..."
+          sleep 180
+
+      - name: Run Lighthouse
+        id: lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          # On tape les pages publiques principales — un audit par URL.
+          # Skip /admin et /account (auth required).
+          urls: |
+            https://www.plio.ca/
+            https://www.plio.ca/pricing
+            https://www.plio.ca/templates
+            https://www.plio.ca/sign-in
+          uploadArtifacts: true
+          temporaryPublicStorage: false
+          # Mobile preset par défaut — c'est le throttling le plus exigeant
+          # et reflète la majorité du trafic réel.
+          configPath: '.github/lighthouse-config.json'
+
+      - name: Assert minimum scores
+        if: always()
+        run: |
+          # treosh action écrit les résultats JSON sous ./.lighthouseci/
+          # On parse chaque manifest.json + extract les 4 scores principaux,
+          # fail si en-dessous des seuils.
+          set -e
+          THRESHOLD_PERF=70
+          THRESHOLD_A11Y=90
+          THRESHOLD_SEO=90
+          THRESHOLD_BP=85
+
+          # Le manifest est généré par lhci. On itère sur chaque .json individuel.
+          failed=0
+          for file in .lighthouseci/lhr-*.json; do
+            if [ ! -f "$file" ]; then continue; fi
+            url=$(jq -r .finalUrl "$file")
+            perf=$(jq -r '.categories.performance.score * 100 | round' "$file")
+            a11y=$(jq -r '.categories.accessibility.score * 100 | round' "$file")
+            seo=$(jq -r '.categories.seo.score * 100 | round' "$file")
+            bp=$(jq -r '.categories["best-practices"].score * 100 | round' "$file")
+            echo "  $url"
+            echo "    perf=$perf  a11y=$a11y  seo=$seo  bp=$bp"
+
+            check() {
+              local name="$1" value="$2" threshold="$3"
+              if [ "$value" -lt "$threshold" ]; then
+                echo "::warning::$url $name=$value < threshold $threshold"
+                failed=$((failed + 1))
+              fi
+            }
+            check perf "$perf" "$THRESHOLD_PERF"
+            check a11y "$a11y" "$THRESHOLD_A11Y"
+            check seo "$seo" "$THRESHOLD_SEO"
+            check bp "$bp" "$THRESHOLD_BP"
+          done
+
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::$failed seuil(s) Lighthouse non atteint(s). Rapports HTML dispo dans les artifacts."
+            # Pour le PREMIER run on ne fail pas hard — on warn pour établir
+            # la baseline. Une fois qu'on connaît les scores réels, switch
+            # ce exit 0 en exit 1.
+            exit 0
+          fi
