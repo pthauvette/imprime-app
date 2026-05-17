@@ -156,7 +156,8 @@ export default async function AdminOrdersPage({
               {totalCount} au total · {countByStatus('PAID') + countByStatus('SUBMITTED') + countByStatus('IN_PRODUCTION')} actives
             </p>
           </div>
-          <div className="adm-topbar-actions">
+          <div className="adm-topbar-actions" style={{ display: 'flex', gap: 8 }}>
+            <Link href={'/admin/orders/quick-link' as Route} className="btn btn-secondary btn-sm">+ Commande téléphonique</Link>
             <Link href={'/admin' as Route} className="btn btn-secondary btn-sm">↗ Dashboard</Link>
           </div>
         </header>
