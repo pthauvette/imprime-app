@@ -6,6 +6,8 @@
  * Client Component ('use client') ou ajouter du data fetching Server Component.
  */
 
+import ContactForm from './ContactForm';
+
 export const metadata = { title: "Parle-nous — Plio" };
 
 export default function ContactPage() {
@@ -33,55 +35,8 @@ export default function ContactPage() {
       
           {/* TWO COL */}
           <section className="contact-grid">
-            {/* FORM */}
-            <form className="form-card">
-              <h2>Écris-nous un mot</h2>
-              <p className="form-intro">Plus tu nous donnes de contexte, plus on peut être utile dès la première réponse.</p>
-      
-              <div className="field-grid">
-                <div className="field-row">
-                  <div className="field">
-                    <label htmlFor="name">Nom complet</label>
-                    <input id="name" type="text" placeholder="Sophie Beauchamp" />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="email">Courriel</label>
-                    <input id="email" type="email" placeholder="sophie@studio.ca" />
-                  </div>
-                </div>
-      
-                <div className="field">
-                  <label htmlFor="subject">Sujet</label>
-                  <select id="subject">
-                    <option>Question avant achat</option>
-                    <option>Problème avec ma commande</option>
-                    <option>Devis sur mesure (volume / spécialité)</option>
-                    <option>Partenariat / Reseller</option>
-                    <option>Presse / Médias</option>
-                    <option>Autre</option>
-                  </select>
-                </div>
-      
-                <div className="field">
-                  <label htmlFor="message">Message</label>
-                  <textarea id="message" rows={6} placeholder="Donne-nous tous les détails — numéro de commande, lien de fichier, captures d'écran si pertinent..."></textarea>
-                </div>
-      
-                <div>
-                  <label style={{ fontFamily: "var(--font-mono)", fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: "600", display: "block", marginBottom: "10px" } as React.CSSProperties}>Joindre un fichier · optionnel</label>
-                  <div className="drop-zone">
-                    <div className="drop-zone-icon">↑</div>
-                    <div className="drop-zone-label">Glisse un fichier ici ou clique pour parcourir</div>
-                    <div className="drop-zone-hint">PDF · JPG · PNG · max 20 Mo</div>
-                  </div>
-                </div>
-              </div>
-      
-              <div className="form-submit-row">
-                <div className="small">En soumettant, tu acceptes notre <a href="/legal/privacy" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>politique de confidentialité</a>.</div>
-                <button className="submit-btn" type="submit">Envoyer →</button>
-              </div>
-            </form>
+            {/* FORM — functional via /api/contact */}
+            <ContactForm />
       
             {/* SIDEBAR */}
             <aside className="contact-sidebar">
