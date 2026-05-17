@@ -320,6 +320,62 @@ export async function sendRefundIssuedEmail(input: {
   });
 }
 
+/**
+ * Demande de review post-livraison. Auto-déclenché par le webhook
+ * Sinalite DELIVERED (après sendOrderDeliveredEmail, donc 2 emails
+ * arrivent rapprochés — acceptable pour MVP, smarter scheduling
+ * possible plus tard via EmailDelivery.scheduledFor).
+ *
+ * Reuse le template admin-custom-message pour pas créer un nouveau
+ * template à maintenir. Link vers /reviews/submit?orderId=X&token=Y
+ * où l'user peut laisser ses étoiles + commentaire.
+ */
+export async function sendReviewRequestEmail(input: {
+  order: Order;
+  user: User;
+}) {
+  const { order, user } = input;
+  // Skip si user a opt-out des delivery notifications (review = bonus marketing)
+  if (!user.emailDeliveryNotifications) {
+    logEmail.info({ userId: user.id, kind: 'review-request' }, 'skipping notification — user opted out');
+    return { sent: false, id: 'opted-out' };
+  }
+
+  // Import lazy pour éviter cycle deps potentiel (reviews/token ne dépend
+  // pas de send.ts donc strict pas nécessaire, mais consistent pattern)
+  const { reviewSubmitToken } = await import('@/lib/reviews/token');
+  const token = reviewSubmitToken(order.id);
+  const reviewUrl = `${APP_URL}/reviews/submit?orderId=${order.id}&token=${token}`;
+  const customerName = firstName(user);
+  const displayOrderId = order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase();
+
+  const body =
+    `Salut ${customerName} !\n\n` +
+    `Ta commande #${displayOrderId} est livrée — on espère que tout est nickel.\n\n` +
+    `Tu prends 30 secondes pour nous laisser une note ? Ça aide énormément les prochains clients qui hésitent à essayer Plio.\n\n` +
+    `${reviewUrl}\n\n` +
+    `Merci !\nL'équipe Plio`;
+
+  return queueEmail({
+    to: user.email,
+    template: 'admin-custom-message',
+    vars: {
+      ORDER_ID: displayOrderId,
+      SUBJECT: `Une étoile pour ta commande #${displayOrderId} ?`,
+      PREVIEW: `30 secondes pour laisser une note sur ta commande Plio livrée`,
+      BODY_HTML: body
+        .split(/\n\n+/)
+        .map((p) => `<p style="margin:0 0 14px;">${escape(p.trim()).replace(/\n/g, '<br>')}</p>`)
+        .join('\n'),
+      ORDER_URL: reviewUrl,
+      SENDER_NAME: 'L\'équipe Plio',
+      SENDER_EMAIL: 'bonjour@plio.ca',
+    } as unknown as Record<string, string | number>,
+    subject: `Une étoile pour ta commande #${displayOrderId} ?`,
+    label: `review-request:${order.id}`,
+  });
+}
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────
 // (tryCatch best-effort retiré — remplacé par queueEmail qui persiste +
 // schedule des retries automatiques via /api/cron/email-retry.)

@@ -28,6 +28,7 @@ import {
   sendOrderShippedEmail,
   sendOrderDeliveredEmail,
   sendOrderCancelledEmail,
+  sendReviewRequestEmail,
 } from '@/lib/emails/send';
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
@@ -141,6 +142,9 @@ export async function POST(req: Request) {
               user: order.user,
               deliveredAt: new Date(payload.timestamp),
             });
+            // Demande de review en bonus (skip si user opted out).
+            // Best-effort — pas critique, juste fire-and-forget queue.
+            void sendReviewRequestEmail({ order, user: order.user });
             break;
           case 'CANCELLED':
             await sendOrderCancelledEmail({

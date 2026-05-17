@@ -36,9 +36,10 @@ vi.mock('@/lib/db', () => ({
 }));
 
 vi.mock('@/lib/emails/send', () => ({
-  sendOrderShippedEmail: vi.fn(async () => ({ sent: true })),
-  sendOrderDeliveredEmail: vi.fn(async () => ({ sent: true })),
-  sendOrderCancelledEmail: vi.fn(async () => ({ sent: true })),
+  sendOrderShippedEmail: vi.fn(async () => ({ sent: true, id: 'del_1' })),
+  sendOrderDeliveredEmail: vi.fn(async () => ({ sent: true, id: 'del_2' })),
+  sendOrderCancelledEmail: vi.fn(async () => ({ sent: true, id: 'del_3' })),
+  sendReviewRequestEmail: vi.fn(async () => ({ sent: true, id: 'del_4' })),
 }));
 
 vi.mock('@/lib/logger', () => {
