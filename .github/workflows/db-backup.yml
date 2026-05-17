@@ -1,0 +1,133 @@
+name: DB backup quotidien
+
+# Backup Postgres → S3 quotidien à 4h UTC (minuit Montréal).
+#
+# Stratégie :
+#   - pg_dump (déjà dispo dans Ubuntu runner)
+#   - gzip pour économiser 70% de l'espace
+#   - aws s3 cp avec path `s3://$BUCKET/db-backups/YYYY/MM/DD.sql.gz`
+#
+# Neon Postgres a son propre point-in-time recovery 7j, mais ce backup
+# vers TON S3 = belt-and-suspenders :
+#   - Restore facile vers une autre DB si Neon fail catastrophiquement
+#   - Audit data au-delà de la rétention Neon
+#   - Conformité Loi 25 art. 9 (mesures de sauvegarde raisonnables)
+#
+# Retention : 90 jours via S3 lifecycle policy (à configurer manuellement
+# dans AWS Console une fois — voir README ops).
+#
+# Secrets requis dans Settings → Secrets and variables → Actions :
+#   - DATABASE_URL (mêmes que Amplify)
+#   - AWS_ACCESS_KEY_ID (peut être les mêmes S3_* qu'Amplify)
+#   - AWS_SECRET_ACCESS_KEY
+#   - S3_BUCKET (nom du bucket, ex: plio-uploads)
+
+on:
+  schedule:
+    # 4h UTC = 23h Montréal (hiver) / 00h (été) — trafic minimal
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false  # ne pas annuler un backup en cours
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Verify required secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          missing=()
+          [ -z "$DATABASE_URL" ] && missing+=("DATABASE_URL")
+          [ -z "$AWS_ACCESS_KEY_ID" ] && missing+=("AWS_ACCESS_KEY_ID")
+          [ -z "$AWS_SECRET_ACCESS_KEY" ] && missing+=("AWS_SECRET_ACCESS_KEY")
+          [ -z "$S3_BUCKET" ] && missing+=("S3_BUCKET")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Secrets manquants : ${missing[*]}"
+            echo "Ajoute-les dans Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+      - name: Install Postgres client (matches Neon's version 16)
+        run: |
+          # Le runner Ubuntu 22.04 a Postgres 14 par défaut, mais Neon est
+          # sur 16. Installer le client 16 pour éviter "unsupported version"
+          # warnings dans pg_dump.
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-16
+          pg_dump --version
+
+      - name: Compute backup path
+        id: path
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          TIME=$(date -u +%H%M%S)
+          PREFIX="db-backups/$(date -u +%Y/%m)"
+          FILENAME="${DATE}-${TIME}.sql.gz"
+          echo "key=${PREFIX}/${FILENAME}" >> "$GITHUB_OUTPUT"
+          echo "filename=${FILENAME}" >> "$GITHUB_OUTPUT"
+          echo "Backup path : ${PREFIX}/${FILENAME}"
+
+      - name: Run pg_dump + gzip + upload to S3 (streamed)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          AWS_DEFAULT_REGION: ${{ secrets.S3_REGION || 'ca-central-1' }}
+          KEY: ${{ steps.path.outputs.key }}
+        run: |
+          # Streaming pipeline : pg_dump → gzip → aws s3 cp -
+          # Pas de fichier intermédiaire (économise disk + RAM, pas de
+          # risque de leak du dump dans /tmp).
+          # --no-owner --no-acl : portable, restore-friendly vers une autre
+          # DB sans dépendre du user Neon.
+          # --format=plain : SQL text (lisible + portable). Pour 1GB+ on
+          # passerait à --format=custom mais Plio < 100MB pour longtemps.
+          set -o pipefail
+          pg_dump \
+            --no-owner \
+            --no-acl \
+            --no-comments \
+            --format=plain \
+            --exclude-table-data='_prisma_migrations' \
+            "$DATABASE_URL" \
+          | gzip --best \
+          | aws s3 cp - "s3://${S3_BUCKET}/${KEY}" \
+              --content-type "application/gzip" \
+              --metadata "source=github-actions,workflow=db-backup"
+
+          SIZE=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$KEY" --query ContentLength --output text)
+          SIZE_MB=$(awk "BEGIN { printf \"%.2f\", $SIZE / 1024 / 1024 }")
+          echo "✓ Backup uploaded : s3://${S3_BUCKET}/${KEY} (${SIZE_MB} MB compressed)"
+          echo "::notice::DB backup OK · ${KEY} · ${SIZE_MB} MB"
+
+      - name: Sanity check (download + decompress + verify size)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.S3_REGION || 'ca-central-1' }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          KEY: ${{ steps.path.outputs.key }}
+        run: |
+          # Re-download le backup + verify qu'il décompresse + contient
+          # au moins un CREATE TABLE statement. Si la corruption arrive ici
+          # on prefère le savoir DANS la fenêtre du workflow plutôt que
+          # 6 mois plus tard quand on en a besoin.
+          aws s3 cp "s3://${S3_BUCKET}/${KEY}" /tmp/backup.sql.gz
+          gunzip -t /tmp/backup.sql.gz
+          if ! gunzip -c /tmp/backup.sql.gz | head -200 | grep -q "CREATE TABLE"; then
+            echo "::error::Backup ne contient pas de CREATE TABLE — possible dump partiel/corrompu"
+            exit 1
+          fi
+          echo "✓ Backup verified : décompresse OK + contient des CREATE TABLE"
