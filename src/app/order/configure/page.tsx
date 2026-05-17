@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { sinalite } from '@/lib/sinalite/client';
 import ConfigureClient from '@/components/wizard/ConfigureClient';
 import type { SinaliteOption } from '@/lib/sinalite/types';
+import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 
 export const metadata = { title: "Configure ta commande" };
 export const dynamic = 'force-dynamic';
@@ -74,12 +75,19 @@ export default async function ConfigurePage({
   }
 
   return (
-    <ConfigureClient
-      product={product}
-      optionGroups={optionGroups}
-      metadata={detail.metadata}
-      defaultSelection={defaultSelection}
-      designId={designId}
-    />
+    <>
+      <JsonLd data={breadcrumbSchema([
+        { name: 'Accueil', path: '/' },
+        { name: 'Commander', path: '/order/start' },
+        { name: product.name ?? 'Produit', path: `/order/configure?productId=${productId}` },
+      ])} />
+      <ConfigureClient
+        product={product}
+        optionGroups={optionGroups}
+        metadata={detail.metadata}
+        defaultSelection={defaultSelection}
+        designId={designId}
+      />
+    </>
   );
 }

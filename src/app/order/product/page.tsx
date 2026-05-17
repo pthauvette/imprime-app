@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import { sinalite } from '@/lib/sinalite/client';
 import { findCategoryGroup } from '@/lib/catalogue';
 import type { SinaliteProduct } from '@/lib/sinalite/types';
+import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 
 export const metadata = { title: "Quel produit ?" };
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,11 @@ export default async function ProductPickerPage({
 
   return (
     <div className="shell">
+      <JsonLd data={breadcrumbSchema([
+        { name: 'Accueil', path: '/' },
+        { name: 'Commander', path: '/order/start' },
+        { name: family.name, path: `/order/product?category=${slug}` },
+      ])} />
       <header className="shell-header">
         <div className="shell-header-left">
           <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>
