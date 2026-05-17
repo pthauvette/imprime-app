@@ -157,7 +157,25 @@ async function request<T>(
   }
 
   const json = await res.json();
-  return init.schema.parse(json);
+  // Wrap le parse Zod pour exposer la shape réelle de la réponse + le path
+  // qui échoue — sinon on a juste un ZodError opaque dans Sentry.
+  const parsed = init.schema.safeParse(json);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.slice(0, 5).map((i) => ({
+      path: i.path.join('.'),
+      code: i.code,
+      message: i.message,
+    }));
+    // Snippet de la response pour comprendre la shape inattendue
+    const sample = JSON.stringify(json, null, 2).slice(0, 1200);
+    throw new SinaliteError(
+      `Sinalite ${init.method ?? 'GET'} ${endpoint} → schema mismatch (${issues.length}+ issues)`,
+      res.status,
+      endpoint,
+      { issues, sample },
+    );
+  }
+  return parsed.data;
 }
 
 // ─── PUBLIC API ───────────────────────────────────────────────────────────

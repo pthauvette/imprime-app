@@ -9,13 +9,15 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
-import { sinalite } from '@/lib/sinalite/client';
+import { sinalite, SinaliteError } from '@/lib/sinalite/client';
 import { groupProductsByFamily } from '@/lib/catalogue';
 import CategoryIcon from '@/components/wizard/CategoryIcon';
 import { formatCurrency } from '@/lib/format';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { buildReorderDeepLink } from '@/lib/orders/reorder';
+import { logSinalite } from '@/lib/logger';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 export const metadata = { title: "Quoi imprimer ?" };
 export const dynamic = 'force-dynamic';
@@ -53,7 +55,28 @@ export default async function OrderStartPage({
     }
   }
 
-  const products = await sinalite.listProducts();
+  // Graceful degradation : si Sinalite répond mal (schema mismatch, 5xx,
+  // timeout), on ne crash pas la page entière — on log + alerte Slack +
+  // affiche un message utilisateur clair avec lien de contact.
+  let products: Awaited<ReturnType<typeof sinalite.listProducts>> = [];
+  let fetchError: { message: string; details?: unknown } | null = null;
+  try {
+    products = await sinalite.listProducts();
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : 'unknown';
+    const errDetails = err instanceof SinaliteError
+      ? { status: err.status, endpoint: err.endpoint, body: typeof err.body === 'string' ? err.body.slice(0, 500) : err.body }
+      : undefined;
+    logSinalite.error({ err, errDetails }, 'listProducts failed on /order/start');
+    void sendCriticalAlert({
+      severity: 'critical',
+      title: 'Catalogue Sinalite indisponible — /order/start cassé',
+      body: 'L\'API Sinalite ne répond pas correctement à listProducts. Les nouveaux clients ne peuvent pas démarrer une commande.',
+      context: { error: errMsg, details: errDetails },
+    });
+    fetchError = { message: errMsg, details: errDetails };
+  }
+
   const families = groupProductsByFamily(products)
     .filter((f) => f.productCount > 0)
     .slice(0, 8);
@@ -132,6 +155,42 @@ export default async function OrderStartPage({
               <span className="search-kbd">/</span>
             </label>
           </div>
+
+          {fetchError && (
+            <div
+              role="alert"
+              style={{
+                padding: '20px 24px',
+                background: 'var(--warning-soft, #FFF6E5)',
+                border: '1px solid var(--warning, #D97706)',
+                borderRadius: 'var(--r-md)',
+                marginBottom: 24,
+                fontSize: 14,
+                color: 'var(--text-primary)',
+                display: 'grid',
+                gap: 8,
+              }}
+            >
+              <div style={{ fontWeight: 600, color: 'var(--warning, #D97706)' }}>
+                ⚠ Catalogue temporairement indisponible
+              </div>
+              <div>
+                Notre API de catalogue ne répond pas. On a été notifiés et on
+                regarde ça. En attendant, contacte-nous à{' '}
+                <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>bonjour@plio.ca</a>{' '}
+                ou via le <a href="/contact" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>formulaire</a>{' '}
+                — on peut préparer ta commande manuellement.
+              </div>
+              {process.env.NODE_ENV !== 'production' && (
+                <details style={{ marginTop: 4, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                  <summary style={{ cursor: 'pointer' }}>Debug (dev only)</summary>
+                  <pre style={{ marginTop: 4, padding: 8, background: 'var(--bg-canvas)', overflow: 'auto' }}>
+{JSON.stringify(fetchError, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          )}
 
           <div className="category-grid">
             {families.map((family, i) => (
