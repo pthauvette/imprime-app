@@ -29,6 +29,20 @@ import type {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
+// Identité légale du vendeur — figure sur tous les reçus pour permettre
+// au client B2B de réclamer ses CTI (crédits taxe intrant fédéraux) +
+// RTI (remboursements taxe intrant Québec).
+// Fallback à des placeholders en dev pour pas crasher si env absent —
+// les vraies valeurs sont set dans Amplify env vars.
+// `||` (pas `??`) parce qu'env vars vides sont fréquentes en dev/CI et
+// doivent fall back aux placeholders, pas afficher une string vide.
+const COMPANY = {
+  legalName: process.env.COMPANY_LEGAL_NAME || 'Démocratik inc.',
+  address: process.env.COMPANY_ADDRESS || 'Montréal QC, Canada',
+  gst: process.env.COMPANY_GST_NUMBER || '(num. TPS à venir)',
+  qst: process.env.COMPANY_QST_NUMBER || '(num. TVQ à venir)',
+};
+
 const cad = (cents: number) =>
   (cents / 100).toFixed(2).replace('.', ',');
 
@@ -108,6 +122,11 @@ export async function sendOrderConfirmationEmail(input: {
     SHIP_ADDRESS_HTML: shipAddressHtml(order),
     TRACK_ORDER_URL: orderUrl(order),
     UNSUBSCRIBE_URL: unsubscribeUrl(),
+    // Bloc reçu légal — populé depuis env vars Amplify
+    COMPANY_LEGAL_NAME: COMPANY.legalName,
+    COMPANY_ADDRESS: COMPANY.address,
+    COMPANY_GST_NUMBER: COMPANY.gst,
+    COMPANY_QST_NUMBER: COMPANY.qst,
   };
   return tryCatch(() => sendEmail({
     to: user.email,

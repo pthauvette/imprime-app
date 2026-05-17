@@ -45,6 +45,11 @@ const SERVER_ENV_KEYS = [
   'SES_FROM',
   'CRON_SECRET',
   'SLACK_WEBHOOK_URL',
+  // Identité légale vendeur — pour reçus TPS/TVQ
+  'COMPANY_LEGAL_NAME',
+  'COMPANY_ADDRESS',
+  'COMPANY_GST_NUMBER',
+  'COMPANY_QST_NUMBER',
 ] as const;
 
 const env: Record<string, string> = {};

@@ -184,21 +184,27 @@
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Footer + reçu légal (TPS/TVQ requis art. 169 LTA + art. 350 LTVQ) -->
           <tr>
             <td style="padding:16px 16px 16px 16px; text-align:center;">
-              <p style="margin:0 0 8px 0; font-size:12px; color:#7A8780; line-height:1.5;">
-                Plio &middot; D&eacute;mocratik &middot; Montr&eacute;al QC
+              <!-- Bloc légal vendeur — sert de reçu pour la comptabilité du client -->
+              <p style="margin:0 0 4px 0; font-size:12px; color:#4A554D; line-height:1.5; font-weight:600;">
+                {{COMPANY_LEGAL_NAME}}
               </p>
               <p style="margin:0 0 8px 0; font-size:12px; color:#7A8780; line-height:1.5;">
-                4200 boul. Saint-Laurent, suite 410, Montr&eacute;al QC H2W 2R2, Canada
+                {{COMPANY_ADDRESS}}
+              </p>
+              <p style="margin:0 0 12px 0; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; color:#4A554D; line-height:1.6;">
+                TPS&nbsp;: {{COMPANY_GST_NUMBER}}
+                &middot;
+                TVQ&nbsp;: {{COMPANY_QST_NUMBER}}
               </p>
               <p style="margin:0; font-size:12px; color:#7A8780; line-height:1.5;">
                 <a href="{{UNSUBSCRIBE_URL}}" style="color:#7A8780; text-decoration:underline;">Se d&eacute;sabonner</a>
                 &middot;
-                <a href="https://plio.ca/legal" style="color:#7A8780; text-decoration:underline;">Mentions l&eacute;gales</a>
+                <a href="https://plio.ca/legal/terms" style="color:#7A8780; text-decoration:underline;">Conditions</a>
                 &middot;
-                <a href="https://plio.ca/privacy" style="color:#7A8780; text-decoration:underline;">Vie priv&eacute;e</a>
+                <a href="https://plio.ca/legal/privacy" style="color:#7A8780; text-decoration:underline;">Confidentialit&eacute;</a>
               </p>
               <p style="margin:16px 0 0 0; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:10px; color:#7A8780; letter-spacing:0.06em; text-transform:uppercase;">
                 &copy; Plio 2026 &middot; Imprim&eacute; au Canada

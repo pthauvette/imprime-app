@@ -48,6 +48,15 @@ export type OrderConfirmationVars = {
   SHIP_ADDRESS_HTML: string;
   TRACK_ORDER_URL: string;
   UNSUBSCRIBE_URL: string;
+  // Bloc reçu légal (Loi sur la taxe d'accise art. 169 + Loi TVQ art. 350).
+  // Requis sur tout reçu pour permettre au client B2B de réclamer ses CTI/RTI.
+  COMPANY_LEGAL_NAME: string;
+  /** Adresse complète sur 1 ligne (postal address légale du vendeur). */
+  COMPANY_ADDRESS: string;
+  /** Numéro TPS/GST format "123456789 RT0001". */
+  COMPANY_GST_NUMBER: string;
+  /** Numéro TVQ/QST format "1234567890 TQ0001". */
+  COMPANY_QST_NUMBER: string;
 };
 
 export type OrderShippedVars = {
