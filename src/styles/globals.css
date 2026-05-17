@@ -21283,8 +21283,12 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
 /* ─── admin-template-editor.html ─────────────────────────── */
 
-    html, body { height: 100%; overflow: hidden; }
-    body { background: var(--bg-sunken); }
+    /* SCROLL FIX : ces règles `html, body { overflow: hidden }` étaient
+       en global et bloquaient le scroll de TOUTE la marketing site.
+       Scope avec :has(.ed-shell) pour qu'elles s'appliquent seulement
+       quand l'éditeur est rendu dans le DOM. */
+    html:has(.ed-shell), body:has(.ed-shell) { height: 100%; overflow: hidden; }
+    body:has(.ed-shell) { background: var(--bg-sunken); }
 
     .ed-shell {
       display: grid;

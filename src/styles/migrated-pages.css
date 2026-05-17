@@ -2151,8 +2151,10 @@
 
 /* ─── admin-template-editor.html ─────────────────────────── */
 
-    html, body { height: 100%; overflow: hidden; }
-    body { background: var(--bg-sunken); }
+    /* SCROLL FIX (cf. globals.css) — scope par :has(.ed-shell) pour
+       pas bloquer le scroll de tout le reste du site. */
+    html:has(.ed-shell), body:has(.ed-shell) { height: 100%; overflow: hidden; }
+    body:has(.ed-shell) { background: var(--bg-sunken); }
 
     .ed-shell {
       display: grid;
