@@ -31,8 +31,11 @@ jobs:
           fi
           # -f : fail si HTTP >= 400. --show-error pour voir le body en cas d'erreur.
           # On capture le body pour le log GitHub Actions (audit trail).
+          # NB : on tape www.plio.ca (pas l'apex). Le 301 GoDaddy apex→www
+          # de Plio écrase le path → curl finit sur https://www.plio.ca/ et
+          # mange un 404. Cible directement www pour éviter le redirect.
           response=$(curl -fsS --show-error \
             --max-time 60 \
-            -X GET https://plio.ca/api/cron/cleanup \
+            -X GET https://www.plio.ca/api/cron/cleanup \
             -H "Authorization: Bearer ${CRON_SECRET}")
           echo "$response" | jq .
