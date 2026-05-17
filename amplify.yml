@@ -20,7 +20,7 @@ applications:
             # — Next.js les charge à `next start` automatiquement.
             # Whitelist explicite pour ne pas leak AWS_* internal vars.
             - >-
-              env | grep -E '^(DATABASE_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_)=' >> .env.production || true
+              env | grep -E '^(DATABASE_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_)=' >> .env.production || true
             - pnpm build
       artifacts:
         baseDirectory: .next
