@@ -159,6 +159,7 @@ model Order {
 
   events           OrderEvent[]
   designDraft      DesignDraft?
+  review           Review?
 
   @@index([userId, createdAt])
   @@index([status])
@@ -414,6 +415,40 @@ model NewsletterSubscriber {
   lastSentAt    DateTime?
 
   @@index([status, subscribedAt])
+}
+
+// ─── REVIEW ──────────────────────────────────────────────────────────────
+// Reviews customer après livraison. Trigger : webhook Sinalite DELIVERED
+// → email "leave a review" avec token unique (HMAC orderId).
+//
+// Modération : reviews créées en status PENDING. Admin approve/reject
+// dans /admin/reviews avant publication landing.
+
+model Review {
+  id            String   @id @default(cuid())
+  /** Order qui a généré la review — unique pour éviter spam. */
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /** Rating 1-5 stars. */
+  rating        Int
+  /** Comment libre (optional, peut être null si rating-only). */
+  comment       String?
+  /** Display name (firstName from User OR custom). */
+  displayName   String
+  /** PENDING | APPROVED | REJECTED — modération admin requise avant
+   *  affichage public sur landing. */
+  status        String   @default("PENDING")
+  /** Featured = mis en avant sur landing (top 3). */
+  isFeatured    Boolean  @default(false)
+  /** Rejection reason si REJECTED — pour debug + audit. */
+  adminNote     String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  publishedAt   DateTime?
+
+  @@index([status, publishedAt])
+  @@index([isFeatured, publishedAt])
 }
 
 // ─── PROMO CODE ───────────────────────────────────────────────────────────
