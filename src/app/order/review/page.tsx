@@ -42,6 +42,10 @@ interface ShipState {
 
 interface Breakdown {
   subtotal: number;
+  /** Montant remisé (toujours présent, 0 si pas de promo). */
+  discount: number;
+  /** Code promo appliqué, ou null. */
+  promoCode: string | null;
   shipping: number;
   tax: number;
   taxLines: { code: string; label: string; rate: number; amount: number }[];
@@ -74,6 +78,9 @@ function ReviewPageInner() {
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Promo code : code appliqué + status (ok/error/checking) + message FR
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
 
   // Create PaymentIntent on mount
   useEffect(() => {
@@ -118,6 +125,7 @@ function ReviewPageInner() {
             expectedSubtotal,
             notes: `Commande Plio ${new Date().toISOString()}`,
             ...(designId ? { designId } : {}),
+            ...(appliedPromo ? { promoCode: appliedPromo } : {}),
           }),
         });
 
@@ -139,7 +147,7 @@ function ReviewPageInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [productId, optionsParam, filesParam, ship]);
+  }, [productId, optionsParam, filesParam, ship, appliedPromo, designId]);
 
   const stripe = getStripe();
   const prevHref = `/order/shipping?productId=${productId}&options=${optionsParam}&files=${filesParam}` as Route;
@@ -190,6 +198,13 @@ function ReviewPageInner() {
           {breakdown && (
             <div style={{ background: 'linear-gradient(180deg, var(--bg-sunken) 0%, var(--accent-soft) 100%)', border: '1px solid var(--accent-soft)', borderRadius: 'var(--r-lg)', padding: 32, marginBottom: 24 }}>
               <Total label="Sous-total impression" value={breakdown.subtotal} />
+              {breakdown.discount > 0 && (
+                <Total
+                  label={`Code promo ${breakdown.promoCode ?? ''}`}
+                  value={-breakdown.discount}
+                  highlight="discount"
+                />
+              )}
               <Total label={`Livraison${ship ? ' (' + ship.method + ')' : ''}`} value={breakdown.shipping} />
               {breakdown.taxLines.map((t) => (
                 <Total key={t.code} label={t.label} value={t.amount} />
@@ -201,6 +216,15 @@ function ReviewPageInner() {
                 </span>
               </div>
             </div>
+          )}
+
+          {breakdown && (
+            <PromoCodeField
+              subtotalCents={Math.round(breakdown.subtotal * 100)}
+              appliedPromo={appliedPromo}
+              onApply={setAppliedPromo}
+              onRemove={() => setAppliedPromo(null)}
+            />
           )}
         </div>
 
@@ -349,13 +373,113 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Total({ label, value }: { label: string; value: number }) {
+function Total({ label, value, highlight }: { label: string; value: number; highlight?: 'discount' }) {
+  const color = highlight === 'discount' ? 'var(--success, #16a34a)' : 'var(--text-primary)';
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 500 }}>
-        {value.toFixed(2)} $
+      <span style={{ color: highlight === 'discount' ? color : 'var(--text-secondary)' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', color, fontWeight: 500 }}>
+        {value < 0 ? `−${Math.abs(value).toFixed(2)}` : value.toFixed(2)} $
       </span>
+    </div>
+  );
+}
+
+/**
+ * Input pour entrer un code promo. Validate via POST /api/promo/validate
+ * en debounce (sur Apply click), affiche le résultat. Si appliqué, le
+ * parent re-compute le breakdown via re-call /api/orders/create.
+ */
+function PromoCodeField({
+  subtotalCents,
+  appliedPromo,
+  onApply,
+  onRemove,
+}: {
+  subtotalCents: number;
+  appliedPromo: string | null;
+  onApply: (code: string) => void;
+  onRemove: () => void;
+}) {
+  const [input, setInput] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function handleApply() {
+    if (!input.trim()) return;
+    setChecking(true);
+    setFeedback(null);
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: input.trim(), subtotalCents }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setFeedback({ ok: true, message: data.message });
+        onApply(input.trim().toUpperCase());
+      } else {
+        setFeedback({ ok: false, message: data.message });
+      }
+    } catch {
+      setFeedback({ ok: false, message: 'Erreur réseau, réessaie.' });
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  function handleRemove() {
+    setInput('');
+    setFeedback(null);
+    onRemove();
+  }
+
+  if (appliedPromo) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--success-soft, #f0fdf4)', border: '1px solid var(--success, #16a34a)', borderRadius: 'var(--r-md)', marginBottom: 24, fontSize: 13 }}>
+        <span>
+          <strong style={{ color: 'var(--success, #16a34a)' }}>✓ {appliedPromo}</strong> appliqué
+        </span>
+        <button onClick={handleRemove} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+          Retirer
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <details style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', padding: '8px 16px' }}>
+        <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+          + Ajouter un code promo
+        </summary>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleApply(); } }}
+            placeholder="Ex. BIENVENUE10"
+            disabled={checking}
+            autoComplete="off"
+            style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 13, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+          />
+          <button
+            onClick={() => void handleApply()}
+            disabled={checking || !input.trim()}
+            className="btn btn-secondary btn-sm"
+            style={{ padding: '8px 14px', opacity: checking || !input.trim() ? 0.5 : 1 }}
+          >
+            {checking ? '…' : 'Appliquer'}
+          </button>
+        </div>
+        {feedback && (
+          <div style={{ marginTop: 8, fontSize: 12, color: feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)' }}>
+            {feedback.ok ? '✓' : '✗'} {feedback.message}
+          </div>
+        )}
+      </details>
     </div>
   );
 }

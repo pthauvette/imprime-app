@@ -24,6 +24,7 @@ import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { findOrCreateUserByEmail, createPendingOrder } from '@/lib/db/orders';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { normalizeCode, validatePromo } from '@/lib/promo/validate';
 
 // ─── STRIPE ───────────────────────────────────────────────────────────────
 
@@ -90,6 +91,12 @@ const CreateOrderSchema = z.object({
    * appartient à un autre user, on log et on continue sans lier (best-effort).
    */
   designId: z.string().optional(),
+
+  /**
+   * Optional : code promo entré par l'user au checkout. On re-valide ici
+   * côté serveur (le client peut tricher) et on rejette si invalide.
+   */
+  promoCode: z.string().min(1).max(64).optional(),
 });
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────
@@ -151,8 +158,45 @@ export const POST = withErrorHandler(async (req: Request) => {
     );
   }
 
-  // Phase 2: tax computation
-  const taxableSubtotal = subtotal + payload.shippingPrice;
+  // Phase 2a: promo code (optional). Lookup + server-side re-validation.
+  // Le client a peut-être affiché un discount via /api/promo/validate, mais
+  // on doit re-valider ici parce qu'un attacker pourrait POST direct.
+  let promoRecord: Awaited<ReturnType<typeof prisma.promoCode.findUnique>> | null = null;
+  let discountAmount = 0;
+  if (payload.promoCode) {
+    const normalized = normalizeCode(payload.promoCode);
+    promoRecord = await prisma.promoCode.findUnique({ where: { code: normalized } });
+    // Pour firstOrderOnly : compter les orders existantes (status != PENDING)
+    // du user qu'on va potentiellement créer/match plus bas. Comme le user
+    // n'est pas encore créé, on fait le lookup par email pour les guests.
+    let orderCountForUser = 0;
+    const existingSession = await auth();
+    if (existingSession?.user?.id) {
+      orderCountForUser = await prisma.order.count({
+        where: { userId: existingSession.user.id, status: { not: 'PENDING' } },
+      });
+    } else {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: payload.contact.email.toLowerCase() },
+        select: { _count: { select: { orders: { where: { status: { not: 'PENDING' } } } } } },
+      });
+      orderCountForUser = existingUser?._count.orders ?? 0;
+    }
+    const r = validatePromo(promoRecord, {
+      subtotalCents: Math.round(subtotal * 100),
+      orderCountForUser,
+    });
+    if (!r.ok) {
+      return NextResponse.json(
+        { error: r.message, code: 'PROMO_INVALID', details: { failureCode: r.failureCode } },
+        { status: 400 },
+      );
+    }
+    discountAmount = r.discountCents / 100;
+  }
+
+  // Phase 2b: tax computation — taxe sur (subtotal - discount + shipping)
+  const taxableSubtotal = subtotal - discountAmount + payload.shippingPrice;
   const tax = computeTax(taxableSubtotal, payload.shippingAddress.province);
   const totalCents = Math.round((taxableSubtotal + tax.total) * 100);
 
@@ -210,6 +254,8 @@ export const POST = withErrorHandler(async (req: Request) => {
     subtotalCents: Math.round(subtotal * 100),
     shippingCents: Math.round(payload.shippingPrice * 100),
     taxCents: Math.round(tax.total * 100),
+    discountCents: Math.round(discountAmount * 100),
+    promoCodeId: promoRecord?.id,
     shippingMethod: payload.shippingMethod,
     province: payload.shippingAddress.province,
     shipName: `${payload.contact.firstName} ${payload.contact.lastName}`,
@@ -245,6 +291,8 @@ export const POST = withErrorHandler(async (req: Request) => {
     paymentIntentId: paymentIntent.id,
     breakdown: {
       subtotal,
+      discount: discountAmount,
+      promoCode: promoRecord?.code ?? null,
       shipping: payload.shippingPrice,
       tax: tax.total,
       taxLines: tax.lines,

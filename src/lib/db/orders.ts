@@ -86,32 +86,50 @@ export type CreateOrderInput = {
   sinalitePayload: SinaliteOrderRequest;
   /** Human-readable product summary for emails + admin without refetching Sinalite. */
   productSummary?: string;
+  /** Promo code applied (optional). Si présent on incrémente usesCount atomiquement. */
+  promoCodeId?: string;
+  /** Discount applied in cents. 0 si pas de promo. */
+  discountCents?: number;
 };
 
 export async function createPendingOrder(input: CreateOrderInput) {
-  return prisma.order.create({
-    data: {
-      userId: input.userId,
-      paymentIntentId: input.paymentIntentId,
-      amountCents: input.amountCents,
-      status: 'PENDING',
-      sinalitePayload: JSON.stringify(input.sinalitePayload),
-      productSummary: input.productSummary,
-      itemsCount: input.itemsCount,
-      subtotalCents: input.subtotalCents,
-      shippingCents: input.shippingCents,
-      taxCents: input.taxCents,
-      shippingMethod: input.shippingMethod,
-      province: input.province,
-      shipName: input.shipName,
-      shipLine1: input.shipLine1,
-      shipLine2: input.shipLine2,
-      shipCity: input.shipCity,
-      shipProvince: input.shipProvince,
-      shipPostalCode: input.shipPostalCode,
-      shipPhone: input.shipPhone,
-    },
-  });
+  // Si promo : on wrap dans une tx pour incrémenter usesCount + créer l'order
+  // atomiquement. Sinon créer direct.
+  const orderData = {
+    userId: input.userId,
+    paymentIntentId: input.paymentIntentId,
+    amountCents: input.amountCents,
+    status: 'PENDING',
+    sinalitePayload: JSON.stringify(input.sinalitePayload),
+    productSummary: input.productSummary,
+    itemsCount: input.itemsCount,
+    subtotalCents: input.subtotalCents,
+    shippingCents: input.shippingCents,
+    taxCents: input.taxCents,
+    discountCents: input.discountCents ?? 0,
+    promoCodeId: input.promoCodeId ?? null,
+    shippingMethod: input.shippingMethod,
+    province: input.province,
+    shipName: input.shipName,
+    shipLine1: input.shipLine1,
+    shipLine2: input.shipLine2,
+    shipCity: input.shipCity,
+    shipProvince: input.shipProvince,
+    shipPostalCode: input.shipPostalCode,
+    shipPhone: input.shipPhone,
+  };
+
+  if (input.promoCodeId) {
+    const [, order] = await prisma.$transaction([
+      prisma.promoCode.update({
+        where: { id: input.promoCodeId },
+        data: { usesCount: { increment: 1 } },
+      }),
+      prisma.order.create({ data: orderData }),
+    ]);
+    return order;
+  }
+  return prisma.order.create({ data: orderData });
 }
 
 // ─── ORDER TRANSITIONS ────────────────────────────────────────────────────

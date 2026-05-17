@@ -133,6 +133,11 @@ model Order {
   subtotalCents    Int
   shippingCents    Int
   taxCents         Int
+  /** Montant remisé en cents (promo code). 0 si pas de promo. */
+  discountCents    Int      @default(0)
+  /** Lien vers le PromoCode appliqué. Null si pas de promo. */
+  promoCodeId      String?
+  promoCode        PromoCode? @relation(fields: [promoCodeId], references: [id])
   shippingMethod   String
   province         String
 
@@ -336,4 +341,42 @@ model AdminAuditEvent {
   @@index([adminId, createdAt])
   @@index([kind, createdAt])
   @@index([targetType, targetId])
+}
+
+// ─── PROMO CODE ───────────────────────────────────────────────────────────
+// Codes promo appliqués au checkout. Discount soit en pourcentage soit en
+// cents fixes (XOR — un seul des deux est non-null). Restrictions
+// optionnelles : minimum subtotal, expiration, max uses total, premier
+// achat seulement, type de produit. Compteur usesCount incrémenté
+// atomiquement à la création de l'Order.
+
+model PromoCode {
+  id              String    @id @default(cuid())
+  /** Code visible utilisateur, normalisé en upper. Ex: "BIENVENUE10". */
+  code            String    @unique
+  /** Label admin (ex: "Campagne newsletter mai 2026"). Optionnel. */
+  label           String?
+  /** Discount en % (1-100). Mutuellement exclusif avec discountCents. */
+  discountPct     Int?
+  /** Discount en cents. Mutuellement exclusif avec discountPct. */
+  discountCents   Int?
+  /** Faux = désactivé, ne plus accepter. */
+  active          Boolean   @default(true)
+  /** Si présent et < now() → expirée. */
+  expiresAt       DateTime?
+  /** Si présent et usesCount >= maxUses → épuisée. */
+  maxUses         Int?
+  /** Incrémenté à chaque Order créée avec ce code. */
+  usesCount       Int       @default(0)
+  /** Si présent : subtotal < ce montant en cents → inadmissible. */
+  minSubtotalCents Int?
+  /** Si true : applique seulement si user.orders.count === 0. */
+  firstOrderOnly  Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  orders          Order[]
+
+  @@index([active, expiresAt])
 }

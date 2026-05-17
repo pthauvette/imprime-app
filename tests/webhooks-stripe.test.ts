@@ -138,6 +138,8 @@ const baseOrder: Order = {
   subtotalCents: 15275,
   shippingCents: 1250,
   taxCents: 2217,
+  discountCents: 0,
+  promoCodeId: null,
   shippingMethod: 'UPS Standard',
   province: 'QC',
   shipName: 'Test User',
