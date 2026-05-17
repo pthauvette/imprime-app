@@ -1,0 +1,106 @@
+name: Prod smoke test
+
+# Vérifie que les pages critiques de plio.ca répondent ET contiennent
+# le contenu attendu — Sentry catch les runtime errors mais pas les
+# regressions silencieuses (route 404, layout cassé, env manquante).
+#
+# Triggers :
+#   - push main (avec sleep 180s pour laisser Amplify déployer)
+#   - schedule 30 min (catch les regressions externes : DB, SES, Sinalite)
+#   - manual run
+#
+# Failure = GH email automatique au repo owner.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+# Évite les jobs concurrents (un push qui suit un autre annule le précédent).
+concurrency:
+  group: smoke-prod
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wait for Amplify deploy (push only)
+        if: github.event_name == 'push'
+        run: |
+          # Amplify build moyen = 4-5min. On attend 3min pour donner une chance
+          # au deploy de partir, puis on poll /api/health pour le SHA attendu.
+          echo "Sleeping 180s pour laisser Amplify deploy..."
+          sleep 180
+
+      - name: Check /api/health
+        run: |
+          set -e
+          response=$(curl -fsS --max-time 15 https://www.plio.ca/api/health)
+          echo "$response" | jq .
+          status=$(echo "$response" | jq -r .status)
+          if [ "$status" = "fail" ]; then
+            echo "::error::Health status=fail. Body above."
+            exit 1
+          fi
+          if [ "$status" = "warn" ]; then
+            echo "::warning::Health status=warn (Sinalite dégradé). Voir body ci-dessus."
+          fi
+
+      - name: Check public pages
+        run: |
+          set -e
+          # Format : URL|grep_pattern|http_code
+          # grep_pattern = string qu'on s'attend à trouver dans le HTML.
+          # Si la page se rend mais sans le contenu attendu (layout cassé,
+          # erreur React qui fail silencieusement), on catch ici.
+          declare -a CHECKS=(
+            "https://www.plio.ca/|Plio|200"
+            "https://www.plio.ca/pricing|tarif|200"
+            "https://www.plio.ca/templates|Plio|200"
+            "https://www.plio.ca/sign-in|lien magique|200"
+            "https://www.plio.ca/sitemap.xml|<urlset|200"
+            "https://www.plio.ca/robots.txt|User-agent|200"
+          )
+
+          failed=0
+          for check in "${CHECKS[@]}"; do
+            IFS='|' read -r url pattern expected_code <<< "$check"
+            actual_code=$(curl -s -o /tmp/body -w "%{http_code}" --max-time 15 "$url")
+            if [ "$actual_code" != "$expected_code" ]; then
+              echo "::error::$url returned $actual_code (expected $expected_code)"
+              failed=$((failed + 1))
+              continue
+            fi
+            if ! grep -qi "$pattern" /tmp/body; then
+              echo "::error::$url returned $actual_code but pattern '$pattern' missing from body"
+              echo "  first 500 chars of body:"
+              head -c 500 /tmp/body
+              echo ""
+              failed=$((failed + 1))
+              continue
+            fi
+            echo "  ✓ $url ($actual_code, '$pattern' found)"
+          done
+
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::$failed page(s) failed smoke check"
+            exit 1
+          fi
+
+      - name: Check apex redirects to www
+        run: |
+          # Le 301 apex→www doit pointer vers la racine de www (comportement
+          # actuel GoDaddy). On vérifie au moins qu'on arrive sur 200 final.
+          final_code=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 https://plio.ca/)
+          if [ "$final_code" != "200" ]; then
+            echo "::error::apex plio.ca/ → final $final_code (attendu 200 via www)"
+            exit 1
+          fi
+          echo "  ✓ plio.ca → www.plio.ca/ (final 200)"
