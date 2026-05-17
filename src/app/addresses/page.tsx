@@ -1,168 +1,191 @@
 /**
- * Auto-migrated from Open Design HTML artifact `addresses.html`.
+ * /addresses — Server Component listant le carnet d'adresses du user.
  *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * MVP : lecture seule. Les Address rows sont indépendantes des snapshots
+ * shipping dans Order (qui restent immutables pour l'historique). Pour
+ * l'instant, on n'auto-save PAS d'Address depuis le checkout — donc la
+ * plupart des users verront l'empty state, ce qui est OK pour MVP.
+ *
+ * Le CRUD UI (formulaires create/update/delete) arrivera dans un prochain
+ * sprint — bouton d'ajout désactivé avec tooltip "UI à venir".
  */
 
-export const metadata = { title: "Adresses — Plio" };
+import { redirect } from 'next/navigation';
+import type { Route } from 'next';
+import Sidebar from '@/components/account/Sidebar';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
 
-export default function AddressesPage() {
+export const metadata = { title: 'Adresses — Plio' };
+
+export const dynamic = 'force-dynamic';
+
+export default async function AddressesPage() {
+  const session = await auth();
+  if (!session?.user) redirect('/sign-in?callbackUrl=/addresses' as Route);
+
+  const addresses = await prisma.address.findMany({
+    where: { userId: session.user.id },
+    orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+  });
+
+  const shippingCount = addresses.filter((a) => a.kind === 'SHIPPING').length;
+  const billingCount = addresses.filter((a) => a.kind === 'BILLING').length;
+
   return (
-    <>
-      <div className="acct-shell">
-          <aside className="acct-nav">
-            <div className="acct-nav-brand">Plio.</div>
-            <div className="acct-nav-section">Compte</div>
-            <ul className="acct-nav-list">
-              <li><a href="/orders" className="acct-nav-link">Mes commandes <span className="count">12</span></a></li>
-              <li><a href="/drafts" className="acct-nav-link">Brouillons <span className="count">3</span></a></li>
-              <li><a href="/addresses" className="acct-nav-link active">Adresses <span className="count">4</span></a></li>
-              <li><a href="/wallet" className="acct-nav-link">Portefeuille</a></li>
-              <li><a href="#" className="acct-nav-link">Paiements</a></li>
-              <li><a href="#" className="acct-nav-link">Codes promo</a></li>
-            </ul>
-            <div className="acct-nav-section">Outils</div>
-            <ul className="acct-nav-list">
-              <li><a href="/order/start" className="acct-nav-link">+ Nouvelle commande</a></li>
-              <li><a href="/samples" className="acct-nav-link">Demander un échantillon</a></li>
-              <li><a href="/templates" className="acct-nav-link">Templates &amp; guides</a></li>
-              <li><a href="#" className="acct-nav-link">Devenir reseller</a></li>
-            </ul>
-            <div className="acct-nav-section">Support</div>
-            <ul className="acct-nav-list">
-              <li><a href="#" className="acct-nav-link">Aide &amp; FAQ</a></li>
-              <li><a href="#" className="acct-nav-link">Contact</a></li>
-            </ul>
-          </aside>
-      
-          <main className="acct-main">
-            <div className="page-header">
-              <div>
-                <h1 className="page-title">Mes adresses</h1>
-                <p className="page-subtitle"><strong style={{ color: "var(--text-primary)" } as React.CSSProperties}>4 adresses</strong> sauvegardées · auto-suggestion activée pendant le checkout</p>
-              </div>
-              <button className="page-action">+ Ajouter une adresse</button>
-            </div>
-      
-            <div className="addr-filter">
-              <button className="active"><span>Toutes</span><span className="num">4</span></button>
-              <button><span>Expédition</span><span className="num">3</span></button>
-              <button><span>Facturation</span><span className="num">1</span></button>
-            </div>
-      
-            <div className="addr-grid">
-              {/* Default */}
-              <div className="addr-card default">
-                <div className="addr-card-header">
-                  <div className="addr-card-name">
-                    <div className="addr-card-icon">🏠</div>
-                    <span className="addr-card-label">Maison</span>
-                  </div>
-                  <span className="addr-card-default-pill">Défaut</span>
-                </div>
-                <div className="addr-card-content">
-                  <strong>Patrick Thauvette</strong>
-                  <span>2055 rue Drummond</span>
-                  <span>Montréal, QC H3G 2X3 · Canada</span>
-                  <span className="phone">+1 514 555 0123</span>
-                </div>
-                <div className="addr-map"></div>
-                <div className="addr-card-meta">
-                  <span className="addr-card-stat"><strong>8</strong> commandes livrées ici</span>
-                  <div className="addr-card-actions">
-                    <button className="addr-action-btn">Modifier</button>
-                    <button className="addr-action-btn danger">Retirer</button>
-                  </div>
-                </div>
-              </div>
-      
-              {/* Office */}
-              <div className="addr-card">
-                <div className="addr-card-header">
-                  <div className="addr-card-name">
-                    <div className="addr-card-icon">🏢</div>
-                    <span className="addr-card-label">Bureau</span>
-                  </div>
-                  <button className="addr-action-btn" style={{ fontSize: "10px" } as React.CSSProperties}>Définir défaut</button>
-                </div>
-                <div className="addr-card-content">
-                  <strong>Patrick Thauvette · Démocratik</strong>
-                  <span>5333 avenue Casgrain · Suite 1206</span>
-                  <span>Montréal, QC H2T 1X3 · Canada</span>
-                  <span className="phone">+1 514 555 0188</span>
-                </div>
-                <div className="addr-map"></div>
-                <div className="addr-card-meta">
-                  <span className="addr-card-stat"><strong>3</strong> commandes</span>
-                  <div className="addr-card-actions">
-                    <button className="addr-action-btn">Modifier</button>
-                    <button className="addr-action-btn danger">Retirer</button>
-                  </div>
-                </div>
-              </div>
-      
-              {/* Studio (client) */}
-              <div className="addr-card">
-                <div className="addr-card-header">
-                  <div className="addr-card-name">
-                    <div className="addr-card-icon">🎨</div>
-                    <span className="addr-card-label">Studio Vingt-deux</span>
-                  </div>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.04em", padding: "3px 8px", background: "var(--bg-sunken)", borderRadius: "var(--r-pill)", textTransform: "uppercase", fontWeight: "600" } as React.CSSProperties}>Client</span>
-                </div>
-                <div className="addr-card-content">
-                  <strong>Sophie Beauchamp</strong>
-                  <span>4545 rue Saint-Denis · Étage 3</span>
-                  <span>Montréal, QC H2J 2L4 · Canada</span>
-                  <span className="phone">+1 514 555 9947 · sophie@vingtdeux.studio</span>
-                </div>
-                <div className="addr-map"></div>
-                <div className="addr-card-meta">
-                  <span className="addr-card-stat">Livraison directe à mon client</span>
-                  <div className="addr-card-actions">
-                    <button className="addr-action-btn">Modifier</button>
-                    <button className="addr-action-btn danger">Retirer</button>
-                  </div>
-                </div>
-              </div>
-      
-              {/* Billing only */}
-              <div className="addr-card">
-                <div className="addr-card-header">
-                  <div className="addr-card-name">
-                    <div className="addr-card-icon">📄</div>
-                    <span className="addr-card-label">Facturation</span>
-                  </div>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--info)", letterSpacing: "0.04em", padding: "3px 8px", background: "var(--info-soft)", borderRadius: "var(--r-pill)", textTransform: "uppercase", fontWeight: "600" } as React.CSSProperties}>Bill only</span>
-                </div>
-                <div className="addr-card-content">
-                  <strong>Démocratik Inc.</strong>
-                  <span>5333 avenue Casgrain · Suite 1206</span>
-                  <span>Montréal, QC H2T 1X3 · Canada</span>
-                  <span className="phone">TPS 12345 6789 RT0001 · TVQ 1234567890 TQ0001</span>
-                </div>
-                <div className="addr-map"></div>
-                <div className="addr-card-meta">
-                  <span className="addr-card-stat">Adresse de facturation pour reçus officiels</span>
-                  <div className="addr-card-actions">
-                    <button className="addr-action-btn">Modifier</button>
-                    <button className="addr-action-btn danger">Retirer</button>
-                  </div>
-                </div>
-              </div>
-      
-              {/* Add new */}
-              <div className="addr-add">
-                <div className="addr-add-icon">+</div>
-                <div className="addr-add-text">
-                  <strong>Ajouter une adresse</strong>
-                  <span>Maison, bureau, client — sauvegarde-les pour des checkouts éclair</span>
-                </div>
-              </div>
-            </div>
-          </main>
+    <div className="acct-shell">
+      <Sidebar active="/addresses" />
+
+      <main className="acct-main">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Mes adresses</h1>
+            <p className="page-subtitle">
+              {addresses.length === 0 ? (
+                <>Aucune adresse sauvegardée pour le moment.</>
+              ) : (
+                <>
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {addresses.length} {addresses.length > 1 ? 'adresses' : 'adresse'}
+                  </strong>{' '}
+                  sauvegardées · {shippingCount} expédition · {billingCount} facturation
+                </>
+              )}
+            </p>
+          </div>
+          <button
+            className="page-action"
+            disabled
+            title="UI à venir"
+            style={{
+              opacity: 0.5,
+              cursor: 'not-allowed',
+              border: 'none',
+            }}
+          >
+            + Ajouter une adresse
+          </button>
         </div>
-    </>
+
+        {addresses.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="addr-grid">
+            {addresses.map((addr) => (
+              <div
+                key={addr.id}
+                className={`addr-card${addr.isDefault ? ' default' : ''}`}
+              >
+                <div className="addr-card-header">
+                  <div className="addr-card-name">
+                    <div className="addr-card-icon">
+                      {addr.kind === 'BILLING' ? '📄' : '📦'}
+                    </div>
+                    <span className="addr-card-label">
+                      {addr.label ?? (addr.kind === 'BILLING' ? 'Facturation' : 'Expédition')}
+                    </span>
+                  </div>
+                  {addr.isDefault ? (
+                    <span className="addr-card-default-pill">Défaut</span>
+                  ) : (
+                    <KindBadge kind={addr.kind} />
+                  )}
+                </div>
+                <div className="addr-card-content">
+                  <strong>
+                    {addr.firstName} {addr.lastName}
+                    {addr.company ? ` · ${addr.company}` : ''}
+                  </strong>
+                  <span>
+                    {addr.line1}
+                    {addr.line2 ? ` · ${addr.line2}` : ''}
+                  </span>
+                  <span>
+                    {addr.city}, {addr.province} {addr.postalCode} · Canada
+                  </span>
+                  {addr.phone && <span className="phone">{addr.phone}</span>}
+                </div>
+                <div className="addr-card-meta">
+                  <span className="addr-card-stat">
+                    {addr.kind === 'BILLING'
+                      ? 'Adresse de facturation'
+                      : 'Adresse d’expédition'}
+                  </span>
+                  <div className="addr-card-actions">
+                    <button
+                      className="addr-action-btn"
+                      disabled
+                      title="UI à venir"
+                      style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                    >
+                      Modifier
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────
+
+function KindBadge({ kind }: { kind: string }) {
+  const isBilling = kind === 'BILLING';
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 10,
+        color: isBilling ? 'var(--info)' : 'var(--text-muted)',
+        letterSpacing: '0.04em',
+        padding: '3px 8px',
+        background: isBilling ? 'var(--info-soft)' : 'var(--bg-sunken)',
+        borderRadius: 'var(--r-pill)',
+        textTransform: 'uppercase',
+        fontWeight: 600,
+      }}
+    >
+      {isBilling ? 'Facturation' : 'Expédition'}
+    </span>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        placeItems: 'center',
+        gap: 16,
+        padding: '96px 24px',
+        background: 'var(--bg-surface)',
+        border: '1px dashed var(--border-default)',
+        borderRadius: 'var(--r-xl)',
+        textAlign: 'center',
+        maxWidth: 520,
+        margin: '0 auto',
+      }}
+    >
+      <div style={{ fontSize: 48 }}>📮</div>
+      <h2
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 28,
+          letterSpacing: '-0.01em',
+          fontWeight: 400,
+          margin: 0,
+        }}
+      >
+        Tu n'as pas encore d'adresse enregistrée.
+      </h2>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, maxWidth: 420 }}>
+        Les adresses que tu utilises au checkout apparaîtront ici automatiquement — tu
+        pourras alors les réutiliser en un clic pour tes prochaines commandes.
+      </p>
+    </div>
   );
 }

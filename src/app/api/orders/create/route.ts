@@ -82,6 +82,14 @@ const CreateOrderSchema = z.object({
   expectedSubtotal: z.number().nonnegative(),
 
   notes: z.string().optional(),
+
+  /**
+   * Optional : si le user vient de l'éditeur de template, lier l'order au
+   * DesignDraft pour analytics conversion (top performer per template).
+   * Pas de validation stricte côté server — si le designId existe pas ou
+   * appartient à un autre user, on log et on continue sans lier (best-effort).
+   */
+  designId: z.string().optional(),
 });
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────
@@ -194,7 +202,7 @@ export const POST = withErrorHandler(async (req: Request) => {
         phone: payload.contact.phone,
       });
 
-  await createPendingOrder({
+  const newOrder = await createPendingOrder({
     userId: user.id,
     paymentIntentId: paymentIntent.id,
     amountCents: totalCents,
@@ -214,6 +222,23 @@ export const POST = withErrorHandler(async (req: Request) => {
     sinalitePayload,
     productSummary,
   });
+
+  // Phase 5b : best-effort link au DesignDraft si le user vient de l'éditeur.
+  // Ne fail PAS la commande si le link ne marche pas (designId invalide,
+  // déjà lié à un autre order, etc.) — c'est de l'analytics, pas critique.
+  if (payload.designId) {
+    try {
+      await prisma.designDraft.update({
+        where: { id: payload.designId },
+        data: { orderId: newOrder.id },
+      });
+    } catch (err) {
+      console.warn(
+        `[orders/create] could not link designDraft ${payload.designId} to order ${newOrder.id}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
 
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,

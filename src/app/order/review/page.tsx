@@ -63,6 +63,7 @@ function ReviewPageInner() {
   const optionsParam = searchParams.get('options') ?? '';
   const filesParam = searchParams.get('files') ?? '';
   const shipParam = searchParams.get('ship');
+  const designId = searchParams.get('designId');
 
   const ship: ShipState | null = useMemo(() => {
     if (!shipParam) return null;
@@ -109,13 +110,14 @@ function ReviewPageInner() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            items: [{ productId: Number(productId), optionIds, files, internalRef: `IMPRIME-${Date.now()}` }],
+            items: [{ productId: Number(productId), optionIds, files, internalRef: `PLIO-${Date.now()}` }],
             contact: { firstName: ship.firstName, lastName: ship.lastName, email: ship.email, phone: ship.phone },
             shippingAddress: { line1: ship.line1, line2: ship.line2, city: ship.city, province: ship.province, postalCode: ship.postalCode },
             shippingMethod: ship.method,
             shippingPrice: ship.price,
             expectedSubtotal,
-            notes: `Test commande Plio ${new Date().toISOString()}`,
+            notes: `Commande Plio ${new Date().toISOString()}`,
+            ...(designId ? { designId } : {}),
           }),
         });
 

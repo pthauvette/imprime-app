@@ -150,6 +150,7 @@ model Order {
   updatedAt        DateTime @updatedAt
 
   events           OrderEvent[]
+  designDraft      DesignDraft?
 
   @@index([userId, createdAt])
   @@index([status])
@@ -269,6 +270,12 @@ model DesignDraft {
 
   // URL S3 (ou data: URL en dev) vers le PDF print-ready généré
   finalPdfUrl String?
+
+  // Lien vers l'Order où ce design a été utilisé (set par /api/orders/create
+  // quand le payload contient un designId). Null = brouillon pas commandé.
+  // Permet le tracking conversion "design → order" + stats par template.
+  orderId String? @unique
+  order   Order?  @relation(fields: [orderId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

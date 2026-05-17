@@ -1,243 +1,170 @@
 /**
- * Auto-migrated from Open Design HTML artifact `payments.html`.
+ * /payments — Server Component listant les paiements passés du user.
  *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * On lit la table Order et on filtre sur `paidAt IS NOT NULL` (donc Stripe a
+ * confirmé). On expose à l'utilisateur un lien vers /orders/[id] plutôt que
+ * vers le dashboard Stripe (qui n'est accessible qu'aux admins).
+ *
+ * Pas de Refund/Wallet/Invoice séparés pour MVP — un paiement = un Order.
  */
 
-export const metadata = { title: "Paiements — Plio" };
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import type { Route } from 'next';
+import Sidebar from '@/components/account/Sidebar';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import { formatCurrency, formatDate } from '@/lib/format';
 
-export default function PaymentsPage() {
+export const metadata = { title: 'Paiements — Plio' };
+
+export const dynamic = 'force-dynamic';
+
+const STATUS_LABELS: Record<string, string> = {
+  PAID: 'Payée',
+  SUBMITTED: 'Envoyée',
+  IN_PRODUCTION: 'En production',
+  SHIPPED: 'Expédiée',
+  DELIVERED: 'Livrée',
+  CANCELLED: 'Annulée',
+  FAILED: 'Échouée',
+};
+
+export default async function PaymentsPage() {
+  const session = await auth();
+  if (!session?.user) redirect('/sign-in?callbackUrl=/payments' as Route);
+
+  const payments = await prisma.order.findMany({
+    where: { userId: session.user.id, paidAt: { not: null } },
+    orderBy: { paidAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      sinaliteOrderId: true,
+      paidAt: true,
+      amountCents: true,
+      status: true,
+      productSummary: true,
+    },
+  });
+
+  const totalPaid =
+    payments.reduce((sum, p) => sum + p.amountCents, 0) / 100;
+
   return (
-    <>
-      <div className="acct-shell">
-          <aside className="acct-nav">
-            <div className="acct-nav-brand">Plio.</div>
-            <div className="acct-nav-section">Compte</div>
-            <ul className="acct-nav-list">
-              <li><a href="/orders" className="acct-nav-link">Mes commandes <span className="count">12</span></a></li>
-              <li><a href="/drafts" className="acct-nav-link">Brouillons <span className="count">3</span></a></li>
-              <li><a href="/addresses" className="acct-nav-link">Adresses <span className="count">4</span></a></li>
-              <li><a href="/wallet" className="acct-nav-link">Portefeuille</a></li>
-              <li><a href="/payments" className="acct-nav-link active">Paiements</a></li>
-              <li><a href="#" className="acct-nav-link">Codes promo</a></li>
-            </ul>
-            <div className="acct-nav-section">Outils</div>
-            <ul className="acct-nav-list">
-              <li><a href="/order/start" className="acct-nav-link">+ Nouvelle commande</a></li>
-              <li><a href="/samples" className="acct-nav-link">Demander un échantillon</a></li>
-              <li><a href="/templates" className="acct-nav-link">Templates &amp; guides</a></li>
-              <li><a href="/reseller" className="acct-nav-link">Devenir reseller</a></li>
-            </ul>
-            <div className="acct-nav-section">Support</div>
-            <ul className="acct-nav-list">
-              <li><a href="/help" className="acct-nav-link">Aide &amp; FAQ</a></li>
-              <li><a href="#" className="acct-nav-link">Contact</a></li>
-            </ul>
-          </aside>
-      
-          <main className="acct-main">
-            <h1 className="page-title">Paiements</h1>
-            <p className="page-subtitle"><strong>2 méthodes</strong> enregistrées · 24 transactions sur les 12 derniers mois · sécurisé par Stripe</p>
-      
-            {/* Stats */}
-            <div className="pay-stats">
-              <div className="stat-card">
-                <div className="stat-label">Total payé en 2026</div>
-                <div className="stat-value">2 042,<span style={{ fontSize: "0.6em", color: "var(--text-secondary)" } as React.CSSProperties}>80 $</span></div>
-                <div className="stat-trend up">▲ 18 % vs 2025</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Recharges wallet</div>
-                <div className="stat-value">2 500 $</div>
-                <div className="stat-trend">3 recharges</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Remboursements</div>
-                <div className="stat-value">68 $</div>
-                <div className="stat-trend">1 annulation</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Frais de transaction</div>
-                <div className="stat-value">0 $</div>
-                <div className="stat-trend up">Wallet activé</div>
-              </div>
+    <div className="acct-shell">
+      <Sidebar active="/payments" />
+
+      <main className="acct-main">
+        <h1 className="page-title">Paiements</h1>
+        <p className="page-subtitle">
+          {payments.length === 0 ? (
+            <>Aucun paiement encore.</>
+          ) : (
+            <>
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {payments.length} {payments.length > 1 ? 'paiements' : 'paiement'}
+              </strong>{' '}
+              · {formatCurrency(totalPaid)} payés au total · sécurisé par Stripe
+            </>
+          )}
+        </p>
+
+        {payments.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="panel">
+            <div className="panel-header">
+              <h2 className="panel-title">Historique</h2>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                50 derniers
+              </span>
             </div>
-      
-            {/* Methods + Recent */}
-            <div className="two-col">
-              {/* Payment methods */}
-              <div className="panel">
-                <div className="panel-header">
-                  <h2 className="panel-title">Cartes &amp; méthodes</h2>
-                  <span className="panel-action">+ Ajouter</span>
-                </div>
-                <div className="pm-list">
-                  <div className="pm-card default">
-                    <div className="pm-card-content">
-                      <div className="pm-card-top">
-                        <span className="pm-brand-label">VISA</span>
-                        <span className="pm-default-badge">★ Défaut</span>
-                      </div>
-                      <div className="pm-card-number">•••• •••• •••• 4242</div>
-                      <div className="pm-card-bottom">
-                        <div><span className="label">Détenteur</span><span className="value">P. THAUVETTE</span></div>
-                        <div><span className="label">Expire</span><span className="value">09 / 27</span></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pm-card secondary">
-                    <div className="pm-card-content">
-                      <div className="pm-card-top">
-                        <span className="pm-brand-label">MASTERCARD</span>
-                      </div>
-                      <div className="pm-card-number">•••• •••• •••• 8801</div>
-                      <div className="pm-card-bottom">
-                        <div><span className="label">Détenteur</span><span className="value">DÉMOCRATIK INC.</span></div>
-                        <div><span className="label">Expire</span><span className="value">02 / 28</span></div>
-                      </div>
-                    </div>
-                  </div>
-                  <button className="add-method">+ Ajouter une carte ou PayPal</button>
-                </div>
-              </div>
-      
-              {/* Recent transactions */}
-              <div className="panel">
-                <div className="panel-header">
-                  <h2 className="panel-title">Transactions Stripe</h2>
-                  <div className="filter-pills">
-                    <div className="filter-pill active">Toutes</div>
-                    <div className="filter-pill">Charges</div>
-                    <div className="filter-pill">Remboursements</div>
-                  </div>
-                </div>
-                <div className="tx-list">
-                  <div className="tx-row">
-                    <div className="tx-icon recharge">+</div>
-                    <div className="tx-info">
-                      <div className="tx-title">Recharge wallet 1 000 $ + 50 $ bonus</div>
-                      <div className="tx-meta">Visa •••• 4242</div>
-                    </div>
-                    <div className="tx-stripe-id">pi_3PXqw...</div>
-                    <div className="tx-status succeeded">Succeeded</div>
-                    <div className="tx-amount in">+1 050,00 $</div>
-                    <button className="tx-receipt" title="Reçu Stripe">
-                      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                    </button>
-                  </div>
-                  <div className="tx-row">
+            <div className="tx-list">
+              {payments.map((p) => {
+                const displayId = p.sinaliteOrderId
+                  ? `#SIN-${p.sinaliteOrderId}`
+                  : `#${p.id.slice(-6).toUpperCase()}`;
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/orders/${p.id}` as Route}
+                    className="tx-row"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
                     <div className="tx-icon charge">→</div>
                     <div className="tx-info">
-                      <div className="tx-title">Commande #SIN-48102 — Cartes Foil</div>
-                      <div className="tx-meta">Visa •••• 4242 · 187,60 $</div>
+                      <div className="tx-title">
+                        Commande {displayId}
+                        {p.productSummary ? ` — ${p.productSummary}` : ''}
+                      </div>
+                      <div className="tx-meta">
+                        {STATUS_LABELS[p.status] ?? p.status}
+                      </div>
                     </div>
-                    <div className="tx-stripe-id">pi_3PWmj...</div>
-                    <div className="tx-status succeeded">Succeeded</div>
-                    <div className="tx-amount out">187,60 $</div>
-                    <button className="tx-receipt" title="Reçu">
-                      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                    </button>
-                  </div>
-                  <div className="tx-row">
-                    <div className="tx-icon refund">↺</div>
-                    <div className="tx-info">
-                      <div className="tx-title">Remboursement #SIN-47602</div>
-                      <div className="tx-meta">Bannière vinyle · annulée</div>
+                    <div className="tx-date">
+                      {p.paidAt ? formatDate(p.paidAt) : ''}
                     </div>
-                    <div className="tx-stripe-id">re_3PVfg...</div>
-                    <div className="tx-status refunded">Refunded</div>
-                    <div className="tx-amount in">+68,00 $</div>
-                    <button className="tx-receipt">
-                      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                    </button>
-                  </div>
-                  <div className="tx-row">
-                    <div className="tx-icon recharge">+</div>
-                    <div className="tx-info">
-                      <div className="tx-title">Recharge wallet 500 $ + 15 $ bonus</div>
-                      <div className="tx-meta">PayPal</div>
+                    <div className="tx-amount out">
+                      {formatCurrency(p.amountCents / 100)}
                     </div>
-                    <div className="tx-stripe-id">pi_3PUab...</div>
-                    <div className="tx-status succeeded">Succeeded</div>
-                    <div className="tx-amount in">+515,00 $</div>
-                    <button className="tx-receipt">
-                      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                    </button>
-                  </div>
-                  <div className="tx-row">
-                    <div className="tx-icon recharge">+</div>
-                    <div className="tx-info">
-                      <div className="tx-title">Recharge initiale 1 000 $</div>
-                      <div className="tx-meta">Visa •••• 4242 · première recharge</div>
-                    </div>
-                    <div className="tx-stripe-id">pi_3PT01...</div>
-                    <div className="tx-status succeeded">Succeeded</div>
-                    <div className="tx-amount in">+1 000,00 $</div>
-                    <button className="tx-receipt">
-                      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
+                  </Link>
+                );
+              })}
             </div>
-      
-            {/* Invoices */}
-            <div className="panel">
-              <div className="panel-header">
-                <h2 className="panel-title">Factures (PDF)</h2>
-                <span className="panel-action">Toutes les factures →</span>
-              </div>
-              <div>
-                <div className="invoice-row">
-                  <div className="invoice-icon">📄</div>
-                  <div>
-                    <div className="invoice-num">INV-48201</div>
-                    <div className="invoice-date">15 mai 2026</div>
-                  </div>
-                  <div className="invoice-meta">Commande #SIN-48201</div>
-                  <div className="invoice-amount">116,24 $</div>
-                  <button className="invoice-pdf">↓ PDF</button>
-                </div>
-                <div className="invoice-row">
-                  <div className="invoice-icon">📄</div>
-                  <div>
-                    <div className="invoice-num">INV-48189</div>
-                    <div className="invoice-date">14 mai 2026</div>
-                  </div>
-                  <div className="invoice-meta">Commande #SIN-48189</div>
-                  <div className="invoice-amount">98,40 $</div>
-                  <button className="invoice-pdf">↓ PDF</button>
-                </div>
-                <div className="invoice-row">
-                  <div className="invoice-icon">📄</div>
-                  <div>
-                    <div className="invoice-num">INV-48102</div>
-                    <div className="invoice-date">10 mai 2026</div>
-                  </div>
-                  <div className="invoice-meta">Commande #SIN-48102</div>
-                  <div className="invoice-amount">187,60 $</div>
-                  <button className="invoice-pdf">↓ PDF</button>
-                </div>
-                <div className="invoice-row">
-                  <div className="invoice-icon">📄</div>
-                  <div>
-                    <div className="invoice-num">INV-47921</div>
-                    <div className="invoice-date">2 mai 2026</div>
-                  </div>
-                  <div className="invoice-meta">Commande #SIN-47921</div>
-                  <div className="invoice-amount">142,80 $</div>
-                  <button className="invoice-pdf">↓ PDF</button>
-                </div>
-              </div>
-              <div className="pay-export">
-                <button className="export-btn">⇩ Exporter CSV (12 mois)</button>
-                <button className="export-btn">⇩ Rapport annuel 2026 (PDF)</button>
-                <button className="export-btn">📧 Recevoir par courriel</button>
-              </div>
-            </div>
-          </main>
-        </div>
-    </>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        placeItems: 'center',
+        gap: 16,
+        padding: '96px 24px',
+        background: 'var(--bg-surface)',
+        border: '1px dashed var(--border-default)',
+        borderRadius: 'var(--r-xl)',
+        textAlign: 'center',
+        maxWidth: 480,
+        margin: '0 auto',
+      }}
+    >
+      <div style={{ fontSize: 48 }}>💳</div>
+      <h2
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 28,
+          letterSpacing: '-0.01em',
+          fontWeight: 400,
+          margin: 0,
+        }}
+      >
+        Aucun paiement encore.
+      </h2>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, maxWidth: 380 }}>
+        Tes commandes payées apparaîtront ici avec leur statut et leur montant.
+      </p>
+      <Link
+        href={'/order/start' as Route}
+        className="btn btn-primary"
+        style={{ marginTop: 8 }}
+      >
+        Démarrer une commande →
+      </Link>
+    </div>
   );
 }
