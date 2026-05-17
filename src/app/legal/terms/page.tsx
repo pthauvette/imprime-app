@@ -54,7 +54,7 @@ export default function TermsPage() {
               <section id="s2">
                 <h2><span className="h-num">Article 02</span>Description du service</h2>
                 <p>Plio propose une plateforme web permettant aux utilisateurs de configurer, prévisualiser, commander et faire livrer des produits imprimés (cartes de visite, dépliants, bannières, packaging et autres supports). Le service comprend un moteur de tarification en temps réel, un module de validation prépresse automatisée, ainsi qu'un suivi de production et de livraison.</p>
-                <p>La production physique des commandes est sous-traitée à Sinalite Inc., partenaire wholesale établi à Markham (Ontario), avec qui Démocratik inc. entretient une relation contractuelle. Plio demeure l'unique interlocuteur commercial de l'utilisateur final et assume la responsabilité du service, conformément aux limitations énoncées à l'article 8.</p>
+                <p>La production physique des commandes est assurée par un partenaire d'impression wholesale établi à Markham (Ontario), avec qui Démocratik inc. entretient une relation contractuelle. Plio demeure l'unique interlocuteur commercial de l'utilisateur final et assume la responsabilité du service, conformément aux limitations énoncées à l'article 8.</p>
                 <p>Le service est offert « tel quel ». Démocratik inc. se réserve le droit, à tout moment et sans préavis, de modifier, suspendre ou interrompre tout ou partie des fonctionnalités, sans qu'aucune indemnité ne puisse être réclamée à ce titre.</p>
               </section>
       

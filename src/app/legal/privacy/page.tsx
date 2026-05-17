@@ -143,11 +143,6 @@ export default function PrivacyPage() {
                     <div className="tp-desc">Traite la carte bancaire. Plio ne voit jamais le numéro complet — uniquement les 4 derniers chiffres et le type de carte.</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">Sinalite</div>
-                    <div className="tp-role">Production</div>
-                    <div className="tp-desc">Reçoit ton fichier et l'adresse de livraison pour imprimer et expédier ta commande depuis Markham (ON).</div>
-                  </div>
-                  <div className="tp-card">
                     <div className="tp-name">AWS · Canada-Central</div>
                     <div className="tp-role">Hébergement</div>
                     <div className="tp-desc">Héberge nos serveurs et notre base de données. Localisation exclusive à Montréal (région ca-central-1).</div>
