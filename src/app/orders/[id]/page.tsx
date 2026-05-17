@@ -16,6 +16,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
+import CancelRequestButton from '@/components/account/CancelRequestButton';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
@@ -385,6 +386,8 @@ export default async function CustomerOrderDetailPage({
             >
               ↻ Recommander
             </Link>
+
+            <CancelRequestButton orderId={order.id} status={order.status} />
 
             <div style={{ padding: 16, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               Une question ? On répond en moins de 4h ouvrables à{' '}
