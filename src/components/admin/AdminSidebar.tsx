@@ -12,6 +12,7 @@ export type AdminSidebarKey =
   | 'dashboard'
   | 'orders'
   | 'webhooks'
+  | 'emails'
   | 'templates'
   | 'products'
   | 'users'
@@ -75,6 +76,12 @@ const ICONS = {
       <circle cx={11} cy={5} r={1} fill="currentColor" />
     </svg>
   ),
+  emails: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <rect x={2} y={3} width={12} height={10} rx={1} />
+      <path d="M2 5l6 4l6-4" />
+    </svg>
+  ),
   settings: (
     <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
       <circle cx={8} cy={8} r={2.5} />
@@ -102,6 +109,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
         { key: 'dashboard', href: '/admin' as Route, label: 'Tableau de bord', icon: ICONS.dashboard },
         { key: 'orders', href: '/admin/orders' as Route, label: 'Commandes', icon: ICONS.orders, count: counts.orders },
         { key: 'webhooks', href: '/admin/webhooks' as Route, label: 'Webhooks', icon: ICONS.webhooks, count: counts.webhooks, urgent: urgents.webhooks },
+        { key: 'emails', href: '/admin/emails' as Route, label: 'Queue email', icon: ICONS.emails, count: counts.emails, urgent: urgents.emails },
       ],
     },
     {
