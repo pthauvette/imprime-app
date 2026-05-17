@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import '@/styles/globals.css';
+import JsonLd, { organizationSchema, websiteSchema, localBusinessSchema } from '@/components/seo/JsonLd';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
 const SITE_NAME = 'Plio';
@@ -84,7 +85,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* Structured data (schema.org) — Google Knowledge Panel, Rich
+            Snippets, Sitelinks search box. Injected once dans root layout,
+            inherited par toutes les pages. */}
+        <JsonLd data={organizationSchema} />
+        <JsonLd data={websiteSchema} />
+        <JsonLd data={localBusinessSchema} />
+        {children}
+      </body>
     </html>
   );
 }
