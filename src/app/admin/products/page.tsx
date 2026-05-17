@@ -12,7 +12,9 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { sinalite, SinaliteError } from '@/lib/sinalite/client';
+import { fetchOverridesMap } from '@/lib/products/overrides';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import ProductOverrideActions from './ProductOverrideActions';
 
 export const metadata = { title: 'Admin — Catalogue Sinalite · Plio' };
 export const dynamic = 'force-dynamic';
@@ -36,8 +38,9 @@ export default async function AdminProductsPage({
   const filterCategory = sp.category ?? null;
   const search = (sp.q ?? '').trim().toLowerCase();
 
-  // Fetch products + sidebar counts in parallel
-  const [products, ordersCount, usersCount, syncedAt] = await Promise.all([
+  // Fetch products + sidebar counts in parallel (+ overrides admin pour
+  // afficher l'état hidden/featured/renommé sur chaque ligne du tableau).
+  const [products, ordersCount, usersCount, syncedAt, overridesMap] = await Promise.all([
     sinalite.listProducts().catch((e: unknown) => {
       const err = e instanceof SinaliteError ? e.message : (e as Error).message;
       return { __error: err };
@@ -46,6 +49,7 @@ export default async function AdminProductsPage({
     prisma.user.count(),
     // We don't store a "last synced" timestamp — use now (approximation)
     Promise.resolve(new Date()),
+    fetchOverridesMap(),
   ]);
 
   // Handle Sinalite API failure gracefully
@@ -217,33 +221,59 @@ export default async function AdminProductsPage({
                 <tr>
                   <th style={th}>ID</th>
                   <th style={th}>SKU</th>
-                  <th style={{ ...th, width: '40%' }}>Nom</th>
+                  <th style={{ ...th, width: '32%' }}>Nom</th>
                   <th style={th}>Catégorie</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Status</th>
+                  <th style={th}>Sinalite</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Actions admin</th>
                 </tr>
               </thead>
               <tbody>
-                {pageProducts.map((p) => (
-                  <tr key={p.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                    <td style={{ ...td, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{p.id}</td>
-                    <td style={{ ...td, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{p.sku}</td>
-                    <td style={{ ...td, fontWeight: 500 }}>{p.name}</td>
-                    <td style={td}>
-                      <span className="badge badge-neutral">{p.category}</span>
-                    </td>
-                    <td style={{ ...td, textAlign: 'right' }}>
-                      {p.enabled === 1 ? (
-                        <span style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em' }}>
-                          ✓ ENABLED
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em' }}>
-                          ✕ DISABLED
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {pageProducts.map((p) => {
+                  const ov = overridesMap.get(p.id) ?? null;
+                  const displayName = ov?.displayName ?? p.name;
+                  return (
+                    <tr
+                      key={p.id}
+                      style={{
+                        borderTop: '1px solid var(--border-subtle)',
+                        background: ov?.disabled ? 'var(--danger-soft)' : undefined,
+                        opacity: ov?.disabled ? 0.7 : 1,
+                      }}
+                    >
+                      <td style={{ ...td, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{p.id}</td>
+                      <td style={{ ...td, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{p.sku}</td>
+                      <td style={{ ...td, fontWeight: 500 }}>
+                        {displayName}
+                        {ov?.displayName && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                            ↳ original : {p.name}
+                          </div>
+                        )}
+                      </td>
+                      <td style={td}>
+                        <span className="badge badge-neutral">{p.category}</span>
+                      </td>
+                      <td style={td}>
+                        {p.enabled === 1 ? (
+                          <span style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em' }}>
+                            ✓ ENABLED
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em' }}>
+                            ✕ DISABLED
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ ...td, textAlign: 'right' }}>
+                        <ProductOverrideActions
+                          productId={p.id}
+                          productName={p.name}
+                          override={ov ? { disabled: ov.disabled, featured: ov.featured, displayName: ov.displayName } : null}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

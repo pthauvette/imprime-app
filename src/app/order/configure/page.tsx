@@ -9,6 +9,7 @@
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { sinalite } from '@/lib/sinalite/client';
+import { getVariantIndex } from '@/lib/sinalite/pricing';
 import ConfigureClient from '@/components/wizard/ConfigureClient';
 import type { SinaliteOption } from '@/lib/sinalite/types';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
@@ -32,15 +33,25 @@ export default async function ConfigurePage({
   const { productId } = parsed.data;
   const designId = params.designId ?? null;
 
-  let product, detail;
+  let product, detail, variantIndexMap;
   try {
-    [product, detail] = await Promise.all([
+    [product, detail, { index: variantIndexMap }] = await Promise.all([
       sinalite.getProduct(productId),
       sinalite.getProductDetail(productId),
+      getVariantIndex(productId),
     ]);
   } catch {
     notFound();
   }
+
+  // Serialize variant index Map → Record for client serialization. Used to
+  // compute live price as soon as the user picks an option in Step 3, instead
+  // of waiting until Step 4 ("Quantité"). Same lookup pattern as
+  // QuantityClient: key = sortedOptionIds.join('-').
+  const variantIndex: Record<string, number> = {};
+  variantIndexMap.forEach((price, key) => {
+    variantIndex[key] = price;
+  });
 
   // Group options by `group` field
   const optionGroups: Record<string, SinaliteOption[]> = {};
@@ -87,6 +98,7 @@ export default async function ConfigurePage({
         metadata={detail.metadata}
         defaultSelection={defaultSelection}
         designId={designId}
+        variantIndex={variantIndex}
       />
     </>
   );

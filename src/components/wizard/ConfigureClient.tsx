@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useMemo } from 'react';
 import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
+import { formatCurrency, formatNumber } from '@/lib/format';
 
 type OptionGroupMap = Record<string, SinaliteOption[]>;
 
@@ -17,6 +18,10 @@ interface Props {
   /** Si set, l'utilisateur arrive depuis /design/[slug] et son PDF est déjà
    *  généré — on propage l'ID jusqu'à /order/upload qui auto-load le fichier. */
   designId: string | null;
+  /** Index pré-construit : `sortedIds.join('-')` → prix CAD. Permet de montrer
+   *  le prix live à l'étape 3 (avant de connaître la quantité finale), au lieu
+   *  d'attendre l'étape 4. On utilise la qty la plus basse comme préview. */
+  variantIndex: Record<string, number>;
 }
 
 /**
@@ -31,6 +36,7 @@ export default function ConfigureClient({
   metadata,
   defaultSelection,
   designId,
+  variantIndex,
 }: Props) {
   const router = useRouter();
   const [selection, setSelection] = useState<Record<string, number>>(defaultSelection);
@@ -48,6 +54,31 @@ export default function ConfigureClient({
   const pick = (group: string, id: number) => {
     setSelection((s) => ({ ...s, [group]: id }));
   };
+
+  // Pour la preview de prix : on prend la plus PETITE qty du produit comme
+  // référence. C'est le scénario "starter" — la qty sera ajustée à l'étape 4
+  // (et le prix unitaire baisse à mesure que la qty monte). On affiche aussi
+  // un teaser à la plus GRANDE qty pour montrer le pricing en gros.
+  const sortedQty = useMemo(() => {
+    const opts = optionGroups['qty'] ?? [];
+    return [...opts].sort((a, b) => Number(a.name) - Number(b.name));
+  }, [optionGroups]);
+
+  const lookupPrice = (qtyOptId: number): number | null => {
+    const ids = orderedGroups
+      .map((g) => selection[g])
+      .filter((v): v is number => typeof v === 'number');
+    ids.push(qtyOptId);
+    const key = [...ids].sort((a, b) => a - b).join('-');
+    return variantIndex[key] ?? null;
+  };
+
+  const minQty = sortedQty[0];
+  const maxQty = sortedQty[sortedQty.length - 1];
+  const minQtyPrice = minQty ? lookupPrice(minQty.id) : null;
+  const maxQtyPrice = maxQty && maxQty !== minQty ? lookupPrice(maxQty.id) : null;
+  const minQtyUnit = minQtyPrice && minQty ? minQtyPrice / Number(minQty.name) : null;
+  const maxQtyUnit = maxQtyPrice && maxQty ? maxQtyPrice / Number(maxQty.name) : null;
 
   const optionsParam = orderedGroups
     .map((g) => selection[g])
@@ -92,7 +123,7 @@ export default function ConfigureClient({
         <div className="step-content" style={{ padding: '56px 80px', maxWidth: 1080 }}>
           <div className="step-eyebrow">Étape 03 — {product.name.trim()}</div>
           <h1 className="step-question">Configure ta <em>commande.</em></h1>
-          <p className="step-lede">Les changements mettent à jour le prix en temps réel à l'étape suivante.</p>
+          <p className="step-lede">Le prix s'ajuste en temps réel à droite — change une option pour voir l'impact.</p>
 
           {orderedGroups.map((groupName, idx) => (
             <ConfigSection
@@ -127,9 +158,52 @@ export default function ConfigureClient({
                 <span className="value">À choisir étape 4</span>
               </div>
             </div>
-            <div style={{ marginTop: 20, padding: 16, background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>
-              💡 Le prix exact sera révélé à l'étape suivante — {Object.values(optionGroups).reduce((a, b) => a * b.length, 1)} combinaisons possibles pour ce produit.
-            </div>
+
+            {/* Live price preview — montre le prix de la plus petite qty (starter)
+                et le prix unitaire à la plus grande qty (bulk). Permet au client
+                de voir l'impact de chaque option AVANT d'arriver à l'étape qty. */}
+            {minQty && minQtyPrice !== null ? (
+              <div
+                style={{
+                  marginTop: 20,
+                  padding: 18,
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--accent-primary)',
+                  borderRadius: 'var(--r-md)',
+                  display: 'grid',
+                  gap: 14,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Prix à partir de
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                    {formatNumber(Number(minQty.name))} u.
+                  </span>
+                </div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, lineHeight: 1, color: 'var(--accent-primary)', fontWeight: 400, letterSpacing: '-0.02em' }}>
+                  {formatCurrency(minQtyPrice)}
+                </div>
+                {minQtyUnit !== null && (
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    soit <strong>{formatCurrency(minQtyUnit)}</strong> / unité
+                  </div>
+                )}
+                {maxQty && maxQtyPrice !== null && maxQtyUnit !== null && maxQtyUnit < (minQtyUnit ?? Infinity) && (
+                  <div style={{ paddingTop: 12, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    💡 À <strong>{formatNumber(Number(maxQty.name))}</strong> unités : <strong>{formatCurrency(maxQtyUnit)}</strong>/u
+                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>
+                      {' '}(-{Math.round((((minQtyUnit ?? 0) - maxQtyUnit) / (minQtyUnit ?? 1)) * 100)}%)
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ marginTop: 20, padding: 16, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Le prix se calcule à l'étape suivante (combinaison non standard).
+              </div>
+            )}
           </div>
         </aside>
       </main>
@@ -143,7 +217,9 @@ export default function ConfigureClient({
         <div className="shell-footer-center">↵ Entrée pour continuer · Tab pour naviguer</div>
         <div className="shell-footer-right">
           <button className="btn btn-primary" onClick={() => router.push(nextHref)}>
-            Choisir la quantité <kbd>↵</kbd>
+            {minQtyPrice !== null
+              ? <>Ajuster la quantité · à partir de {formatCurrency(minQtyPrice)} <kbd>↵</kbd></>
+              : <>Choisir la quantité <kbd>↵</kbd></>}
           </button>
         </div>
       </footer>

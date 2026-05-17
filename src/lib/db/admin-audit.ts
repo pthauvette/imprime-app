@@ -22,9 +22,11 @@ export type AdminAuditKind =
   | 'ADMIN_REPLAY_SINALITE'
   | 'ADMIN_PROMO_CREATE'
   | 'ADMIN_PROMO_TOGGLE'
-  | 'ADMIN_PROMO_UPDATE';
+  | 'ADMIN_PROMO_UPDATE'
+  | 'ADMIN_PRODUCT_OVERRIDE_UPSERT'
+  | 'ADMIN_PRODUCT_OVERRIDE_DELETE';
 
-export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE';
+export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT';
 
 export interface AdminAuditInput {
   kind: AdminAuditKind;

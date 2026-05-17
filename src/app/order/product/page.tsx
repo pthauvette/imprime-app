@@ -9,8 +9,8 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { notFound } from 'next/navigation';
 import { sinalite } from '@/lib/sinalite/client';
+import { applyProductOverrides, type EnrichedProduct } from '@/lib/products/overrides';
 import { findCategoryGroup } from '@/lib/catalogue';
-import type { SinaliteProduct } from '@/lib/sinalite/types';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 
 export const metadata = { title: "Quel produit ?" };
@@ -28,9 +28,12 @@ export default async function ProductPickerPage({
   if (!family) notFound();
 
   const allProducts = await sinalite.listProducts();
-  const products = allProducts.filter(
+  // Filtre Sinalite-enabled, puis applique les overrides admin (qui peuvent
+  // hide certains produits supplémentaires via ProductOverride.disabled).
+  const sinaliteEnabled = allProducts.filter(
     (p) => family.sinaliteCategories.includes(p.category) && p.enabled === 1,
   );
+  const products = await applyProductOverrides(sinaliteEnabled);
 
   return (
     <div className="shell">
@@ -165,9 +168,11 @@ export default async function ProductPickerPage({
 
 // ─── Sub-components ──────────────────────────────────────────────────────
 
-function ProductRow({ product, index }: { product: SinaliteProduct; index: number }) {
+function ProductRow({ product, index }: { product: EnrichedProduct; index: number }) {
   const lower = product.name.toLowerCase();
-  const isBestseller = lower.includes('uv') || lower.includes('14pt');
+  // Admin override.featured prend précédence sur l'heuristique nom-based,
+  // sinon on retombe sur les heuristiques par défaut.
+  const isBestseller = product.override?.featured ?? (lower.includes('uv') || lower.includes('14pt'));
   const isPremium =
     lower.includes('soft touch') || lower.includes('18pt') ||
     lower.includes('foil') || lower.includes('lamination');

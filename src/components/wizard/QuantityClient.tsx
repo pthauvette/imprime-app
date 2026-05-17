@@ -158,19 +158,35 @@ export default function QuantityClient({
         <div className="slider-wrap">
           <div className="slider-track">
             <div className="slider-fill" style={{ inset: `0 ${100 - snapPct}% 0 0` }} />
-            <div className="slider-thumb" style={{ left: `${snapPct}%` }} />
+            <div className="slider-thumb" style={{ left: `${snapPct}%` }} aria-hidden="true" />
+            {/* Native range input overlaid on the visual track — gives real drag,
+                keyboard arrows, screen-reader support. Visually invisible but
+                consumes the same hit area as the decorative track + thumb. */}
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0, sortedQty.length - 1)}
+              step={1}
+              value={qtyIdx}
+              onChange={(e) => setQtyIdx(Number(e.target.value))}
+              aria-label="Quantité"
+              aria-valuetext={`${formatNumber(qtyValue)} unités`}
+              className="slider-input"
+            />
           </div>
           <div className="slider-ticks">
             {sortedQty.map((opt, i) => (
-              <div
+              <button
                 key={opt.id}
+                type="button"
                 className={`slider-tick${i === qtyIdx ? ' active' : ''}`}
                 onClick={() => setQtyIdx(i)}
-                style={{ cursor: 'pointer' }}
+                aria-label={`${formatNumber(Number(opt.name))} unités`}
+                aria-pressed={i === qtyIdx}
               >
                 <div className="slider-tick-mark"></div>
                 <div className="slider-tick-label">{formatNumber(Number(opt.name))}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

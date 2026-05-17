@@ -488,3 +488,42 @@ model PromoCode {
 
   @@index([active, expiresAt])
 }
+
+// ─── PRODUCT OVERRIDE ─────────────────────────────────────────────────────
+// L'admin peut surcharger ce qui vient de Sinalite pour un produit donné :
+//   - le désactiver complètement (hide du catalogue customer)
+//   - le promouvoir en featured (badge "Bestseller")
+//   - renommer ou ré-écrire la description (override marketing)
+//   - notes internes admin (free-text, pas exposé customer)
+// Margin/markup est un placeholder pour plus tard (PR future).
+//
+// Identifié par sinaliteProductId (number) — pas de FK car Sinalite est
+// l'API externe, on n'a pas de table Product locale. Un override peut
+// pointer vers un product qui a disparu côté Sinalite : c'est OK, le
+// helper applyProductOverrides() le filtre silencieusement.
+
+model ProductOverride {
+  id                  String   @id @default(cuid())
+  /** ID Sinalite (unique). */
+  sinaliteProductId   Int      @unique
+  /** Si true : produit caché du catalogue customer (override Sinalite enabled). */
+  disabled            Boolean  @default(false)
+  /** Si true : badge "★ Bestseller" sur la card produit. */
+  featured            Boolean  @default(false)
+  /** Override le nom Sinalite (ex: "Cartes 14pt UV" → "Cartes UV brillantes"). */
+  displayName         String?
+  /** Override la description ou ajoute une description custom (Sinalite n'en
+   *  fournit pas vraiment). Markdown supporté côté UI. */
+  displayDescription  String?
+  /** Markup en % appliqué au prix Sinalite. NULL = pas de markup.
+   *  Réservé pour future implémentation (pas wired dans pricing pour l'instant). */
+  marginPct           Int?
+  /** Notes internes admin (jamais affichées customer). */
+  notes               String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([disabled])
+  @@index([featured])
+}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sinalite } from '@/lib/sinalite/client';
+import { applyProductOverrides } from '@/lib/products/overrides';
 import { withErrorHandler } from '@/lib/api-helpers';
 
 /**
@@ -17,7 +18,11 @@ export const GET = withErrorHandler(async (req: Request) => {
   const category = url.searchParams.get('category');
   const enabledOnly = url.searchParams.get('enabled') === 'true';
 
-  const all = await sinalite.listProducts();
+  const raw = await sinalite.listProducts();
+  // Applique les overrides admin : hide disabled, applique displayName.
+  // Note : on garde les Sinalite-disabled aussi puisque l'API publique sert
+  // aussi le debug admin (filtré par ?enabled=true côté caller si voulu).
+  const all = await applyProductOverrides(raw);
 
   let filtered = all;
   if (category) filtered = filtered.filter((p) => p.category === category);

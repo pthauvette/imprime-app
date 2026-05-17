@@ -5014,6 +5014,31 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     }
     .slider-thumb:hover { transform: translate(-50%, -50%) scale(1.1); box-shadow: var(--shadow-lg); }
     .slider-thumb:active { cursor: grabbing; }
+    /* Native <input type="range"> overlaid on the visual track so the user can
+       actually drag the thumb, click anywhere on the track to jump, and use
+       arrow keys / Home / End. The visible .slider-fill + .slider-thumb stay
+       as decoration; this input is invisible but covers the same hit area. */
+    .slider-input {
+      position: absolute;
+      inset: -14px 0;
+      width: 100%;
+      height: 38px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      opacity: 0;
+      z-index: 2;
+    }
+    .slider-input:focus-visible { outline: none; }
+    .slider-input:focus-visible ~ .slider-thumb {
+      box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-md);
+    }
+    .slider-input::-webkit-slider-thumb { -webkit-appearance: none; width: 38px; height: 38px; cursor: grab; }
+    .slider-input::-moz-range-thumb { width: 38px; height: 38px; cursor: grab; border: 0; }
+    .slider-input:active { cursor: grabbing; }
     .slider-ticks {
       display: flex;
       justify-content: space-between;
@@ -5025,6 +5050,17 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       gap: 6px;
       justify-items: center;
       cursor: pointer;
+      background: transparent;
+      border: 0;
+      padding: 4px 8px;
+      font: inherit;
+      color: inherit;
+    }
+    .slider-tick:hover .slider-tick-label { color: var(--text-secondary); }
+    .slider-tick:focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
+      border-radius: var(--r-sm);
     }
     .slider-tick-mark {
       width: 1px;
@@ -14092,6 +14128,31 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     }
     .slider-thumb:hover { transform: translate(-50%, -50%) scale(1.1); box-shadow: var(--shadow-lg); }
     .slider-thumb:active { cursor: grabbing; }
+    /* Native <input type="range"> overlaid on the visual track so the user can
+       actually drag the thumb, click anywhere on the track to jump, and use
+       arrow keys / Home / End. The visible .slider-fill + .slider-thumb stay
+       as decoration; this input is invisible but covers the same hit area. */
+    .slider-input {
+      position: absolute;
+      inset: -14px 0;
+      width: 100%;
+      height: 38px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      opacity: 0;
+      z-index: 2;
+    }
+    .slider-input:focus-visible { outline: none; }
+    .slider-input:focus-visible ~ .slider-thumb {
+      box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-md);
+    }
+    .slider-input::-webkit-slider-thumb { -webkit-appearance: none; width: 38px; height: 38px; cursor: grab; }
+    .slider-input::-moz-range-thumb { width: 38px; height: 38px; cursor: grab; border: 0; }
+    .slider-input:active { cursor: grabbing; }
     .slider-ticks {
       display: flex;
       justify-content: space-between;
@@ -14103,6 +14164,17 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       gap: 6px;
       justify-items: center;
       cursor: pointer;
+      background: transparent;
+      border: 0;
+      padding: 4px 8px;
+      font: inherit;
+      color: inherit;
+    }
+    .slider-tick:hover .slider-tick-label { color: var(--text-secondary); }
+    .slider-tick:focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
+      border-radius: var(--r-sm);
     }
     .slider-tick-mark {
       width: 1px;

@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import { sinalite, SinaliteError } from '@/lib/sinalite/client';
+import { applyProductOverrides } from '@/lib/products/overrides';
 import { groupProductsByFamily } from '@/lib/catalogue';
 import CategoryIcon from '@/components/wizard/CategoryIcon';
 import { formatCurrency } from '@/lib/format';
@@ -89,11 +90,18 @@ export default async function OrderStartPage({
     fetchError = { message: errMsg, details: errDetails };
   }
 
-  const families = groupProductsByFamily(products)
+  // Applique les overrides admin (hide les produits désactivés) avant de
+  // grouper par famille. Aussi évite que la catégorie apparaisse vide à
+  // tort si tous ses produits sont disabled par l'admin.
+  const visibleProducts = await applyProductOverrides(
+    products.filter((p) => p.enabled === 1),
+  );
+
+  const families = groupProductsByFamily(visibleProducts)
     .filter((f) => f.productCount > 0)
     .slice(0, 8);
 
-  const totalProducts = products.filter((p) => p.enabled === 1).length;
+  const totalProducts = visibleProducts.length;
 
   return (
     <div className="shell">
