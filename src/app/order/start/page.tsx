@@ -18,6 +18,7 @@ import { prisma } from '@/lib/db';
 import { buildReorderDeepLink } from '@/lib/orders/reorder';
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
+import * as Sentry from '@sentry/nextjs';
 
 export const metadata = { title: "Quoi imprimer ?" };
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,17 @@ export default async function OrderStartPage({
       ? { status: err.status, endpoint: err.endpoint, body: typeof err.body === 'string' ? err.body.slice(0, 500) : err.body }
       : undefined;
     logSinalite.error({ err, errDetails }, 'listProducts failed on /order/start');
+    // Capture Sentry explicite avec le contexte enrichi — sans ça l'erreur
+    // est swallowed par notre catch et ne remonte jamais à Sentry.
+    Sentry.withScope((scope) => {
+      scope.setTag('component', 'order-start');
+      scope.setTag('integration', 'sinalite');
+      scope.setLevel('error');
+      if (errDetails) {
+        scope.setContext('sinalite_error_details', errDetails as Record<string, unknown>);
+      }
+      Sentry.captureException(err);
+    });
     void sendCriticalAlert({
       severity: 'critical',
       title: 'Catalogue Sinalite indisponible — /order/start cassé',
