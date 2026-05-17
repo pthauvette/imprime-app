@@ -19,9 +19,12 @@ export type AdminAuditKind =
   | 'ADMIN_MANUAL_CANCEL'
   | 'ADMIN_RESEND_EMAIL'
   | 'ADMIN_TEMPLATE_EDIT'
-  | 'ADMIN_REPLAY_SINALITE';
+  | 'ADMIN_REPLAY_SINALITE'
+  | 'ADMIN_PROMO_CREATE'
+  | 'ADMIN_PROMO_TOGGLE'
+  | 'ADMIN_PROMO_UPDATE';
 
-export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE';
+export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE';
 
 export interface AdminAuditInput {
   kind: AdminAuditKind;

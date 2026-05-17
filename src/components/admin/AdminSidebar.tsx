@@ -16,6 +16,7 @@ export type AdminSidebarKey =
   | 'products'
   | 'users'
   | 'finances'
+  | 'promo-codes'
   | 'settings';
 
 interface NavItem {
@@ -68,6 +69,12 @@ const ICONS = {
       <path d="M2 12V4M5 12V7M8 12V5M11 12V8M14 12V3" />
     </svg>
   ),
+  'promo-codes': (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path d="M2 8l6-6h6v6l-6 6z" />
+      <circle cx={11} cy={5} r={1} fill="currentColor" />
+    </svg>
+  ),
   settings: (
     <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
       <circle cx={8} cy={8} r={2.5} />
@@ -114,6 +121,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
       label: 'Finance',
       items: [
         { key: 'finances', href: '/admin/finances' as Route, label: 'Finances', icon: ICONS.finances },
+        { key: 'promo-codes', href: '/admin/promo-codes' as Route, label: 'Codes promo', icon: ICONS['promo-codes'], count: counts['promo-codes'] },
       ],
     },
     {
