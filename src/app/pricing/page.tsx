@@ -157,7 +157,7 @@ export default function PricingPage() {
                   <tbody>
                     <tr className="section-row"><td colSpan={5} className="section-label">★ Catalogue &amp; commandes</td></tr>
                     <tr>
-                      <td className="feature">Catalogue complet<span className="meta">1 200+ produits Sinalite</span></td>
+                      <td className="feature">Catalogue complet<span className="meta">1 200+ produits</span></td>
                       <td className="val yes"></td><td className="val yes"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
                     </tr>
                     <tr>

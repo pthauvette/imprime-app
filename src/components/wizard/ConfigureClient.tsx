@@ -355,7 +355,7 @@ function stockDesc(name: string): string {
   if (lower.includes('16pt')) return '400 g/m² · plus épais, premium';
   if (lower.includes('18pt')) return '450 g/m² · sensation veloutée';
   if (lower.includes('kraft')) return '300 g/m² · 100 % recyclé';
-  return 'Voir specs Sinalite';
+  return 'Voir specs détaillées';
 }
 
 function guessCategorySlug(category: string): string {

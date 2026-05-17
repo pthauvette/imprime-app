@@ -193,7 +193,7 @@ function ProductRow({ product, index }: { product: SinaliteProduct; index: numbe
           {isEco && <span className="badge badge-success">Eco</span>}
         </div>
         <div className="product-desc">
-          Catégorie Sinalite : <strong>{product.category}</strong> · SKU{' '}
+          Catégorie : <strong>{product.category}</strong> · SKU{' '}
           <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{product.sku}</code>
         </div>
         <div className="product-specs">
@@ -242,8 +242,8 @@ function EmptyProducts({ familyName }: { familyName: string }) {
         Aucun produit actif dans &laquo; {familyName} &raquo;
       </h2>
       <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
-        Tous les produits sont peut-être désactivés sur ton compte Sinalite.
-        Active-les depuis le dashboard ou choisis une autre catégorie.
+        Cette catégorie est temporairement vide. Choisis une autre catégorie ou
+        écris-nous si tu cherches un produit spécifique.
       </p>
       <Link href={'/order/start' as Route} className="btn btn-secondary">
         ← Choisir une autre catégorie

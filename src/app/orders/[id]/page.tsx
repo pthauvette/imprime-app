@@ -91,7 +91,9 @@ export default async function CustomerOrderDetailPage({
   }
 
   const status = order.status as OrderStatus;
-  const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
+  // Customer-facing display : juste le numéro (sans le prefix SIN- qui révèle
+  // l'identité de la presse partenaire). Admin garde #SIN-X dans /admin/orders.
+  const displayId = order.sinaliteOrderId ? `#${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
 
   const shippedEvent = [...order.events].reverse().find(
     (e) => e.kind === 'SINALITE_STATUS_CHANGED' && e.data?.includes('SHIPPED'),
@@ -451,7 +453,7 @@ function buildTimeline(
     },
     {
       label: 'Envoi à la presse',
-      description: 'Sinalite reçoit ta commande pour prepress.',
+      description: 'Notre presse reçoit ta commande pour le prepress.',
       done: !!submittedAt || ['IN_PRODUCTION', 'SHIPPED', 'DELIVERED'].includes(status),
       current: status === 'SUBMITTED',
       timestamp: submittedAt ? formatDateTime(submittedAt) : null,

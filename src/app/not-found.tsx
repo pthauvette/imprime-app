@@ -44,10 +44,10 @@ export default function NotFound() {
             <div className="err-visual">
               <div className="err-404">4<em>0</em>4</div>
               <div className="err-compass"><div className="err-compass-dots"></div></div>
-              <div className="lost-pkg lp-1">#SIN-99821<div className="lost-pkg-shipped">EGARÉ</div></div>
-              <div className="lost-pkg lp-2">#SIN-87543<div className="lost-pkg-shipped">EGARÉ</div></div>
-              <div className="lost-pkg lp-3">#SIN-65209<div className="lost-pkg-shipped">EGARÉ</div></div>
-              <div className="lost-pkg lp-4">#SIN-42118<div className="lost-pkg-shipped">EGARÉ</div></div>
+              <div className="lost-pkg lp-1">#99821<div className="lost-pkg-shipped">EGARÉ</div></div>
+              <div className="lost-pkg lp-2">#87543<div className="lost-pkg-shipped">EGARÉ</div></div>
+              <div className="lost-pkg lp-3">#65209<div className="lost-pkg-shipped">EGARÉ</div></div>
+              <div className="lost-pkg lp-4">#42118<div className="lost-pkg-shipped">EGARÉ</div></div>
             </div>
           </main>
       

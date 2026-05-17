@@ -96,7 +96,7 @@ export default async function ConfirmationPage({
           <Row label="Méthode de livraison" value={shippingMethod} />
           <Row label="Province (taxes)" value={province} />
           <div style={{ padding: '16px 20px', background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>
-            ★ <strong>Production démarre sous 2h.</strong> Tu vas recevoir un email avec ton numéro de commande Sinalite (#SIN-XXX) dès que notre prépresse a validé tes fichiers. Le webhook Stripe a déjà transmis la commande à notre presse.
+            ★ <strong>Production démarre sous 2h.</strong> Tu vas recevoir un email avec ton numéro de commande dès que notre prépresse a validé tes fichiers.
           </div>
         </div>
 

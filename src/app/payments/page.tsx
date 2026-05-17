@@ -88,8 +88,9 @@ export default async function PaymentsPage() {
             </div>
             <div className="tx-list">
               {payments.map((p) => {
+                // Customer page : numéro nu, pas de prefix SIN-
                 const displayId = p.sinaliteOrderId
-                  ? `#SIN-${p.sinaliteOrderId}`
+                  ? `#${p.sinaliteOrderId}`
                   : `#${p.id.slice(-6).toUpperCase()}`;
                 return (
                   <Link

@@ -47,11 +47,11 @@ export default function DesignSystemPage() {
             <section id="brand" className="hero">
               <div className="hero-eyebrow">Design System · Canada · CAD</div>
               <h1>Devis instantané.<br /><em>Commande en deux minutes.</em></h1>
-              <p>Le système visuel d'Plio — un site reseller de print wholesale connecté à l'API Sinalite. Calme, précis, intemporel.</p>
+              <p>Le système visuel de Plio — un site de print wholesale au Canada. Calme, précis, intemporel.</p>
               <div className="hero-meta">
                 <div>VOIX<strong>Linear × MUJI × Stripe</strong></div>
                 <div>MARCHÉ<strong>Canada · Bilingue FR/EN</strong></div>
-                <div>API<strong>Sinalite (en_ca)</strong></div>
+                <div>CATALOGUE<strong>1 200+ produits (CA)</strong></div>
                 <div>VERSION<strong>v0.1 · 2026-05-15</strong></div>
               </div>
             </section>

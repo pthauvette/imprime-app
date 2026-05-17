@@ -84,7 +84,9 @@ export default async function OrdersPage({
 
   const orders: OrderRowProps[] = dbOrders.map((o) => ({
     id: o.id,
-    displayId: o.sinaliteOrderId ? `#SIN-${o.sinaliteOrderId}` : `#${o.id.slice(-6).toUpperCase()}`,
+    // Customer-facing display : juste le numéro (la presse est un détail d'implémentation,
+    // pas la marque). En admin on garde #SIN-X pour distinguer Sinalite ID vs Plio ID.
+    displayId: o.sinaliteOrderId ? `#${o.sinaliteOrderId}` : `#${o.id.slice(-6).toUpperCase()}`,
     status: o.status as OrderStatus,
     createdAt: o.createdAt,
     amountCents: o.amountCents,

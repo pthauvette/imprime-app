@@ -159,7 +159,7 @@ export default function RefundPolicyPage() {
       
               <div className="faq-item">
                 <div className="faq-q">Combien de fois puis-je faire réimprimer une commande ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Une réimpression couverte par garantie est <strong>illimitée tant que le défaut persiste</strong>. Si la première réimpression sort aussi mal, on relance — c'est notre problème, pas le tien. En pratique, ça arrive dans moins de 0,3 % des cas grâce au double contrôle Sinalite.</div>
+                <div className="faq-a">Une réimpression couverte par garantie est <strong>illimitée tant que le défaut persiste</strong>. Si la première réimpression sort aussi mal, on relance — c'est notre problème, pas le tien. En pratique, ça arrive dans moins de 0,3 % des cas grâce au double contrôle qualité de notre presse.</div>
               </div>
             </div>
           </section>

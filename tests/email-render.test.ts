@@ -75,9 +75,9 @@ describe('EMAIL_SUBJECTS — sujets par template', () => {
     expect(EMAIL_SUBJECTS.welcome({})).toContain('Bienvenue chez Plio');
   });
 
-  it('order-confirmation inclut ORDER_ID', () => {
+  it('order-confirmation inclut ORDER_ID sans prefix SIN- (customer-facing)', () => {
     expect(EMAIL_SUBJECTS['order-confirmation']({ ORDER_ID: 48312 }))
-      .toBe("C'est imprimé. Confirmation #SIN-48312");
+      .toBe("C'est imprimé. Confirmation #48312");
   });
 
   it('order-shipped inclut ORDER_ID', () => {

@@ -61,10 +61,10 @@ export function renderEmail(
 export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string | number>) => string> = {
   'magic-link': () => 'Ton lien de connexion Plio',
   'welcome': () => 'Bienvenue chez Plio · 3 trucs avant ta première commande',
-  'order-confirmation': (v) => `C'est imprimé. Confirmation #SIN-${v.ORDER_ID ?? ''}`,
-  'order-shipped': (v) => `Ta commande #SIN-${v.ORDER_ID ?? ''} est en route`,
-  'order-delivered': (v) => `C'est arrivé. Merci #SIN-${v.ORDER_ID ?? ''}`,
-  'order-cancelled': (v) => `Ta commande #SIN-${v.ORDER_ID ?? ''} a été annulée`,
+  'order-confirmation': (v) => `C'est imprimé. Confirmation #${v.ORDER_ID ?? ''}`,
+  'order-shipped': (v) => `Ta commande #${v.ORDER_ID ?? ''} est en route`,
+  'order-delivered': (v) => `C'est arrivé. Merci #${v.ORDER_ID ?? ''}`,
+  'order-cancelled': (v) => `Ta commande #${v.ORDER_ID ?? ''} a été annulée`,
   'refund-issued': (v) => `Remboursement traité — ${v.AMOUNT ?? ''} $`,
   'admin-daily-summary': (v) => `Plio · ${v.ORDERS_24H ?? 0} commandes · ${v.REVENUE_24H ?? '0,00'} $ (${v.DATE_FORMATTED ?? ''})`,
   // Subject explicit — l'admin l'écrit lui-même, on prend tel quel

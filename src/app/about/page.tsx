@@ -37,7 +37,7 @@ export default function AboutPage() {
               <h2>Pourquoi on a démarré <em>Plio.</em></h2>
               <p>Avant Plio, commander 500 cartes de visite voulait dire <strong>trois courriels, deux relances, 72 heures d'attente</strong> et un PDF de devis rempli de mentions floues. Et quand ton fichier était refusé, personne ne t'expliquait pourquoi — juste « renvoie-le ».</p>
               <p>On a vécu cette douleur trop souvent. Alors on a bâti l'inverse : un <strong>devis instantané</strong> qui change à chaque clic, une <strong>tarification publique</strong> au cent près, et un module de prépresse qui te montre <strong>visuellement</strong> ce qui cloche avant que ça parte sur la presse.</p>
-              <p>Plio ne réinvente pas l'impression. On rebrasse l'expérience autour. La presse, c'est Sinalite — un partenaire wholesale canadien établi à Markham. Notre travail à nous, c'est de te faire gagner ton vendredi après-midi.</p>
+              <p>Plio ne réinvente pas l'impression. On rebrasse l'expérience autour. La presse, c'est notre partenaire wholesale canadien établi à Markham (ON). Notre travail à nous, c'est de te faire gagner ton vendredi après-midi.</p>
             </div>
             <div className="mission-visual">
               <div className="mission-stamp">Made in<br />MTL</div>
@@ -94,7 +94,7 @@ export default function AboutPage() {
                 <div className="founder-avatar fa-3">EG</div>
                 <div className="founder-role">CTO · Co-fondateur</div>
                 <h3 className="founder-name">Étienne Gagnon</h3>
-                <p className="founder-bio">Ingénieur logiciel passé par Hopper et Lightspeed. Maintient l'infrastructure qui fait tourner le pricing engine, le validateur de fichiers et l'intégration Sinalite.</p>
+                <p className="founder-bio">Ingénieur logiciel passé par Hopper et Lightspeed. Maintient l'infrastructure qui fait tourner le pricing engine, le validateur de fichiers et l'intégration avec notre presse.</p>
               </div>
             </div>
           </section>

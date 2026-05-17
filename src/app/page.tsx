@@ -255,7 +255,7 @@ export default function LandingPage() {
               </div>
               <div className="faq-item">
                 <div className="faq-q">Êtes-vous une vraie imprimerie ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Plio travaille avec Sinalite, une presse wholesale canadienne établie à Markham (ON). On gère ton expérience web, la prépresse et le service client — Sinalite gère la presse.</div>
+                <div className="faq-a">Plio travaille avec une presse wholesale canadienne établie à Markham (ON). On gère ton expérience web, la prépresse et le service client — notre partenaire presse gère la production physique.</div>
               </div>
             </div>
           </section>
