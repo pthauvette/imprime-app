@@ -107,7 +107,10 @@ export async function GET() {
  * client (which has heavy validation on import).
  */
 async function getSinaliteToken(): Promise<string> {
-  const res = await fetch(`${process.env.SINALITE_AUTH_BASE}/oauth/token`, {
+  // Path Sinalite = /auth/token (pas /oauth/token — easy mistake, le sandbox
+  // accepte les deux par tolérance Auth0 mais liveapi.sinalite.com 404 sur
+  // /oauth/token). Garder en sync avec src/lib/sinalite/client.ts.
+  const res = await fetch(`${process.env.SINALITE_AUTH_BASE}/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
