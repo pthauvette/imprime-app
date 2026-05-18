@@ -985,6 +985,32 @@ model NpsResponse {
   @@index([createdAt])
 }
 
+// ─── CRON RUN HISTORY ────────────────────────────────────────────────────
+// Trace les runs des cron jobs (cleanup, daily-summary, email-retry,
+// re-engagement) pour /admin/crons. Permet de voir last run, success rate,
+// latence, error message sans dépendre de Healthchecks.io (qui sert juste
+// d'alerting timeout).
+
+model CronRun {
+  id          String   @id @default(cuid())
+  /** Nom du cron (cleanup | daily-summary | email-retry | re-engagement | ...). */
+  name        String
+  /** 'success' | 'fail'. */
+  status      String
+  /** Durée du run en millisecondes. */
+  latencyMs   Int
+  /** Message d'erreur si fail (truncated 500 chars). */
+  errorMessage String?
+  /** Contexte structuré du run (ex: count emails envoyés). JSON-stringified. */
+  data        String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
 // ─── EXPERIMENT EVENTS (assignments + conversions) ───────────────────────
 // Pour mesurer une expérience A/B il faut tracker :
 //   1. ASSIGNMENT : qui a vu quelle variant (1ère exposure)

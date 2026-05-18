@@ -26,6 +26,7 @@ import { sendReengagementFollowUpEmail, sendReengagementWinbackEmail } from '@/l
 import { reviewSubmitToken } from '@/lib/reviews/token';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
+import { recordCronRun } from '@/lib/cron/runs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -196,6 +197,17 @@ export async function GET(req: NextRequest) {
   void pingCronHealthcheck('re-engagement', 'success', {
     followUpSent: summary.followUp.sent,
     winbackSent: summary.winback.sent,
+  });
+  void recordCronRun({
+    name: 're-engagement',
+    status: 'success',
+    latencyMs: Date.now() - start,
+    data: {
+      followUpSent: summary.followUp.sent,
+      followUpFailed: summary.followUp.failed,
+      winbackSent: summary.winback.sent,
+      winbackFailed: summary.winback.failed,
+    },
   });
   return NextResponse.json({ ok: true, summary });
 }
