@@ -419,6 +419,9 @@ model EmailDelivery {
   sentAt        DateTime?
   /** Label optionnel pour grouper/dédup (orderId, action, etc.). */
   label         String?
+  /** Si set, processDelivery génère la facture PDF de cet order à la volée
+   *  et l'attache à l'email (idempotent au retry — pas de bytes en DB). */
+  attachOrderId String?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

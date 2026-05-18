@@ -199,6 +199,11 @@ export async function sendOrderConfirmationEmail(input: {
     template: 'order-confirmation',
     vars: vars as unknown as Record<string, string | number>,
     label: `order-confirmation:${order.id}`,
+    // Auto-attach la facture PDF (TPS/TVQ + identité vendeur) — les clients
+    // B2B la veulent direct dans leur boîte de réception pour leur compta,
+    // sans avoir à cliquer "Télécharger" sur le portail. Best-effort : si
+    // la génération PDF fail, l'email part quand même sans attachment.
+    attachOrderId: order.id,
   });
 }
 
