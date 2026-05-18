@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { ALL_TEMPLATES } from '@/lib/templates/registry';
+import { getAllPosts } from '@/lib/blog/posts';
 
 /**
  * Sitemap dynamique servi à https://www.plio.ca/sitemap.xml
@@ -12,6 +13,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
 
 const STATIC_PUBLIC_ROUTES = [
   { path: '/', priority: 1.0, changeFreq: 'weekly' as const },
+  { path: '/blog', priority: 0.9, changeFreq: 'weekly' as const },
   { path: '/templates', priority: 0.9, changeFreq: 'weekly' as const },
   { path: '/pricing', priority: 0.8, changeFreq: 'monthly' as const },
   { path: '/about', priority: 0.7, changeFreq: 'monthly' as const },
@@ -41,5 +43,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  return [...staticEntries, ...templateEntries];
+  // Blog posts : 1 entry par post. lastModified = date du post (proxy
+  // pour rafraîchissement réel — on bumpera quand on éditera un article).
+  const blogEntries: MetadataRoute.Sitemap = getAllPosts().map((p) => ({
+    url: `${APP_URL}/blog/${p.meta.slug}`,
+    lastModified: new Date(p.meta.date),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }));
+
+  return [...staticEntries, ...templateEntries, ...blogEntries];
 }
