@@ -20,6 +20,7 @@ export type EmailTemplate =
   | 'order-shipped'
   | 'order-delivered'
   | 'order-cancelled'
+  | 'payment-failed'
   | 'refund-issued'
   | 'admin-daily-summary'
   | 'admin-custom-message'
@@ -67,6 +68,7 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
   'order-shipped': (v) => `Ta commande #${v.ORDER_ID ?? ''} est en route`,
   'order-delivered': (v) => `C'est arrivé. Merci #${v.ORDER_ID ?? ''}`,
   'order-cancelled': (v) => `Ta commande #${v.ORDER_ID ?? ''} a été annulée`,
+  'payment-failed': (v) => `Ton paiement n'est pas passé · commande #${v.ORDER_ID ?? ''}`,
   'refund-issued': (v) => `Remboursement traité — ${v.AMOUNT ?? ''} $`,
   'admin-daily-summary': (v) => `Plio · ${v.ORDERS_24H ?? 0} commandes · ${v.REVENUE_24H ?? '0,00'} $ (${v.DATE_FORMATTED ?? ''})`,
   // Subject explicit — l'admin l'écrit lui-même, on prend tel quel

@@ -31,6 +31,7 @@ import {
 import {
   sendOrderConfirmationEmail,
   sendOrderCancelledEmail,
+  sendPaymentFailedEmail,
   sendRefundIssuedEmail,
 } from '@/lib/emails/send';
 import { logStripe } from '@/lib/logger';
@@ -230,20 +231,38 @@ async function handlePaymentFailed(
 ): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { paymentIntentId: intent.id },
+    include: { user: true },
   });
   if (!order) {
     logStripe.info({ intentId: intent.id }, 'payment failed (no matching order)');
     return;
   }
   ctx.orderId = order.id;
+  const reason = intent.last_payment_error?.message ?? 'payment_failed';
   try {
     await markOrderFailed({
       orderId: order.id,
-      reason: intent.last_payment_error?.message ?? 'payment_failed',
+      reason,
       data: { code: intent.last_payment_error?.code },
     });
   } catch (err) {
     if (err instanceof OrderNotFoundError) return;
     throw err;
+  }
+
+  // Notify the customer — best-effort, transactional (pas d'opt-out check).
+  // Sinon le user pense que sa commande est en production et appelle le
+  // support 3 jours plus tard.
+  try {
+    await sendPaymentFailedEmail({
+      order,
+      user: order.user,
+      failureReason: reason,
+    });
+  } catch (err) {
+    logStripe.error(
+      { err, orderId: order.id },
+      'payment-failed email send failed (order already marked FAILED)',
+    );
   }
 }

@@ -97,6 +97,15 @@ export type OrderDeliveredVars = {
   UNSUBSCRIBE_URL: string;
 };
 
+export type PaymentFailedVars = {
+  CUSTOMER_FIRST_NAME: string;
+  ORDER_ID: string | number;
+  /** Message lisible de la banque (Stripe last_payment_error.message). */
+  FAILURE_REASON: string;
+  /** Lien vers le wizard pour recommencer (typiquement /order/start). */
+  RETRY_URL: string;
+};
+
 export type OrderCancelledVars = {
   CUSTOMER_FIRST_NAME: string;
   CUSTOMER_NAME: string;
@@ -183,6 +192,7 @@ export type EmailVarsMap = {
   'order-shipped': OrderShippedVars;
   'order-delivered': OrderDeliveredVars;
   'order-cancelled': OrderCancelledVars;
+  'payment-failed': PaymentFailedVars;
   'refund-issued': RefundIssuedVars;
   'admin-daily-summary': AdminDailySummaryVars;
   'admin-custom-message': AdminCustomMessageVars;

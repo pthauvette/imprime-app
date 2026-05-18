@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Ton paiement a &eacute;chou&eacute; &middot; {{ORDER_ID}}</title>
+</head>
+<body style="margin:0; padding:0; background:#FAFAF7; color:#141C16; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased;">
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">Pas d&apos;inqui&eacute;tude, ta carte n&apos;a pas &eacute;t&eacute; charg&eacute;e. Voici comment relancer.</div>
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#FAFAF7;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px; width:100%;">
+
+          <!-- Wordmark -->
+          <tr>
+            <td style="padding:8px 8px 24px 8px;">
+              <span style="font-family:Georgia,'Times New Roman',serif; font-size:24px; color:#1F3D2B; letter-spacing:-0.01em;">Plio.</span>
+            </td>
+          </tr>
+
+          <!-- Heading -->
+          <tr>
+            <td style="background:#FFFFFF; border:1px solid #ECEAE3; border-radius:24px; padding:40px 32px;">
+              <h1 style="margin:0 0 12px 0; font-family:Georgia,'Times New Roman',serif; font-size:44px; line-height:1.05; letter-spacing:-0.03em; color:#141C16; font-weight:400;">
+                Ton paiement n&apos;est pas <em style="font-style:italic; color:#B83A2C;">pass&eacute;.</em>
+              </h1>
+              <p style="margin:0; font-size:16px; line-height:1.55; color:#4A554D;">
+                {{CUSTOMER_FIRST_NAME}}, ta carte n&apos;a pas pu &ecirc;tre charg&eacute;e pour la commande <strong style="color:#141C16; font-weight:600;">#{{ORDER_ID}}</strong>. Pas d&apos;inqui&eacute;tude &mdash; aucun frais.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Reason card -->
+          <tr><td style="height:16px; line-height:16px; font-size:0;">&nbsp;</td></tr>
+          <tr>
+            <td style="background:#FCEEEC; border-radius:24px; padding:24px 28px;">
+              <p style="margin:0 0 6px 0; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#B83A2C; font-weight:600;">
+                Raison fournie par la banque
+              </p>
+              <p style="margin:0; font-size:15px; line-height:1.55; color:#141C16;">
+                {{FAILURE_REASON}}
+              </p>
+            </td>
+          </tr>
+
+          <!-- What to do -->
+          <tr><td style="height:16px; line-height:16px; font-size:0;">&nbsp;</td></tr>
+          <tr>
+            <td style="background:#FFFFFF; border:1px solid #ECEAE3; border-radius:24px; padding:32px;">
+              <p style="margin:0 0 20px 0; font-family:Georgia,'Times New Roman',serif; font-size:22px; color:#141C16; font-weight:400; letter-spacing:-0.01em;">
+                Voici quoi faire :
+              </p>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td width="32" valign="top" style="padding:8px 0;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td width="24" height="24" align="center" style="background:#1F3D2B; color:#FAFAF7; border-radius:9999px; font-size:11px; font-weight:600; font-family:ui-monospace,'SF Mono',Menlo,monospace; line-height:24px;">1</td></tr></table>
+                  </td>
+                  <td valign="top" style="padding:8px 0 8px 12px;">
+                    <p style="margin:0 0 2px 0; font-size:14px; font-weight:600; color:#141C16;">V&eacute;rifie ta carte</p>
+                    <p style="margin:0; font-size:13px; color:#7A8780;">Solde suffisant, carte non expir&eacute;e, code postal correct.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td width="32" valign="top" style="padding:8px 0;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td width="24" height="24" align="center" style="background:#1F3D2B; color:#FAFAF7; border-radius:9999px; font-size:11px; font-weight:600; font-family:ui-monospace,'SF Mono',Menlo,monospace; line-height:24px;">2</td></tr></table>
+                  </td>
+                  <td valign="top" style="padding:8px 0 8px 12px;">
+                    <p style="margin:0 0 2px 0; font-size:14px; font-weight:600; color:#141C16;">Essaie une autre m&eacute;thode</p>
+                    <p style="margin:0; font-size:13px; color:#7A8780;">Carte diff&eacute;rente, Apple Pay, Google Pay &mdash; tout est support&eacute;.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td width="32" valign="top" style="padding:8px 0;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td width="24" height="24" align="center" style="background:#1F3D2B; color:#FAFAF7; border-radius:9999px; font-size:11px; font-weight:600; font-family:ui-monospace,'SF Mono',Menlo,monospace; line-height:24px;">3</td></tr></table>
+                  </td>
+                  <td valign="top" style="padding:8px 0 8px 12px;">
+                    <p style="margin:0 0 2px 0; font-size:14px; font-weight:600; color:#141C16;">Recommence ta commande</p>
+                    <p style="margin:0; font-size:13px; color:#7A8780;">Le bouton ci-dessous t&apos;envoie vers le wizard.</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:28px;">
+                <tr>
+                  <td>
+                    <a href="{{RETRY_URL}}" style="display:inline-block; background:#1F3D2B; color:#FAFAF7; padding:14px 28px; border-radius:9999px; text-decoration:none; font-weight:500; font-size:15px;">Recommencer ma commande &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Help -->
+          <tr><td style="height:16px; line-height:16px; font-size:0;">&nbsp;</td></tr>
+          <tr>
+            <td style="background:#E5EDE8; border-radius:24px; padding:24px 28px;">
+              <p style="margin:0 0 8px 0; font-family:Georgia,'Times New Roman',serif; font-size:18px; color:#141C16; font-weight:400;">
+                Besoin d&apos;aide ?
+              </p>
+              <p style="margin:0; font-size:14px; line-height:1.55; color:#4A554D;">
+                R&eacute;ponds directement &agrave; cet email ou &eacute;cris-nous &agrave; <a href="mailto:bonjour@plio.ca" style="color:#1F3D2B;">bonjour@plio.ca</a>. R&eacute;ponse sous 2 h ouvrables.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:32px 8px 8px 8px;">
+              <p style="margin:0; font-size:11px; color:#7A8780; text-align:center; line-height:1.6;">
+                &copy; Plio 2026 &middot; D&eacute;mocratik inc., Montr&eacute;al QC<br />
+                Cet email est transactionnel et ne peut pas &ecirc;tre d&eacute;sabonn&eacute;.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
