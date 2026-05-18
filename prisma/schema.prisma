@@ -434,6 +434,13 @@ model EmailDelivery {
   /** Si set, processDelivery génère la facture PDF de cet order à la volée
    *  et l'attache à l'email (idempotent au retry — pas de bytes en DB). */
   attachOrderId String?
+  /** Première fois que le destinataire a ouvert l'email (pixel tracking).
+   *  NULL = pas encore ouvert (ou client mail bloque les images). */
+  openedAt      DateTime?
+  /** Nombre d'ouvertures (incrémenté à chaque pixel hit, même par le
+   *  même destinataire qui rouvre). Utile pour distinguer un email qui
+   *  marque mais que personne ne re-consulte vs un sticky email. */
+  openCount     Int      @default(0)
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
