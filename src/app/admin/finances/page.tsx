@@ -217,7 +217,7 @@ export default async function AdminFinancesPage({
               Période : {periodLabel} · devise CAD
             </p>
           </div>
-          <div className="adm-topbar-actions">
+          <div className="adm-topbar-actions" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <div className="adm-period">
               {PERIODS.map((p) => (
                 <Link
@@ -229,6 +229,15 @@ export default async function AdminFinancesPage({
                 </Link>
               ))}
             </div>
+            <a
+              href={`/api/admin/finances/export?period=${period}`}
+              download
+              className="btn btn-ghost"
+              title="Export Excel multi-sheet (Aperçu + Commandes + Par jour + Par province)"
+              style={{ fontSize: 13 }}
+            >
+              ⬇ XLSX
+            </a>
           </div>
         </header>
 
