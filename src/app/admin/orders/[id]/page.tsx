@@ -75,6 +75,14 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
+  // Merge OrderEvent + AdminAuditEvent qui ciblent cette commande pour
+  // une timeline complète (system events + admin actions humaines).
+  const adminActions = await prisma.adminAuditEvent.findMany({
+    where: { targetType: 'ORDER', targetId: id },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+
   const status = order.status as OrderStatus;
   const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
 
@@ -126,44 +134,117 @@ export default async function AdminOrderDetailPage({
                 <h2 className="od-panel-title adm-panel-title">
                   Historique
                   <span className="od-panel-title-meta adm-panel-title-meta">
-                    {order.events.length} événement{order.events.length > 1 ? 's' : ''}
+                    {order.events.length + adminActions.length} événement{order.events.length + adminActions.length > 1 ? 's' : ''}
+                    {adminActions.length > 0 && ` · ${adminActions.length} admin`}
                   </span>
                 </h2>
               </div>
               <div className="od-timeline">
-                {order.events.length === 0 ? (
-                  <div style={{ padding: '32px 22px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
-                    Aucun événement encore.
-                  </div>
-                ) : (
-                  order.events.map((evt) => {
-                    const meta = EVENT_LABEL[evt.kind as OrderEventKind];
+                {(() => {
+                  // Merge OrderEvents (system) + AdminAuditEvents (human admin
+                  // actions) en un seul flux trié desc.
+                  const merged: Array<
+                    | { kind: 'event'; id: string; createdAt: Date; eventKind: OrderEventKind; data: string | null }
+                    | { kind: 'admin'; id: string; createdAt: Date; auditKind: string; adminEmail: string; data: string | null }
+                  > = [
+                    ...order.events.map((e) => ({
+                      kind: 'event' as const,
+                      id: e.id,
+                      createdAt: e.createdAt,
+                      eventKind: e.kind as OrderEventKind,
+                      data: e.data,
+                    })),
+                    ...adminActions.map((a) => ({
+                      kind: 'admin' as const,
+                      id: a.id,
+                      createdAt: a.createdAt,
+                      auditKind: a.kind,
+                      adminEmail: a.adminEmail,
+                      data: a.data,
+                    })),
+                  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+                  if (merged.length === 0) {
+                    return (
+                      <div style={{ padding: '32px 22px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+                        Aucun événement encore.
+                      </div>
+                    );
+                  }
+
+                  return merged.map((item) => {
+                    if (item.kind === 'event') {
+                      const meta = EVENT_LABEL[item.eventKind];
+                      return (
+                        <div
+                          key={`evt:${item.id}`}
+                          className="od-tl-event"
+                          style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, padding: '14px 22px', borderTop: '1px solid var(--border-subtle)' }}
+                        >
+                          <div className={`od-tl-dot ${meta.dot}`}>{meta.icon}</div>
+                          <div className="od-tl-body">
+                            <div className="od-tl-type">{meta.type}</div>
+                            <div className="od-tl-title">{meta.title}</div>
+                            {item.data && (
+                              <details className="od-tl-payload" style={{ marginTop: 6 }}>
+                                <summary style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>payload</summary>
+                                <pre style={{ fontSize: 11, padding: 10, background: 'var(--bg-sunken)', borderRadius: 'var(--r-sm)', marginTop: 6, overflowX: 'auto' }}>
+{item.data}
+                                </pre>
+                              </details>
+                            )}
+                          </div>
+                          <span className="od-tl-time">
+                            {formatDate(item.createdAt.toISOString())} · {timeOf(item.createdAt)}
+                          </span>
+                        </div>
+                      );
+                    }
+                    // Admin action row
+                    const friendly = friendlyAdminAction(item.auditKind, item.data);
                     return (
                       <div
-                        key={evt.id}
+                        key={`adm:${item.id}`}
                         className="od-tl-event"
-                        style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, padding: '14px 22px', borderTop: '1px solid var(--border-subtle)' }}
+                        style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, padding: '14px 22px', borderTop: '1px solid var(--border-subtle)', background: 'var(--accent-soft)' }}
                       >
-                        <div className={`od-tl-dot ${meta.dot}`}>{meta.icon}</div>
+                        <div
+                          className="od-tl-dot"
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: 'var(--accent-primary)',
+                            color: '#fff',
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontSize: 14,
+                          }}
+                          aria-hidden
+                        >
+                          👤
+                        </div>
                         <div className="od-tl-body">
-                          <div className="od-tl-type">{meta.type}</div>
-                          <div className="od-tl-title">{meta.title}</div>
-                          {evt.data && (
+                          <div className="od-tl-type" style={{ color: 'var(--accent-primary)' }}>
+                            Action admin · {item.adminEmail}
+                          </div>
+                          <div className="od-tl-title">{friendly}</div>
+                          {item.data && (
                             <details className="od-tl-payload" style={{ marginTop: 6 }}>
                               <summary style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>payload</summary>
                               <pre style={{ fontSize: 11, padding: 10, background: 'var(--bg-sunken)', borderRadius: 'var(--r-sm)', marginTop: 6, overflowX: 'auto' }}>
-{evt.data}
+{item.data}
                               </pre>
                             </details>
                           )}
                         </div>
                         <span className="od-tl-time">
-                          {formatDate(evt.createdAt.toISOString())} · {timeOf(evt.createdAt)}
+                          {formatDate(item.createdAt.toISOString())} · {timeOf(item.createdAt)}
                         </span>
                       </div>
                     );
-                  })
-                )}
+                  });
+                })()}
               </div>
             </section>
 
@@ -390,4 +471,42 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 
 function timeOf(d: Date): string {
   return d.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/**
+ * Génère un label human-readable depuis un AdminAuditEvent.kind + data JSON.
+ * Le `kind` est générique (ADMIN_TEMPLATE_EDIT etc.) — on regarde dans `data.action`
+ * pour les sous-actions (refund, cancel, note, view-as).
+ */
+function friendlyAdminAction(kind: string, dataJson: string | null): string {
+  let data: { action?: string; reason?: string; refundCents?: number } = {};
+  try {
+    if (dataJson) data = JSON.parse(dataJson);
+  } catch {
+    // ignore
+  }
+
+  const action = data.action ?? kind;
+
+  // Specific actions
+  if (action === 'ADMIN_MANUAL_REFUND' || kind === 'ADMIN_MANUAL_REFUND') {
+    const amount = data.refundCents !== undefined ? ` ($${(data.refundCents / 100).toFixed(2)})` : '';
+    return `Remboursement manuel${amount}${data.reason ? ` · ${data.reason}` : ''}`;
+  }
+  if (action === 'ADMIN_MANUAL_CANCEL' || kind === 'ADMIN_MANUAL_CANCEL') {
+    return `Annulation manuelle${data.reason ? ` · ${data.reason}` : ''}`;
+  }
+  if (action === 'ADMIN_RESEND_EMAIL' || kind === 'ADMIN_RESEND_EMAIL') {
+    return 'Renvoi d\'un email';
+  }
+  if (action === 'ADMIN_VIEW_AS_USER' || kind === 'ADMIN_VIEW_AS_USER') {
+    return 'Consultation depuis le compte client (view-as)';
+  }
+  if (action === 'WEBHOOK_REPLAY') {
+    return 'Replay d\'un webhook';
+  }
+  if (action?.startsWith?.('USER_BULK_')) {
+    return `Action bulk : ${action.replace('USER_BULK_', '').toLowerCase()}`;
+  }
+  return `Action : ${action.toLowerCase().replace(/_/g, ' ')}`;
 }
