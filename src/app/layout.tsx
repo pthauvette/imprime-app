@@ -4,6 +4,7 @@ import '@/styles/globals.css';
 import JsonLd, { organizationSchema, websiteSchema, localBusinessSchema } from '@/components/seo/JsonLd';
 import { LocaleProvider } from '@/components/i18n/LocaleProvider';
 import { getServerLocale } from '@/lib/i18n/locale';
+import CookieConsent from '@/components/legal/CookieConsent';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
 const SITE_NAME = 'Plio';
@@ -106,6 +107,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <LocaleProvider initialLocale={locale}>
           {children}
         </LocaleProvider>
+        {/* Banner cookie consent — CASL/GDPR friendly. Affiché 1x via
+            cookie plio_consent. Pas de tracking, juste informatif. */}
+        <CookieConsent />
       </body>
     </html>
   );
