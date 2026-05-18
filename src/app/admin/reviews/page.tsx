@@ -9,8 +9,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
-import { formatDateTime } from '@/lib/format';
-import ReviewActions from './ReviewActions';
+import ReviewsBulkList, { type ReviewListItem } from './ReviewsBulkList';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Reviews · Plio' };
@@ -103,55 +102,27 @@ export default async function AdminReviewsPage({
           })}
         </section>
 
-        {/* List */}
-        {reviews.length === 0 ? (
-          <div className="adm-panel" style={{ padding: '48px 22px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            Aucune review pour ce filtre.
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 12 }}>
-            {reviews.map((r) => (
-              <div key={r.id} className="adm-panel" style={{ padding: 22 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                    <span style={{ fontSize: 24 }}>
-                      {'★'.repeat(r.rating)}<span style={{ color: 'var(--border-default)' }}>{'★'.repeat(5 - r.rating)}</span>
-                    </span>
-                    <strong style={{ fontSize: 15 }}>{r.displayName}</strong>
-                    {r.isFeatured && (
-                      <span style={{ padding: '2px 8px', background: 'var(--accent-soft)', color: 'var(--accent-primary)', fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 700, borderRadius: 4 }}>
-                        ★ Featured
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    {formatDateTime(r.createdAt.toISOString())}
-                  </div>
-                </div>
-
-                {r.comment && (
-                  <p style={{ margin: '12px 0 0', fontSize: 14, lineHeight: 1.5, color: 'var(--text-primary)', fontStyle: 'italic' }}>
-                    « {r.comment} »
-                  </p>
-                )}
-
-                <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  Order #{r.order.sinaliteOrderId ?? r.orderId.slice(-6).toUpperCase()} · {r.order.productSummary ?? '—'} · {(r.order.amountCents / 100).toFixed(2)} $ · {r.order.user.email}
-                </div>
-
-                {r.adminNote && (
-                  <div style={{ marginTop: 8, padding: 10, background: 'var(--danger-soft)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--danger)' }}>
-                    <strong>Note rejet :</strong> {r.adminNote}
-                  </div>
-                )}
-
-                <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                  <ReviewActions id={r.id} status={r.status} isFeatured={r.isFeatured} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* List + bulk actions */}
+        <ReviewsBulkList
+          filter={filter}
+          reviews={reviews.map((r): ReviewListItem => ({
+            id: r.id,
+            rating: r.rating,
+            displayName: r.displayName,
+            comment: r.comment,
+            status: r.status,
+            isFeatured: r.isFeatured,
+            adminNote: r.adminNote,
+            createdAt: r.createdAt.toISOString(),
+            orderId: r.orderId,
+            order: {
+              sinaliteOrderId: r.order.sinaliteOrderId,
+              productSummary: r.order.productSummary,
+              amountCents: r.order.amountCents,
+              user: { email: r.order.user.email },
+            },
+          }))}
+        />
       </main>
     </div>
   );

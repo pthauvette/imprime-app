@@ -9,7 +9,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
-import EmailRetryButton from './EmailRetryButton';
+import EmailsBulkTable, { type EmailListItem } from './EmailsBulkTable';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Queue email · Plio' };
@@ -111,71 +111,21 @@ export default async function AdminEmailsPage({
           })}
         </section>
 
-        {/* Table */}
+        {/* Table avec bulk selection */}
         <section className="adm-panel">
-          {emails.length === 0 ? (
-            <div style={{ padding: '48px 22px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              Aucun email pour ce filtre.
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <th style={th}>Status</th>
-                  <th style={th}>Destinataire</th>
-                  <th style={th}>Template</th>
-                  <th style={th}>Label</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Tentatives</th>
-                  <th style={th}>Créé</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {emails.map((e) => {
-                  const badge = STATUS_BADGES[e.status] ?? STATUS_BADGES.PENDING;
-                  return (
-                    <tr key={e.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={td}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '3px 10px',
-                          background: badge.bg,
-                          color: badge.color,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
-                          fontFamily: 'var(--font-mono)',
-                          borderRadius: 4,
-                        }}>
-                          {e.status}
-                        </span>
-                        {e.sentAt && (
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
-                            envoyé {formatDateTime(e.sentAt.toISOString())}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 12 }}>{e.to}</td>
-                      <td style={td}>
-                        <code style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{e.template}</code>
-                      </td>
-                      <td style={{ ...td, fontSize: 11, color: 'var(--text-muted)' }}>{e.label ?? '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                        {e.attempts} / {e.maxAttempts}
-                      </td>
-                      <td style={{ ...td, fontSize: 11, color: 'var(--text-muted)' }}>{formatDateTime(e.createdAt.toISOString())}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>
-                        {(e.status === 'FAILED' || e.status === 'DEAD') && (
-                          <EmailRetryButton id={e.id} status={e.status} />
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+          <EmailsBulkTable
+            emails={emails.map((e): EmailListItem => ({
+              id: e.id,
+              status: e.status,
+              to: e.to,
+              template: e.template,
+              label: e.label,
+              attempts: e.attempts,
+              maxAttempts: e.maxAttempts,
+              createdAt: e.createdAt.toISOString(),
+              sentAt: e.sentAt ? e.sentAt.toISOString() : null,
+            }))}
+          />
 
           {/* Détail erreurs (collapsible per row dans la table serait mieux,
               mais pour MVP on liste les erreurs sous la table) */}
