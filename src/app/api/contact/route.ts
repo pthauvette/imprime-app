@@ -16,6 +16,7 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
@@ -58,6 +59,28 @@ export const POST = withErrorHandler(async (req: Request) => {
   if (!limit.ok) return limit.response;
 
   const body = await parseBody(req, BodySchema);
+
+  // Persist en DB pour tracking admin (best-effort — si la table n'est
+  // pas migrée, on continue le flow email sans crasher).
+  const reqIp = clientIp(req);
+  const reqUa = req.headers.get('user-agent') ?? null;
+  // Detect order ID dans le subject (format [Wizard] Étape X — Order #ABC123…)
+  // ou dans le contexte URL (last segment de /orders/X). Best-effort.
+  const orderIdMatch = body.subject.match(/#([A-Za-z0-9]{6,})/) ?? body.message.match(/orders?\/([a-z0-9]{20,})/i);
+  await prisma.contactMessage.create({
+    data: {
+      email: body.email.toLowerCase(),
+      name: body.name,
+      subject: body.subject,
+      message: body.message,
+      orderId: orderIdMatch?.[1] ?? null,
+      source: body.subject.startsWith('[Wizard]') ? 'help-fab' : 'contact-form',
+      requestIp: reqIp ?? null,
+      requestUa: reqUa,
+    },
+  }).catch((err) => {
+    log.warn({ err, email: body.email }, 'contact message persist failed (continuing email send)');
+  });
 
   if (ADMIN_EMAILS.length === 0) {
     log.error('contact form submitted but ADMIN_EMAILS not configured');

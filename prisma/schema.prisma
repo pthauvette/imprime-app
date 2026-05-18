@@ -647,6 +647,50 @@ model ReferralReward {
 // Anti-abuse : unique sur (email, jourMonth) à l'app level (lookup avant
 // create), pas au DB level pour permettre les corrections admin.
 
+// ─── CONTACT MESSAGE ──────────────────────────────────────────────────────
+// Persiste chaque submission du formulaire /contact + FloatingHelpButton
+// pour donner à l'admin un thread tracking (au lieu de chercher dans
+// Gmail). Le email reste envoyé via SES, on ajoute juste la DB pour
+// l'historique + status management.
+//
+// Status :
+//   OPEN     : nouveau, pas répondu
+//   ANSWERED : admin a répondu (manuellement noté ou auto via webhook)
+//   CLOSED   : ticket résolu, archivé
+//
+// Anti-spam : on stocke requestIp/Ua pour analyser les patterns suspects.
+// Pas de bayesian filter pour MVP — rate-limit + manual review.
+
+model ContactMessage {
+  id              String    @id @default(cuid())
+  /** Email du demandeur. */
+  email           String
+  /** Nom complet. */
+  name            String
+  /** Sujet original du message. */
+  subject         String
+  /** Body du message (markdown plain). */
+  message         String
+  /** OPEN | ANSWERED | CLOSED — workflow admin. */
+  status          String    @default("OPEN")
+  /** Notes internes admin (jamais affichées customer). */
+  adminNotes      String?
+  /** Si lié à un Order spécifique (extracted du subject ou du body). */
+  orderId         String?
+  /** Source : 'contact-form' | 'help-fab' | 'wizard-help'. */
+  source          String?
+  /** IP + UA pour anti-spam. */
+  requestIp       String?
+  requestUa       String?
+
+  createdAt       DateTime  @default(now())
+  answeredAt      DateTime?
+  closedAt        DateTime?
+
+  @@index([status, createdAt])
+  @@index([email, createdAt])
+}
+
 // ─── RESELLER APPLICATION ─────────────────────────────────────────────────
 // Agence / freelance / studio qui veut revendre du print Plio à ses clients.
 // Application form gating l'accès au tarif reseller (blind shipping + remise
