@@ -28,6 +28,7 @@ import type {
   AdminCustomMessageVars,
   ReengagementFollowUpVars,
   ReengagementWinbackVars,
+  AbandonedCartVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -449,6 +450,36 @@ export async function sendReengagementWinbackEmail(input: {
     template: 'reengagement-winback',
     vars: vars as unknown as Record<string, string | number>,
     label: `reengagement-winback:${user.id}:${labelMonth}`,
+  });
+}
+
+/**
+ * Envoyé par cron/abandoned-cart 24h+ après un cart en standby (user a
+ * atteint /order/shipping mais n'a pas finalisé). 1x par cart via le
+ * dedup AbandonedCart.emailSentAt côté caller.
+ *
+ * Pas d'opt-out check : le user a démontré son intent en saisissant
+ * email + shipping — un recovery est légitime. Mais on inclut le lien
+ * unsub par CASL compliance.
+ */
+export async function sendAbandonedCartEmail(input: {
+  to: string;
+  firstName: string;
+  productName: string;
+  resumeUrl: string;
+  cartId: string;
+}) {
+  const vars: AbandonedCartVars = {
+    CUSTOMER_FIRST_NAME: input.firstName,
+    PRODUCT_NAME: input.productName,
+    RESUME_URL: input.resumeUrl,
+    UNSUBSCRIBE_URL: unsubscribeUrl(),
+  };
+  return queueEmail({
+    to: input.to,
+    template: 'abandoned-cart',
+    vars: vars as unknown as Record<string, string | number>,
+    label: `abandoned-cart:${input.cartId}`,
   });
 }
 

@@ -166,6 +166,12 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     ORDER_START_URL: `${APP_URL}/order/start`,
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
   },
+  'abandoned-cart': {
+    CUSTOMER_FIRST_NAME: 'Sophie',
+    PRODUCT_NAME: 'Cartes professionnelles 14pt UV',
+    RESUME_URL: `${APP_URL}/order/review?productId=7&options=14,32&files=front:https%3A%2F%2Fs3...`,
+    UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
+  },
 };
 
 export const ALL_TEMPLATES: EmailTemplate[] = [
@@ -181,6 +187,7 @@ export const ALL_TEMPLATES: EmailTemplate[] = [
   'admin-daily-summary',
   'reengagement-follow-up',
   'reengagement-winback',
+  'abandoned-cart',
 ];
 
 /**
