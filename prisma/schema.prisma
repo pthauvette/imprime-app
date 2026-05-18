@@ -949,3 +949,27 @@ model ExperimentOverride {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+// ─── SINALITE OFFLINE CACHE ──────────────────────────────────────────────
+// Cache write-through pour les endpoints catalog (listProducts, product
+// detail). Si Sinalite API est down, on sert depuis cette table (stale)
+// au lieu d'un 500 — le wizard reste utilisable, juste avec des prix
+// potentiellement périmés.
+//
+// Key = URL path Sinalite (ex: "/product", "/product/7/PLIO"). Payload =
+// JSON-stringified response. updatedAt = quand on a rafraîchi pour la
+// dernière fois. Caller décide TTL.
+
+model SinaliteCacheEntry {
+  id        String   @id @default(cuid())
+  /** URL path Sinalite (unique, ex: "/product", "/product/7/PLIO"). */
+  key       String   @unique
+  /** Response JSON-stringified. PostgreSQL TEXT — pas de limite hard,
+   *  les payloads les plus gros tournent autour de 500 KB (listProducts). */
+  payload   String
+  /** Status HTTP de la dernière réponse cachée. 200 typically. */
+  statusCode Int     @default(200)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

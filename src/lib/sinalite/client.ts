@@ -27,6 +27,7 @@ import {
   SinaliteOrderDetail,
   type StoreCode,
 } from './types';
+import { withSinaliteCache } from './cache';
 
 // ─── ENV ──────────────────────────────────────────────────────────────────
 
@@ -196,15 +197,21 @@ async function request<T>(
 export const sinalite = {
   storeCode: env.SINALITE_STORE_CODE as StoreCode,
 
-  /** GET /product → catalogue complet (~1200 produits). À cacher 1h+ côté app. */
+  /**
+   * GET /product → catalogue complet (~1200 produits).
+   * Wrapped en withSinaliteCache : si Sinalite down, on sert le dernier
+   * catalogue connu plutôt qu'un 500 (le wizard reste utilisable).
+   */
   async listProducts() {
-    return request('/product', {
-      method: 'GET',
-      schema: SinaliteProductList,
-    });
+    return withSinaliteCache('/product', () =>
+      request('/product', {
+        method: 'GET',
+        schema: SinaliteProductList,
+      }),
+    );
   },
 
-  /** GET /product/{id}. */
+  /** GET /product/{id}. Pas cacheable agressivement — appelé rarement. */
   async getProduct(id: number) {
     const result = await request(`/product/${id}`, {
       method: 'GET',
@@ -215,18 +222,21 @@ export const sinalite = {
 
   /**
    * GET /product/{id}/{storeCode} → tuple [options, pricing, metadata].
-   * Le storeCode est hardcodé à env.
+   * Wrapped en cache : critique pour le wizard configure. Si down, on
+   * sert stale → user peut configurer + payer même pendant un outage.
    */
   async getProductDetail(id: number) {
-    const data = await request(`/product/${id}/${this.storeCode}`, {
-      method: 'GET',
-      schema: SinaliteProductDetail,
+    return withSinaliteCache(`/product/${id}/${this.storeCode}`, async () => {
+      const data = await request(`/product/${id}/${this.storeCode}`, {
+        method: 'GET',
+        schema: SinaliteProductDetail,
+      });
+      return {
+        options: data[0],
+        pricing: data[1],
+        metadata: data[2].map((m) => m.metadata),
+      };
     });
-    return {
-      options: data[0],
-      pricing: data[1],
-      metadata: data[2].map((m) => m.metadata),
-    };
   },
 
   /**
