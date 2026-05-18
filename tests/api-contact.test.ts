@@ -8,7 +8,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('@/lib/db', () => ({
   prisma: {
     adminAuditEvent: { create: vi.fn(async () => ({})) },
+    contactMessage: { create: vi.fn(async () => ({})) },
   },
+}));
+
+vi.mock('@/lib/alerting/slack', () => ({
+  sendCriticalAlert: vi.fn(async () => {}),
 }));
 
 vi.mock('@/lib/emails/send', () => ({

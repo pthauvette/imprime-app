@@ -13,6 +13,7 @@ import { prisma } from '@/lib/db';
 import { ORDER_STATUS, type OrderStatus } from '@/lib/db/orders';
 import { auth } from '@/auth';
 import { formatCurrency, formatDate } from '@/lib/format';
+import OrderBulkBar from './OrderBulkBar';
 
 export const metadata = { title: 'Admin — Commandes' };
 export const dynamic = 'force-dynamic';
@@ -266,7 +267,14 @@ export default async function AdminOrdersPage({
                   const status = order.status as OrderStatus;
                   return (
                     <tr key={order.id}>
-                      <td><input type="checkbox" className="ord-checkbox" /></td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          className="ord-checkbox"
+                          data-order-id={order.id}
+                          aria-label={`Sélectionner ${displayId}`}
+                        />
+                      </td>
                       <td>
                         <Link href={`/admin/orders/${order.id}` as Route} style={{ fontWeight: 600 }}>
                           {displayId}
@@ -313,6 +321,9 @@ export default async function AdminOrdersPage({
             />
           )}
         </section>
+
+        {/* Sticky bulk action bar — attaches aux .ord-checkbox[data-order-id] */}
+        <OrderBulkBar />
       </main>
     </div>
   );
