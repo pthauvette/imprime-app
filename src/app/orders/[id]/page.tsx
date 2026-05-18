@@ -17,6 +17,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
 import CancelRequestButton from '@/components/account/CancelRequestButton';
+import NpsWidget from '@/components/account/NpsWidget';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import type { OrderStatus } from '@/lib/db/orders';
@@ -79,6 +80,17 @@ export default async function CustomerOrderDetailPage({
   });
 
   if (!order) notFound();
+
+  // Load NPS response separately — best-effort si migration pas appliquée
+  let existingNps: { score: number; comment: string | null } | null = null;
+  try {
+    existingNps = await prisma.npsResponse.findUnique({
+      where: { orderId: order.id },
+      select: { score: true, comment: true },
+    });
+  } catch {
+    // Migration pas appliquée yet → skip silently
+  }
 
   const isOwner = order.userId === session.user.id;
   const isAdmin = session.user.role === 'ADMIN';
@@ -454,6 +466,14 @@ export default async function CustomerOrderDetailPage({
             >
               ↻ Recommander
             </Link>
+
+            {status === 'DELIVERED' && (
+              <NpsWidget
+                orderId={order.id}
+                existingScore={existingNps?.score ?? null}
+                existingComment={existingNps?.comment ?? null}
+              />
+            )}
 
             <CancelRequestButton orderId={order.id} status={order.status} />
 
