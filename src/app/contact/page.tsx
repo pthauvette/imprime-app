@@ -55,6 +55,13 @@ export default function ContactPage() {
                 <div className="row"><span className="ic">☎</span><a href="tel:+15145550144">+1 514 555 0144</a></div>
                 <div className="hours">Lun–Ven · 9 h–17 h ET</div>
               </div>
+
+              <div className="info-card">
+                <div className="info-card-eyebrow">★ Devis sur-mesure</div>
+                <h3>Projets hors catalogue</h3>
+                <div className="row"><span className="ic">📋</span><a href="/quote">Demander un quote →</a></div>
+                <div className="hours">Réponse 1-2 jours ouvrables</div>
+              </div>
       
               <div className="info-card">
                 <div className="info-card-eyebrow">★ Adresse postale</div>

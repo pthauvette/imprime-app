@@ -738,6 +738,62 @@ model ResellerApplication {
   @@index([status, createdAt])
 }
 
+// ─── CUSTOM QUOTE REQUEST ────────────────────────────────────────────────
+// Demande de devis sur-mesure pour jobs hors catalogue : grande quantité,
+// papier spécifique, finish unusual (gaufrage, stamping métal), substrats
+// rigides (foamcore, dibond), assemblage manuel, etc.
+//
+// Workflow : customer fill form → admin reçoit email + Slack → admin
+// rédige le quote manuel → renvoie via email (Reply-To setté) → customer
+// place commande directement à partir du quote (paiement Stripe link
+// envoyé manually pour MVP).
+//
+// Status :
+//   PENDING   : nouvelle demande, admin n'a pas encore tranché
+//   QUOTED    : admin a envoyé une réponse avec quote
+//   ACCEPTED  : customer a confirmé qu'il achète (manual flag par admin)
+//   REJECTED  : customer pas intéressé OU on peut pas faire
+//   ARCHIVED  : closed sans suite après timeout
+
+model CustomQuoteRequest {
+  id                  String   @id @default(cuid())
+  /** Email du demandeur — sert aussi de lookup key. */
+  email               String
+  /** Nom complet. */
+  name                String
+  /** Optionnel — pour follow-up téléphonique sur les gros dossiers. */
+  phone               String?
+  /** Nom de la company / studio si applicable. */
+  companyName         String?
+  /** Type de projet (free text — "cartes premium", "signage extérieur",
+   *  "kit packaging custom"). */
+  projectType         String
+  /** Quantité estimée (string car peut être "500-1000" ou "à déterminer"). */
+  estimatedQuantity   String?
+  /** Deadline souhaitée (string ISO ou texte libre "fin juillet"). */
+  deadline            String?
+  /** Budget estimé en cents CAD (optionnel — souvent les gens ne savent pas). */
+  budgetCents         Int?
+  /** Description détaillée du projet — papier, format, finish, finition. */
+  description         String
+  /** PENDING | QUOTED | ACCEPTED | REJECTED | ARCHIVED */
+  status              String   @default("PENDING")
+  /** Réponse admin (quote brouillon + notes). */
+  adminResponse       String?
+  /** Notes internes admin. */
+  adminNotes          String?
+  /** IP + UA pour anti-spam. */
+  requestIp           String?
+  requestUa           String?
+
+  createdAt           DateTime  @default(now())
+  quotedAt            DateTime?
+  decidedAt           DateTime?
+
+  @@index([status, createdAt])
+  @@index([email, createdAt])
+}
+
 model SampleRequest {
   id                  String   @id @default(cuid())
   /** Email du demandeur — sert aussi de lookup key contre les doublons. */
