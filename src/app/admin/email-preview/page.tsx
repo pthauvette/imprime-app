@@ -35,6 +35,7 @@ const TEMPLATE_LABELS: Record<EmailTemplate, string> = {
   'order-shipped': 'Expédition (SHIPPED)',
   'order-delivered': 'Livraison (DELIVERED)',
   'order-cancelled': 'Annulation + refund',
+  'payment-failed': 'Paiement échoué',
   'refund-issued': 'Refund partiel/full',
   'admin-custom-message': 'Message admin (custom)',
   'admin-daily-summary': 'Résumé quotidien admin',

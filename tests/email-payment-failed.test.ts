@@ -146,9 +146,9 @@ describe('handlePaymentFailed (stripe-process integration)', () => {
 
     expect(markFailedMock).toHaveBeenCalledTimes(1);
     expect(sendFailedMock).toHaveBeenCalledTimes(1);
-    const emailArgs = sendFailedMock.mock.calls[0][0];
-    expect(emailArgs.user.email).toBe('angry@customer.ca');
-    expect(emailArgs.failureReason).toBe('Your card was declined.');
+    const emailArgs = (sendFailedMock.mock.calls as unknown as Array<[{ user: { email: string }; failureReason: string }]>)[0]?.[0];
+    expect(emailArgs?.user.email).toBe('angry@customer.ca');
+    expect(emailArgs?.failureReason).toBe('Your card was declined.');
     expect(ctx.orderId).toBe('order_fail_1');
   });
 

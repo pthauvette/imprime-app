@@ -10,6 +10,7 @@
 
 import type { EmailTemplate } from './render';
 import type { EmailVarsMap } from './vars';
+import { renderLifecycleTimeline } from './lifecycle-timeline';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
@@ -88,6 +89,10 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     TOTAL: '105,22',
     FEEDBACK_URL: `${APP_URL}/reviews/submit?orderId=example&token=preview`,
     REORDER_URL: `${APP_URL}/order/start?reorder=example`,
+    // 4-step timeline avec toutes les étapes done — pour le delivered email.
+    // Rendu via renderLifecycleTimeline(4) qui est dans @/lib/emails/
+    // lifecycle-timeline (importé inline pour pas créer une circular).
+    LIFECYCLE_TIMELINE_HTML: renderLifecycleTimeline(4),
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
   },
   'order-cancelled': {
@@ -99,6 +104,12 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     CARD_LAST4_DISPLAY: 'Visa •••• 4242',
     APOLOGY_PROMO_CODE: 'DESOLE20',
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
+  },
+  'payment-failed': {
+    CUSTOMER_FIRST_NAME: 'Sophie',
+    ORDER_ID: 'SIN-48312',
+    FAILURE_REASON: 'Votre carte a été refusée par votre banque. Vérifiez le solde ou essayez une autre carte.',
+    RETRY_URL: `${APP_URL}/order/start`,
   },
   'admin-custom-message': {
     ORDER_ID: 'SIN-48312',
@@ -164,6 +175,7 @@ export const ALL_TEMPLATES: EmailTemplate[] = [
   'order-shipped',
   'order-delivered',
   'order-cancelled',
+  'payment-failed',
   'refund-issued',
   'admin-custom-message',
   'admin-daily-summary',
