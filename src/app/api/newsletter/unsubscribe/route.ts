@@ -1,13 +1,13 @@
 /**
- * GET /api/newsletter/unsubscribe?email=X&token=Y
+ * GET /api/newsletter/unsubscribe?email=X&token=Y    (legacy auto-trigger)
+ * POST /api/newsletter/unsubscribe?email=X&token=Y   (called by confirmation page)
  *
- * Self-serve unsubscribe link (à inclure dans tous les emails newsletter).
- * Token = HMAC(email, AUTH_SECRET) — vérifie que l'unsubscribe vient bien
- * du destinataire de l'email (pas un random bot).
+ * Self-serve unsubscribe. Token = HMAC(email, AUTH_SECRET).
  *
- * GET au lieu de POST parce que les clients email rendent les liens en GET
- * et certains MUA cliquent automatiquement les liens pour scanner — on doit
- * être idempotent et safe à appeler N fois.
+ * GET garde le comportement legacy (auto-unsubscribe + HTML response) pour
+ * backward-compat avec les emails déjà envoyés qui pointent ici. Les
+ * nouveaux emails pointent vers /newsletter/unsubscribe (page de confirmation
+ * explicite) qui POST ici.
  *
  * Pas de rate-limit (legit unsubscribes ne doivent jamais être bloqués).
  */
@@ -69,4 +69,29 @@ export async function GET(req: NextRequest) {
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * POST variant — appelé par la confirmation page /newsletter/unsubscribe.
+ * Même token vérif que GET, retourne JSON. Idempotent.
+ */
+export async function POST(req: NextRequest) {
+  const url = new URL(req.url);
+  const email = url.searchParams.get('email')?.trim().toLowerCase();
+  const token = url.searchParams.get('token');
+
+  if (!email || !token) {
+    return NextResponse.json({ error: 'Missing email/token' }, { status: 400 });
+  }
+  if (token !== newsletterUnsubscribeToken(email)) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+  }
+
+  await prisma.newsletterSubscriber.updateMany({
+    where: { email, status: 'ACTIVE' },
+    data: { status: 'UNSUBSCRIBED', unsubscribedAt: new Date() },
+  });
+  log.info({ email, source: 'confirmation-page' }, 'newsletter unsubscribed');
+
+  return NextResponse.json({ ok: true });
 }

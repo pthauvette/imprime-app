@@ -119,6 +119,10 @@ export type AdminCustomMessageVars = {
   ORDER_URL: string;
   SENDER_NAME: string;
   SENDER_EMAIL: string;
+  /** Unsub link CASL-required quand l'email est utilisé pour broadcast.
+   *  Optionnel : pour les vrais messages 1-to-1 admin → customer, on peut
+   *  laisser vide (le template a un fallback "Réponds directement"). */
+  UNSUBSCRIBE_URL?: string;
 };
 
 export type AdminDailySummaryVars = {

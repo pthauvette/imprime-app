@@ -26,6 +26,7 @@ import {
   previewRecipientCount,
   type BroadcastSegment,
 } from '@/lib/broadcast/recipients';
+import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
 import { logEmail as log } from '@/lib/logger';
 
 const SegmentSchema = z.enum(['newsletter', 'customers', 'all']);
@@ -121,9 +122,18 @@ export const POST = withErrorHandler(async (req: Request) => {
   // queue (broadcast:<id>:<email>) — si l'admin ré-envoie le même broadcast
   // par accident, queueEmail va rejeter en doublon.
   const html = textToHtml(body.body);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
   let enqueued = 0;
   for (const email of recipients) {
     try {
+      // CASL : un unsubscribe link unique par destinataire, avec HMAC token
+      // pour vérifier que c'est bien le bon email + résistant aux bots.
+      const unsubParams = new URLSearchParams({
+        email,
+        token: newsletterUnsubscribeToken(email),
+      });
+      const unsubscribeUrl = `${baseUrl}/newsletter/unsubscribe?${unsubParams.toString()}`;
+
       await sendAdminCustomMessageEmail({
         to: email,
         replyTo: guard.user.email,
@@ -132,9 +142,10 @@ export const POST = withErrorHandler(async (req: Request) => {
           SUBJECT: body.subject,
           PREVIEW: body.body.slice(0, 120).replace(/\n/g, ' '),
           BODY_HTML: html,
-          ORDER_URL: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca'}/account`,
+          ORDER_URL: `${baseUrl}/account`,
           SENDER_NAME: 'Équipe Plio',
           SENDER_EMAIL: guard.user.email,
+          UNSUBSCRIBE_URL: unsubscribeUrl,
         },
       });
       enqueued++;
