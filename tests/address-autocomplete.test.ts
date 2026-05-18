@@ -184,7 +184,8 @@ describe('GET /api/address/autocomplete', () => {
     const json = await res.json();
     expect(json.available).toBe(true);
     expect(json.items).toHaveLength(1);
-    const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? '');
+    const calls = fetchMock.mock.calls as unknown as Array<[string]>;
+    const calledUrl = String(calls[0]?.[0] ?? '');
     expect(calledUrl).toContain('SearchTerm=1234');
     expect(calledUrl).toContain('LastId=');
   });
