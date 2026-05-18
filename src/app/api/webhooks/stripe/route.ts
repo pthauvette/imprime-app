@@ -31,6 +31,17 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
+/**
+ * Tolerance (en secondes) pour rejeter un webhook dont le timestamp est
+ * trop ancien. Default Stripe SDK = 300s (5 min). On set explicit pour :
+ *   - Bloquer les replay attacks même si un attaquant a capturé un payload
+ *     signé valide (signature valide indéfiniment, c'est l'écart timestamp
+ *     qui sert de garde temporel).
+ *   - Documenter l'intent : si on relâche un jour, c'est volontaire.
+ *
+ * 5 min couvre largement les retries Stripe (qui re-send sous 30s).
+ */
+const WEBHOOK_TOLERANCE_SECONDS = 300;
 
 export async function POST(req: Request) {
   // Wall-clock starts BEFORE signature verification so latency reflects
@@ -46,10 +57,22 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, WEBHOOK_SECRET);
+    // constructEvent throw avec message "Timestamp outside the tolerance zone"
+    // si l'écart entre Stripe's timestamp et now() dépasse tolerance.
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      WEBHOOK_SECRET,
+      WEBHOOK_TOLERANCE_SECONDS,
+    );
   } catch (err) {
-    logStripe.error({ err }, 'signature verification failed');
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    const message = err instanceof Error ? err.message : 'unknown';
+    const isReplay = message.toLowerCase().includes('timestamp');
+    logStripe.error({ err, replayAttempt: isReplay }, 'signature verification failed');
+    return NextResponse.json(
+      { error: isReplay ? 'Stale webhook rejected' : 'Invalid signature' },
+      { status: 400 },
+    );
   }
 
   // Idempotence : UNIQUE viol → déjà processed. payload = rawBody pour replay admin.

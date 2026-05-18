@@ -31,6 +31,17 @@ import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 const WEBHOOK_SECRET = process.env.SINALITE_WEBHOOK_SECRET;
 
+/**
+ * Max age d'un webhook Sinalite (en ms) accepté pour mitigation replay-attack.
+ * 1h couvre les retries normaux + le délai max acceptable. Si un attaquant
+ * capture un payload signé valide, il a 1h pour le rejouer — au-delà on
+ * rejette même si signature ok. Combiné avec l'idempotence (fingerprint),
+ * couvre les 2 vecteurs : same-content replay + stale-content replay.
+ */
+const MAX_TIMESTAMP_AGE_MS = 60 * 60 * 1000;
+/** Clock-skew tolérée dans le futur (Sinalite envoie sur l'horloge serveur). */
+const MAX_TIMESTAMP_FUTURE_MS = 5 * 60 * 1000;
+
 export async function POST(req: Request) {
   const start = Date.now();
 
@@ -50,6 +61,29 @@ export async function POST(req: Request) {
   } catch (err) {
     logSinalite.error({ err }, 'payload validation failed');
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  }
+
+  // Timestamp freshness — défense replay-attack. Sinalite ne signe pas le
+  // timestamp (juste un secret partagé fixe), donc on doit valider l'écart.
+  const eventTime = Date.parse(payload.timestamp);
+  if (Number.isNaN(eventTime)) {
+    logSinalite.error({ ts: payload.timestamp }, 'invalid timestamp');
+    return NextResponse.json({ error: 'Invalid timestamp' }, { status: 400 });
+  }
+  const ageMs = Date.now() - eventTime;
+  if (ageMs > MAX_TIMESTAMP_AGE_MS) {
+    logSinalite.error(
+      { ts: payload.timestamp, ageMs, orderId: payload.orderId },
+      'stale webhook rejected — possible replay attack',
+    );
+    return NextResponse.json({ error: 'Stale webhook rejected' }, { status: 400 });
+  }
+  if (ageMs < -MAX_TIMESTAMP_FUTURE_MS) {
+    logSinalite.error(
+      { ts: payload.timestamp, futureMs: -ageMs, orderId: payload.orderId },
+      'webhook timestamp in future beyond clock-skew tolerance',
+    );
+    return NextResponse.json({ error: 'Invalid timestamp' }, { status: 400 });
   }
 
   // Idempotence : fingerprint stable que Sinalite va générer identique sur retry.
