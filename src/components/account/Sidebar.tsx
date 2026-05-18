@@ -17,7 +17,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { href: '/addresses' as Route, label: 'Adresses', count: 4 },
       { href: '/wallet' as Route, label: 'Portefeuille' },
       { href: '/payments' as Route, label: 'Paiements' },
-      { href: '/referrals' as Route, label: 'Parrainage' },
+      { href: '/account/referrals' as Route, label: '🎁 Parrainage' },
       { href: '/settings' as Route, label: 'Paramètres' },
     ],
   },

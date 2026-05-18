@@ -142,6 +142,17 @@ async function handlePaymentSucceeded(
 
   await markOrderPaid(intent.id);
 
+  // Best-effort : award du crédit de parrainage si l'user a un referredByCode
+  // et c'est sa 1ère commande payée. Helper est idempotent (via @unique sur
+  // refereeUserId) donc replay du webhook = safe. Si fail, log silencieux —
+  // on n'interrompt pas le flow paiement pour un crédit accessoire.
+  try {
+    const { awardReferralCreditIfEligible } = await import('@/lib/referrals/award');
+    await awardReferralCreditIfEligible({ userId: order.userId, orderId: order.id });
+  } catch (err) {
+    logStripe.error({ err, orderId: order.id }, 'referral award threw (non-fatal)');
+  }
+
   // Reconstitue le payload Sinalite depuis la DB (le snapshot intégral)
   let sinalitePayload: SinaliteOrderRequest;
   try {

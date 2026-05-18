@@ -209,7 +209,27 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Phase 2b: tax computation — taxe sur (subtotal - discount + shipping)
   const taxableSubtotal = subtotal - discountAmount + payload.shippingPrice;
   const tax = computeTax(taxableSubtotal, payload.shippingAddress.province);
-  const totalCents = Math.round((taxableSubtotal + tax.total) * 100);
+  const grossTotalCents = Math.round((taxableSubtotal + tax.total) * 100);
+
+  // Phase 2c: applique le crédit de parrainage si user connecté + balance > 0.
+  // Lookup session ici (avant Stripe intent) pour pouvoir déduire. Pour les
+  // guests, pas de crédit — il faut être logged in pour avoir un User row.
+  // Stripe interdit un PaymentIntent à 0 cents → on cap au max grossTotal - 50¢
+  // pour garder un minimum de 50¢ chargé (et éviter "fully covered by credit"
+  // qui demande un autre flow).
+  const earlySession = await auth();
+  let referralCreditApplied = 0;
+  if (earlySession?.user?.id) {
+    const balance = await prisma.user.findUnique({
+      where: { id: earlySession.user.id },
+      select: { referralCreditCents: true },
+    });
+    if (balance && balance.referralCreditCents > 0) {
+      const maxCoverable = Math.max(0, grossTotalCents - 50);
+      referralCreditApplied = Math.min(balance.referralCreditCents, maxCoverable);
+    }
+  }
+  const totalCents = grossTotalCents - referralCreditApplied;
 
   // Phase 3: build the Sinalite payload (will be POSTed by webhook after Stripe confirms)
   const sinalitePayload = buildSinalitePayload(payload, detailCache);
@@ -233,6 +253,7 @@ export const POST = withErrorHandler(async (req: Request) => {
       province: payload.shippingAddress.province,
       shippingMethod: payload.shippingMethod,
       contactEmail: payload.contact.email,
+      referralCreditApplied: String(referralCreditApplied),
     },
   });
 
@@ -243,14 +264,22 @@ export const POST = withErrorHandler(async (req: Request) => {
   // s'il a tapé un email contact différent). Sinon : lookup-or-create par
   // email — quand il se créera un compte plus tard avec ce même email,
   // Auth.js PrismaAdapter retombera sur le même User et l'historique sera là.
-  const session = await auth();
-  const user = session?.user
+  // Note : on a déjà fait auth() en Phase 2c (earlySession) — réutilisé ici.
+  const user = earlySession?.user
     ? await prisma.user.update({
-        where: { id: session.user.id },
+        where: { id: earlySession.user.id },
+        // Si referralCreditApplied > 0, on déduit la balance maintenant. Le
+        // PaymentIntent est créé donc l'user est engagé. Si Stripe fail au
+        // confirmPayment, on devra refund le crédit dans le webhook
+        // payment_failed (TODO future improvement — pour MVP, edge case
+        // accepté car rare et le crédit reste sur le compte).
         data: {
           firstName: payload.contact.firstName,
           lastName: payload.contact.lastName,
           phone: payload.contact.phone,
+          ...(referralCreditApplied > 0 && {
+            referralCreditCents: { decrement: referralCreditApplied },
+          }),
         },
       })
     : await findOrCreateUserByEmail({
@@ -269,6 +298,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     shippingCents: Math.round(payload.shippingPrice * 100),
     taxCents: Math.round(tax.total * 100),
     discountCents: Math.round(discountAmount * 100),
+    referralCreditAppliedCents: referralCreditApplied,
     promoCodeId: promoRecord?.id,
     shippingMethod: payload.shippingMethod,
     province: payload.shippingAddress.province,

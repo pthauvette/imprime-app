@@ -93,6 +93,8 @@ export type CreateOrderInput = {
   promoCodeId?: string;
   /** Discount applied in cents. 0 si pas de promo. */
   discountCents?: number;
+  /** Crédit parrainage déduit (cents). 0 si pas applicable. */
+  referralCreditAppliedCents?: number;
 };
 
 export async function createPendingOrder(input: CreateOrderInput) {
@@ -111,6 +113,7 @@ export async function createPendingOrder(input: CreateOrderInput) {
     shippingCents: input.shippingCents,
     taxCents: input.taxCents,
     discountCents: input.discountCents ?? 0,
+    referralCreditAppliedCents: input.referralCreditAppliedCents ?? 0,
     promoCodeId: input.promoCodeId ?? null,
     shippingMethod: input.shippingMethod,
     province: input.province,

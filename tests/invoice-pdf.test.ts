@@ -19,7 +19,7 @@ const baseOrder: Order = {
   sinaliteOrderId: '48312', status: 'PAID', failureReason: null,
   sinalitePayload: '{}', productSummary: 'Cartes 14pt + UV', itemsSnapshot: null,
   itemsCount: 250, subtotalCents: 15275, shippingCents: 1250, taxCents: 2217,
-  discountCents: 0, promoCodeId: null, adminNotes: null,
+  discountCents: 0, referralCreditAppliedCents: 0, promoCodeId: null, adminNotes: null,
   shippingMethod: 'UPS Standard', province: 'QC',
   shipName: 'Sophie Beauchamp', shipLine1: '4220 boul. St-Laurent', shipLine2: 'Suite 200',
   shipCity: 'Montréal', shipProvince: 'QC', shipPostalCode: 'H2W 1Z3',

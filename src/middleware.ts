@@ -36,6 +36,20 @@ const ADMIN_PREFIX = '/admin';
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
+  // ─── Capture referral code from ?ref=CODE ─────────────────────────────
+  // Pose un cookie plio_ref (90j) qui sera lu par auth events.signIn sur
+  // l'inscription du nouvel user. Pas de redirect — on continue le flow
+  // normal, le cookie est juste posé en passant. Si le cookie existe déjà,
+  // on ne l'écrase pas (first-touch attribution).
+  const refParam = req.nextUrl.searchParams.get('ref');
+  let cookieToSet: { name: string; value: string; maxAge: number } | null = null;
+  if (refParam && refParam.length >= 5 && refParam.length <= 20 && !req.cookies.get('plio_ref')) {
+    const normalized = refParam.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (normalized.length >= 5) {
+      cookieToSet = { name: 'plio_ref', value: normalized, maxAge: 90 * 24 * 60 * 60 };
+    }
+  }
+
   // Admin gate : pathname === '/admin' OR /admin/*
   const isAdminPath = pathname === ADMIN_PREFIX || pathname.startsWith(ADMIN_PREFIX + '/');
   if (isAdminPath) {
@@ -62,7 +76,32 @@ export default auth((req) => {
   if (!req.auth) {
     const signInUrl = new URL('/sign-in', req.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(signInUrl);
+    const res = NextResponse.redirect(signInUrl);
+    if (cookieToSet) {
+      res.cookies.set(cookieToSet.name, cookieToSet.value, {
+        maxAge: cookieToSet.maxAge,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+      });
+    }
+    return res;
+  }
+
+  // Si on doit poser le cookie ref mais qu'il n'y a pas de redirect à
+  // faire, on attache le cookie à un NextResponse.next() qui continue
+  // le flow normal.
+  if (cookieToSet) {
+    const res = NextResponse.next();
+    res.cookies.set(cookieToSet.name, cookieToSet.value, {
+      maxAge: cookieToSet.maxAge,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    return res;
   }
 });
 

@@ -43,18 +43,32 @@ model User {
   // Seuls les "delivery notifications" (shipped, delivered) sont opt-able.
   emailDeliveryNotifications Boolean @default(true)
 
+  // ─── Parrainage ────────────────────────────────────────────────────────
+  // Le code unique de cet user pour parrainer (ex: "PATRICK7H4N").
+  // Généré lazy à la 1ère visite de /account/referrals (ne pas backfill).
+  referralCode               String?   @unique
+  // Code utilisé à l'inscription (cookie plio_ref capturé sur le landing).
+  // First-write-wins : si déjà set, ne pas écraser même si autre ref visité.
+  referredByCode             String?
+  // Crédit de parrainage accumulé en cents CAD. Déduit auto au prochain
+  // checkout (logique dans api/orders/create). Ne peut pas devenir négatif.
+  referralCreditCents        Int       @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  orders        Order[]
-  addresses     Address[]
-  drafts        Draft[]
-  designDrafts  DesignDraft[]
-  savedConfigs  SavedConfig[]
+  accounts          Account[]
+  sessions          Session[]
+  orders            Order[]
+  addresses         Address[]
+  drafts            Draft[]
+  designDrafts      DesignDraft[]
+  savedConfigs      SavedConfig[]
+  referralsEarned   ReferralReward[] @relation("ReferralReferrer")
+  referralReceived  ReferralReward?  @relation("ReferralReferee")
 
   @@index([email])
+  @@index([referredByCode])
 }
 
 // Auth.js tables — schéma standard Prisma adapter
@@ -147,6 +161,10 @@ model Order {
   /** Lien vers le PromoCode appliqué. Null si pas de promo. */
   promoCodeId      String?
   promoCode        PromoCode? @relation(fields: [promoCodeId], references: [id])
+  /** Crédit de parrainage déduit à ce checkout (cents). 0 si l'user n'avait
+   *  pas de balance ou a choisi de ne pas l'appliquer. Permet d'audit
+   *  pourquoi le total payé est < subtotal + shipping + tax. */
+  referralCreditAppliedCents Int @default(0)
   shippingMethod   String
   province         String
 
@@ -587,4 +605,35 @@ model SavedConfig {
 
   @@index([userId, lastUsedAt])
   @@index([userId, createdAt])
+}
+
+// ─── REFERRAL ─────────────────────────────────────────────────────────────
+// Double-sided referral : quand un filleul passe sa 1ère commande payée,
+// le référent ET le filleul reçoivent du crédit (User.referralCreditCents).
+// Le crédit est auto-appliqué au prochain checkout.
+//
+// One record par paire (referrer, referee) — l'unique sur refereeUserId
+// garantit qu'un user ne peut être filleul qu'une seule fois (anti-abuse).
+//
+// Statuses :
+//   PENDING   : référent identifié mais commande pas encore payée
+//   CREDITED  : commande payée, crédit appliqué des deux côtés
+//   VOIDED    : commande annulée/refundée → crédit invalidé (admin manual)
+
+model ReferralReward {
+  id              String   @id @default(cuid())
+  referrerId      String
+  referrer        User     @relation("ReferralReferrer", fields: [referrerId], references: [id])
+  refereeUserId   String   @unique
+  referee         User     @relation("ReferralReferee", fields: [refereeUserId], references: [id])
+  /** Order qui a triggered le credit (1ère commande payée du filleul). */
+  refereeOrderId  String?
+  /** Cents de crédit attribués à CHAQUE side (typique 1000 = 10$ CAD). */
+  creditCents     Int
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now())
+  creditedAt      DateTime?
+
+  @@index([referrerId, createdAt])
+  @@index([status])
 }

@@ -33,7 +33,7 @@ const baseUser: User = {
   emailVerified: null,
   image: null,
   role: 'USER',
-  emailDeliveryNotifications: true, // default
+  emailDeliveryNotifications: true, referralCode: null, referredByCode: null, referralCreditCents: 0, // default
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -54,7 +54,7 @@ const baseOrder: Order = {
   subtotalCents: 15275,
   shippingCents: 1250,
   taxCents: 2217,
-  discountCents: 0,
+  discountCents: 0, referralCreditAppliedCents: 0,
   promoCodeId: null,
   adminNotes: null,
   shippingMethod: 'UPS Standard',

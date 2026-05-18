@@ -107,6 +107,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }).catch(() => {/* non-fatal */});
       }
 
+      // Step 1b: capture referral code from cookie (best-effort, first-write-wins).
+      // Le cookie plio_ref est posé par middleware quand visitor arrive avec
+      // ?ref=CODE. Si l'user existe déjà avec referredByCode, on ne touche pas.
+      if (isNewUser === true) {
+        try {
+          const { cookies } = await import('next/headers');
+          const cookieStore = await cookies();
+          const refCookie = cookieStore.get('plio_ref')?.value;
+          if (refCookie) {
+            const normalized = refCookie.trim().toUpperCase().slice(0, 20);
+            if (normalized.length >= 5) {
+              await prisma.user.update({
+                where: { id: user.id, referredByCode: null },
+                data: { referredByCode: normalized },
+              }).catch(() => {/* déjà set ou user disparu, no-op */});
+            }
+          }
+        } catch {
+          // cookies() peut throw hors d'un request context — ignore.
+        }
+      }
+
       // Step 2: welcome email (best-effort)
       // Auth.js v5 fournit isNewUser=true sur le tout premier sign-in (création user).
       // Fallback heuristique : si pas de orders ni de designs ET createdAt récent,
