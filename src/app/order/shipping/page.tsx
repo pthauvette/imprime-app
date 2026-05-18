@@ -14,6 +14,7 @@ import type { Route } from 'next';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import type { CaProvince } from '@/lib/sinalite/types';
 import { readSavedShip, writeSavedShip } from '@/lib/cart/ship-store';
+import AddressAutocomplete from '@/components/order/AddressAutocomplete';
 
 const CA_PROVINCES: { code: CaProvince; name: string }[] = [
   { code: 'AB', name: 'Alberta' }, { code: 'BC', name: 'Colombie-Britannique' },
@@ -200,7 +201,22 @@ function ShippingPageInner() {
 
           <Section roman="II." title="Adresse d'expédition">
             <div style={{ display: 'grid', gap: 16 }}>
-              <Field label="Adresse" value={line1} onChange={setLine1} />
+              <FieldWrapper label="Adresse">
+                <AddressAutocomplete
+                  value={line1}
+                  onChange={setLine1}
+                  onSelect={(addr) => {
+                    setLine1(addr.line1);
+                    if (addr.line2) setLine2(addr.line2);
+                    if (addr.city) setCity(addr.city);
+                    if (addr.province) {
+                      const code = addr.province as CaProvince;
+                      setProvince(code);
+                    }
+                    if (addr.postalCode) setPostalCode(addr.postalCode);
+                  }}
+                />
+              </FieldWrapper>
               <Field label="Adresse 2 (suite, app, unité — optionnel)" value={line2} onChange={setLine2} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px 160px', gap: 12 }}>
                 <Field label="Ville" value={city} onChange={setCity} />
