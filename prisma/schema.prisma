@@ -66,6 +66,7 @@ model User {
   savedConfigs      SavedConfig[]
   referralsEarned   ReferralReward[] @relation("ReferralReferrer")
   referralReceived  ReferralReward?  @relation("ReferralReferee")
+  deleteRequests    DeleteAccountRequest[]
 
   @@index([email])
   @@index([referredByCode])
@@ -839,6 +840,39 @@ model CustomQuoteRequest {
 
   @@index([status, createdAt])
   @@index([email, createdAt])
+}
+
+// ─── ACCOUNT DELETION REQUEST ────────────────────────────────────────────
+// Demande LPRPDE/PIPEDA de suppression de compte. Admin traite manuellement
+// (vérif commandes en cours, identité). Workflow :
+//   PENDING   : user a soumis la demande
+//   APPROVED  : admin valide, prêt à exécuter
+//   PROCESSED : suppression effectuée (User row anonymisée — on garde l'historique
+//               commandes facturées pour obligation fiscale 6 ans, mais on
+//               nullifie email/name/phone/addresses)
+//   REJECTED  : admin refuse (ex: enquête fraude en cours)
+//
+// Conservation 6 ans des commandes : LIR (loi impôt fédérale) art. 230.
+
+model DeleteAccountRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** Email à la soumission — utile si on doit retracer après suppression. */
+  emailSnapshot String
+  /** Raison libre du user (optionnel). */
+  reason      String?
+  /** PENDING | APPROVED | PROCESSED | REJECTED */
+  status      String   @default("PENDING")
+  /** Notes admin (raison du REJECTED, ou check-list APPROVED). */
+  adminNotes  String?
+
+  createdAt   DateTime @default(now())
+  decidedAt   DateTime?
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([userId])
 }
 
 model SampleRequest {
