@@ -54,6 +54,18 @@ model User {
   // checkout (logique dans api/orders/create). Ne peut pas devenir négatif.
   referralCreditCents        Int       @default(0)
 
+  // ─── Notes admin ───────────────────────────────────────────────────────
+  // Memo interne admin sur ce customer (free-text, jamais affiché au user).
+  // Use cases : "client réticent au paiement carte", "appelle plutôt qu'écrit",
+  // "rev marketing du 18 mai", "à appeler si commande > 1k$". Visible sur
+  // /admin/users/[id] ET surfacé sur /admin/orders/[id] quand on traite une
+  // commande de ce user (contexte rapide sans navigation).
+  adminNotes        String?
+  /** Dernière fois qu'un admin a édité adminNotes — pour signaler stale. */
+  adminNotesUpdatedAt DateTime?
+  /** Email de l'admin qui a fait la dernière édition (audit lite). */
+  adminNotesUpdatedBy String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

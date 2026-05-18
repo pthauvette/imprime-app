@@ -338,6 +338,30 @@ export default async function AdminOrderDetailPage({
               <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{order.user.name ?? order.shipName}</div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{order.user.email}</div>
               {order.user.phone && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{order.user.phone}</div>}
+              {/* Admin notes — surfacé ici pour que l'admin voie le contexte
+                  customer SANS naviguer vers /admin/users/[id]. Edit toujours
+                  sur la page user. */}
+              {order.user.adminNotes && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: '10px 12px',
+                    background: 'var(--warning-soft, #FFF6E5)',
+                    border: '1px solid var(--warning, #D97706)',
+                    borderRadius: 'var(--r-sm)',
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--warning, #D97706)', fontWeight: 600, marginBottom: 4 }}>
+                    📝 Note interne
+                  </div>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {order.user.adminNotes}
+                  </p>
+                </div>
+              )}
               <Link
                 href={`/admin/users/${order.userId}` as Route}
                 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent-primary)', marginTop: 8, display: 'inline-block', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}

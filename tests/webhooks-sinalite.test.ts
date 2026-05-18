@@ -79,7 +79,7 @@ const baseUser: User = {
   emailVerified: null,
   image: null,
   role: 'USER',
-  emailDeliveryNotifications: true, referralCode: null, referredByCode: null, referralCreditCents: 0,
+  emailDeliveryNotifications: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
