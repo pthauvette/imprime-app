@@ -511,8 +511,8 @@ export default async function AdminFinancesPage({
             </div>
           </div>
           <div className="adm-export-actions">
-            <button className="btn btn-secondary btn-sm" disabled>↓ CSV ventes</button>
-            <button className="btn btn-secondary btn-sm" disabled>↓ CSV taxes par province</button>
+            <Link href={'/admin/orders' as Route} className="btn btn-secondary btn-sm">↓ CSV ventes</Link>
+            <Link href={'/admin/finances/tax-report' as Route} className="btn btn-primary btn-sm">↓ Rapport taxes TPS/TVQ</Link>
             <button className="btn btn-secondary btn-sm" disabled>↓ PDF comptable</button>
           </div>
         </div>
