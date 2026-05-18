@@ -6,6 +6,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs';
+import { routeSentryEvent } from '@/lib/sentry/routing';
 
 const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 const ENV = process.env.NODE_ENV ?? 'development';
@@ -28,6 +29,11 @@ if (DSN) {
         }
       }
       return breadcrumb;
+    },
+    // Apply alert routing : drop noise, tag severity, mute warnings.
+    // Côté browser : AbortError des fetch annulés est le gros consommateur.
+    beforeSend(event, hint) {
+      return routeSentryEvent(event, hint);
     },
   });
 }
