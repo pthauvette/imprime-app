@@ -24,6 +24,7 @@ import { prisma } from '@/lib/db';
 import { sendAdminDailySummaryEmail } from '@/lib/emails/send';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
+import { recordCronRun } from '@/lib/cron/runs';
 import type { AdminDailySummaryVars } from '@/lib/emails/vars';
 
 export const runtime = 'nodejs';
@@ -220,5 +221,11 @@ export async function GET(req: NextRequest) {
   };
   log.info(result, 'cron/daily-summary ran');
   void pingCronHealthcheck('daily-summary', 'success', { orders24h, revenue24h });
+  void recordCronRun({
+    name: 'daily-summary',
+    status: 'success',
+    latencyMs: Date.now() - start,
+    data: { orders24h, revenue24h, recipients: sends.length },
+  });
   return NextResponse.json(result);
 }

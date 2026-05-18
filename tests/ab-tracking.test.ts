@@ -69,9 +69,17 @@ describe('recordConversion', () => {
     });
 
     expect(prisma.experimentConversion.createMany).toHaveBeenCalledTimes(1);
-    const call = vi.mocked(prisma.experimentConversion.createMany).mock.calls[0][0];
-    expect(call.data).toHaveLength(2);
-    expect(call.data[0]).toEqual({
+    const call = vi.mocked(prisma.experimentConversion.createMany).mock.calls[0][0]!;
+    const data = call.data as Array<{
+      experimentId: string;
+      variantId: string;
+      visitorId: string;
+      userId: string | null;
+      goal: string;
+      value: number | null;
+    }>;
+    expect(data).toHaveLength(2);
+    expect(data[0]).toEqual({
       experimentId: 'hero-headline-v1',
       variantId: 'variant_b',
       visitorId: 'vis_123',
@@ -79,7 +87,7 @@ describe('recordConversion', () => {
       goal: 'order_placed',
       value: 10522,
     });
-    expect(call.data[1].experimentId).toBe('cta-color');
+    expect(data[1].experimentId).toBe('cta-color');
   });
 
   it('experimentIds filter : log only sur les exp listées', async () => {
