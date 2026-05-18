@@ -17,6 +17,11 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useEffect, useRef, Suspense, type ChangeEvent, type DragEvent } from 'react';
 import PdfMarginOverlay from '@/components/upload/PdfMarginOverlay';
+import {
+  getMarginSpecBySinaliteCategory,
+  DEFAULT_MARGIN_SPEC,
+  type MarginSpec,
+} from '@/lib/products/margin-specs';
 
 export default function UploadPage() {
   return (
@@ -35,6 +40,10 @@ function UploadPageInner() {
 
   const [recto, setRecto] = useState<UploadedFile | null>(null);
   const [verso, setVerso] = useState<UploadedFile | null>(null);
+  // Spec bleed/safe pour cette famille de produit — résolu depuis l'API
+  // /api/products/[id] qui retourne la category Sinalite. Fallback default
+  // safe (cartes-de-visite) si le fetch fail ou si pas de productId.
+  const [marginSpec, setMarginSpec] = useState<MarginSpec>(DEFAULT_MARGIN_SPEC);
 
   // Auto-fill recto si l'utilisateur arrive depuis l'éditeur de template
   useEffect(() => {
@@ -48,6 +57,27 @@ function UploadPageInner() {
       isTemplate: true,
     });
   }, [designId, recto]);
+
+  // Fetch product category pour choisir les insets visuels de l'overlay
+  // bleed/trim/safe. Best-effort : on garde le default si le fetch fail
+  // ou si l'API renvoie une category inconnue.
+  useEffect(() => {
+    if (!productId) return;
+    let cancelled = false;
+    void fetch(`/api/products/${productId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        const category = data?.product?.category as string | undefined;
+        if (category) setMarginSpec(getMarginSpecBySinaliteCategory(category));
+      })
+      .catch(() => {
+        // Garde le default — overlay reste visuellement utile
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
 
   const filesParam = [
     recto ? `front:${encodeURIComponent(recto.url)}` : null,
@@ -106,6 +136,7 @@ function UploadPageInner() {
               file={recto}
               onChange={setRecto}
               onClear={() => setRecto(null)}
+              marginSpec={marginSpec}
             />
             <Dropzone
               label="Verso"
@@ -114,6 +145,7 @@ function UploadPageInner() {
               file={verso}
               onChange={setVerso}
               onClear={() => setVerso(null)}
+              marginSpec={marginSpec}
             />
           </div>
         </div>
@@ -192,7 +224,7 @@ import type { ValidationResult as PendingValidation } from '@/lib/print/pdf-vali
 // ─── Dropzone ─────────────────────────────────────────────────────────────
 
 function Dropzone({
-  label, kind, required, file, onChange, onClear,
+  label, kind, required, file, onChange, onClear, marginSpec,
 }: {
   label: string;
   kind: 'front' | 'back';
@@ -200,6 +232,7 @@ function Dropzone({
   file: UploadedFile | null;
   onChange: (f: UploadedFile) => void;
   onClear: () => void;
+  marginSpec: MarginSpec;
 }) {
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
@@ -329,7 +362,7 @@ function Dropzone({
         {isUploading ? (
           <UploadingState progress={progress!} />
         ) : isUploaded ? (
-          <UploadedPreview file={file!} label={label} />
+          <UploadedPreview file={file!} label={label} marginSpec={marginSpec} />
         ) : (
           <EmptyState
             onClick={() => inputRef.current?.click()}
@@ -483,7 +516,15 @@ function UploadingState({ progress }: { progress: UploadProgress }) {
   );
 }
 
-function UploadedPreview({ file, label }: { file: UploadedFile; label: string }) {
+function UploadedPreview({
+  file,
+  label,
+  marginSpec,
+}: {
+  file: UploadedFile;
+  label: string;
+  marginSpec: MarginSpec;
+}) {
   // Si on a un thumbnail PDF rendu, affiche-le via PdfMarginOverlay qui
   // ajoute un toggle "Vérifier les marges" pour superposer bleed/trim/safe.
   // Sinon fallback au preview text-only.
@@ -492,6 +533,8 @@ function UploadedPreview({ file, label }: { file: UploadedFile; label: string })
       <PdfMarginOverlay
         thumbnailDataUrl={file.thumbnailDataUrl}
         filename={file.name}
+        bleedPercent={marginSpec.overlay.bleedPercent}
+        safePercent={marginSpec.overlay.safePercent}
       />
     );
   }
