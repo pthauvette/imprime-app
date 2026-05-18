@@ -124,10 +124,12 @@ function makeReq(body: unknown, headers: Record<string, string> = {}): Request {
   });
 }
 
+// Timestamp dynamique : la route rejette > 1h dans le passé pour bloquer
+// les replay attacks. Tests doivent utiliser un timestamp récent.
 const validPayload = (overrides: Record<string, unknown> = {}) => ({
   orderId: 48312,
   status: 'SHIPPED',
-  timestamp: '2026-05-17T12:00:00.000Z',
+  timestamp: new Date().toISOString(),
   ...overrides,
 });
 
@@ -225,11 +227,13 @@ describe('L. Idempotence via fingerprint', () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(
       { ...baseOrder, user: baseUser } as never,
     );
-    await POST(makeReq(validPayload({ orderId: 7, status: 'IN_PRODUCTION', timestamp: '2026-01-01T00:00:00Z' })));
+    // Timestamp récent (-10min) — la route rejette > 1h dans le passé.
+    const ts = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    await POST(makeReq(validPayload({ orderId: 7, status: 'IN_PRODUCTION', timestamp: ts })));
     expect(orders.recordWebhookEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         source: 'SINALITE',
-        eventId: '7:IN_PRODUCTION:2026-01-01T00:00:00Z',
+        eventId: `7:IN_PRODUCTION:${ts}`,
         eventType: 'IN_PRODUCTION',
         payload: expect.any(String),
       }),
@@ -280,7 +284,7 @@ describe('N. status=DELIVERED', () => {
       { ...baseOrder, user: baseUser } as never,
     );
 
-    const ts = '2026-05-10T15:30:00.000Z';
+    const ts = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // -5min, fresh
     const res = await POST(makeReq(validPayload({ status: 'DELIVERED', timestamp: ts })));
 
     expect(emails.sendOrderDeliveredEmail).toHaveBeenCalledWith({
