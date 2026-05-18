@@ -30,12 +30,49 @@ export default async function AdminExperimentsPage() {
     redirect('/sign-in?callbackUrl=/admin/experiments' as Route);
   }
 
-  // Load all overrides en 1 query
+  // Load all overrides + stats en parallèle
   const allIds = Object.keys(EXPERIMENTS);
-  const overrides = await prisma.experimentOverride.findMany({
-    where: { experimentId: { in: allIds } },
-  });
+  const [overrides, assignmentStats, conversionStats] = await Promise.all([
+    prisma.experimentOverride.findMany({
+      where: { experimentId: { in: allIds } },
+    }),
+    // Assignments par (experimentId, variantId)
+    prisma.experimentAssignment.groupBy({
+      by: ['experimentId', 'variantId'],
+      where: { experimentId: { in: allIds } },
+      _count: { _all: true },
+    }).catch(() => []),
+    // Conversions par (experimentId, variantId, goal)
+    prisma.experimentConversion.groupBy({
+      by: ['experimentId', 'variantId', 'goal'],
+      where: { experimentId: { in: allIds } },
+      _count: { _all: true },
+      _sum: { value: true },
+    }).catch(() => []),
+  ]);
   const overrideMap = new Map(overrides.map((o) => [o.experimentId, o]));
+
+  // Build stats indexed by experimentId then variantId
+  type VariantStats = {
+    assignments: number;
+    conversions: Map<string, { count: number; value: number }>; // by goal
+  };
+  const statsByExp = new Map<string, Map<string, VariantStats>>();
+  for (const a of assignmentStats) {
+    if (!statsByExp.has(a.experimentId)) statsByExp.set(a.experimentId, new Map());
+    const expMap = statsByExp.get(a.experimentId)!;
+    if (!expMap.has(a.variantId)) expMap.set(a.variantId, { assignments: 0, conversions: new Map() });
+    expMap.get(a.variantId)!.assignments = a._count._all;
+  }
+  for (const c of conversionStats) {
+    if (!statsByExp.has(c.experimentId)) statsByExp.set(c.experimentId, new Map());
+    const expMap = statsByExp.get(c.experimentId)!;
+    if (!expMap.has(c.variantId)) expMap.set(c.variantId, { assignments: 0, conversions: new Map() });
+    expMap.get(c.variantId)!.conversions.set(c.goal, {
+      count: c._count._all,
+      value: c._sum.value ?? 0,
+    });
+  }
 
   const rows = Object.values(EXPERIMENTS).map((exp) => {
     const ovr = overrideMap.get(exp.id);
@@ -46,6 +83,7 @@ export default async function AdminExperimentsPage() {
       overrideUpdatedAt: ovr?.updatedAt ?? null,
       overrideUpdatedBy: ovr?.updatedBy ?? null,
       weightsJson: ovr?.weightsJson ?? null,
+      stats: statsByExp.get(exp.id) ?? new Map<string, VariantStats>(),
     };
   });
 
@@ -106,6 +144,11 @@ export default async function AdminExperimentsPage() {
   );
 }
 
+interface VariantStats {
+  assignments: number;
+  conversions: Map<string, { count: number; value: number }>;
+}
+
 interface ExperimentRow {
   id: string;
   label: string;
@@ -116,6 +159,7 @@ interface ExperimentRow {
   overrideUpdatedAt: Date | null;
   overrideUpdatedBy: string | null;
   weightsJson: string | null;
+  stats: Map<string, VariantStats>;
 }
 
 function ExperimentCard({ exp }: { exp: ExperimentRow }) {
@@ -217,10 +261,65 @@ function ExperimentCard({ exp }: { exp: ExperimentRow }) {
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--accent-primary)' }}>
                 {pct}% (weight {v.weight})
               </div>
+              <VariantStatsBlock stats={exp.stats.get(v.id)} />
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Affiche assignments + conversions par goal pour un variant.
+ * Calcule un conv rate (% conversions / assignments) par goal.
+ */
+function VariantStatsBlock({ stats }: { stats: VariantStats | undefined }) {
+  if (!stats || stats.assignments === 0) {
+    return (
+      <div
+        style={{
+          marginTop: 8,
+          paddingTop: 8,
+          borderTop: '1px dashed var(--border-subtle)',
+          fontSize: 11,
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--text-muted)',
+        }}
+      >
+        — no data yet
+      </div>
+    );
+  }
+  const goals = Array.from(stats.conversions.entries());
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        paddingTop: 8,
+        borderTop: '1px dashed var(--border-subtle)',
+        display: 'grid',
+        gap: 4,
+        fontSize: 11,
+        fontFamily: 'var(--font-mono)',
+      }}
+    >
+      <div style={{ color: 'var(--text-secondary)' }}>
+        <strong style={{ color: 'var(--text-primary)' }}>{stats.assignments}</strong> assignments
+      </div>
+      {goals.length === 0 ? (
+        <div style={{ color: 'var(--text-muted)' }}>0 conversions</div>
+      ) : (
+        goals.map(([goal, conv]) => {
+          const rate = stats.assignments > 0 ? ((conv.count / stats.assignments) * 100).toFixed(1) : '0';
+          return (
+            <div key={goal} style={{ color: 'var(--text-secondary)' }}>
+              <strong style={{ color: 'var(--accent-primary)' }}>{rate}%</strong>{' '}
+              {goal} <span style={{ color: 'var(--text-muted)' }}>({conv.count} conv{conv.value > 0 ? `, ${(conv.value / 100).toFixed(2)} $` : ''})</span>
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
