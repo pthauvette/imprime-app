@@ -41,6 +41,7 @@ const TEMPLATE_LABELS: Record<EmailTemplate, string> = {
   'admin-daily-summary': 'Résumé quotidien admin',
   'reengagement-follow-up': 'Re-engagement (7j post-delivery)',
   'reengagement-winback': 'Win-back (90j inactif)',
+  'abandoned-cart': 'Cart abandonné (24h+)',
 };
 
 interface SearchParams {

@@ -985,6 +985,38 @@ model NpsResponse {
   @@index([createdAt])
 }
 
+// ─── ABANDONED CART ──────────────────────────────────────────────────────
+// Capture les visiteurs (anonymes ou loggés) qui ont atteint /order/shipping
+// (= ont saisi leur email) mais n'ont pas finalisé. Cron /api/cron/abandoned-
+// cart envoie 1 email recovery 24h après. Dédup via emailSentAt + auto-skip
+// si une Order existe pour cet email après updatedAt.
+
+model AbandonedCart {
+  id          String   @id @default(cuid())
+  /** Email saisi au step shipping. Lowercase, validé Zod côté API. */
+  email       String
+  /** ProductId Sinalite — pour retourner au bon produit. */
+  productId   Int
+  /** Snapshot serialized des options sélectionnées (querystring params).
+   *  Permet de reconstruire le deep-link vers /order/review.
+   *  Format : "options=12,34&files=front:url|back:url&ship=..." */
+  resumeQuery String
+  /** Step atteint (configure | quantity | upload | shipping | review).
+   *  Si review → 95 % chance de checkout, on n'email pas. */
+  lastStep    String
+  /** Timestamp d'envoi du recovery email. NULL = pas encore envoyé.
+   *  Set après envoi pour dédup. */
+  emailSentAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  /** Lookup principal : trouver les carts à processer. */
+  @@index([emailSentAt, updatedAt])
+  /** Anti-spam : retrouver vite si déjà capturé pour cet email. */
+  @@index([email, updatedAt])
+}
+
 // ─── CRON RUN HISTORY ────────────────────────────────────────────────────
 // Trace les runs des cron jobs (cleanup, daily-summary, email-retry,
 // re-engagement) pour /admin/crons. Permet de voir last run, success rate,

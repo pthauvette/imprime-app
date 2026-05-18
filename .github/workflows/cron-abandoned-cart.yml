@@ -1,0 +1,29 @@
+name: Abandoned cart recovery emails
+
+# Tape /api/cron/abandoned-cart toutes les heures pour envoyer un recovery
+# email aux carts en standby depuis 24-72h (window). Dédup via emailSentAt.
+#
+# Schedule : every hour at :40 (offset des autres crons pour distribuer
+# la charge SES).
+
+on:
+  schedule:
+    - cron: '40 * * * *'
+  workflow_dispatch:
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/cron/abandoned-cart
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant. Ajoute-le dans Settings → Secrets → Actions."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://plio.ca/api/cron/abandoned-cart

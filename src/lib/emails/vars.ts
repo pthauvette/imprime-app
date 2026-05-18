@@ -198,6 +198,7 @@ export type EmailVarsMap = {
   'admin-custom-message': AdminCustomMessageVars;
   'reengagement-follow-up': ReengagementFollowUpVars;
   'reengagement-winback': ReengagementWinbackVars;
+  'abandoned-cart': AbandonedCartVars;
 };
 
 export type ReengagementFollowUpVars = {
@@ -208,6 +209,16 @@ export type ReengagementFollowUpVars = {
   REVIEW_URL: string;
   /** Deep-link vers /order/start?reorder=ORDER_ID. */
   REORDER_URL: string;
+  UNSUBSCRIBE_URL: string;
+};
+
+export type AbandonedCartVars = {
+  CUSTOMER_FIRST_NAME: string;
+  /** Nom du produit dans la phrase "ta commande de X t'attend". */
+  PRODUCT_NAME: string;
+  /** Deep-link vers /order/review (ou la dernière étape) avec query string
+   *  pré-remplie pour reprendre exactement où le user a quitté. */
+  RESUME_URL: string;
   UNSUBSCRIBE_URL: string;
 };
 
