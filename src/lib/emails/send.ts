@@ -20,6 +20,7 @@ import type {
   OrderShippedVars,
   OrderDeliveredVars,
   OrderCancelledVars,
+  PaymentFailedVars,
   RefundIssuedVars,
   WelcomeVars,
   AdminDailySummaryVars,
@@ -300,6 +301,38 @@ export async function sendOrderCancelledEmail(input: {
     template: 'order-cancelled',
     vars: vars as unknown as Record<string, string | number>,
     label: `order-cancelled:${order.id}`,
+  });
+}
+
+/**
+ * Envoyé quand un payment_intent.payment_failed arrive du webhook Stripe.
+ *
+ * Pas d'opt-out check : c'est transactionnel — le user veut SAVOIR que sa
+ * commande n'est pas passée. Sinon il imagine qu'elle est en production
+ * et appelle le support 3 jours plus tard.
+ *
+ * Le `failureReason` est passé tel quel (déjà friendly via Stripe). Le
+ * `retryUrl` pointe vers /order/start par défaut — pas de tentative de
+ * resume avec un PaymentIntent fresh (trop complexe pour MVP).
+ */
+export async function sendPaymentFailedEmail(input: {
+  order: Order;
+  user: User;
+  failureReason: string;
+  retryUrl?: string;
+}) {
+  const { order, user, failureReason } = input;
+  const vars: PaymentFailedVars = {
+    CUSTOMER_FIRST_NAME: firstName(user),
+    ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
+    FAILURE_REASON: failureReason,
+    RETRY_URL: input.retryUrl ?? `${APP_URL}/order/start`,
+  };
+  return queueEmail({
+    to: user.email,
+    template: 'payment-failed',
+    vars: vars as unknown as Record<string, string | number>,
+    label: `payment-failed:${order.id}`,
   });
 }
 
