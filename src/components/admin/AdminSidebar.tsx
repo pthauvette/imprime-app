@@ -19,6 +19,7 @@ export type AdminSidebarKey =
   | 'messages'
   | 'quotes'
   | 'broadcast'
+  | 'search'
   | 'audit'
   | 'templates'
   | 'products'
@@ -112,6 +113,12 @@ const ICONS = {
       <path d="M8 2v2M8 12v2M14 8h-2M4 8H2M12.2 3.8l-1.4 1.4M5.2 10.8l-1.4 1.4M12.2 12.2l-1.4-1.4M5.2 5.2L3.8 3.8" />
     </svg>
   ),
+  search: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx={7} cy={7} r={5} />
+      <path d="M11 11l3 3" />
+    </svg>
+  ),
 };
 
 export interface AdminSidebarProps {
@@ -131,6 +138,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
       label: 'Opérations',
       items: [
         { key: 'dashboard', href: '/admin' as Route, label: 'Tableau de bord', icon: ICONS.dashboard },
+        { key: 'search', href: '/admin/search' as Route, label: 'Recherche', icon: ICONS.search },
         { key: 'orders', href: '/admin/orders' as Route, label: 'Commandes', icon: ICONS.orders, count: counts.orders },
         { key: 'webhooks', href: '/admin/webhooks' as Route, label: 'Webhooks', icon: ICONS.webhooks, count: counts.webhooks, urgent: urgents.webhooks },
         { key: 'emails', href: '/admin/emails' as Route, label: 'Queue email', icon: ICONS.emails, count: counts.emails, urgent: urgents.emails },
