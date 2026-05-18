@@ -13,6 +13,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import { formatCurrency, formatDate } from '@/lib/format';
+import UserBulkBar from './UserBulkBar';
 
 export const metadata = { title: 'Admin — Utilisateurs' };
 export const dynamic = 'force-dynamic';
@@ -284,12 +285,18 @@ export default async function AdminUsersPage({
             <table className="usr-table">
               <thead>
                 <tr>
+                  <th style={{ width: 36 }}>
+                    {/* Select-all checkbox — no data-user-id so UserBulkBar
+                        treats it as toggle-all */}
+                    <input type="checkbox" className="usr-checkbox" aria-label="Tout sélectionner" />
+                  </th>
                   <th>Utilisateur</th>
                   <th>Inscrit le</th>
                   <th style={{ textAlign: 'right' }}>Commandes</th>
                   <th style={{ textAlign: 'right' }}>LTV</th>
                   <th>Dernière commande</th>
                   <th>Status auth</th>
+                  <th>Rôle</th>
                   <th>Province</th>
                   <th className="actions-col"></th>
                 </tr>
@@ -304,6 +311,14 @@ export default async function AdminUsersPage({
                   const colorIdx = (idx % 5) + 1; // a1..a5
                   return (
                     <tr key={u.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          className="usr-checkbox"
+                          data-user-id={u.id}
+                          aria-label={`Sélectionner ${u.email}`}
+                        />
+                      </td>
                       <td>
                         <div className="usr-cell-name">
                           <div className={`usr-avatar ${isGuest ? 'guest' : `a${colorIdx}`}`}>
@@ -329,6 +344,22 @@ export default async function AdminUsersPage({
                       <td>
                         <span className={`usr-status ${isGuest ? 'guest' : 'verified'}`}>
                           {isGuest ? 'Guest' : 'Vérifié'}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 10,
+                            letterSpacing: '0.06em',
+                            padding: '2px 8px',
+                            borderRadius: 'var(--r-pill)',
+                            background: u.role === 'ADMIN' ? 'var(--accent-soft)' : 'var(--bg-sunken)',
+                            color: u.role === 'ADMIN' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {u.role}
                         </span>
                       </td>
                       <td className="usr-province">
@@ -358,6 +389,11 @@ export default async function AdminUsersPage({
             />
           )}
         </div>
+
+        {/* Sticky bulk action bar — Client Component qui s'attache aux
+            checkboxes via DOM (data-user-id). Toujours visible (Export CSV
+            est dispo même sans sélection). */}
+        <UserBulkBar />
       </main>
     </div>
   );
