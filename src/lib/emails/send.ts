@@ -24,6 +24,8 @@ import type {
   WelcomeVars,
   AdminDailySummaryVars,
   AdminCustomMessageVars,
+  ReengagementFollowUpVars,
+  ReengagementWinbackVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -339,6 +341,72 @@ export async function sendAdminDailySummaryEmail(input: {
     template: 'admin-daily-summary',
     vars: input.vars as unknown as Record<string, string | number>,
     label: `admin-daily-summary:${new Date().toISOString().slice(0, 10)}`,
+  });
+}
+
+/**
+ * Re-engagement #1 : post-delivery follow-up envoyé 7 jours après
+ * webhook Sinalite DELIVERED. Demande un avis + propose reorder en 1 click.
+ * Label déterministe pour dedup : `reengagement-follow-up:<orderId>`.
+ */
+export async function sendReengagementFollowUpEmail(input: {
+  order: Order;
+  user: User;
+  reviewUrl: string;
+}) {
+  const { order, user } = input;
+  if (!user.emailDeliveryNotifications) {
+    logEmail.info({ userId: user.id, kind: 'reengagement-follow-up' }, 'skipping — user opted out');
+    return { sent: false, optedOut: true };
+  }
+  const vars: ReengagementFollowUpVars = {
+    CUSTOMER_FIRST_NAME: firstName(user),
+    ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
+    PRODUCT_SUMMARY: order.productSummary ?? 'ta commande',
+    REVIEW_URL: input.reviewUrl,
+    REORDER_URL: `${APP_URL}/order/start?reorder=${order.id}`,
+    UNSUBSCRIBE_URL: unsubscribeUrl(),
+  };
+  return queueEmail({
+    to: user.email,
+    template: 'reengagement-follow-up',
+    vars: vars as unknown as Record<string, string | number>,
+    label: `reengagement-follow-up:${order.id}`,
+  });
+}
+
+/**
+ * Re-engagement #2 : win-back envoyé à un user dont la dernière commande
+ * payée a > 90 jours. Inclut un code promo (déjà créé dans DB par le caller).
+ * Label déterministe : `reengagement-winback:<userId>:<year>-<month>` pour
+ * éviter d'en envoyer plus d'1 par mois calendaire.
+ */
+export async function sendReengagementWinbackEmail(input: {
+  user: User;
+  promoCode: string;
+  discountLabel: string;
+  daysSinceLast: number;
+}) {
+  const { user } = input;
+  if (!user.emailDeliveryNotifications) {
+    logEmail.info({ userId: user.id, kind: 'reengagement-winback' }, 'skipping — user opted out');
+    return { sent: false, optedOut: true };
+  }
+  const now = new Date();
+  const labelMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const vars: ReengagementWinbackVars = {
+    CUSTOMER_FIRST_NAME: firstName(user),
+    PROMO_CODE: input.promoCode,
+    DISCOUNT_LABEL: input.discountLabel,
+    DAYS_SINCE_LAST: input.daysSinceLast,
+    ORDER_START_URL: `${APP_URL}/order/start`,
+    UNSUBSCRIBE_URL: unsubscribeUrl(),
+  };
+  return queueEmail({
+    to: user.email,
+    template: 'reengagement-winback',
+    vars: vars as unknown as Record<string, string | number>,
+    label: `reengagement-winback:${user.id}:${labelMonth}`,
   });
 }
 

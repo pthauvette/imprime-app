@@ -1,0 +1,38 @@
+name: Re-engagement emails
+
+# Envoie les emails de re-engagement (post-delivery follow-up + win-back).
+# Daily, 14h UTC = 10h heure Montréal (heure douce pour ouvrir un email).
+#
+# Pattern identique aux autres crons : CRON_SECRET Bearer auth, hit
+# /api/cron/re-engagement, parse summary, fail si erreurs > 0 sur send.
+
+on:
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+jobs:
+  send-reengagement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping /api/cron/re-engagement
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant. Ajoute-le dans Settings → Secrets → Actions."
+            exit 1
+          fi
+          response=$(curl -fsS --show-error \
+            --max-time 300 \
+            -X GET https://www.plio.ca/api/cron/re-engagement \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "$response" | jq .
+          # Soft fail : si followUp.failed OU winback.failed > 0, on flag warning
+          # (pas exit 1 car d'autres emails peuvent avoir été envoyés OK).
+          follow_failed=$(echo "$response" | jq '.summary.followUp.failed')
+          winback_failed=$(echo "$response" | jq '.summary.winback.failed')
+          if [ "$follow_failed" -gt 0 ] || [ "$winback_failed" -gt 0 ]; then
+            echo "::warning::Some reengagement emails failed (followUp=$follow_failed, winback=$winback_failed). Check /admin/emails."
+          fi

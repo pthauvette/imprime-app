@@ -22,7 +22,9 @@ export type EmailTemplate =
   | 'order-cancelled'
   | 'refund-issued'
   | 'admin-daily-summary'
-  | 'admin-custom-message';
+  | 'admin-custom-message'
+  | 'reengagement-follow-up'
+  | 'reengagement-winback';
 
 // Cache des templates chargés (au premier render)
 const cache = new Map<EmailTemplate, string>();
@@ -69,6 +71,8 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
   'admin-daily-summary': (v) => `Plio · ${v.ORDERS_24H ?? 0} commandes · ${v.REVENUE_24H ?? '0,00'} $ (${v.DATE_FORMATTED ?? ''})`,
   // Subject explicit — l'admin l'écrit lui-même, on prend tel quel
   'admin-custom-message': (v) => String(v.SUBJECT ?? `Plio · message sur ta commande #${v.ORDER_ID ?? ''}`),
+  'reengagement-follow-up': (v) => `Comment c'était, ta commande #${v.ORDER_ID ?? ''} ?`,
+  'reengagement-winback': () => `On t'a manqué ? Voici 10 % pour célébrer ton retour.`,
 };
 
 // ─── ACTUAL SEND (via SES SMTP) ───────────────────────────────────────────

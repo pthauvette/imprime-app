@@ -179,4 +179,29 @@ export type EmailVarsMap = {
   'refund-issued': RefundIssuedVars;
   'admin-daily-summary': AdminDailySummaryVars;
   'admin-custom-message': AdminCustomMessageVars;
+  'reengagement-follow-up': ReengagementFollowUpVars;
+  'reengagement-winback': ReengagementWinbackVars;
+};
+
+export type ReengagementFollowUpVars = {
+  CUSTOMER_FIRST_NAME: string;
+  ORDER_ID: string | number;
+  PRODUCT_SUMMARY: string;
+  /** URL vers /reviews/submit?orderId=X&token=Y (HMAC déjà inclus). */
+  REVIEW_URL: string;
+  /** Deep-link vers /order/start?reorder=ORDER_ID. */
+  REORDER_URL: string;
+  UNSUBSCRIBE_URL: string;
+};
+
+export type ReengagementWinbackVars = {
+  CUSTOMER_FIRST_NAME: string;
+  /** Code promo dynamique généré pour ce user (ex: "REVIENS10"). */
+  PROMO_CODE: string;
+  /** Label friendly ("10 %" ou "10,00 $"). */
+  DISCOUNT_LABEL: string;
+  /** Number de jours depuis la dernière commande payée. */
+  DAYS_SINCE_LAST: string | number;
+  ORDER_START_URL: string;
+  UNSUBSCRIBE_URL: string;
 };
