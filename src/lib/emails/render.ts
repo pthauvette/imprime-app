@@ -82,6 +82,7 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const SES_HOST = process.env.SES_SMTP_HOST ?? 'email-smtp.ca-central-1.amazonaws.com';
 const SES_FROM = process.env.SES_FROM ?? 'Plio <bonjour@plio.ca>';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
 export interface EmailAttachment {
   filename: string;
@@ -101,9 +102,27 @@ export async function sendEmail(opts: {
   replyTo?: string;
   /** Pièces jointes (PDF facture, etc.). */
   attachments?: EmailAttachment[];
+  /** EmailDelivery.id pour le pixel d'open tracking. Si fourni, on inject
+   *  un <img 1x1> pointant vers /api/emails/pixel/[id] juste avant </body>. */
+  deliveryId?: string;
 }) {
-  const html = renderEmail(opts.template, opts.vars);
+  let html = renderEmail(opts.template, opts.vars);
   const subject = opts.subject ?? EMAIL_SUBJECTS[opts.template](opts.vars);
+
+  // Injecte le pixel de tracking si on a un deliveryId. Avant </body>
+  // pour rester invisible (height=1 width=1, display:block pour pas
+  // d'espace résiduel dans Outlook).
+  if (opts.deliveryId) {
+    const pixelUrl = `${APP_URL}/api/emails/pixel/${opts.deliveryId}`;
+    const pixelTag = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
+    if (html.includes('</body>')) {
+      html = html.replace('</body>', `${pixelTag}</body>`);
+    } else {
+      // Pas de </body> (template malformé) → append à la fin, mieux
+      // que de ne pas tracker du tout.
+      html = html + pixelTag;
+    }
+  }
 
   if (!SES_CONFIGURED) {
     // Dev mode : log au lieu d'envoyer

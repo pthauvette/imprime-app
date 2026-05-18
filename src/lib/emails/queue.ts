@@ -128,6 +128,10 @@ export async function processDelivery(deliveryId: string): Promise<{
       subject: delivery.subject ?? undefined,
       replyTo: delivery.replyTo ?? undefined,
       attachments,
+      // Pixel d'open tracking — pointe vers /api/emails/pixel/[id].
+      // Quand le client mail charge l'image, on incrémente openCount +
+      // set openedAt (1ère ouverture seulement).
+      deliveryId,
     });
     await prisma.emailDelivery.update({
       where: { id: deliveryId },
