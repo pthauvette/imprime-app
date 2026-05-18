@@ -17,6 +17,9 @@
 import * as commentChoisirPapier from '@/content/blog/comment-choisir-papier';
 import * as quantitesIdealesCartes from '@/content/blog/quantites-ideales-cartes';
 import * as formatsStandardsCartes from '@/content/blog/formats-standards-cartes';
+import * as preparerFichierImpression from '@/content/blog/preparer-fichier-impression-pdf';
+import * as flyersMarketingLocal from '@/content/blog/flyers-marketing-local';
+import * as livraisonImpressionCanada from '@/content/blog/livraison-impression-canada-delais';
 
 export interface PostMeta {
   slug: string;
@@ -43,6 +46,9 @@ const POSTS: BlogPost[] = [
   { meta: commentChoisirPapier.meta, Component: commentChoisirPapier.default },
   { meta: quantitesIdealesCartes.meta, Component: quantitesIdealesCartes.default },
   { meta: formatsStandardsCartes.meta, Component: formatsStandardsCartes.default },
+  { meta: preparerFichierImpression.meta, Component: preparerFichierImpression.default },
+  { meta: flyersMarketingLocal.meta, Component: flyersMarketingLocal.default },
+  { meta: livraisonImpressionCanada.meta, Component: livraisonImpressionCanada.default },
 ];
 
 /** Tous les posts, triés date desc. */
