@@ -49,6 +49,10 @@ export default async function AdminDashboard() {
     rev24h, revPrev24h, statusGroups, totalUsers,
     feedEvents, recentOrders, failedOrdersCount,
     pendingWebhooks, revLast30Days, revPrev30Days,
+    // Actionable counts pour la nouvelle section "À traiter"
+    pendingReviewsCount, deadEmailsCount, retryableEmailsCount,
+    newsletterStats, savedConfigsCount,
+    last30dOrdersForTop,
   ] = await Promise.all([
     prisma.order.aggregate({
       where: { paidAt: { gte: startOfDay } },
@@ -86,6 +90,22 @@ export default async function AdminDashboard() {
       where: { paidAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
       _sum: { amountCents: true },
       _count: { _all: true },
+    }),
+    // Defensive try-catches : si les tables ne sont pas encore migrées en
+    // prod (cas transient pendant rollout), on retourne 0 plutôt que crash.
+    prisma.review.count({ where: { status: 'PENDING' } }).catch(() => 0),
+    prisma.emailDelivery.count({ where: { status: 'DEAD' } }).catch(() => 0),
+    prisma.emailDelivery.count({ where: { status: 'PENDING', nextAttemptAt: { lte: now } } }).catch(() => 0),
+    prisma.newsletterSubscriber.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    }).catch(() => [] as Array<{ status: string; _count: { _all: number } }>),
+    prisma.savedConfig.count().catch(() => 0),
+    // Pour le top produits : on récupère itemsSnapshot des orders 30 derniers
+    // jours et on agrège côté JS (groupBy SQL marche pas sur le JSON).
+    prisma.order.findMany({
+      where: { paidAt: { gte: thirtyDaysAgo } },
+      select: { itemsSnapshot: true, productSummary: true },
     }),
   ]);
 
@@ -134,6 +154,83 @@ export default async function AdminDashboard() {
     products: 468,
     users: totalUsers,
   };
+
+  // Top produits 30 derniers jours — agrège par productId depuis itemsSnapshot
+  // (snapshot Phase 2). Si l'order n'a pas de snapshot (vieilles orders),
+  // on fallback à productSummary (label libre, moins précis mais comptable).
+  const productCount = new Map<string, { count: number; name: string }>();
+  for (const o of last30dOrdersForTop) {
+    if (o.itemsSnapshot) {
+      try {
+        const items = JSON.parse(o.itemsSnapshot) as Array<{ productId: number; productName: string }>;
+        if (Array.isArray(items)) {
+          for (const it of items) {
+            if (typeof it.productId !== 'number') continue;
+            const key = String(it.productId);
+            const existing = productCount.get(key);
+            productCount.set(key, {
+              count: (existing?.count ?? 0) + 1,
+              name: existing?.name ?? it.productName ?? `Produit #${it.productId}`,
+            });
+          }
+          continue;
+        }
+      } catch {
+        // Tombe sur le fallback ci-dessous
+      }
+    }
+    if (o.productSummary) {
+      const key = o.productSummary;
+      const existing = productCount.get(key);
+      productCount.set(key, {
+        count: (existing?.count ?? 0) + 1,
+        name: existing?.name ?? o.productSummary,
+      });
+    }
+  }
+  const topProducts = Array.from(productCount.entries())
+    .map(([id, v]) => ({ id, count: v.count, name: v.name }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+  const maxTopCount = Math.max(1, ...topProducts.map((p) => p.count));
+
+  const newsletterActive = (newsletterStats.find((s) => s.status === 'ACTIVE')?._count._all) ?? 0;
+  let newsletterTotal = 0;
+  for (const s of newsletterStats) newsletterTotal += s._count._all;
+
+  // À traiter : éléments qui demandent une action admin maintenant. On les
+  // tri par sévérité descendante. Les zéros sont gardés pour rassurer
+  // ("0 à traiter" est une info utile).
+  const todos = [
+    {
+      kind: 'critical' as const,
+      label: 'Commandes échouées',
+      count: failedOrdersCount,
+      hint: 'À investiguer ou refund manuel',
+      href: '/admin/orders?status=FAILED' as Route,
+    },
+    {
+      kind: 'critical' as const,
+      label: 'Emails DEAD',
+      count: deadEmailsCount,
+      hint: 'Max retries atteint — intervention requise',
+      href: '/admin/emails?status=DEAD' as Route,
+    },
+    {
+      kind: 'warning' as const,
+      label: 'Reviews en modération',
+      count: pendingReviewsCount,
+      hint: 'Approve / reject avant publication landing',
+      href: '/admin/reviews?status=PENDING' as Route,
+    },
+    {
+      kind: 'info' as const,
+      label: 'Emails à retry',
+      count: retryableEmailsCount,
+      hint: 'Prêts pour le prochain run cron',
+      href: '/admin/emails?status=PENDING' as Route,
+    },
+  ];
 
   return (
     <div className="adm-shell">
@@ -307,6 +404,151 @@ export default async function AdminDashboard() {
               <PipelineRow label="Expédiée" color="var(--success)" max={totalOrders} count={countStatus(statusGroups, ['SHIPPED'])} />
               <PipelineRow label="Livrée" color="var(--text-muted)" max={totalOrders} count={countStatus(statusGroups, ['DELIVERED'])} />
               <PipelineRow label="Échec" color="var(--danger)" max={totalOrders} count={countStatus(statusGroups, ['FAILED', 'CANCELLED'])} />
+            </div>
+          </div>
+        </section>
+
+        <section className="adm-grid-2">
+          <div className="adm-panel">
+            <div className="adm-panel-header">
+              <h2 className="adm-panel-title">
+                À traiter
+                <span className="adm-panel-title-meta">queue admin</span>
+              </h2>
+            </div>
+            <div>
+              {todos.map((t) => {
+                const color =
+                  t.kind === 'critical' ? 'var(--danger, #DC2626)' :
+                  t.kind === 'warning' ? 'var(--warning, #D97706)' :
+                  'var(--info, #2563EB)';
+                return (
+                  <Link
+                    key={t.label}
+                    href={t.href}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '44px 1fr auto',
+                      gap: 14,
+                      padding: '14px 22px',
+                      borderTop: '1px solid var(--border-subtle)',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      alignItems: 'center',
+                      opacity: t.count === 0 ? 0.55 : 1,
+                    }}
+                  >
+                    <div style={{
+                      width: 36, height: 36, display: 'grid', placeItems: 'center',
+                      background: t.count > 0 ? color : 'var(--bg-sunken)',
+                      color: t.count > 0 ? '#fff' : 'var(--text-muted)',
+                      borderRadius: '50%',
+                      fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
+                    }}>
+                      {t.count}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{t.hint}</div>
+                    </div>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t.count > 0 ? 'Traiter →' : '✓'}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="adm-panel">
+            <div className="adm-panel-header">
+              <h2 className="adm-panel-title">
+                Top produits
+                <span className="adm-panel-title-meta">30 derniers jours</span>
+              </h2>
+              <Link href={'/admin/products' as Route} className="adm-panel-link">Catalogue →</Link>
+            </div>
+            <div>
+              {topProducts.length === 0 ? (
+                <div style={{ padding: '32px 22px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  Aucun produit vendu dans les 30 derniers jours.
+                </div>
+              ) : topProducts.map((p, i) => {
+                const pct = (p.count / maxTopCount) * 100;
+                return (
+                  <div key={p.id} style={{ padding: '12px 22px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto', gap: 10, alignItems: 'baseline' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.name}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                        {p.count} item{p.count > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div style={{ marginTop: 8, height: 4, background: 'var(--bg-sunken)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent-primary)' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="adm-grid-2">
+          <div className="adm-panel">
+            <div className="adm-panel-header">
+              <h2 className="adm-panel-title">
+                Newsletter
+                <span className="adm-panel-title-meta">CASL-compliant</span>
+              </h2>
+              <Link href={'/admin/newsletter' as Route} className="adm-panel-link">Voir →</Link>
+            </div>
+            <div style={{ padding: 22, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, lineHeight: 1, color: 'var(--accent-primary)', fontWeight: 400 }}>
+                  {newsletterActive}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Abonnés actifs
+                </div>
+              </div>
+              <div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, lineHeight: 1, color: 'var(--text-primary)', fontWeight: 400 }}>
+                  {newsletterTotal}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Total ({newsletterTotal - newsletterActive} désabonnés)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="adm-panel">
+            <div className="adm-panel-header">
+              <h2 className="adm-panel-title">
+                Engagement
+                <span className="adm-panel-title-meta">utilisation features</span>
+              </h2>
+            </div>
+            <div style={{ padding: 22, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, lineHeight: 1, color: 'var(--accent-primary)', fontWeight: 400 }}>
+                  {savedConfigsCount}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Configs sauvées
+                </div>
+              </div>
+              <div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, lineHeight: 1, color: 'var(--text-primary)', fontWeight: 400 }}>
+                  {totalUsers}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Utilisateurs total
+                </div>
+              </div>
             </div>
           </div>
         </section>
