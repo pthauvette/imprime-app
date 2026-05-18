@@ -20,6 +20,7 @@ export type AdminSidebarKey =
   | 'quotes'
   | 'broadcast'
   | 'search'
+  | 'notifications'
   | 'audit'
   | 'templates'
   | 'products'
@@ -139,6 +140,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
       items: [
         { key: 'dashboard', href: '/admin' as Route, label: 'Tableau de bord', icon: ICONS.dashboard },
         { key: 'search', href: '/admin/search' as Route, label: 'Recherche', icon: ICONS.search },
+        { key: 'notifications', href: '/admin/notifications' as Route, label: 'Notifications', icon: ICONS.reviews, urgent: urgents.notifications },
         { key: 'orders', href: '/admin/orders' as Route, label: 'Commandes', icon: ICONS.orders, count: counts.orders },
         { key: 'webhooks', href: '/admin/webhooks' as Route, label: 'Webhooks', icon: ICONS.webhooks, count: counts.webhooks, urgent: urgents.webhooks },
         { key: 'emails', href: '/admin/emails' as Route, label: 'Queue email', icon: ICONS.emails, count: counts.emails, urgent: urgents.emails },
