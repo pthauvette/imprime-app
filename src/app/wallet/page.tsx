@@ -1,13 +1,14 @@
 /**
- * /wallet — Portefeuille (placeholder MVP).
+ * /wallet — Portefeuille customer : crédit de parrainage actuel +
+ * historique des récompenses gagnées + log des utilisations.
  *
- * Aucune table Wallet/Balance/Transaction n'existe encore en DB. Pour MVP on
- * affiche un état vide explicatif. Le feature (crédits prépayés + cashback
- * parrainage) arrivera post-MVP — probablement via Stripe Customer balance
- * pour éviter de gérer notre propre ledger.
+ * Data sources (pas de table Wallet dédiée, on reconstitue) :
+ *   - User.referralCreditCents (solde courant)
+ *   - ReferralReward where referrerId=me (récompenses gagnées)
+ *   - Order où referralCreditAppliedCents > 0 (utilisations)
  *
- * On garde quand même l'auth gate pour rester cohérent avec les autres pages
- * du compte.
+ * Pour l'instant, pas de crédit prépayé (top-up Stripe Customer balance
+ * arrivera post-MVP). Pour MVP, le wallet ≡ crédit parrainage uniquement.
  */
 
 import Link from 'next/link';
@@ -15,73 +16,296 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import { formatCurrency, formatDate } from '@/lib/format';
 
 export const metadata = { title: 'Portefeuille — Plio' };
-
 export const dynamic = 'force-dynamic';
 
 export default async function WalletPage() {
   const session = await auth();
-  if (!session?.user) redirect('/sign-in?callbackUrl=/wallet' as Route);
+  if (!session?.user?.id) redirect('/sign-in?callbackUrl=/wallet' as Route);
+  const userId = session.user.id;
+
+  const [user, rewardsEarned, rewardsReceived, ordersWithCredit] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { referralCode: true, referralCreditCents: true },
+    }),
+    prisma.referralReward.findMany({
+      where: { referrerId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        referee: { select: { email: true, firstName: true } },
+      },
+    }),
+    prisma.referralReward.findUnique({
+      where: { refereeUserId: userId },
+      include: {
+        referrer: { select: { email: true } },
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        userId,
+        referralCreditAppliedCents: { gt: 0 },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        createdAt: true,
+        referralCreditAppliedCents: true,
+        sinaliteOrderId: true,
+      },
+    }),
+  ]);
+
+  if (!user) redirect('/sign-in' as Route);
+
+  // Aggregates
+  const totalEarnedCents = rewardsEarned
+    .filter((r) => r.status === 'CREDITED')
+    .reduce((sum, r) => sum + r.creditCents, 0);
+  const totalUsedCents = ordersWithCredit.reduce((sum, o) => sum + o.referralCreditAppliedCents, 0);
+  const pendingCount = rewardsEarned.filter((r) => r.status === 'PENDING').length;
 
   return (
     <div className="acct-shell">
       <Sidebar active="/wallet" />
 
-      <main className="acct-main">
-        <h1 className="page-title">Portefeuille</h1>
-        <p className="page-subtitle">
-          Crédits prépayés et cashback parrainage — bientôt disponible.
-        </p>
+      <main style={{ padding: '40px 48px 80px', maxWidth: 960 }}>
+        <header style={{ marginBottom: 32 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+            Portefeuille
+          </h1>
+          <p style={{ fontSize: 15, color: 'var(--text-muted)', margin: 0 }}>
+            Crédit de parrainage gagné + utilisations. Le crédit est appliqué
+            automatiquement à ton prochain checkout.
+          </p>
+        </header>
 
-        <div
+        {/* Balance card */}
+        <section
           style={{
-            display: 'grid',
-            placeItems: 'center',
-            gap: 16,
-            padding: '96px 24px',
-            background: 'var(--bg-surface)',
-            border: '1px dashed var(--border-default)',
+            padding: 32,
+            background: 'var(--accent-primary)',
+            color: '#fff',
             borderRadius: 'var(--r-xl)',
-            textAlign: 'center',
-            maxWidth: 560,
-            margin: '0 auto',
+            marginBottom: 24,
+            display: 'grid',
+            gridTemplateColumns: '1fr auto',
+            alignItems: 'center',
+            gap: 32,
           }}
         >
-          <div style={{ fontSize: 48 }}>👛</div>
-          <h2
+          <div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.85, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>
+              Solde disponible
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.025em' }}>
+              {formatCurrency(user.referralCreditCents / 100)}
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 8 }}>
+              {user.referralCreditCents > 0
+                ? 'Appliqué automatiquement au prochain checkout.'
+                : 'Pas encore de crédit — parraine un ami pour commencer.'}
+            </div>
+          </div>
+          {user.referralCode && (
+            <Link
+              href={'/account/referrals' as Route}
+              style={{
+                padding: '12px 18px',
+                background: '#fff',
+                color: 'var(--accent-primary)',
+                borderRadius: 'var(--r-pill)',
+                textDecoration: 'none',
+                fontSize: 13,
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              🎁 Parrainer un ami
+            </Link>
+          )}
+        </section>
+
+        {/* Stats */}
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
+          <StatBox label="Gagné total" value={formatCurrency(totalEarnedCents / 100)} hint={`${rewardsEarned.filter((r) => r.status === 'CREDITED').length} parrainage${rewardsEarned.filter((r) => r.status === 'CREDITED').length > 1 ? 's' : ''} récompensés`} />
+          <StatBox label="Utilisé total" value={formatCurrency(totalUsedCents / 100)} hint={`${ordersWithCredit.length} commande${ordersWithCredit.length > 1 ? 's' : ''}`} />
+          {pendingCount > 0 && (
+            <StatBox label="En attente" value={`${pendingCount}`} hint="Parrainage non encore commandé" accent="warning" />
+          )}
+        </section>
+
+        {/* If the user themselves was referred — show that */}
+        {rewardsReceived && (
+          <section
             style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 28,
-              letterSpacing: '-0.01em',
-              fontWeight: 400,
-              margin: 0,
+              padding: 20,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--r-lg)',
+              marginBottom: 24,
             }}
           >
-            Pas de portefeuille pour le moment.
-          </h2>
-          <p
-            style={{
-              fontSize: 14,
-              color: 'var(--text-muted)',
-              margin: 0,
-              maxWidth: 460,
-              lineHeight: 1.5,
-            }}
-          >
-            Le portefeuille (crédits prépayés + cashback parrainage) arrive bientôt. En
-            attendant, paie commande par commande via carte de crédit — c'est rapide et
-            sécurisé via Stripe.
-          </p>
-          <Link
-            href={'/orders' as Route}
-            className="btn btn-primary"
-            style={{ marginTop: 8 }}
-          >
-            Voir mes commandes →
-          </Link>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>
+              🎁 Tu as été parrainé par
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+              <strong>{rewardsReceived.referrer.email}</strong> — tu as reçu{' '}
+              <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(rewardsReceived.creditCents / 100)}</strong> de crédit{' '}
+              {rewardsReceived.status === 'CREDITED'
+                ? `créditté le ${formatDate((rewardsReceived.creditedAt ?? rewardsReceived.createdAt).toISOString())}`
+                : '(en attente de ta 1ère commande payée)'}.
+            </div>
+          </section>
+        )}
+
+        {/* History grid : rewards earned + uses */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          <section>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, margin: '0 0 12px' }}>
+              Récompenses gagnées
+            </h2>
+            <div
+              style={{
+                padding: 0,
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--r-lg)',
+                overflow: 'hidden',
+              }}
+            >
+              {rewardsEarned.length === 0 ? (
+                <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  Aucune récompense pour l&apos;instant. Partage ton code pour commencer.
+                </div>
+              ) : (
+                rewardsEarned.map((r, i) => (
+                  <div
+                    key={r.id}
+                    style={{
+                      padding: '14px 16px',
+                      borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto',
+                      gap: 12,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>
+                        {r.referee.firstName ?? r.referee.email.split('@')[0]}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {formatDate(r.createdAt.toISOString())} ·{' '}
+                        <span style={{ color: r.status === 'CREDITED' ? 'var(--success, #16a34a)' : r.status === 'PENDING' ? '#D97706' : 'var(--danger)' }}>
+                          {r.status === 'CREDITED' ? 'crédité' : r.status === 'PENDING' ? 'en attente' : r.status.toLowerCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: r.status === 'CREDITED' ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+                      +{formatCurrency(r.creditCents / 100)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, margin: '0 0 12px' }}>
+              Utilisations
+            </h2>
+            <div
+              style={{
+                padding: 0,
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--r-lg)',
+                overflow: 'hidden',
+              }}
+            >
+              {ordersWithCredit.length === 0 ? (
+                <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  Aucun crédit utilisé. Il sera appliqué automatiquement à ton prochain achat.
+                </div>
+              ) : (
+                ordersWithCredit.map((o, i) => {
+                  const ref = o.sinaliteOrderId ?? o.id.slice(-6).toUpperCase();
+                  return (
+                    <Link
+                      key={o.id}
+                      href={`/orders/${o.id}` as Route}
+                      style={{
+                        padding: '14px 16px',
+                        borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto',
+                        gap: 12,
+                        textDecoration: 'none',
+                        color: 'inherit',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
+                          #{ref}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {formatDate(o.createdAt.toISOString())}
+                        </div>
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>
+                        −{formatCurrency(o.referralCreditAppliedCents / 100)}
+                      </div>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          </section>
         </div>
+
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 32 }}>
+          💡 Pour l&apos;instant, le portefeuille = crédit de parrainage uniquement.
+          Les crédits prépayés (top-up Stripe Customer balance) arrivent post-MVP.
+        </p>
       </main>
+    </div>
+  );
+}
+
+function StatBox({
+  label, value, hint, accent,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: 'warning';
+}) {
+  return (
+    <div
+      style={{
+        padding: 18,
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--r-lg)',
+      }}
+    >
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: accent === 'warning' ? '#D97706' : 'var(--text-primary)', fontWeight: 400, lineHeight: 1.1 }}>
+        {value}
+      </div>
+      {hint && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
