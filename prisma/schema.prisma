@@ -452,6 +452,45 @@ model NewsletterSubscriber {
   @@index([status, subscribedAt])
 }
 
+// ─── EMAIL BROADCAST ─────────────────────────────────────────────────────
+// Newsletter / annonce envoyée à un segment d'audience par admin.
+// Sert d'historique + audit + tracking de delivery stats.
+//
+// Segments supportés (MVP) :
+//   - 'newsletter'  : NewsletterSubscriber actifs (CASL express)
+//   - 'customers'   : User avec >=1 order PAID, opted-in delivery notifs
+//                     (CASL implied — existing business relationship < 2 ans)
+//   - 'all'         : union des deux (dédup par email)
+//
+// Status :
+//   DRAFT     : brouillon admin, jamais envoyé (futur)
+//   QUEUED    : enqueué dans EmailDelivery, en cours d'envoi
+//   SENT      : tous les emails enqueués (succès ou pas)
+
+model EmailBroadcast {
+  id              String   @id @default(cuid())
+  /** Subject ligne — ce que voit le destinataire dans son inbox. */
+  subject         String
+  /** Body texte brut (markdown-light : paragraphes séparés par \\n\\n). */
+  body            String
+  /** Segment cible : 'newsletter' | 'customers' | 'all'. */
+  segment         String
+  /** Nombre d'emails effectivement enqueued (post-dedup, post-opt-out filter). */
+  recipientCount  Int      @default(0)
+  /** Status workflow. */
+  status          String   @default("QUEUED")
+  /** Admin qui a déclenché — email pour audit (l'id User peut être supprimé). */
+  adminEmail      String
+  /** Optional admin notes (campagne, contexte). */
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  sentAt          DateTime?
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
 // ─── REVIEW ──────────────────────────────────────────────────────────────
 // Reviews customer après livraison. Trigger : webhook Sinalite DELIVERED
 // → email "leave a review" avec token unique (HMAC orderId).
