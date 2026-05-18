@@ -21,6 +21,7 @@ export type AdminSidebarKey =
   | 'quotes'
   | 'broadcast'
   | 'email-preview'
+  | 'experiments'
   | 'search'
   | 'notifications'
   | 'audit'
@@ -178,6 +179,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
     {
       label: 'Système',
       items: [
+        { key: 'experiments', href: '/admin/experiments' as Route, label: 'Expériences A/B', icon: ICONS.audit },
         { key: 'audit', href: '/admin/audit' as Route, label: 'Journal admin', icon: ICONS.audit },
         { key: 'settings', href: '/admin' as Route, label: 'Réglages', icon: ICONS.settings },
       ],

@@ -25,6 +25,8 @@
  */
 
 import { cookies } from 'next/headers';
+import { cache } from 'react';
+import { prisma } from '@/lib/db';
 
 const COOKIE_PREFIX = 'plio_ab_';
 /** 90 jours — assez long pour mesurer même une conversion lente. */
@@ -117,17 +119,90 @@ export function seededRandom(seed: string): number {
 }
 
 /**
+ * Runtime view d'une expérience : merge la définition code-defined avec
+ * l'override admin en DB (ExperimentOverride). Permet à l'admin de
+ * toggle `active` ou de shift les poids sans redeploy.
+ *
+ * `source` indique d'où vient le `active` flag actuel pour audit dans le
+ * admin dashboard. cache() dédupe l'appel DB par requête React.
+ */
+export interface ExperimentRuntime extends Experiment {
+  /** Code default vs override DB — utile dans /admin/experiments. */
+  source: 'code' | 'override';
+  /** Quand l'override a été modifié (si applicable). */
+  overrideUpdatedAt?: Date;
+  /** Qui a fait le dernier change. */
+  overrideUpdatedBy?: string;
+}
+
+/**
+ * Résout la config runtime d'une expérience. cache() = 1 query DB par
+ * id, par requête React, peu importe combien de Server Components la
+ * demandent.
+ */
+export const getExperimentRuntime = cache(
+  async <I extends ExperimentId>(experimentId: I): Promise<ExperimentRuntime> => {
+    const base = EXPERIMENTS[experimentId];
+    let override: {
+      active: boolean;
+      weightsJson: string | null;
+      updatedAt: Date;
+      updatedBy: string | null;
+    } | null = null;
+    try {
+      override = await prisma.experimentOverride.findUnique({
+        where: { experimentId: experimentId as string },
+        select: { active: true, weightsJson: true, updatedAt: true, updatedBy: true },
+      });
+    } catch {
+      // Migration not applied yet / DB down → fallback code default
+      return { ...base, source: 'code' };
+    }
+
+    if (!override) return { ...base, source: 'code' };
+
+    // Optional weight override : merge if valid JSON, sinon ignore.
+    // Cast via unknown : `as const satisfies` rend base.variants littéralement
+    // typé, mais on retourne juste un Experiment runtime — pas un literal.
+    let variants: Experiment['variants'] = base.variants as unknown as Experiment['variants'];
+    if (override.weightsJson) {
+      try {
+        const parsed = JSON.parse(override.weightsJson) as Record<string, number>;
+        const mapped = base.variants.map((v) => ({
+          id: v.id,
+          label: v.label,
+          weight:
+            typeof parsed[v.id] === 'number' && parsed[v.id] >= 0
+              ? parsed[v.id]
+              : v.weight,
+        }));
+        variants = mapped as unknown as Experiment['variants'];
+      } catch {
+        // Malformed JSON → use code defaults
+      }
+    }
+
+    return {
+      ...(base as unknown as Experiment),
+      active: override.active,
+      variants,
+      source: 'override',
+      overrideUpdatedAt: override.updatedAt,
+      overrideUpdatedBy: override.updatedBy ?? undefined,
+    };
+  },
+);
+
+/**
  * Server-side : lit le variant assigné pour cet experiment depuis le
- * cookie. Si pas assigné ET expérience active : retourne null (le
- * caller doit assigner via setVariantCookie côté response — typiquement
- * dans un middleware ou Server Action).
+ * cookie. Honore l'override admin DB via getExperimentRuntime.
  *
  * Si expérience inactive : retourne toujours le control (1er variant).
  */
 export async function getServerVariant<I extends ExperimentId>(
   experimentId: I,
 ): Promise<Variant> {
-  const experiment = EXPERIMENTS[experimentId];
+  const experiment = await getExperimentRuntime(experimentId);
   if (!experiment.active) return experiment.variants[0];
 
   const store = await cookies();
