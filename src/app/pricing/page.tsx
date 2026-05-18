@@ -1,268 +1,298 @@
 /**
- * Auto-migrated from Open Design HTML artifact `pricing.html`.
+ * /pricing — page tarification transparente publique.
  *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * Pas un calculateur interactif (trop complexe pour reproduire le wizard).
+ * À la place : une explication claire du modèle de pricing + tableaux
+ * de prix exemples pour les produits les plus vendus + CTA vers le
+ * wizard pour le devis exact.
+ *
+ * Use case principal : visiteur en sourcing qui veut savoir "combien
+ * ça coûte" sans avoir à mettre son email ou passer 5 min dans le
+ * wizard. Idéal pour les décideurs B2B qui shoppent.
  */
 
-export const metadata = { title: "Tarifs — Plio" };
+import Link from 'next/link';
+import type { Route } from 'next';
+import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+
+export const metadata = {
+  title: 'Tarifs — Plio',
+  description: 'Tarification transparente pour cartes de visite, flyers, brochures. Prix wholesale, dégressif selon quantité, sans abonnement ni minimum absurde. Devis exact en 2 minutes.',
+};
+
+interface PricingRow {
+  product: string;
+  spec: string;
+  pricesPerQty: { qty: number; price: number }[];
+}
+
+const PRICING_EXAMPLES: PricingRow[] = [
+  {
+    product: 'Cartes de visite 14pt',
+    spec: '3,5 × 2 po · UV brillant',
+    pricesPerQty: [
+      { qty: 100, price: 52 },
+      { qty: 250, price: 68 },
+      { qty: 500, price: 89 },
+      { qty: 1000, price: 119 },
+      { qty: 2500, price: 219 },
+    ],
+  },
+  {
+    product: 'Cartes de visite 16pt',
+    spec: '3,5 × 2 po · UV mat',
+    pricesPerQty: [
+      { qty: 100, price: 65 },
+      { qty: 250, price: 89 },
+      { qty: 500, price: 115 },
+      { qty: 1000, price: 159 },
+      { qty: 2500, price: 295 },
+    ],
+  },
+  {
+    product: 'Cartes de visite 18pt Soft Touch',
+    spec: '3,5 × 2 po · finition soft touch',
+    pricesPerQty: [
+      { qty: 100, price: 85 },
+      { qty: 250, price: 119 },
+      { qty: 500, price: 159 },
+      { qty: 1000, price: 229 },
+      { qty: 2500, price: 449 },
+    ],
+  },
+  {
+    product: 'Flyers 100lb gloss',
+    spec: '5,5 × 8,5 po · recto-verso',
+    pricesPerQty: [
+      { qty: 250, price: 89 },
+      { qty: 500, price: 119 },
+      { qty: 1000, price: 165 },
+      { qty: 2500, price: 285 },
+      { qty: 5000, price: 489 },
+    ],
+  },
+  {
+    product: 'Brochures pliées',
+    spec: '8,5 × 11 po · 4 pages · 100lb',
+    pricesPerQty: [
+      { qty: 100, price: 145 },
+      { qty: 250, price: 195 },
+      { qty: 500, price: 269 },
+      { qty: 1000, price: 419 },
+    ],
+  },
+];
 
 export default function PricingPage() {
   return (
     <>
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'Accueil', path: '/' },
+          { name: 'Tarifs', path: '/pricing' },
+        ])}
+      />
+
       <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Plio.</a>
-          <div className="mkt-nav-links">
-            <a href="#" className="mkt-nav-link">Produits</a>
-            <a href="/pricing" className="mkt-nav-link active">Tarifs</a>
-            <a href="/reseller" className="mkt-nav-link">Reseller</a>
-            <a href="/help" className="mkt-nav-link">Aide</a>
-            <a href="/sign-in" className="mkt-nav-link">Se connecter</a>
-            <a href="/sign-up" className="mkt-nav-cta">S'inscrire →</a>
+        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
+        <div className="mkt-nav-links">
+          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
+          <Link href={'/pricing' as Route} className="mkt-nav-link active">Tarifs</Link>
+          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
+          <Link href={'/help' as Route} className="mkt-nav-link">Aide</Link>
+          <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
+        </div>
+      </nav>
+
+      <main style={{ maxWidth: 1080, margin: '0 auto', padding: '64px 24px 96px' }}>
+        {/* Hero */}
+        <header style={{ marginBottom: 48 }}>
+          <div className="page-eyebrow">Tarification</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px, 6vw, 56px)', letterSpacing: '-0.025em', fontWeight: 400, lineHeight: 1.05, margin: '8px 0 16px' }}>
+            Prix wholesale,<br />
+            <em style={{ color: 'var(--accent-primary)' }}>publié sans détours.</em>
+          </h1>
+          <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 720, lineHeight: 1.55, margin: 0 }}>
+            Pas de devis qui prend 48 h. Pas de minimum absurde. Pas d&apos;abonnement.
+            Tu paies seulement les commandes que tu passes, au tarif dégressif selon
+            la quantité.
+          </p>
+        </header>
+
+        {/* Modèle de pricing */}
+        <section style={{ marginBottom: 56 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.015em', margin: '0 0 20px' }}>
+            Comment on calcule.
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            {[
+              { num: '01', title: 'Produit + options', desc: 'Le prix de base dépend du papier, format, finition. Tout est visible dans le wizard.' },
+              { num: '02', title: 'Quantité dégressive', desc: 'Plus tu commandes, moins c\'est cher par unité. 1000 cartes coûtent ~0,12 $/u vs 0,52 $/u à 100.' },
+              { num: '03', title: 'Délai (rush ou standard)', desc: 'Standard 4-7 j inclus. Rush 24-48 h ajoute ~15-30 % selon le produit.' },
+              { num: '04', title: 'Livraison + taxes', desc: 'UPS/Postes Canada calculés selon ta province. TPS/TVQ ajoutées au sous-total.' },
+            ].map((step) => (
+              <div key={step.num} style={{ padding: 22, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 24, color: 'var(--accent-primary)', fontWeight: 700, marginBottom: 8 }}>
+                  {step.num}
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, margin: '0 0 8px' }}>
+                  {step.title}
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
+                  {step.desc}
+                </p>
+              </div>
+            ))}
           </div>
-        </nav>
-      
-        <main>
-          {/* HERO */}
-          <section className="pricing-hero">
-            <div className="hero-eyebrow">Tarifs transparents</div>
-            <h1>Pas d'abonnement. <em>Tu paies au print.</em></h1>
-            <p>Prix wholesale dès la première commande. Les tiers débloquent des remises et features avancées, automatiquement selon ton volume.</p>
-      
-            <div className="billing-toggle">
-              <button className="active">Mensuel</button>
-              <button>Annuel <span className="save">−15 %</span></button>
-            </div>
-          </section>
-      
-          {/* TIERS */}
-          <section className="tiers-section">
-            <div className="tiers-grid">
-              {/* Free */}
-              <div className="price-card">
-                <div className="pc-header">
-                  <h3 className="pc-name">Gratuit</h3>
-                  <p className="pc-desc">Premier devis offert. Idéal pour découvrir.</p>
+        </section>
+
+        {/* Pricing tables */}
+        <section style={{ marginBottom: 56 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.015em', margin: '0 0 8px' }}>
+            Exemples concrets.
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 24px' }}>
+            Prix indicatifs en CAD, livraison + taxes en sus. Devis exact pour ton tirage
+            précis : <Link href={'/order/start' as Route} style={{ color: 'var(--accent-primary)' }}>configure dans le wizard</Link> (2 min).
+          </p>
+
+          <div style={{ display: 'grid', gap: 20 }}>
+            {PRICING_EXAMPLES.map((row) => {
+              const cheapestPerUnit = row.pricesPerQty.reduce((a, b) =>
+                b.price / b.qty < a.price / a.qty ? b : a,
+              );
+              return (
+                <div
+                  key={row.product}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--r-lg)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{row.product}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{row.spec}</div>
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${row.pricesPerQty.length}, 1fr)`,
+                    }}
+                  >
+                    {row.pricesPerQty.map((p, i) => {
+                      const unitPrice = p.price / p.qty;
+                      const isBest = p.qty === cheapestPerUnit.qty;
+                      return (
+                        <div
+                          key={p.qty}
+                          style={{
+                            padding: '18px 14px',
+                            textAlign: 'center',
+                            borderLeft: i > 0 ? '1px solid var(--border-subtle)' : 'none',
+                            background: isBest ? 'var(--accent-soft)' : 'transparent',
+                            position: 'relative',
+                          }}
+                        >
+                          {isBest && (
+                            <span style={{
+                              position: 'absolute', top: 6, right: 8,
+                              fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em',
+                              textTransform: 'uppercase', color: 'var(--accent-primary)', fontWeight: 700,
+                            }}>★ Best</span>
+                          )}
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                            {p.qty.toLocaleString('fr-CA')} u
+                          </div>
+                          <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-primary)', fontWeight: 400, marginTop: 4 }}>
+                            {p.price} $
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                            {(unitPrice * 100).toFixed(unitPrice < 0.10 ? 1 : 0)}¢ / u
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="pc-price">
-                  <span className="pc-price-amount">0</span>
-                  <span className="pc-price-currency">$</span>
-                  <span className="pc-price-unit">à vie</span>
-                </div>
-                <span className="pc-tagline">Aucune carte requise</span>
-                <button className="pc-cta">S'inscrire →</button>
-                <ul className="pc-feature-list">
-                  <li>Catalogue complet (1 200+ produits)</li>
-                  <li>Devis instantané illimité</li>
-                  <li>Templates &amp; guides gratuits</li>
-                  <li><strong>5 échantillons</strong> par mois</li>
-                  <li>Support courriel (sous 24h)</li>
-                  <li className="disabled">Pas de remise volume</li>
-                  <li className="disabled">Pas de wallet bonus</li>
-                </ul>
-              </div>
-      
-              {/* Pro */}
-              <div className="price-card">
-                <div className="pc-header">
-                  <h3 className="pc-name">Pro</h3>
-                  <p className="pc-desc">Freelances qui commandent régulièrement.</p>
-                </div>
-                <div className="pc-price">
-                  <span className="pc-price-amount">19</span>
-                  <span className="pc-price-currency">$</span>
-                  <span className="pc-price-unit">/ mois</span>
-                </div>
-                <span className="pc-tagline">★ Économise dès 200 $ d'achats</span>
-                <button className="pc-cta">Démarrer Pro →</button>
-                <ul className="pc-feature-list">
-                  <li>Tout de Gratuit +</li>
-                  <li><strong>10 %</strong> de remise wholesale</li>
-                  <li>Échantillons <strong>illimités</strong></li>
-                  <li>Wallet bonus <strong>+3 %</strong></li>
-                  <li>Prépresse prioritaire (sous 1h)</li>
-                  <li>Support courriel (sous 4h)</li>
-                  <li className="disabled">Pas de blind shipping</li>
-                </ul>
-              </div>
-      
-              {/* Studio (featured) */}
-              <div className="price-card featured">
-                <div className="pc-header">
-                  <h3 className="pc-name">Studio</h3>
-                  <p className="pc-desc">Studios &amp; agences qui revendent du print.</p>
-                </div>
-                <div className="pc-price">
-                  <span className="pc-price-amount">59</span>
-                  <span className="pc-price-currency">$</span>
-                  <span className="pc-price-unit">/ mois</span>
-                </div>
-                <span className="pc-tagline">★ Marge moyenne 18 %</span>
-                <button className="pc-cta">Démarrer Studio →</button>
-                <ul className="pc-feature-list">
-                  <li>Tout de Pro +</li>
-                  <li><strong>18 %</strong> de remise wholesale</li>
-                  <li>★ <strong>Blind shipping</strong> inclus</li>
-                  <li>Account manager dédié</li>
-                  <li>Wallet bonus <strong>+5 %</strong></li>
-                  <li>Multi-utilisateurs (5 sièges)</li>
-                  <li>API REST &amp; webhooks</li>
-                  <li>Support tél &amp; courriel (30 min)</li>
-                </ul>
-              </div>
-      
-              {/* Agency */}
-              <div className="price-card">
-                <div className="pc-header">
-                  <h3 className="pc-name">Agency</h3>
-                  <p className="pc-desc">Grosses agences avec volume mensuel élevé.</p>
-                </div>
-                <div className="pc-price">
-                  <span className="pc-price-amount">Sur</span>
-                  <span className="pc-price-currency" style={{ fontFamily: "var(--font-display)", fontSize: "64px", letterSpacing: "-0.04em", color: "var(--text-primary)" } as React.CSSProperties}>mesure</span>
-                </div>
-                <span className="pc-tagline">★ Dès 10 000 $/mois</span>
-                <button className="pc-cta">Nous parler →</button>
-                <ul className="pc-feature-list">
-                  <li>Tout de Studio +</li>
-                  <li>Jusqu'à <strong>25 %</strong> de remise</li>
-                  <li>Marque blanche complète</li>
-                  <li>Sous-domaine personnalisé</li>
-                  <li><strong>15 sièges</strong> inclus</li>
-                  <li>Wallet bonus <strong>+8 %</strong></li>
-                  <li>SLA contractuel</li>
-                  <li>Onboarding sur place</li>
-                </ul>
-              </div>
-            </div>
-          </section>
-      
-          {/* COMPARISON TABLE */}
-          <section className="compare-section">
-            <div className="compare-section-inner">
-              <h2>Comparaison <em>détaillée.</em></h2>
-              <p>Tous les détails de chaque tier, côte à côte.</p>
-      
-              <div className="compare-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Fonctionnalités</th>
-                      <th className="tier-head"><div className="th-inner"><span className="th-name">Gratuit</span><span className="th-price">0 $ / mois</span></div></th>
-                      <th className="tier-head"><div className="th-inner"><span className="th-name">Pro</span><span className="th-price">19 $ / mois</span></div></th>
-                      <th className="tier-head featured-col"><div className="th-inner"><span className="th-name">Studio</span><span className="th-price">59 $ / mois</span></div></th>
-                      <th className="tier-head"><div className="th-inner"><span className="th-name">Agency</span><span className="th-price">Sur devis</span></div></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="section-row"><td colSpan={5} className="section-label">★ Catalogue &amp; commandes</td></tr>
-                    <tr>
-                      <td className="feature">Catalogue complet<span className="meta">1 200+ produits</span></td>
-                      <td className="val yes"></td><td className="val yes"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Devis instantané illimité</td>
-                      <td className="val yes"></td><td className="val yes"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Remise wholesale<span className="meta">Calculée sur catalogue de base</span></td>
-                      <td className="val no"></td><td className="val yes">10 %</td><td className="val yes featured-cell">18 %</td><td className="val yes">25 %</td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Wallet bonus<span className="meta">Sur recharges 500 $+</span></td>
-                      <td className="val no"></td><td className="val yes">+3 %</td><td className="val yes featured-cell">+5 %</td><td className="val yes">+8 %</td>
-                    </tr>
-      
-                    <tr className="section-row"><td colSpan={5} className="section-label">★ Production &amp; livraison</td></tr>
-                    <tr>
-                      <td className="feature">Prépresse prioritaire<span className="meta">Délai de vérification</span></td>
-                      <td className="val">Sous 2h</td><td className="val">Sous 1h</td><td className="val featured-cell">Sous 30 min</td><td className="val">Instantané</td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Blind shipping<span className="meta">Boîtes neutres + adresse retour à toi</span></td>
-                      <td className="val no"></td><td className="val no"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Échantillons gratuits</td>
-                      <td className="val">5 / mois</td><td className="val">Illimités</td><td className="val featured-cell">Illimités</td><td className="val">Illimités</td>
-                    </tr>
-      
-                    <tr className="section-row"><td colSpan={5} className="section-label">★ Marque blanche &amp; équipe</td></tr>
-                    <tr>
-                      <td className="feature">Factures à ton entête</td>
-                      <td className="val no"></td><td className="val yes"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Sous-domaine custom<span className="meta">print.tonagence.com</span></td>
-                      <td className="val no"></td><td className="val no"></td><td className="val no featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Multi-utilisateurs<span className="meta">Avec rôles séparés</span></td>
-                      <td className="val">1 siège</td><td className="val">1 siège</td><td className="val featured-cell">5 sièges</td><td className="val">15 sièges</td>
-                    </tr>
-      
-                    <tr className="section-row"><td colSpan={5} className="section-label">★ API &amp; intégrations</td></tr>
-                    <tr>
-                      <td className="feature">API REST &amp; webhooks<span className="meta">Documentation OpenAPI</span></td>
-                      <td className="val no"></td><td className="val no"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Plugin Shopify / WooCommerce</td>
-                      <td className="val no"></td><td className="val no"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-      
-                    <tr className="section-row"><td colSpan={5} className="section-label">★ Support</td></tr>
-                    <tr>
-                      <td className="feature">Support courriel</td>
-                      <td className="val">Sous 24h</td><td className="val">Sous 4h</td><td className="val featured-cell">Sous 30 min</td><td className="val">Sous 15 min</td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Support téléphone</td>
-                      <td className="val no"></td><td className="val no"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">Account manager dédié</td>
-                      <td className="val no"></td><td className="val no"></td><td className="val yes featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                    <tr>
-                      <td className="feature">SLA contractuel<span className="meta">Garanties écrites de délai</span></td>
-                      <td className="val no"></td><td className="val no"></td><td className="val no featured-cell"></td><td className="val yes"></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-      
-          {/* FAQ */}
-          <section className="pricing-faq">
-            <h2>Questions sur les <em>tarifs.</em></h2>
-            <p>Tout ce qui n'est pas évident en regardant la grille.</p>
-      
-            <div className="faq-list">
-              <div className="faq-item open">
-                <div className="faq-q">Puis-je changer de tier à tout moment ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Oui. Upgrade instantané, downgrade au prochain cycle de facturation. Aucun frais de changement. Si tu downgrades, tes commandes passées gardent le tarif d'origine.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">L'abonnement mensuel inclut-il du print ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Non. L'abonnement débloque la remise et les features (blind shipping, API, etc.). Le print est facturé séparément, au prix wholesale moins ta remise.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Comment fonctionnent les remises de volume ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Pour les resellers (Studio et Agency), une seconde remise auto-calculée s'ajoute sur les 30 derniers jours glissants. Elle vient en plus de la remise du tier.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Y a-t-il une période d'essai pour Pro et Studio ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Oui — 14 jours gratuits sur Pro et 30 jours gratuits sur Studio. Pas de carte de crédit requise pour l'essai. Annulation en un clic.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Comment puis-je passer en Agency ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Si tu dépasses 10 000 $/mois sur trois mois consécutifs, notre équipe te contacte. Sinon, demande directement un devis sur cette page — pas de minimum d'engagement contraignant.</div>
-              </div>
-            </div>
-          </section>
-        </main>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Pricing FAQ */}
+        <section style={{ marginBottom: 56 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.015em', margin: '0 0 20px' }}>
+            Questions sur le prix.
+          </h2>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {PRICING_FAQ.map((f) => (
+              <details
+                key={f.q}
+                style={{
+                  padding: 20,
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--r-md)',
+                }}
+              >
+                <summary style={{ cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {f.q}
+                </summary>
+                <p style={{ marginTop: 10, marginBottom: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                  {f.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section
+          style={{
+            padding: 32,
+            background: 'var(--accent-soft)',
+            border: '1px solid var(--accent-primary)',
+            borderRadius: 'var(--r-xl)',
+            textAlign: 'center',
+          }}
+        >
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 400, letterSpacing: '-0.015em', margin: '0 0 12px' }}>
+            Devis exact en <em>2 minutes.</em>
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px' }}>
+            Aucune carte de crédit requise tant que tu ne paies pas. Configure, vois le
+            prix changer en temps réel, exporte le devis si tu veux.
+          </p>
+          <Link href={'/order/start' as Route} className="btn btn-primary">
+            Démarrer un devis →
+          </Link>
+        </section>
+      </main>
     </>
   );
 }
+
+const PRICING_FAQ = [
+  {
+    q: 'Pourquoi le prix par unité baisse autant à 1000 ?',
+    a: 'Le coût fixe (setup, presse, fichier) est amorti sur le tirage. À 100 cartes, le setup pèse plus que l\'impression elle-même. À 1000, le setup est négligeable et tu paies surtout le papier + l\'encre — d\'où la baisse de 50-70 %.',
+  },
+  {
+    q: 'Y a-t-il un minimum de commande ?',
+    a: 'Pas vraiment. Le wizard accepte les tirages dès 25-50 unités (selon produit). Sache juste que le coût par unité est élevé à petit volume — pour un seul lot de cartes c\'est ~0,50 $/u, ce qui peut être plus cher qu\'un imprimeur de quartier.',
+  },
+  {
+    q: 'Les prix sont-ils négociables pour gros volume ?',
+    a: 'Pour les comptes reseller (agences, studios qui revendent), oui — le tier wholesale s\'applique automatiquement après approbation de ton application. Pour les autres, le pricing public est ce qu\'il y a de mieux.',
+  },
+  {
+    q: 'Comment se compare votre prix à Vistaprint ?',
+    a: 'On est généralement 15-30 % moins cher sur les produits comparables, ET on imprime 100 % au Canada (certains concurrents outsource une partie en Inde / Tunisie). Pour les comparaisons précises, va dans le wizard avec ton tirage — chaque option a son prix.',
+  },
+  {
+    q: 'TPS et TVQ inclues dans les prix affichés ?',
+    a: 'Non, les prix tableau ci-dessus sont hors taxes. La TPS (5 %) + TVQ (9,975 %) sont ajoutées au sous-total au checkout, calculées selon ta province de livraison (QC = TPS+TVQ, ON = HST 13 %, AB = TPS seulement, etc.).',
+  },
+];
