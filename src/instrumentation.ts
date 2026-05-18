@@ -12,6 +12,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs';
+import { routeSentryEvent } from '@/lib/sentry/routing';
 
 const DSN = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
 const ENV = process.env.NODE_ENV ?? 'development';
@@ -29,16 +30,16 @@ export async function register() {
       environment: ENV,
       tracesSampleRate: SAMPLE_RATE,
       profilesSampleRate: SAMPLE_RATE,
-      // Don't send Plio sensitive data
-      beforeSend(event) {
-        // Strip auth cookies + Stripe webhook signatures
+      beforeSend(event, hint) {
+        // 1. Strip Plio sensitive data
         if (event.request?.cookies) delete event.request.cookies;
         if (event.request?.headers) {
           delete event.request.headers['cookie'];
           delete event.request.headers['stripe-signature'];
           delete event.request.headers['authorization'];
         }
-        return event;
+        // 2. Apply alert routing : drop noise, tag severity, mute warnings
+        return routeSentryEvent(event, hint);
       },
     });
   }
@@ -48,6 +49,9 @@ export async function register() {
       dsn: DSN,
       environment: ENV,
       tracesSampleRate: SAMPLE_RATE,
+      beforeSend(event, hint) {
+        return routeSentryEvent(event, hint);
+      },
     });
   }
 }
