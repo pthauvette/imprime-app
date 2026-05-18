@@ -20,6 +20,7 @@ export type AdminSidebarKey =
   | 'messages'
   | 'quotes'
   | 'broadcast'
+  | 'email-preview'
   | 'search'
   | 'notifications'
   | 'audit'
@@ -145,6 +146,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
         { key: 'orders', href: '/admin/orders' as Route, label: 'Commandes', icon: ICONS.orders, count: counts.orders },
         { key: 'webhooks', href: '/admin/webhooks' as Route, label: 'Webhooks', icon: ICONS.webhooks, count: counts.webhooks, urgent: urgents.webhooks },
         { key: 'emails', href: '/admin/emails' as Route, label: 'Queue email', icon: ICONS.emails, count: counts.emails, urgent: urgents.emails },
+        { key: 'email-preview', href: '/admin/email-preview' as Route, label: 'Aperçu emails', icon: ICONS.emails },
       ],
     },
     {
