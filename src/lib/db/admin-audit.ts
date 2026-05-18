@@ -26,9 +26,10 @@ export type AdminAuditKind =
   | 'ADMIN_PRODUCT_OVERRIDE_UPSERT'
   | 'ADMIN_PRODUCT_OVERRIDE_DELETE'
   | 'ADMIN_DATA_EXPORT'
-  | 'ADMIN_USER_NOTES_UPDATE';
+  | 'ADMIN_USER_NOTES_UPDATE'
+  | 'ADMIN_EXPERIMENT_TOGGLE';
 
-export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT';
+export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT' | 'EXPERIMENT';
 
 export interface AdminAuditInput {
   kind: AdminAuditKind;

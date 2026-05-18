@@ -926,3 +926,26 @@ model SampleRequest {
   @@index([email, createdAt])
   @@index([status, createdAt])
 }
+
+// ─── EXPERIMENT OVERRIDE ─────────────────────────────────────────────────
+// Admin override du flag `active` pour une expérience A/B. La structure
+// (variants, weights, label) reste code-defined dans src/lib/ab/experiments.ts.
+// Cette table sert juste à toggler on/off sans redeploy + future : override
+// des poids pour ramp up progressif.
+
+model ExperimentOverride {
+  id           String   @id @default(cuid())
+  /** Match EXPERIMENTS key. Unique car 1 row par experiment. */
+  experimentId String   @unique
+  /** True = expérience active (assignation random). False = tout le monde
+   *  voit le control. Si pas de row : code default (Experiment.active). */
+  active       Boolean
+  /** Optionnel — JSON `{ variantId: weight }` pour override les poids
+   *  code-defined. Permet de shift 50/50 → 90/10 sans redeploy. NULL = code default. */
+  weightsJson  String?
+  /** Email de l'admin qui a fait le dernier change (audit lite). */
+  updatedBy    String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
