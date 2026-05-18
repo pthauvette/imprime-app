@@ -1,269 +1,232 @@
 /**
- * Auto-migrated from Open Design HTML artifact `help.html`.
+ * /help — centre d'aide / FAQ public.
  *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * Server Component qui rend la FAQ organisée par catégorie. Le filtre/
+ * recherche est un Client Component (HelpSearch) qui filtre côté client
+ * sans network call (Q&A en mémoire).
+ *
+ * Pas de CMS — pour ajouter une Q&A : éditer FAQ array ci-dessous.
+ * Quand le volume justifie un CMS, migrer vers MDX-style comme le blog.
+ *
+ * JSON-LD FAQPage pour rich snippets Google (afficher les Q&A directement
+ * dans les SERPs).
  */
 
-export const metadata = { title: "Centre d'aide — Plio" };
+import Link from 'next/link';
+import type { Route } from 'next';
+import HelpSearch, { type FaqItem } from './HelpSearch';
+import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+
+export const metadata = {
+  title: 'Centre d\'aide — Plio',
+  description: 'Réponses aux questions fréquentes : commande, fichiers PDF, livraison, paiement, retour, échantillons. Support FR/EN, réponse sous 2 h ouvrables.',
+};
+
+const FAQ: FaqItem[] = [
+  // ─── Commande ─────────────────────────────────────────────────────────
+  {
+    category: 'Commande',
+    q: 'Comment passer ma première commande ?',
+    a: 'Va sur le wizard de commande, choisis ton produit, configure (papier, format, finition), choisis la quantité, téléverse ton PDF et paie. Compte ~5 minutes du début à la fin si ton fichier est prêt.',
+  },
+  {
+    category: 'Commande',
+    q: 'Puis-je commander sans créer de compte ?',
+    a: 'Oui. On crée automatiquement un compte avec ton email à la fin du checkout. Tu reçois un magic link pour te connecter quand tu veux voir ta commande ou en passer une nouvelle.',
+  },
+  {
+    category: 'Commande',
+    q: 'Puis-je modifier ma commande après le paiement ?',
+    a: 'Avant qu\'on transmette à la presse (généralement dans l\'heure suivant le paiement), oui — écris-nous à bonjour@plio.ca avec ton numéro de commande. Après transmission à la presse, la modification n\'est plus possible.',
+  },
+  {
+    category: 'Commande',
+    q: 'Puis-je annuler ma commande ?',
+    a: 'Avant transmission à la presse (1 h après paiement), oui — refund complet automatique. Après, ça dépend du status : si toujours en production, refund partiel possible ; si déjà imprimée ou expédiée, pas de refund (la fabrication est faite).',
+  },
+
+  // ─── Fichiers ─────────────────────────────────────────────────────────
+  {
+    category: 'Fichiers',
+    q: 'Quel format de fichier acceptez-vous ?',
+    a: 'PDF est le format recommandé (PDF/X-4 idéal). On accepte aussi AI (Illustrator) et PSD (Photoshop). Évite les JPG/PNG pour la qualité d\'impression sauf si tu sais ce que tu fais (300 DPI minimum).',
+  },
+  {
+    category: 'Fichiers',
+    q: 'Mon fichier doit-il être en CMYK ou RGB ?',
+    a: 'CMYK pour des couleurs prévisibles à l\'impression. Si tu envoies du RGB, on convertit automatiquement, mais les couleurs peuvent légèrement varier de ce que tu vois à l\'écran. Notre guide complet : voir notre article blog "Préparer ton fichier PDF pour l\'impression".',
+  },
+  {
+    category: 'Fichiers',
+    q: 'Combien de bleed (fond perdu) je dois prévoir ?',
+    a: '3 mm sur les 4 côtés. Notre validateur upload te dit si tu en manques. Si tu utilises un de nos templates, le bleed est déjà placé correctement.',
+  },
+  {
+    category: 'Fichiers',
+    q: 'Mon fichier a été refusé — que faire ?',
+    a: 'Notre validateur upload te dit précisément ce qui cloche (résolution trop basse, CMYK manquant, polices non-embarquées, etc.). Corrige le fichier et re-upload — pas besoin de re-payer.',
+  },
+
+  // ─── Livraison ────────────────────────────────────────────────────────
+  {
+    category: 'Livraison',
+    q: 'Combien de temps pour recevoir ma commande ?',
+    a: 'Standard : 4-7 jours ouvrables (1-3 j production + 1-5 j transit selon ta province). Rush 24-48 h disponible sur certains produits standards si tu commandes avant 11 h heure de l\'Est.',
+  },
+  {
+    category: 'Livraison',
+    q: 'Vous livrez partout au Canada ?',
+    a: 'Oui — UPS Standard et Postes Canada disponibles partout, incluant les territoires (avec délais étendus). Pas de livraison hors Canada pour MVP.',
+  },
+  {
+    category: 'Livraison',
+    q: 'Puis-je suivre ma commande ?',
+    a: 'Oui. Tu reçois un email avec le numéro de tracking dès l\'expédition. Tu peux aussi consulter le status à tout moment sur /orders ou /track (sans login pour les guests).',
+  },
+  {
+    category: 'Livraison',
+    q: 'Que se passe-t-il si ma commande arrive endommagée ?',
+    a: 'Écris-nous avec une photo du colis + du produit endommagé dans les 7 jours. On réimprime sans frais. C\'est rare (UPS/Postes Canada sont fiables) mais on couvre.',
+  },
+
+  // ─── Paiement ─────────────────────────────────────────────────────────
+  {
+    category: 'Paiement',
+    q: 'Quels moyens de paiement acceptez-vous ?',
+    a: 'Toutes les cartes de crédit / débit (Visa, MasterCard, AMEX) via Stripe. Apple Pay et Google Pay aussi disponibles sur mobile. Pas de virement bancaire pour MVP.',
+  },
+  {
+    category: 'Paiement',
+    q: 'Recevrai-je une facture ?',
+    a: 'Oui — facture PDF avec TPS/TVQ détaillées disponible immédiatement après le paiement dans ton espace /orders. Tous les champs requis pour réclamer tes CTI/RTI sont présents (numéro TPS et TVQ de Plio).',
+  },
+  {
+    category: 'Paiement',
+    q: 'Mon paiement a échoué — pourquoi ?',
+    a: 'Le plus souvent : carte refusée par la banque (limite, fraud detection, fonds insuffisants) ou 3D Secure rejeté. Ton panier est conservé — tu peux retourner au checkout et essayer une autre carte sans re-uploader ton fichier.',
+  },
+
+  // ─── Compte ───────────────────────────────────────────────────────────
+  {
+    category: 'Compte',
+    q: 'Comment me connecter ?',
+    a: 'Magic link : tape ton email sur /sign-in, on t\'envoie un lien de connexion par email. Pas de mot de passe à mémoriser. Le lien expire après 1 h pour la sécurité.',
+  },
+  {
+    category: 'Compte',
+    q: 'Comment changer mes préférences email ?',
+    a: 'Va dans /settings → Préférences email. Tu peux désactiver les notifications de livraison (expédié, livré) tout en gardant les emails transactionnels obligatoires (confirmation de commande, refund, etc.) qu\'on doit envoyer par loi.',
+  },
+  {
+    category: 'Compte',
+    q: 'Comment voir mes commandes précédentes ?',
+    a: 'Va sur /orders. Tu peux re-commander d\'un clic n\'importe quelle commande passée (le wizard pré-remplit toutes les options) — pratique pour les commandes récurrentes.',
+  },
+
+  // ─── Échantillons ─────────────────────────────────────────────────────
+  {
+    category: 'Échantillons',
+    q: 'Les échantillons sont vraiment gratuits ?',
+    a: 'Oui. Tu peux commander jusqu\'à 5 échantillons gratuits par mois (papiers + finitions) — livrés par Postes Canada en 5 jours. Pas de carte de crédit demandée, pas d\'abonnement. C\'est notre way d\'aider tu choisir avant d\'engager du volume.',
+  },
+  {
+    category: 'Échantillons',
+    q: 'Combien de samples puis-je demander par mois ?',
+    a: 'Maximum 5 par mois par email. Si tu as besoin de plus pour un projet spécifique, écris-nous — on accommode au cas par cas (designer en sourcing pour un client, etc.).',
+  },
+
+  // ─── Parrainage ───────────────────────────────────────────────────────
+  {
+    category: 'Parrainage',
+    q: 'Comment marche le programme de parrainage ?',
+    a: 'Tu as un code unique dans /account/referrals. Partage-le. Quand un ami passe sa première commande payée avec ton code, vous recevez chacun 10 $ CAD de crédit appliqué automatiquement à votre prochain checkout.',
+  },
+  {
+    category: 'Parrainage',
+    q: 'Y a-t-il une limite au nombre de parrainages ?',
+    a: 'Aucune limite — plus tu parraines, plus tu accumules de crédit. Le crédit n\'expire pas. Anti-abuse : un user ne peut être filleul qu\'une seule fois (premier parrain qui amène l\'inscription gagne).',
+  },
+];
 
 export default function HelpPage() {
+  // JSON-LD FAQPage — Google peut afficher les questions directement
+  // dans les résultats de recherche. Énorme boost de visibilité SERP.
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQ.map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.a,
+      },
+    })),
+  };
+
   return (
     <>
+      <JsonLd data={faqSchema} />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'Accueil', path: '/' },
+          { name: 'Centre d\'aide', path: '/help' },
+        ])}
+      />
+
       <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Plio.</a>
-          <div className="mkt-nav-links">
-            <a href="#" className="mkt-nav-link">Produits</a>
-            <a href="/pricing" className="mkt-nav-link">Tarifs</a>
-            <a href="/reseller" className="mkt-nav-link">Reseller</a>
-            <a href="/help" className="mkt-nav-link active">Aide</a>
-            <a href="/sign-in" className="mkt-nav-link">Se connecter</a>
-            <a href="/sign-up" className="mkt-nav-cta">S'inscrire →</a>
+        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
+        <div className="mkt-nav-links">
+          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
+          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
+          <Link href={'/help' as Route} className="mkt-nav-link active">Aide</Link>
+          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
+          <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
+        </div>
+      </nav>
+
+      <main style={{ maxWidth: 880, margin: '0 auto', padding: '64px 24px 96px' }}>
+        <header style={{ marginBottom: 32 }}>
+          <div className="page-eyebrow">Centre d&apos;aide</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px, 6vw, 56px)', letterSpacing: '-0.025em', fontWeight: 400, lineHeight: 1.05, margin: '8px 0 16px' }}>
+            On peut <em style={{ color: 'var(--accent-primary)' }}>t&apos;aider ?</em>
+          </h1>
+          <p style={{ fontSize: 16, color: 'var(--text-secondary)', maxWidth: 620, margin: 0, lineHeight: 1.55 }}>
+            Réponses aux questions les plus fréquentes. Si tu ne trouves pas ta réponse,
+            écris-nous à <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>bonjour@plio.ca</a> — réponse sous 2 h ouvrables.
+          </p>
+        </header>
+
+        <HelpSearch items={FAQ} />
+
+        {/* Contact CTA */}
+        <section
+          style={{
+            marginTop: 56,
+            padding: 28,
+            background: 'var(--accent-soft)',
+            border: '1px solid var(--accent-primary)',
+            borderRadius: 'var(--r-xl)',
+            display: 'grid',
+            gap: 14,
+          }}
+        >
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.01em', margin: 0 }}>
+            Toujours bloqué ?
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            On répond en moyenne sous 2 h ouvrables. Inclus avec ta commande, gratuit, illimité.
+          </p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <a href="mailto:bonjour@plio.ca" className="btn btn-primary">
+              📧 bonjour@plio.ca
+            </a>
+            <Link href={'/contact' as Route} className="btn btn-ghost">
+              Formulaire de contact →
+            </Link>
           </div>
-        </nav>
-      
-        <main>
-          {/* HERO */}
-          <section className="help-hero">
-            <div className="help-eyebrow">Centre d'aide</div>
-            <h1>Comment on peut <em>t'aider ?</em></h1>
-            <p>Réponses rapides, tutoriels détaillés, ou support humain — selon ce dont tu as besoin.</p>
-      
-            <div className="help-search">
-              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-              <input type="text" placeholder="Cherche un article, un produit, un problème…" />
-              <span className="help-search-kbd">/</span>
-            </div>
-      
-            <div className="help-quick">
-              <a href="#" className="help-quick-pill">Comment ajouter du bleed</a>
-              <a href="#" className="help-quick-pill">Différence 14pt / 16pt / 18pt</a>
-              <a href="#" className="help-quick-pill">Annuler une commande</a>
-              <a href="#" className="help-quick-pill">Recharger mon wallet</a>
-              <a href="#" className="help-quick-pill">Demander un échantillon</a>
-            </div>
-          </section>
-      
-          {/* System status banner */}
-          <div className="status-banner">
-            <div className="status-banner-text">Tous les systèmes opérationnels — production en jour, livraisons à l'heure</div>
-            <a href="#" className="status-banner-link">★ Statut détaillé →</a>
-          </div>
-      
-          {/* CATEGORIES */}
-          <section className="help-cats-section">
-            <div className="help-cats-grid">
-              <a href="#" className="help-cat-card">
-                <div className="help-cat-icon">📦</div>
-                <h3 className="help-cat-name">Commandes</h3>
-                <p className="help-cat-desc">Suivi, modification, annulation, remboursement. Toutes les questions sur le cycle de vie d'une commande.</p>
-                <div className="help-cat-count"><span>24 articles</span><strong>Explorer →</strong></div>
-              </a>
-              <a href="#" className="help-cat-card">
-                <div className="help-cat-icon">🎨</div>
-                <h3 className="help-cat-name">Fichiers &amp; design</h3>
-                <p className="help-cat-desc">Bleed, CMYK, résolution, formats acceptés, templates. Tout ce qui touche à la préparation d'un fichier print.</p>
-                <div className="help-cat-count"><span>18 articles</span><strong>Explorer →</strong></div>
-              </a>
-              <a href="#" className="help-cat-card">
-                <div className="help-cat-icon">📄</div>
-                <h3 className="help-cat-name">Produits &amp; finitions</h3>
-                <p className="help-cat-desc">Papiers, formats, coatings spéciaux (UV, foil, soft touch), différences entre options.</p>
-                <div className="help-cat-count"><span>32 articles</span><strong>Explorer →</strong></div>
-              </a>
-              <a href="#" className="help-cat-card">
-                <div className="help-cat-icon">🚚</div>
-                <h3 className="help-cat-name">Livraison</h3>
-                <p className="help-cat-desc">Délais, carriers, tracking, blind shipping, zones desservies, problèmes de livraison.</p>
-                <div className="help-cat-count"><span>15 articles</span><strong>Explorer →</strong></div>
-              </a>
-              <a href="#" className="help-cat-card">
-                <div className="help-cat-icon">💳</div>
-                <h3 className="help-cat-name">Paiements &amp; wallet</h3>
-                <p className="help-cat-desc">Méthodes de paiement, recharges wallet, factures, taxes, remboursements Stripe.</p>
-                <div className="help-cat-count"><span>12 articles</span><strong>Explorer →</strong></div>
-              </a>
-              <a href="#" className="help-cat-card">
-                <div className="help-cat-icon">⚡</div>
-                <h3 className="help-cat-name">Compte &amp; sécurité</h3>
-                <p className="help-cat-desc">Login, mot de passe, 2FA, adresses sauvegardées, données personnelles, suppression de compte.</p>
-                <div className="help-cat-count"><span>14 articles</span><strong>Explorer →</strong></div>
-              </a>
-              <a href="/reseller" className="help-cat-card">
-                <div className="help-cat-icon">🏢</div>
-                <h3 className="help-cat-name">Programme reseller</h3>
-                <p className="help-cat-desc">Tiers, remises, blind shipping, API, marque blanche, multi-utilisateurs.</p>
-                <div className="help-cat-count"><span>21 articles</span><strong>Explorer →</strong></div>
-              </a>
-              <a href="#" className="help-cat-card">
-                <div className="help-cat-icon">🔌</div>
-                <h3 className="help-cat-name">API &amp; intégrations</h3>
-                <p className="help-cat-desc">Documentation OpenAPI, webhooks, plugins Shopify / WooCommerce, exemples de code.</p>
-                <div className="help-cat-count"><span>9 articles</span><strong>Explorer →</strong></div>
-              </a>
-            </div>
-          </section>
-      
-          {/* POPULAR ARTICLES */}
-          <section className="popular-section" style={{ maxWidth: "none", padding: "64px 0" } as React.CSSProperties}>
-            <div className="popular-section-inner">
-              <div className="section-header">
-                <h2>Articles populaires <em>cette semaine</em></h2>
-                <span>Mis à jour il y a 2h</span>
-              </div>
-              <div className="articles-grid">
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">Fichiers &amp; design</span>
-                    <span className="article-title">Comment ajouter du bleed à mon design (Illustrator, Photoshop, InDesign)</span>
-                    <span className="article-meta">Lecture 4 min · 12k+ vues</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">Produits</span>
-                    <span className="article-title">14pt vs 16pt vs 18pt — quel grammage choisir pour mes cartes ?</span>
-                    <span className="article-meta">Lecture 6 min · 8 700 vues</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">Commandes</span>
-                    <span className="article-title">Puis-je annuler ma commande après le paiement ?</span>
-                    <span className="article-meta">Lecture 2 min · 6 200 vues</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">Fichiers &amp; design</span>
-                    <span className="article-title">CMYK vs RGB — pourquoi mon rouge devient mat à l'impression</span>
-                    <span className="article-meta">Lecture 5 min · 5 800 vues</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">Livraison</span>
-                    <span className="article-title">Calcul des taxes — TPS, TVQ, HST selon ma province</span>
-                    <span className="article-meta">Lecture 3 min · 4 100 vues</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">Paiements</span>
-                    <span className="article-title">Pourquoi pré-charger mon wallet ? (bonus jusqu'à 8 %)</span>
-                    <span className="article-meta">Lecture 3 min · 3 900 vues</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-              </div>
-            </div>
-          </section>
-      
-          {/* POPULAR + CONTACT */}
-          <div className="help-bottom">
-            {/* Recent updates (left) */}
-            <div>
-              <div className="section-header">
-                <h2>Mises à jour <em>récentes</em></h2>
-                <span>3 nouveaux articles cette semaine</span>
-              </div>
-              <div style={{ display: "grid", gap: "12px" } as React.CSSProperties}>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">★ Nouveau · 13 mai</span>
-                    <span className="article-title">Foil holographique disponible — 7 motifs au choix</span>
-                    <span className="article-meta">Annonce produit · lecture 2 min</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">★ Nouveau · 10 mai</span>
-                    <span className="article-title">Webhooks pour suivi de commande en temps réel (API v2)</span>
-                    <span className="article-meta">Mise à jour API · lecture 8 min</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">Mis à jour · 8 mai</span>
-                    <span className="article-title">Nouveau workflow d'approbation pour resellers Studio</span>
-                    <span className="article-meta">Compte · lecture 4 min</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-              </div>
-      
-              <div className="section-header" style={{ marginTop: "40px" } as React.CSSProperties}>
-                <h2>Vidéos &amp; <em>tutoriels</em></h2>
-                <span>YouTube</span>
-              </div>
-              <div style={{ display: "grid", gap: "12px" } as React.CSSProperties}>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">▶ Vidéo · 8 min</span>
-                    <span className="article-title">Premier devis dans Plio — de A à Z</span>
-                    <span className="article-meta">Tutoriel débutant</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-                <a href="#" className="article-card">
-                  <div className="article-info">
-                    <span className="article-cat">▶ Vidéo · 12 min</span>
-                    <span className="article-title">Préparer un fichier impeccable pour le print</span>
-                    <span className="article-meta">Tutoriel intermédiaire</span>
-                  </div>
-                  <div className="article-arrow">→</div>
-                </a>
-              </div>
-            </div>
-      
-            {/* Contact (right) */}
-            <div className="contact-card">
-              <h3>Toujours <em>besoin d'aide ?</em></h3>
-              <p>Notre équipe répond rapidement — en français et en anglais, lun-ven 9h à 18h ET.</p>
-      
-              <div className="contact-channels">
-                <a href="#" className="contact-channel">
-                  <div className="contact-icon">💬</div>
-                  <div className="contact-info">
-                    <span className="contact-name">Chat en direct</span>
-                    <span className="contact-meta">Réponse en ~3 min</span>
-                  </div>
-                  <span className="contact-status online">En ligne</span>
-                </a>
-                <a href="mailto:bonjour@plio.ca" className="contact-channel">
-                  <div className="contact-icon">📧</div>
-                  <div className="contact-info">
-                    <span className="contact-name">bonjour@plio.ca</span>
-                    <span className="contact-meta">Réponse sous 4h</span>
-                  </div>
-                </a>
-                <a href="tel:+15145550100" className="contact-channel">
-                  <div className="contact-icon">📞</div>
-                  <div className="contact-info">
-                    <span className="contact-name">+1 514 555 0100</span>
-                    <span className="contact-meta">Lun-ven 9h-18h ET</span>
-                  </div>
-                </a>
-              </div>
-      
-              <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border-subtle)" } as React.CSSProperties}>
-                <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: "600", margin: "0 0 16px" } as React.CSSProperties}>★ Envoie-nous un message</p>
-                <div className="contact-form">
-                  <div className="contact-field"><input type="text" placeholder="Sujet" /></div>
-                  <div className="contact-field"><textarea rows={4} placeholder="Décris ton problème ou ta question…"></textarea></div>
-                  <button className="contact-submit">Envoyer →</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
+        </section>
+      </main>
     </>
   );
 }
