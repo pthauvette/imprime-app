@@ -1,13 +1,14 @@
 /**
  * /addresses — Server Component listant le carnet d'adresses du user.
  *
- * MVP : lecture seule. Les Address rows sont indépendantes des snapshots
- * shipping dans Order (qui restent immutables pour l'historique). Pour
- * l'instant, on n'auto-save PAS d'Address depuis le checkout — donc la
- * plupart des users verront l'empty state, ce qui est OK pour MVP.
+ * Avec CRUD UI via AddressActionsBar (Client Component) qui gère :
+ *   - "Ajouter une adresse" → modal AddressForm POST /api/addresses
+ *   - "Modifier" sur chaque card → modal AddressForm PATCH /api/addresses/[id]
+ *   - "Faire défaut" → PATCH action=set-default (transactionnel)
+ *   - "Supprimer" → DELETE avec confirm
  *
- * Le CRUD UI (formulaires create/update/delete) arrivera dans un prochain
- * sprint — bouton d'ajout désactivé avec tooltip "UI à venir".
+ * Les Address rows sont indépendantes des snapshots shipping dans Order
+ * (qui restent immutables pour l'historique).
  */
 
 import { redirect } from 'next/navigation';
@@ -15,6 +16,7 @@ import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import AddressActionsBar from './AddressActionsBar';
 
 export const metadata = { title: 'Adresses — Plio' };
 
@@ -31,6 +33,23 @@ export default async function AddressesPage() {
 
   const shippingCount = addresses.filter((a) => a.kind === 'SHIPPING').length;
   const billingCount = addresses.filter((a) => a.kind === 'BILLING').length;
+
+  // Coerce to a plain serializable shape for the Client Component.
+  const plainAddresses = addresses.map((a) => ({
+    id: a.id,
+    kind: a.kind as 'SHIPPING' | 'BILLING',
+    label: a.label,
+    isDefault: a.isDefault,
+    firstName: a.firstName,
+    lastName: a.lastName,
+    company: a.company,
+    line1: a.line1,
+    line2: a.line2,
+    city: a.city,
+    province: a.province,
+    postalCode: a.postalCode,
+    phone: a.phone,
+  }));
 
   return (
     <div className="acct-shell">
@@ -53,104 +72,18 @@ export default async function AddressesPage() {
               )}
             </p>
           </div>
-          <button
-            className="page-action"
-            disabled
-            title="UI à venir"
-            style={{
-              opacity: 0.5,
-              cursor: 'not-allowed',
-              border: 'none',
-            }}
-          >
-            + Ajouter une adresse
-          </button>
         </div>
 
         {addresses.length === 0 ? (
-          <EmptyState />
+          <>
+            <AddressActionsBar addresses={[]} />
+            <EmptyState />
+          </>
         ) : (
-          <div className="addr-grid">
-            {addresses.map((addr) => (
-              <div
-                key={addr.id}
-                className={`addr-card${addr.isDefault ? ' default' : ''}`}
-              >
-                <div className="addr-card-header">
-                  <div className="addr-card-name">
-                    <div className="addr-card-icon">
-                      {addr.kind === 'BILLING' ? '📄' : '📦'}
-                    </div>
-                    <span className="addr-card-label">
-                      {addr.label ?? (addr.kind === 'BILLING' ? 'Facturation' : 'Expédition')}
-                    </span>
-                  </div>
-                  {addr.isDefault ? (
-                    <span className="addr-card-default-pill">Défaut</span>
-                  ) : (
-                    <KindBadge kind={addr.kind} />
-                  )}
-                </div>
-                <div className="addr-card-content">
-                  <strong>
-                    {addr.firstName} {addr.lastName}
-                    {addr.company ? ` · ${addr.company}` : ''}
-                  </strong>
-                  <span>
-                    {addr.line1}
-                    {addr.line2 ? ` · ${addr.line2}` : ''}
-                  </span>
-                  <span>
-                    {addr.city}, {addr.province} {addr.postalCode} · Canada
-                  </span>
-                  {addr.phone && <span className="phone">{addr.phone}</span>}
-                </div>
-                <div className="addr-card-meta">
-                  <span className="addr-card-stat">
-                    {addr.kind === 'BILLING'
-                      ? 'Adresse de facturation'
-                      : 'Adresse d’expédition'}
-                  </span>
-                  <div className="addr-card-actions">
-                    <button
-                      className="addr-action-btn"
-                      disabled
-                      title="UI à venir"
-                      style={{ opacity: 0.5, cursor: 'not-allowed' }}
-                    >
-                      Modifier
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <AddressActionsBar addresses={plainAddresses} />
         )}
       </main>
     </div>
-  );
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────
-
-function KindBadge({ kind }: { kind: string }) {
-  const isBilling = kind === 'BILLING';
-  return (
-    <span
-      style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 10,
-        color: isBilling ? 'var(--info)' : 'var(--text-muted)',
-        letterSpacing: '0.04em',
-        padding: '3px 8px',
-        background: isBilling ? 'var(--info-soft)' : 'var(--bg-sunken)',
-        borderRadius: 'var(--r-pill)',
-        textTransform: 'uppercase',
-        fontWeight: 600,
-      }}
-    >
-      {isBilling ? 'Facturation' : 'Expédition'}
-    </span>
   );
 }
 
@@ -161,30 +94,30 @@ function EmptyState() {
         display: 'grid',
         placeItems: 'center',
         gap: 16,
-        padding: '96px 24px',
+        padding: '64px 24px',
         background: 'var(--bg-surface)',
         border: '1px dashed var(--border-default)',
         borderRadius: 'var(--r-xl)',
         textAlign: 'center',
         maxWidth: 520,
-        margin: '0 auto',
+        margin: '24px auto 0',
       }}
     >
       <div style={{ fontSize: 48 }}>📮</div>
       <h2
         style={{
           fontFamily: 'var(--font-display)',
-          fontSize: 28,
+          fontSize: 24,
           letterSpacing: '-0.01em',
           fontWeight: 400,
           margin: 0,
         }}
       >
-        Tu n'as pas encore d'adresse enregistrée.
+        Pas encore d&apos;adresse enregistrée.
       </h2>
       <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, maxWidth: 420 }}>
-        Les adresses que tu utilises au checkout apparaîtront ici automatiquement — tu
-        pourras alors les réutiliser en un clic pour tes prochaines commandes.
+        Clique sur <strong>+ Ajouter une adresse</strong> ci-dessus pour créer ta
+        première adresse. Tu pourras la sélectionner en un clic au checkout.
       </p>
     </div>
   );
