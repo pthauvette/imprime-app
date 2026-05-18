@@ -86,6 +86,9 @@ export type CreateOrderInput = {
   sinalitePayload: SinaliteOrderRequest;
   /** Human-readable product summary for emails + admin without refetching Sinalite. */
   productSummary?: string;
+  /** Snapshot itemized pour /orders UI (Phase 2 multi-item). Array de
+   *  DisplayItem, serialisé en JSON string ici. */
+  itemsSnapshot?: unknown[];
   /** Promo code applied (optional). Si présent on incrémente usesCount atomiquement. */
   promoCodeId?: string;
   /** Discount applied in cents. 0 si pas de promo. */
@@ -102,6 +105,7 @@ export async function createPendingOrder(input: CreateOrderInput) {
     status: 'PENDING',
     sinalitePayload: JSON.stringify(input.sinalitePayload),
     productSummary: input.productSummary,
+    itemsSnapshot: input.itemsSnapshot ? JSON.stringify(input.itemsSnapshot) : null,
     itemsCount: input.itemsCount,
     subtotalCents: input.subtotalCents,
     shippingCents: input.shippingCents,

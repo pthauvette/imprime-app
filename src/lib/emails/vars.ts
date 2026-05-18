@@ -38,6 +38,10 @@ export type OrderConfirmationVars = {
   ORDER_ID: string | number;
   QUANTITY: string | number;
   PRODUCT_NAME: string;
+  /** Bloc HTML inline-styled qui itemize la commande (un bloc par item du
+   *  itemsSnapshot). Pour multi-item orders. Fallback à un bloc unique
+   *  si pas de snapshot. */
+  ITEMS_HTML: string;
   SUBTOTAL: string;
   SHIPPING: string;
   TAX: string;

@@ -17,7 +17,7 @@ const baseOrder: Order = {
   id: 'order_abc123', userId: 'u_1', paymentIntentId: 'pi_x',
   amountCents: 18742, currency: 'CAD', paidAt: new Date('2026-05-17T14:30:00Z'),
   sinaliteOrderId: '48312', status: 'PAID', failureReason: null,
-  sinalitePayload: '{}', productSummary: 'Cartes 14pt + UV',
+  sinalitePayload: '{}', productSummary: 'Cartes 14pt + UV', itemsSnapshot: null,
   itemsCount: 250, subtotalCents: 15275, shippingCents: 1250, taxCents: 2217,
   discountCents: 0, promoCodeId: null, adminNotes: null,
   shippingMethod: 'UPS Standard', province: 'QC',

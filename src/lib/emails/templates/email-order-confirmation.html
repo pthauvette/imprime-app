@@ -55,24 +55,10 @@
                 R&eacute;capitulatif
               </p>
 
-              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#141C16;">
-                {{PRODUCT_NAME}} &mdash; {{QUANTITY}} unit&eacute;s
-              </p>
-
-              <!-- Chips -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px 0;">
-                <tr>
-                  <td style="padding-right:6px;">
-                    <span style="display:inline-block; padding:4px 10px; background:#E5EDE8; color:#1F3D2B; border-radius:9999px; font-size:11px; font-family:ui-monospace,'SF Mono',Menlo,monospace; letter-spacing:0.04em; text-transform:uppercase; font-weight:600;">16pt</span>
-                  </td>
-                  <td style="padding-right:6px;">
-                    <span style="display:inline-block; padding:4px 10px; background:#E5EDE8; color:#1F3D2B; border-radius:9999px; font-size:11px; font-family:ui-monospace,'SF Mono',Menlo,monospace; letter-spacing:0.04em; text-transform:uppercase; font-weight:600;">UV Gloss</span>
-                  </td>
-                  <td>
-                    <span style="display:inline-block; padding:4px 10px; background:#E5EDE8; color:#1F3D2B; border-radius:9999px; font-size:11px; font-family:ui-monospace,'SF Mono',Menlo,monospace; letter-spacing:0.04em; text-transform:uppercase; font-weight:600;">3,5 &times; 2"</span>
-                  </td>
-                </tr>
-              </table>
+              <!-- Items list (multi-item compatible — itemized depuis itemsSnapshot) -->
+              <div style="margin:0 0 24px 0;">
+                {{ITEMS_HTML}}
+              </div>
 
               <!-- Totals -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">

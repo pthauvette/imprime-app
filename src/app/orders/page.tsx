@@ -14,6 +14,7 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import OrderRow, { type OrderRowProps } from '@/components/account/OrderRow';
+import { parseItemsSnapshot, shortItemSummary } from '@/lib/orders/items';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { formatCurrency } from '@/lib/format';
 import { listOrdersForUser, type OrderStatus } from '@/lib/db/orders';
@@ -82,20 +83,24 @@ export default async function OrdersPage({
 
   const dbOrders = await listOrdersForUser({ userId: effectiveUserId, limit: 50 });
 
-  const orders: OrderRowProps[] = dbOrders.map((o) => ({
-    id: o.id,
-    // Customer-facing display : juste le numéro (la presse est un détail d'implémentation,
-    // pas la marque). En admin on garde #SIN-X pour distinguer Sinalite ID vs Plio ID.
-    displayId: o.sinaliteOrderId ? `#${o.sinaliteOrderId}` : `#${o.id.slice(-6).toUpperCase()}`,
-    status: o.status as OrderStatus,
-    createdAt: o.createdAt,
-    amountCents: o.amountCents,
-    shippingMethod: o.shippingMethod,
-    taxCents: o.taxCents,
-    shipName: o.shipName,
-    shipCity: o.shipCity,
-    shipProvince: o.shipProvince,
-  }));
+  const orders: OrderRowProps[] = dbOrders.map((o) => {
+    const items = parseItemsSnapshot(o.itemsSnapshot);
+    return {
+      id: o.id,
+      // Customer-facing display : juste le numéro (la presse est un détail d'implémentation,
+      // pas la marque). En admin on garde #SIN-X pour distinguer Sinalite ID vs Plio ID.
+      displayId: o.sinaliteOrderId ? `#${o.sinaliteOrderId}` : `#${o.id.slice(-6).toUpperCase()}`,
+      status: o.status as OrderStatus,
+      createdAt: o.createdAt,
+      amountCents: o.amountCents,
+      shippingMethod: o.shippingMethod,
+      taxCents: o.taxCents,
+      shipName: o.shipName,
+      shipCity: o.shipCity,
+      shipProvince: o.shipProvince,
+      itemSummaries: items?.map(shortItemSummary),
+    };
+  });
 
   const totalSpent = orders.reduce((sum, o) => sum + o.amountCents / 100, 0);
   const counts = bucketStatus(orders);

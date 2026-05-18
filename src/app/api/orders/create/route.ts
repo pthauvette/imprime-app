@@ -22,6 +22,7 @@ import { CaProvince, CaPostalCode, ShipMethod, type SinaliteOrderRequest } from 
 import { computeTax } from '@/lib/taxes';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { findOrCreateUserByEmail, createPendingOrder } from '@/lib/db/orders';
+import { buildItemsSnapshot } from '@/lib/orders/items';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { normalizeCode, validatePromo } from '@/lib/promo/validate';
@@ -202,6 +203,9 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   // Phase 3: build the Sinalite payload (will be POSTed by webhook after Stripe confirms)
   const sinalitePayload = buildSinalitePayload(payload, detailCache);
+  // Phase 3b: build the display-friendly snapshot persisted in Order.itemsSnapshot
+  // pour render itemized sur /orders, /orders/[id], emails — sans refetch Sinalite.
+  const itemsSnapshot = buildItemsSnapshot(sinalitePayload, detailCache, productNames);
 
   // Phase 4: create PaymentIntent — automatic capture, full sinalitePayload
   // persisted in our DB (not Stripe metadata — too big for the 500-char limit).
@@ -267,6 +271,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     shipPhone: payload.contact.phone,
     sinalitePayload,
     productSummary,
+    itemsSnapshot,
   });
 
   // Phase 5b : best-effort link au DesignDraft si le user vient de l'éditeur.

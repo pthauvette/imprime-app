@@ -95,7 +95,7 @@ const baseOrder: Order = {
   status: 'SUBMITTED',
   failureReason: null,
   sinalitePayload: '{}',
-  productSummary: 'Cartes 14pt UV',
+  productSummary: 'Cartes 14pt UV', itemsSnapshot: null,
   itemsCount: 250,
   subtotalCents: 15275,
   shippingCents: 1250,

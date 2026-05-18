@@ -31,6 +31,9 @@ export type OrderRowProps = {
   shipName: string;
   shipCity: string;
   shipProvince: string;
+  /** Snapshot itemized — si présent, on affiche le nom des items au lieu
+   *  d'un "Commande X" générique. (Phase 2 multi-item.) */
+  itemSummaries?: string[];
 };
 
 export default function OrderRow({ order }: { order: OrderRowProps }) {
@@ -57,7 +60,13 @@ export default function OrderRow({ order }: { order: OrderRowProps }) {
         <div className="order-date">{formatDate(created)}</div>
       </div>
       <div className="order-info">
-        <div className="order-name">Commande {order.displayId}</div>
+        <div className="order-name">
+          {order.itemSummaries && order.itemSummaries.length > 0
+            ? order.itemSummaries.length === 1
+              ? order.itemSummaries[0]
+              : `${order.itemSummaries[0]} + ${order.itemSummaries.length - 1} autre${order.itemSummaries.length > 2 ? 's' : ''}`
+            : `Commande ${order.displayId}`}
+        </div>
         <div className="order-meta">
           {order.shippingMethod}
           {order.taxCents > 0 && (

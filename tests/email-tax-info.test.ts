@@ -37,7 +37,7 @@ const baseOrder: Order = {
   id: 'o_1', userId: 'u_1', paymentIntentId: 'pi_x',
   amountCents: 18742, currency: 'CAD', paidAt: new Date(),
   sinaliteOrderId: '48312', status: 'PAID', failureReason: null,
-  sinalitePayload: '{}', productSummary: 'Cartes',
+  sinalitePayload: '{}', productSummary: 'Cartes', itemsSnapshot: null,
   itemsCount: 250, subtotalCents: 15275, shippingCents: 1250, taxCents: 2217,
   discountCents: 0, promoCodeId: null, adminNotes: null,
   shippingMethod: 'UPS Standard', province: 'QC',

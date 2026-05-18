@@ -16,7 +16,8 @@ import OrderActions from '@/components/admin/OrderActions';
 import AdminNotesPanel from '@/components/admin/AdminNotesPanel';
 import SendCustomMessageButton from '@/components/admin/SendCustomMessageButton';
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
+import { parseItemsSnapshot } from '@/lib/orders/items';
 
 export const dynamic = 'force-dynamic';
 
@@ -176,20 +177,67 @@ export default async function AdminOrderDetailPage({
                 </h2>
               </div>
               <div style={{ padding: 22 }}>
-                <div className="od-item" style={{ display: 'grid', gridTemplateColumns: '72px 1fr auto', gap: 16, padding: '14px 0' }}>
-                  <div className="od-item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)' }}></div>
-                  <div className="od-item-info">
-                    <div className="od-item-name" style={{ fontWeight: 600, fontSize: 14 }}>Cartes de visite</div>
-                    <div className="od-item-opts" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                      <span className="od-chip badge badge-neutral">Qté · {order.itemsCount}</span>
-                      <span className="od-chip badge badge-neutral">{order.shippingMethod}</span>
-                      <span className="od-chip badge badge-neutral">{order.province}</span>
+                {(() => {
+                  const items = parseItemsSnapshot(order.itemsSnapshot);
+                  if (items && items.length > 0) {
+                    return items.map((item, idx) => (
+                      <div
+                        key={`${item.productId}-${idx}`}
+                        className="od-item"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '72px 1fr auto',
+                          gap: 16,
+                          padding: '14px 0',
+                          borderTop: idx > 0 ? '1px solid var(--border-subtle)' : 'none',
+                        }}
+                      >
+                        <div className="od-item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent-primary)', fontWeight: 600 }}>
+                          #{String(idx + 1).padStart(2, '0')}
+                        </div>
+                        <div className="od-item-info">
+                          <div className="od-item-name" style={{ fontWeight: 600, fontSize: 14 }}>{item.productName}</div>
+                          <div className="od-item-opts" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                            {item.options.map((opt, i) => (
+                              <span key={i} className="od-chip badge badge-neutral">{opt.group}: {opt.label}</span>
+                            ))}
+                            {item.qtyLabel && (
+                              <span className="od-chip badge badge-neutral">Qté · {formatNumber(item.qty)}</span>
+                            )}
+                            {item.turnaround && (
+                              <span className="od-chip badge badge-neutral">{item.turnaround}</span>
+                            )}
+                          </div>
+                          {item.fileNames && item.fileNames.length > 0 && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
+                              📎 {item.fileNames.join(' · ')}
+                            </div>
+                          )}
+                        </div>
+                        <div className="od-item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                          {items.length > 1 ? `${idx + 1}/${items.length}` : ''}
+                        </div>
+                      </div>
+                    ));
+                  }
+                  // Fallback : vieille order pré-Phase 2
+                  return (
+                    <div className="od-item" style={{ display: 'grid', gridTemplateColumns: '72px 1fr auto', gap: 16, padding: '14px 0' }}>
+                      <div className="od-item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)' }}></div>
+                      <div className="od-item-info">
+                        <div className="od-item-name" style={{ fontWeight: 600, fontSize: 14 }}>{order.productSummary ?? 'Commande Plio'}</div>
+                        <div className="od-item-opts" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                          <span className="od-chip badge badge-neutral">{order.itemsCount} article{order.itemsCount > 1 ? 's' : ''}</span>
+                          <span className="od-chip badge badge-neutral">{order.shippingMethod}</span>
+                          <span className="od-chip badge badge-neutral">{order.province}</span>
+                        </div>
+                      </div>
+                      <div className="od-item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600 }}>
+                        {formatCurrency(order.subtotalCents / 100)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="od-item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600 }}>
-                    {formatCurrency(order.subtotalCents / 100)}
-                  </div>
-                </div>
+                  );
+                })()}
 
                 <div style={{ display: 'grid', gap: 6, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)', fontSize: 13 }}>
                   <Row label="Sous-total" value={formatCurrency(order.subtotalCents / 100)} />

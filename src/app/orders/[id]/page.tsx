@@ -20,7 +20,8 @@ import CancelRequestButton from '@/components/account/CancelRequestButton';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
+import { parseItemsSnapshot } from '@/lib/orders/items';
 
 export const dynamic = 'force-dynamic';
 
@@ -266,23 +267,84 @@ export default async function CustomerOrderDetailPage({
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '-0.01em', margin: '0 0 20px', fontWeight: 400 }}>
                 Détails de la commande
               </h2>
-              <div className="item-row" style={{ display: 'grid', gridTemplateColumns: '72px 1fr auto', gap: 16, padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div className="item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)' }} />
-                <div className="item-info">
-                  <div className="item-name" style={{ fontWeight: 600, fontSize: 14 }}>Cartes de visite</div>
-                  <div className="item-options" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Quantité · {order.itemsCount} · {order.shippingMethod}
+
+              {/* Items réels depuis itemsSnapshot (Phase 2). Fallback à un
+                  fake row avec productSummary si snapshot absent (vieilles
+                  orders pré-Phase 2). */}
+              {(() => {
+                const items = parseItemsSnapshot(order.itemsSnapshot);
+                if (items && items.length > 0) {
+                  return (
+                    <div>
+                      {items.map((item, idx) => (
+                        <div
+                          key={`${item.productId}-${idx}`}
+                          className="item-row"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '72px 1fr auto',
+                            gap: 16,
+                            padding: '14px 0',
+                            borderBottom: idx < items.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                          }}
+                        >
+                          <div className="item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent-primary)', fontWeight: 600 }}>
+                            #{String(idx + 1).padStart(2, '0')}
+                          </div>
+                          <div className="item-info">
+                            <div className="item-name" style={{ fontWeight: 600, fontSize: 14 }}>
+                              {item.productName}
+                            </div>
+                            <div className="item-options" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+                              {item.options.map((opt) => opt.label).join(' · ')}
+                              {item.options.length > 0 && (item.qtyLabel || item.turnaround) && ' · '}
+                              {item.qtyLabel && <strong style={{ color: 'var(--text-secondary)' }}>{formatNumber(item.qty)} unités</strong>}
+                              {item.turnaround && (
+                                <>
+                                  {item.qtyLabel ? ' · ' : ''}{item.turnaround}
+                                </>
+                              )}
+                            </div>
+                            {item.fileNames && item.fileNames.length > 0 && (
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+                                📎 {item.fileNames.join(' · ')}
+                              </div>
+                            )}
+                          </div>
+                          <div className="item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                            {items.length > 1 ? `Item ${idx + 1}/${items.length}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+                // Fallback pour les vieilles orders sans snapshot
+                return (
+                  <div className="item-row" style={{ display: 'grid', gridTemplateColumns: '72px 1fr auto', gap: 16, padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div className="item-thumb" style={{ width: 72, height: 48, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)' }} />
+                    <div className="item-info">
+                      <div className="item-name" style={{ fontWeight: 600, fontSize: 14 }}>
+                        {order.productSummary ?? 'Commande Plio'}
+                      </div>
+                      <div className="item-options" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                        {order.itemsCount} article{order.itemsCount > 1 ? 's' : ''} · {order.shippingMethod}
+                      </div>
+                    </div>
+                    <div className="item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600 }}>
+                      {formatCurrency(order.subtotalCents / 100)}
+                    </div>
                   </div>
-                </div>
-                <div className="item-price" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600 }}>
-                  {formatCurrency(order.subtotalCents / 100)}
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="total-breakdown" style={{ display: 'grid', gap: 6, marginTop: 16, fontSize: 13 }}>
                 <Line label="Sous-total" value={formatCurrency(order.subtotalCents / 100)} />
                 <Line label="Livraison" value={formatCurrency(order.shippingCents / 100)} />
                 <Line label="Taxes" value={formatCurrency(order.taxCents / 100)} />
+                {order.discountCents > 0 && (
+                  <Line label="Remise" value={`- ${formatCurrency(order.discountCents / 100)}`} />
+                )}
                 <Line label="Total payé" value={`${formatCurrency(order.amountCents / 100)} ${order.currency}`} bold />
               </div>
             </section>

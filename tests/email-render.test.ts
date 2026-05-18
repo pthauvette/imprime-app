@@ -39,6 +39,7 @@ describe('renderEmail — variable substitution', () => {
       ORDER_ID: 48312, // number, pas string
       QUANTITY: 250,
       PRODUCT_NAME: 'Cartes 16pt UV',
+      ITEMS_HTML: '<p>Cartes 16pt UV &mdash; 250 unit&eacute;s</p>',
       SUBTOTAL: '152,75',
       SHIPPING: '12,50',
       TAX: '22,17',
@@ -50,7 +51,7 @@ describe('renderEmail — variable substitution', () => {
       UNSUBSCRIBE_URL: 'https://www.plio.ca/settings/email-preferences',
     });
     expect(html).toContain('48312');
-    expect(html).toContain('250');
+    expect(html).toContain('250'); // vient de ITEMS_HTML
     expect(html).toContain('Patrick');
     expect(html).toContain('152,75');
   });

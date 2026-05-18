@@ -129,6 +129,14 @@ model Order {
   // "Cartes 14pt (250) + Flyers 8.5×11 (100)".
   productSummary   String?
 
+  // Snapshot structuré multi-item pour /orders UI itemized (Phase 2).
+  // JSON string array de DisplayItem (cf. lib/orders/items.ts) :
+  //   [{ productId, productName, options:[{group,label}], qty, qtyLabel,
+  //      turnaround?, unitPriceCents?, subtotalCents? }, ...]
+  // Nullable pour compat ascendante : les vieilles orders pré-Phase 2 ont
+  // null ici, les renderers retombent gracefully sur productSummary.
+  itemsSnapshot    String?
+
   // Snapshot pour /orders UI (évite roundtrip Sinalite à chaque view)
   itemsCount       Int
   subtotalCents    Int

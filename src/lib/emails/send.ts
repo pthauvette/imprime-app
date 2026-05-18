@@ -14,6 +14,7 @@
 import type { Order, User } from '@prisma/client';
 import { queueEmail } from './queue';
 import { logEmail } from '@/lib/logger';
+import { parseItemsSnapshot, type DisplayItem } from '@/lib/orders/items';
 import type {
   OrderConfirmationVars,
   OrderShippedVars,
@@ -89,6 +90,54 @@ function unsubscribeUrl(): string {
   return `${APP_URL}/settings/email-preferences`;
 }
 
+/**
+ * Render le récapitulatif itemized en HTML inline-styled (compat Gmail/Outlook
+ * — pas de CSS class, tout en style="..."). Un bloc par item du snapshot,
+ * fallback à un bloc unique productSummary + itemsCount si pas de snapshot.
+ *
+ * Le format chips est repris du template original (background #E5EDE8,
+ * border-radius pill, font monospace) pour rester cohérent visuellement.
+ */
+function itemsHtmlBlock(order: Order): string {
+  const items = parseItemsSnapshot(order.itemsSnapshot);
+
+  function chip(label: string): string {
+    return `<span style="display:inline-block; margin-right:6px; margin-bottom:4px; padding:4px 10px; background:#E5EDE8; color:#1F3D2B; border-radius:9999px; font-size:11px; font-family:ui-monospace,'SF Mono',Menlo,monospace; letter-spacing:0.04em; text-transform:uppercase; font-weight:600;">${escape(label)}</span>`;
+  }
+
+  function renderItem(item: DisplayItem, idx: number, total: number): string {
+    const chips: string[] = [];
+    for (const opt of item.options) chips.push(opt.label);
+    if (item.qtyLabel) chips.push(`${item.qtyLabel} unités`);
+    if (item.turnaround) chips.push(item.turnaround);
+    const numPrefix = total > 1 ? `<span style="display:inline-block; margin-right:8px; padding:2px 8px; background:#1F3D2B; color:#FFFFFF; border-radius:4px; font-size:10px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-weight:600;">${String(idx + 1).padStart(2, '0')}</span>` : '';
+    return `
+      <div style="padding:14px 0; ${idx < total - 1 ? 'border-bottom:1px solid #ECEAE3;' : ''}">
+        <p style="margin:0 0 6px 0; font-size:15px; font-weight:600; color:#141C16;">
+          ${numPrefix}${escape(item.productName)}
+        </p>
+        <div>${chips.map(chip).join('')}</div>
+      </div>
+    `.trim();
+  }
+
+  if (items && items.length > 0) {
+    return items.map((it, i) => renderItem(it, i, items.length)).join('');
+  }
+
+  // Fallback : vieille order sans snapshot — un seul bloc avec
+  // productSummary et le total d'items count.
+  const summary = order.productSummary ?? 'Ta commande Plio';
+  return `
+    <div style="padding:14px 0;">
+      <p style="margin:0 0 6px 0; font-size:15px; font-weight:600; color:#141C16;">
+        ${escape(summary)}
+      </p>
+      <div>${chip(`${order.itemsCount} article${order.itemsCount > 1 ? 's' : ''}`)}</div>
+    </div>
+  `.trim();
+}
+
 // ─── SEND HELPERS ─────────────────────────────────────────────────────────
 
 /**
@@ -125,6 +174,7 @@ export async function sendOrderConfirmationEmail(input: {
     ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
     QUANTITY: order.itemsCount,
     PRODUCT_NAME: order.productSummary ?? 'Ta commande Plio',
+    ITEMS_HTML: itemsHtmlBlock(order),
     SUBTOTAL: cad(order.subtotalCents),
     SHIPPING: cad(order.shippingCents),
     TAX: cad(order.taxCents),
