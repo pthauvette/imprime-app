@@ -637,3 +637,49 @@ model ReferralReward {
   @@index([referrerId, createdAt])
   @@index([status])
 }
+
+// ─── SAMPLE REQUEST ───────────────────────────────────────────────────────
+// Customer demande un kit d'échantillons (gratuit, max 5 par personne par
+// mois). Pas de login required — collect email + adresse, admin assemble
+// et ship via Postes Canada. Lead generation tool : conversion vers
+// commande payée typique 25-35 %.
+//
+// Anti-abuse : unique sur (email, jourMonth) à l'app level (lookup avant
+// create), pas au DB level pour permettre les corrections admin.
+
+model SampleRequest {
+  id                  String   @id @default(cuid())
+  /** Email du demandeur — sert aussi de lookup key contre les doublons. */
+  email               String
+  /** Nom complet pour adressage. */
+  name                String
+  /** Optionnel — pour SMS de notification livraison. */
+  phone               String?
+  /** Adresse de livraison (snapshot, on n'attache pas à Address book). */
+  shipLine1           String
+  shipLine2           String?
+  shipCity            String
+  shipProvince        String
+  shipPostalCode      String
+  /** JSON array des noms d'échantillons sélectionnés
+   *  (ex: '["14pt Coated","16pt Coated","Spot UV"]'). Max 5 enforced
+   *  côté API. */
+  selectedSamples     String
+  /** Note libre du customer (use case, projet à venir, etc.). */
+  message             String?
+  /** PENDING | SHIPPED | CANCELLED — admin transitionne via UI. */
+  status              String   @default("PENDING")
+  /** Tracking number Postes Canada quand SHIPPED (optionnel). */
+  trackingNumber      String?
+  /** Notes internes admin (jamais affichées customer). */
+  adminNotes          String?
+  /** IP + UA pour anti-spam analysis si nécessaire. */
+  requestIp           String?
+  requestUa           String?
+
+  createdAt           DateTime  @default(now())
+  shippedAt           DateTime?
+
+  @@index([email, createdAt])
+  @@index([status, createdAt])
+}

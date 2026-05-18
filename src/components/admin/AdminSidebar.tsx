@@ -14,6 +14,8 @@ export type AdminSidebarKey =
   | 'webhooks'
   | 'emails'
   | 'reviews'
+  | 'samples'
+  | 'audit'
   | 'templates'
   | 'products'
   | 'users'
@@ -88,6 +90,18 @@ const ICONS = {
       <path d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 6.3l4-.6z" />
     </svg>
   ),
+  samples: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <rect x={2} y={4} width={5} height={9} rx={1} />
+      <rect x={9} y={2} width={5} height={11} rx={1} />
+    </svg>
+  ),
+  audit: (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path d="M3 2h7l3 3v9H3z" />
+      <path d="M10 2v3h3M5 8h6M5 10h6M5 12h4" />
+    </svg>
+  ),
   settings: (
     <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
       <circle cx={8} cy={8} r={2.5} />
@@ -130,6 +144,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
       items: [
         { key: 'users', href: '/admin/users' as Route, label: 'Utilisateurs', icon: ICONS.users, count: counts.users },
         { key: 'reviews', href: '/admin/reviews' as Route, label: 'Reviews', icon: ICONS.reviews, count: counts.reviews, urgent: urgents.reviews },
+        { key: 'samples', href: '/admin/samples' as Route, label: 'Échantillons', icon: ICONS.samples, count: counts.samples, urgent: urgents.samples },
       ],
     },
     {
@@ -142,6 +157,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
     {
       label: 'Système',
       items: [
+        { key: 'audit', href: '/admin/audit' as Route, label: 'Journal admin', icon: ICONS.audit },
         { key: 'settings', href: '/admin' as Route, label: 'Réglages', icon: ICONS.settings },
       ],
     },

@@ -25053,3 +25053,31 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       font-weight: 600;
       margin: 0 0 16px;
     }
+
+    /* ─── SAMPLES (refresh) ────────────────────────────────────────────── */
+    .samples-shell {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 56px 28px 96px;
+    }
+    .samples-header { margin-bottom: 32px; }
+    .samples-title {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 5vw, 56px);
+      letter-spacing: -0.025em;
+      font-weight: 400;
+      line-height: 1.05;
+      margin: 8px 0 12px;
+    }
+    .samples-title em { color: var(--accent-primary); font-style: normal; }
+    .samples-lede {
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      max-width: 720px;
+      margin: 0;
+    }
+    .sample-card.selected {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
