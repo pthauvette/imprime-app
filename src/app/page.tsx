@@ -7,33 +7,42 @@
 
 import NewsletterSignup from '@/components/marketing/NewsletterSignup';
 import TestimonialsSection from '@/components/marketing/TestimonialsSection';
+import LangSwitch from '@/components/i18n/LangSwitch';
+import { getServerLocale } from '@/lib/i18n/locale';
+import { translate } from '@/lib/i18n/messages';
 
 export const metadata = { title: "Plio — Print wholesale au Canada" };
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // POC i18n : nav + hero CTA traduits server-side via cookie plio_lang.
+  // Le reste du contenu marketing reste en FR (migration incrémentale).
+  const locale = await getServerLocale();
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+
   return (
     <>
       <nav className="mkt-nav">
           <a href="#" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
-            <a href="#products" className="mkt-nav-link">Produits</a>
-            <a href="#how" className="mkt-nav-link">Comment ça marche</a>
-            <a href="#faq" className="mkt-nav-link">FAQ</a>
-            <a href="/orders" className="mkt-nav-link">Se connecter</a>
-            <a href="/order/start" className="mkt-nav-cta">Commencer →</a>
+            <a href="#products" className="mkt-nav-link">{t('nav.products')}</a>
+            <a href="#how" className="mkt-nav-link">{t('nav.howItWorks')}</a>
+            <a href="/blog" className="mkt-nav-link">{t('nav.blog')}</a>
+            <a href="/orders" className="mkt-nav-link">{t('nav.signIn')}</a>
+            <a href="/order/start" className="mkt-nav-cta">{t('nav.startOrder')} →</a>
+            <LangSwitch />
           </div>
         </nav>
-      
+
         <main>
           {/* HERO */}
           <section className="hero">
             <div>
-              <div className="hero-eyebrow">Wholesale print · Canada · CAD</div>
-              <h1>Imprime ce que tu veux, <em>en 2 minutes.</em></h1>
-              <p className="hero-lede">Devis instantané, prix wholesale, prépresse incluse. Livraison partout au Canada en 1 à 7 jours.</p>
+              <div className="hero-eyebrow">{t('hero.eyebrow')}</div>
+              <h1>{t('hero.title')}</h1>
+              <p className="hero-lede">{t('hero.subtitle')}</p>
               <div className="hero-actions">
-                <a href="/order/start" className="hero-cta-primary">Démarrer un devis · gratuit</a>
-                <a href="#products" className="hero-cta-secondary">Voir les produits ↓</a>
+                <a href="/order/start" className="hero-cta-primary">{t('hero.cta.primary')}</a>
+                <a href="#products" className="hero-cta-secondary">{t('hero.cta.secondary')} ↓</a>
               </div>
               <div className="hero-trust">
                 <span className="hero-trust-item">Sans abonnement</span>

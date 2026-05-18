@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import '@/styles/globals.css';
 import JsonLd, { organizationSchema, websiteSchema, localBusinessSchema } from '@/components/seo/JsonLd';
+import { LocaleProvider } from '@/components/i18n/LocaleProvider';
+import { getServerLocale } from '@/lib/i18n/locale';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
 const SITE_NAME = 'Plio';
@@ -32,7 +34,11 @@ export const metadata: Metadata = {
   formatDetection: { email: false, address: false, telephone: false },
   alternates: {
     canonical: '/',
-    languages: { 'fr-CA': APP_URL },
+    // Plio est servi en FR par défaut + EN via toggle (cookie plio_lang).
+    // Pas de hreflang URL distincts (même path) — Google va indexer la
+    // version FR. Si on veut un vrai SEO bilingue, faut passer à
+    // /[locale]/... routing (next-intl ou next 16 i18n native).
+    languages: { 'fr-CA': APP_URL, 'en-CA': APP_URL },
   },
   openGraph: {
     type: 'website',
@@ -74,9 +80,14 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Locale lue depuis cookie plio_lang. Server-side donc le SSR + HTML lang
+  // attribute matchent ce que le user a choisi. Default fr si pas de cookie.
+  const locale = await getServerLocale();
+  const htmlLang = locale === 'en' ? 'en-CA' : 'fr-CA';
+
   return (
-    <html lang="fr-CA">
+    <html lang={htmlLang}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -92,7 +103,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <JsonLd data={organizationSchema} />
         <JsonLd data={websiteSchema} />
         <JsonLd data={localBusinessSchema} />
-        {children}
+        <LocaleProvider initialLocale={locale}>
+          {children}
+        </LocaleProvider>
       </body>
     </html>
   );
