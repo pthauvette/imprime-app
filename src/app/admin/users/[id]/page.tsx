@@ -84,6 +84,12 @@ export default async function AdminUserDetailPage({
         accounts: true,
         sessions: { orderBy: { expires: 'desc' }, take: 5 },
         designDrafts: { take: 1 },
+        savedConfigs: { orderBy: { createdAt: 'desc' }, take: 10 },
+        referralsEarned: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          include: { referee: { select: { email: true } } },
+        },
       },
     }),
     prisma.order.count(),
@@ -92,6 +98,13 @@ export default async function AdminUserDetailPage({
   ]);
 
   if (!user) notFound();
+
+  // Reseller application status pour cet email (si existe).
+  // Best-effort : si la table n'est pas migrée encore, retourne null.
+  const resellerApp = await prisma.resellerApplication.findFirst({
+    where: { email: user.email.toLowerCase() },
+    orderBy: { createdAt: 'desc' },
+  }).catch(() => null);
 
   // ─── Events timeline (most recent across user's orders) ────────────────
   const orderIds = user.orders.map((o) => o.id);
@@ -326,6 +339,142 @@ export default async function AdminUserDetailPage({
                 </div>
               )}
             </div>
+
+            {/* Programme de parrainage */}
+            <div className="ud-panel">
+              <div className="ud-panel-head">
+                <h2 className="ud-panel-title">
+                  Parrainage
+                  <span className="ud-panel-title-meta">
+                    {user.referralCode ? `code ${user.referralCode}` : 'pas encore généré'}
+                  </span>
+                </h2>
+              </div>
+              <div style={{ padding: 22, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                <Mini label="Crédit disponible" value={`${formatCurrency((user.referralCreditCents ?? 0) / 100)}`} highlight={(user.referralCreditCents ?? 0) > 0} />
+                <Mini label="Parrainages réussis" value={String(user.referralsEarned?.filter((r) => r.status === 'CREDITED').length ?? 0)} />
+                <Mini label="Parrainé par" value={user.referredByCode ?? '—'} mono />
+              </div>
+              {user.referralsEarned && user.referralsEarned.length > 0 && (
+                <div style={{ padding: '0 22px 22px', borderTop: '1px solid var(--border-subtle)' }}>
+                  <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, margin: '14px 0 10px' }}>
+                    Filleuls
+                  </h3>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {user.referralsEarned.slice(0, 5).map((r) => (
+                      <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {r.referee.email} · {formatDate(r.createdAt.toISOString())}
+                        </span>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: 4, fontSize: 10,
+                          background: r.status === 'CREDITED' ? 'var(--success-soft, #f0fdf4)' : 'var(--bg-sunken)',
+                          color: r.status === 'CREDITED' ? 'var(--success, #16a34a)' : 'var(--text-muted)',
+                          fontWeight: 700,
+                        }}>
+                          {r.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Configurations sauvées */}
+            {user.savedConfigs && user.savedConfigs.length > 0 && (
+              <div className="ud-panel">
+                <div className="ud-panel-head">
+                  <h2 className="ud-panel-title">
+                    Configurations sauvées
+                    <span className="ud-panel-title-meta">{user.savedConfigs.length} configuration{user.savedConfigs.length > 1 ? 's' : ''}</span>
+                  </h2>
+                </div>
+                <div style={{ padding: '0 22px 22px' }}>
+                  {user.savedConfigs.slice(0, 5).map((c) => (
+                    <div
+                      key={c.id}
+                      style={{
+                        padding: '12px 0',
+                        borderTop: '1px solid var(--border-subtle)',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto',
+                        gap: 12,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                          {c.summary}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
+                          {c.timesUsed} usage{c.timesUsed > 1 ? 's' : ''}
+                        </div>
+                        {c.lastUsedAt && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            dernier {formatDate(c.lastUsedAt.toISOString())}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Application reseller (si existe) */}
+            {resellerApp && (
+              <div className="ud-panel">
+                <div className="ud-panel-head">
+                  <h2 className="ud-panel-title">
+                    Programme reseller
+                    <span className="ud-panel-title-meta">{resellerApp.companyName}</span>
+                  </h2>
+                </div>
+                <div style={{ padding: 22 }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span
+                      style={{
+                        padding: '4px 12px',
+                        fontSize: 11,
+                        fontFamily: 'var(--font-mono)',
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                        borderRadius: 4,
+                        background:
+                          resellerApp.status === 'APPROVED' ? 'var(--success-soft, #f0fdf4)' :
+                          resellerApp.status === 'PENDING' ? 'var(--warning-soft, #FFF6E5)' :
+                          resellerApp.status === 'REJECTED' ? 'var(--danger-soft)' : 'var(--bg-sunken)',
+                        color:
+                          resellerApp.status === 'APPROVED' ? 'var(--success, #16a34a)' :
+                          resellerApp.status === 'PENDING' ? 'var(--warning, #D97706)' :
+                          resellerApp.status === 'REJECTED' ? 'var(--danger)' : 'var(--text-muted)',
+                      }}
+                    >
+                      {resellerApp.status}
+                    </span>
+                    <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      depuis {formatDate(resellerApp.createdAt.toISOString())}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                    {resellerApp.estimatedMonthlyCents !== null && (
+                      <Mini label="Volume estimé" value={`${formatCurrency(resellerApp.estimatedMonthlyCents / 100)} / mois`} />
+                    )}
+                    {resellerApp.website && (
+                      <Mini label="Site" value={resellerApp.website.replace(/^https?:\/\//, '').replace(/\/$/, '')} />
+                    )}
+                  </div>
+                  <Link href={'/admin/reseller-applications' as Route} style={{ fontSize: 12, color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}>
+                    Gérer dans /admin/reseller-applications →
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ─── RIGHT ──────────────────────────────────────────── */}
@@ -479,6 +628,28 @@ export default async function AdminUserDetailPage({
           </aside>
         </div>
       </main>
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────
+
+function Mini({ label, value, highlight, mono }: { label: string; value: string; highlight?: boolean; mono?: boolean }) {
+  return (
+    <div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          color: highlight ? 'var(--accent-primary)' : 'var(--text-primary)',
+          fontFamily: mono ? 'var(--font-mono)' : 'inherit',
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
