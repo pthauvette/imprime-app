@@ -1,0 +1,69 @@
+name: CI (typecheck + unit tests)
+
+# Gate sur chaque PR vers main : prisma generate → typecheck → vitest.
+# Pas de DB requise — les tests vitest mock prisma. Pas de browser non
+# plus — Playwright e2e a son propre workflow .github/workflows/e2e.yml
+# qui tape la prod après deploy.
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'public/**'
+  # On run aussi sur push main pour avoir l'état "main is green" visible
+  # dans le badge GitHub. concurrency group cancel-in-progress évite les
+  # builds doublons quand on push plusieurs commits rapprochés.
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'public/**'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck-and-test:
+    name: Typecheck + Vitest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Active pnpm via Corepack (la version est pinned dans package.json)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prisma client doit être généré sinon les imports `@prisma/client`
+      # échouent à la compilation. DB pas needed — c'est offline.
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      - name: Typecheck (tsc --noEmit)
+        run: pnpm typecheck
+
+      - name: Unit tests (Vitest)
+        run: pnpm vitest run
+
+      # Optional : compile build sanity. Désactivé par défaut car build
+      # complet est ~3 min et le typecheck attrape la plupart des bugs.
+      # Décommenter si on veut être paranoiac.
+      # - name: Build sanity
+      #   run: pnpm build
+      #   env:
+      #     NEXT_PUBLIC_APP_URL: https://plio.ca
