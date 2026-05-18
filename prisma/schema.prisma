@@ -985,6 +985,51 @@ model NpsResponse {
   @@index([createdAt])
 }
 
+// ─── EXPERIMENT EVENTS (assignments + conversions) ───────────────────────
+// Pour mesurer une expérience A/B il faut tracker :
+//   1. ASSIGNMENT : qui a vu quelle variant (1ère exposure)
+//   2. CONVERSION : qui a fait l'action de succès (achat, signup, etc.)
+//
+// On dédupe les assignments par (experimentId, visitorId) pour pas surcompter
+// — un visiteur qui rafraîchit 50 fois ne compte que 1.
+//
+// visitorId = cookie anonyme `plio_vid` (cuid) écrit au 1er render. Permet
+// d'attribuer même aux visiteurs non-loggés. Si user signin plus tard, on
+// peut joindre via UserVisitor mapping (future).
+
+model ExperimentAssignment {
+  id           String   @id @default(cuid())
+  experimentId String
+  variantId    String
+  /** Cookie plio_vid (anonyme cuid). */
+  visitorId    String
+  /** User connecté au moment de l'assignment, si applicable. NULL pour anonymes. */
+  userId       String?
+  createdAt    DateTime @default(now())
+
+  /** Dédup : un visiteur ne crée qu'1 assignment par expérience. */
+  @@unique([experimentId, visitorId])
+  @@index([experimentId, variantId, createdAt])
+  @@index([userId])
+}
+
+model ExperimentConversion {
+  id           String   @id @default(cuid())
+  experimentId String
+  variantId    String
+  visitorId    String
+  userId       String?
+  /** Nom du goal (ex: 'order_placed', 'signup_completed'). Permet de tracker
+   *  plusieurs goals par expérience. */
+  goal         String
+  /** Optionnel : valeur quantifiable (cents revenue, count, etc.). */
+  value        Int?
+  createdAt    DateTime @default(now())
+
+  @@index([experimentId, variantId, goal, createdAt])
+  @@index([visitorId, createdAt])
+}
+
 // ─── SINALITE OFFLINE CACHE ──────────────────────────────────────────────
 // Cache write-through pour les endpoints catalog (listProducts, product
 // detail). Si Sinalite API est down, on sert depuis cette table (stale)

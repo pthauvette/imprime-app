@@ -31,6 +31,16 @@ import { prisma } from '@/lib/db';
 const COOKIE_PREFIX = 'plio_ab_';
 /** 90 jours — assez long pour mesurer même une conversion lente. */
 const COOKIE_MAX_AGE = 90 * 24 * 60 * 60;
+/** Cookie anonyme pour identifier un visiteur à travers les sessions.
+ *  Permet d'attribuer les conversions aux assignments même pour les
+ *  user pas loggés (= 90 % des visiteurs landing). */
+const VISITOR_COOKIE = 'plio_vid';
+const VISITOR_COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 an
+
+/** Génère un visitor ID cuid-style (pas crypto-secure, juste unique). */
+function generateVisitorId(): string {
+  return 'vis_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
 
 export interface Variant {
   /** Identifier court, ASCII safe (sera dans le cookie). */
@@ -207,17 +217,35 @@ export async function getServerVariant<I extends ExperimentId>(
 
   const store = await cookies();
   const cookieName = COOKIE_PREFIX + experimentId;
+
+  // Visitor ID — anonyme, sticky 1 an. Permet d'attribuer conversions
+  // même aux user pas loggés.
+  let visitorId = store.get(VISITOR_COOKIE)?.value;
+  if (!visitorId) {
+    visitorId = generateVisitorId();
+    try {
+      store.set(VISITOR_COOKIE, visitorId, {
+        maxAge: VISITOR_COOKIE_MAX_AGE,
+        path: '/',
+        sameSite: 'lax',
+        httpOnly: false,
+      });
+    } catch {
+      // Server Component context — pas grave, l'assignment de cette session
+      // ne sera juste pas trackée. Visiteur aura un nouveau ID au prochain load.
+    }
+  }
+
   const cookie = store.get(cookieName);
   if (cookie) {
     const found = experiment.variants.find((v) => v.id === cookie.value);
-    if (found) return found;
+    if (found) {
+      // Pas de re-log — assignment déjà tracké au 1er render
+      return found;
+    }
   }
+
   // Pas de cookie ou cookie invalide → on pick + write si on peut.
-  // cookies().set() peut throw dans un Server Component pur (pas dans
-  // un Route Handler ou Server Action). On try/catch et retombe au pick
-  // sans persist — le caller verra une nouvelle assignation au prochain
-  // load. Acceptable pour MVP, à refactor via middleware si on veut
-  // 100% sticky en pages statiques.
   const variant = pickVariant(experiment);
   try {
     store.set(cookieName, variant.id, {
@@ -229,7 +257,85 @@ export async function getServerVariant<I extends ExperimentId>(
   } catch {
     // ignore — Server Component context
   }
+
+  // Log l'assignment — best-effort, fire-and-forget. UNIQUE constraint
+  // sur (experimentId, visitorId) dédupe si concurrent.
+  void recordAssignment(experimentId, variant.id, visitorId);
+
   return variant;
+}
+
+/** Insert ou skip si déjà présent (UNIQUE constraint dedup). */
+async function recordAssignment(
+  experimentId: string,
+  variantId: string,
+  visitorId: string,
+): Promise<void> {
+  try {
+    await prisma.experimentAssignment.create({
+      data: { experimentId, variantId, visitorId },
+    });
+  } catch {
+    // P2002 unique constraint (déjà assigné) ou DB down → silent skip
+  }
+}
+
+/**
+ * Log une conversion pour un goal donné. À appeler depuis :
+ *   - API routes après une action de succès (order placed, signup)
+ *   - Server Actions
+ *
+ * Conversion = N par visiteur (un user qui fait 3 commandes = 3 conversions
+ * pour le goal 'order_placed'). Sera dédupé côté analytics si besoin.
+ *
+ * `experimentIds` optionnel : si vide, on log la conversion pour TOUS les
+ * experiments actifs où ce visiteur a un assignment (auto-attribution).
+ */
+export async function recordConversion(input: {
+  visitorId: string;
+  goal: string;
+  value?: number;
+  userId?: string;
+  /** Si fourni, force l'attribution sur ces exp IDs uniquement. Sinon
+   *  on auto-détecte via les assignments existants du visiteur. */
+  experimentIds?: string[];
+}): Promise<void> {
+  if (!input.visitorId) return;
+  try {
+    const assignments = input.experimentIds
+      ? await prisma.experimentAssignment.findMany({
+          where: {
+            visitorId: input.visitorId,
+            experimentId: { in: input.experimentIds },
+          },
+          select: { experimentId: true, variantId: true },
+        })
+      : await prisma.experimentAssignment.findMany({
+          where: { visitorId: input.visitorId },
+          select: { experimentId: true, variantId: true },
+        });
+
+    if (assignments.length === 0) return;
+
+    await prisma.experimentConversion.createMany({
+      data: assignments.map((a) => ({
+        experimentId: a.experimentId,
+        variantId: a.variantId,
+        visitorId: input.visitorId,
+        userId: input.userId ?? null,
+        goal: input.goal,
+        value: input.value ?? null,
+      })),
+    });
+  } catch {
+    // Best-effort — pas grave si on perd un event
+  }
+}
+
+/** Lit le visitor ID depuis le cookie store (server). Returns null si pas set. */
+export async function getVisitorId(): Promise<string | null> {
+  const store = await cookies();
+  return store.get(VISITOR_COOKIE)?.value ?? null;
 }
 
 /** Helper sync : extract variant from a raw cookie value + experiment. */
