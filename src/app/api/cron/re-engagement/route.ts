@@ -25,6 +25,7 @@ import { prisma } from '@/lib/db';
 import { sendReengagementFollowUpEmail, sendReengagementWinbackEmail } from '@/lib/emails/send';
 import { reviewSubmitToken } from '@/lib/reviews/token';
 import { log } from '@/lib/logger';
+import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -192,5 +193,9 @@ export async function GET(req: NextRequest) {
 
   summary.durationMs = Date.now() - start;
   log.info({ summary }, 'cron/re-engagement done');
+  void pingCronHealthcheck('re-engagement', 'success', {
+    followUpSent: summary.followUp.sent,
+    winbackSent: summary.winback.sent,
+  });
   return NextResponse.json({ ok: true, summary });
 }
