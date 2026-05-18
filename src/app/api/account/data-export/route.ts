@@ -40,13 +40,27 @@ export const GET = withErrorHandler(async (req: Request) => {
   if (!limit.ok) return limit.response;
 
   // Parallel fetch tout ce qui appartient au user
-  const [user, orders, addresses, savedConfigs, drafts, designDrafts, referralsGiven, referralReceived, newsletter, contactMessages] = await Promise.all([
+  const [
+    user,
+    orders,
+    addresses,
+    savedConfigs,
+    drafts,
+    designDrafts,
+    referralsGiven,
+    referralReceived,
+    newsletter,
+    contactMessages,
+    reviews,
+    npsResponses,
+  ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true, email: true, name: true, firstName: true, lastName: true,
         phone: true, role: true, emailVerified: true, emailDeliveryNotifications: true,
         referralCode: true, referredByCode: true, referralCreditCents: true,
+        adminNotes: true, adminNotesUpdatedAt: true, adminNotesUpdatedBy: true,
         createdAt: true, updatedAt: true,
       },
     }),
@@ -86,6 +100,23 @@ export const GET = withErrorHandler(async (req: Request) => {
       where: { email: userEmail.toLowerCase() },
       orderBy: { createdAt: 'desc' },
     }) : Promise.resolve([]),
+    // Reviews publiques que le user a laissées (via ses orders)
+    prisma.review.findMany({
+      where: { order: { userId } },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => []),
+    // NPS feedback (interne, mais c'est le data du user → il a le droit
+    // de voir ce qu'il a soumis). NpsResponse n'a pas de back-relation
+    // vers Order — on fait un 2-step : extract orderIds depuis user's orders.
+    prisma.order.findMany({
+      where: { userId },
+      select: { id: true },
+    }).then((rows) =>
+      prisma.npsResponse.findMany({
+        where: { orderId: { in: rows.map((r) => r.id) } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ).catch(() => []),
   ]);
 
   if (!user) {
@@ -117,10 +148,12 @@ export const GET = withErrorHandler(async (req: Request) => {
     referralReceived,
     newsletter,
     contactMessages,
+    reviews,
+    npsResponses,
   };
 
   void recordAdminAudit({
-    kind: 'ADMIN_VIEW_AS_USER',
+    kind: 'ADMIN_DATA_EXPORT',
     adminId: userId,
     adminEmail: userEmail,
     targetType: 'USER',
@@ -129,6 +162,8 @@ export const GET = withErrorHandler(async (req: Request) => {
       action: 'USER_DATA_EXPORT_SELF',
       orderCount: orders.length,
       addressCount: addresses.length,
+      reviewCount: reviews.length,
+      npsCount: npsResponses.length,
     },
   });
 
