@@ -344,6 +344,14 @@ model WebhookEvent {
   // Link vers l'Order si on a pu résoudre — accélère les joins admin.
   orderId     String?
 
+  // Raw body du webhook — null pour les rows pré-migration. Stocké comme
+  // string brute (pas parsé) pour replay fidèle. Limit pratique : Stripe
+  // events ~5-50 KB, Sinalite < 1 KB. PostgreSQL TEXT pas de limite hard.
+  payload     String?
+  // Replay tracking : combien de fois l'admin l'a re-déclenché manuellement.
+  replayCount Int      @default(0)
+  lastReplayAt DateTime?
+
   @@unique([source, eventId])
   @@index([source, processedAt])
   @@index([success, processedAt])

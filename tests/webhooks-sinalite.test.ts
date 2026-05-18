@@ -226,11 +226,14 @@ describe('L. Idempotence via fingerprint', () => {
       { ...baseOrder, user: baseUser } as never,
     );
     await POST(makeReq(validPayload({ orderId: 7, status: 'IN_PRODUCTION', timestamp: '2026-01-01T00:00:00Z' })));
-    expect(orders.recordWebhookEvent).toHaveBeenCalledWith({
-      source: 'SINALITE',
-      eventId: '7:IN_PRODUCTION:2026-01-01T00:00:00Z',
-      eventType: 'IN_PRODUCTION',
-    });
+    expect(orders.recordWebhookEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'SINALITE',
+        eventId: '7:IN_PRODUCTION:2026-01-01T00:00:00Z',
+        eventType: 'IN_PRODUCTION',
+        payload: expect.any(String),
+      }),
+    );
   });
 });
 

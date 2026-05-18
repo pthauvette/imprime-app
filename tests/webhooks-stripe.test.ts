@@ -205,11 +205,14 @@ describe('A. payment_intent.succeeded — happy path', () => {
 
     const res = await POST(makeStripeRequest());
 
-    expect(orders.recordWebhookEvent).toHaveBeenCalledWith({
-      source: 'STRIPE',
-      eventId: event.id,
-      eventType: 'payment_intent.succeeded',
-    });
+    expect(orders.recordWebhookEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'STRIPE',
+        eventId: event.id,
+        eventType: 'payment_intent.succeeded',
+        payload: expect.any(String),
+      }),
+    );
     expect(orders.markOrderPaid).toHaveBeenCalledWith('pi_happy');
     expect(sinalite.createOrder).toHaveBeenCalledTimes(1);
     expect(orders.markOrderSubmitted).toHaveBeenCalledWith({

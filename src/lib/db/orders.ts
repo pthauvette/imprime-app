@@ -298,9 +298,19 @@ export async function recordWebhookEvent(input: {
   source: WebhookSource;
   eventId: string;
   eventType: string;
+  /** Raw body for future replays. Optional — pre-replay-feature rows had no
+   *  payload, future events should always provide it. */
+  payload?: string;
 }): Promise<{ isNew: boolean }> {
   try {
-    await prisma.webhookEvent.create({ data: input });
+    await prisma.webhookEvent.create({
+      data: {
+        source: input.source,
+        eventId: input.eventId,
+        eventType: input.eventType,
+        ...(input.payload !== undefined && { payload: input.payload }),
+      },
+    });
     return { isNew: true };
   } catch (err) {
     // Unique violation (P2002) = déjà processed

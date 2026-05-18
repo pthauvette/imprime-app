@@ -19,6 +19,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import { formatDateTime } from '@/lib/format';
+import ReplayButton from './ReplayButton';
 
 export const metadata = { title: 'Admin — Webhooks' };
 export const dynamic = 'force-dynamic';
@@ -333,7 +334,13 @@ export default async function AdminWebhooksPage({
                     </td>
                     <td>
                       <div className="adm-wh-actions">
-                        <button className="adm-wh-action" disabled title="Replay non implémenté">↻</button>
+                        <ReplayButton
+                          id={e.id}
+                          hasPayload={e.payload !== null}
+                          source={e.source}
+                          eventType={e.eventType}
+                          replayCount={e.replayCount}
+                        />
                       </div>
                     </td>
                   </tr>
