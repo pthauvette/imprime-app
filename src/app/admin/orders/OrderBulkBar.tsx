@@ -85,6 +85,50 @@ export default function OrderBulkBar() {
     });
   }
 
+  async function bulkMarkStatus(status: 'IN_PRODUCTION' | 'SHIPPED' | 'DELIVERED') {
+    if (selectedIds.size === 0) return;
+    const n = selectedIds.size;
+    const label = { IN_PRODUCTION: 'EN PRODUCTION', SHIPPED: 'EXPÉDIÉES', DELIVERED: 'LIVRÉES' }[status];
+    if (!confirm(`Marquer ${n} commande${n > 1 ? 's' : ''} comme ${label} ?\n\nNote : les orders déjà DELIVERED, CANCELLED ou FAILED seront ignorées (sécurité).`)) {
+      return;
+    }
+    // Pour SHIPPED, prompt optionnel tracking + carrier (peuvent skip)
+    let trackingNumber: string | undefined;
+    let carrier: string | undefined;
+    if (status === 'SHIPPED') {
+      const t = window.prompt(`Tracking number commun (optionnel — vide = pas de tracking) :`, '');
+      if (t && t.trim()) {
+        trackingNumber = t.trim();
+        const c = window.prompt('Transporteur ? (UPS / Canada Post / FedEx / Purolator)', 'UPS');
+        if (c && c.trim()) carrier = c.trim();
+      }
+    }
+    setError(null);
+    setResult(null);
+    startTransition(async () => {
+      try {
+        const res = await fetch('/api/admin/orders/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'markStatus',
+            ids: Array.from(selectedIds),
+            status,
+            ...(trackingNumber ? { trackingNumber } : {}),
+            ...(carrier ? { carrier } : {}),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        setResult(`${data.count} commande${data.count > 1 ? 's' : ''} → ${label}.`);
+        clearSelection();
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur');
+      }
+    });
+  }
+
   if (selectedIds.size === 0 && !result && !error) return null;
 
   return (
@@ -132,6 +176,9 @@ export default function OrderBulkBar() {
           >
             + Note admin
           </button>
+          <StatusBtn label="⚙ En production" disabled={busy} onClick={() => bulkMarkStatus('IN_PRODUCTION')} />
+          <StatusBtn label="📦 Expédiées" disabled={busy} onClick={() => bulkMarkStatus('SHIPPED')} />
+          <StatusBtn label="✓ Livrées" disabled={busy} onClick={() => bulkMarkStatus('DELIVERED')} />
           <button
             type="button"
             onClick={clearSelection}
@@ -158,5 +205,38 @@ export default function OrderBulkBar() {
         <span style={{ fontSize: 12, color: 'var(--danger)' }}>✗ {error}</span>
       )}
     </div>
+  );
+}
+
+/** Bouton compact pour les status transitions bulk. Style ghost outline
+ *  pour distinguer de l'action primary "Note admin". */
+function StatusBtn({
+  label,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        padding: '6px 12px',
+        background: 'transparent',
+        color: 'inherit',
+        border: '1px solid rgba(255,255,255,0.5)',
+        borderRadius: 'var(--r-pill)',
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: disabled ? 'wait' : 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </button>
   );
 }
