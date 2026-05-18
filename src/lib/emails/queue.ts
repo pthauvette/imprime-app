@@ -37,6 +37,9 @@ export interface QueueEmailInput {
   label?: string;
   /** Override le default 3 attempts (rare). */
   maxAttempts?: number;
+  /** Si set, processDelivery génère la facture PDF de cet order à la
+   *  volée et l'attache à l'email. Idempotent → safe au retry. */
+  attachOrderId?: string;
 }
 
 const BACKOFF_MINUTES = [5, 15]; // 1er retry +5min, 2e +15min
@@ -72,6 +75,7 @@ export async function queueEmail(input: QueueEmailInput): Promise<{
         subject: input.subject,
         replyTo: input.replyTo,
         label: input.label,
+        attachOrderId: input.attachOrderId,
         maxAttempts: input.maxAttempts ?? 3,
         status: 'PENDING',
       },
@@ -80,12 +84,14 @@ export async function queueEmail(input: QueueEmailInput): Promise<{
     // Si on ne peut même pas INSERT, fallback à l'ancien comportement (best-effort)
     logEmail.error({ err, to: input.to, template: input.template }, 'queue insert failed, falling back to direct send');
     try {
+      const attachments = await buildInvoiceAttachments(input.attachOrderId);
       await sendEmail({
         to: input.to,
         template: input.template,
         vars: input.vars,
         subject: input.subject,
         replyTo: input.replyTo,
+        attachments,
       });
       return { sent: true, id: 'no-queue-fallback' };
     } catch {
@@ -114,12 +120,14 @@ export async function processDelivery(deliveryId: string): Promise<{
   const vars = JSON.parse(delivery.varsJson) as Record<string, string | number>;
 
   try {
+    const attachments = await buildInvoiceAttachments(delivery.attachOrderId);
     await sendEmail({
       to: delivery.to,
       template: delivery.template as EmailTemplate,
       vars,
       subject: delivery.subject ?? undefined,
       replyTo: delivery.replyTo ?? undefined,
+      attachments,
     });
     await prisma.emailDelivery.update({
       where: { id: deliveryId },
@@ -169,6 +177,54 @@ export async function processDelivery(deliveryId: string): Promise<{
     }
 
     return { sent: false, id: deliveryId };
+  }
+}
+
+/**
+ * Génère les attachments à la volée à partir de l'attachOrderId stocké
+ * sur l'EmailDelivery. Idempotent au retry : on régénère le même PDF
+ * depuis l'order actuelle (donc même si l'order évolue, c'est cohérent
+ * avec l'état au moment de l'envoi). Best-effort : si la génération
+ * fail, on log et on send sans attachment plutôt que de bloquer l'email.
+ */
+async function buildInvoiceAttachments(
+  orderId: string | null | undefined,
+): Promise<import('./render').EmailAttachment[] | undefined> {
+  if (!orderId) return undefined;
+  try {
+    const { generateInvoicePdf } = await import('@/lib/print/invoice-pdf');
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { user: { select: { email: true, name: true } } },
+    });
+    if (!order) {
+      logEmail.warn({ orderId }, 'invoice attachment skipped : order not found');
+      return undefined;
+    }
+    // Identité légale du vendeur — figure sur la facture pour CTI/RTI
+    // côté clients B2B.
+    const company = {
+      legalName: process.env.COMPANY_LEGAL_NAME || 'Démocratik inc.',
+      address: process.env.COMPANY_ADDRESS || 'Montréal QC, Canada',
+      gst: process.env.COMPANY_GST_NUMBER || '(num. TPS à venir)',
+      qst: process.env.COMPANY_QST_NUMBER || '(num. TVQ à venir)',
+    };
+    const bytes = await generateInvoicePdf({
+      order,
+      customer: { name: order.user.name, email: order.user.email },
+      company,
+    });
+    const displayId = order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase();
+    return [
+      {
+        filename: `facture-plio-${displayId}.pdf`,
+        content: bytes,
+        contentType: 'application/pdf',
+      },
+    ];
+  } catch (err) {
+    logEmail.error({ err, orderId }, 'invoice attachment generation failed — sending email without attachment');
+    return undefined;
   }
 }
 

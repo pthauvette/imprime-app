@@ -81,6 +81,14 @@ const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const SES_HOST = process.env.SES_SMTP_HOST ?? 'email-smtp.ca-central-1.amazonaws.com';
 const SES_FROM = process.env.SES_FROM ?? 'Plio <bonjour@plio.ca>';
 
+export interface EmailAttachment {
+  filename: string;
+  /** Contenu binaire (Buffer ou Uint8Array). */
+  content: Uint8Array;
+  /** Content-Type (ex: 'application/pdf'). */
+  contentType: string;
+}
+
 export async function sendEmail(opts: {
   to: string;
   template: EmailTemplate;
@@ -89,6 +97,8 @@ export async function sendEmail(opts: {
   /** Reply-To header — pour que les replies aillent vers l'admin sender,
    *  pas vers bonjour@plio.ca (qui n'est pas monitoré). */
   replyTo?: string;
+  /** Pièces jointes (PDF facture, etc.). */
+  attachments?: EmailAttachment[];
 }) {
   const html = renderEmail(opts.template, opts.vars);
   const subject = opts.subject ?? EMAIL_SUBJECTS[opts.template](opts.vars);
@@ -96,7 +106,14 @@ export async function sendEmail(opts: {
   if (!SES_CONFIGURED) {
     // Dev mode : log au lieu d'envoyer
     logEmail.info(
-      { to: opts.to, template: opts.template, subject, vars: opts.vars, replyTo: opts.replyTo },
+      {
+        to: opts.to,
+        template: opts.template,
+        subject,
+        vars: opts.vars,
+        replyTo: opts.replyTo,
+        attachments: opts.attachments?.map((a) => ({ filename: a.filename, bytes: a.content.byteLength })),
+      },
       'email (dev — not sent, SES not configured)',
     );
     return { sent: false, dev: true };
@@ -121,6 +138,15 @@ export async function sendEmail(opts: {
     html,
     // text fallback : strip HTML tags
     text: html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 1000),
+    ...(opts.attachments && opts.attachments.length > 0
+      ? {
+          attachments: opts.attachments.map((a) => ({
+            filename: a.filename,
+            content: Buffer.from(a.content),
+            contentType: a.contentType,
+          })),
+        }
+      : {}),
   });
 
   return { sent: true };
