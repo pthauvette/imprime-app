@@ -13,7 +13,13 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import {
+  Elements,
+  PaymentElement,
+  ExpressCheckoutElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
 import { useCart, type CartItem } from '@/lib/cart/store';
 
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -421,15 +427,15 @@ function PaymentForm({ total }: { total: number }) {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(true);
 
+  const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/order/confirmation`;
+
   const handleSubmit = async () => {
     if (!stripe || !elements) return;
     setSubmitting(true);
     setStripeError(null);
     const { error } = await stripe.confirmPayment({
       elements,
-      confirmParams: {
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/order/confirmation`,
-      },
+      confirmParams: { return_url: returnUrl },
     });
     if (error) {
       setStripeError(error.message ?? 'Erreur de paiement');
@@ -438,8 +444,62 @@ function PaymentForm({ total }: { total: number }) {
     // Sur succès, Stripe redirige vers return_url avec ?payment_intent=… &payment_intent_client_secret=…
   };
 
+  // ExpressCheckoutElement = bouton wallet (Apple Pay / Google Pay / Link)
+  // au-dessus du PaymentElement classique. Conversion mobile +30 % typique
+  // car le user n'a pas à saisir de carte. Stripe affiche automatiquement
+  // les wallets supportés par le device + le browser (Safari → Apple Pay,
+  // Chrome Android → Google Pay).
+  const handleExpressConfirm = async () => {
+    if (!stripe || !elements) return;
+    if (!accepted) {
+      setStripeError('Tu dois accepter les conditions générales avant de payer.');
+      return;
+    }
+    setSubmitting(true);
+    setStripeError(null);
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: returnUrl },
+    });
+    if (error) {
+      setStripeError(error.message ?? 'Erreur de paiement');
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div>
+      {/* Wallet button (Apple Pay / Google Pay / Link). Stripe hide
+          automatically si aucun wallet supporté par le device. */}
+      <div style={{ marginBottom: 16 }}>
+        <ExpressCheckoutElement
+          onConfirm={handleExpressConfirm}
+          options={{
+            buttonHeight: 48,
+            buttonTheme: { applePay: 'black', googlePay: 'black' },
+            wallets: { applePay: 'always', googlePay: 'always' },
+            layout: { maxColumns: 2, maxRows: 1 },
+          }}
+        />
+        {/* Separator OR — visible que si le wallet element a quelque chose */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            margin: '16px 0 12px',
+            color: 'var(--text-muted)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}
+        >
+          <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+          <span>ou payer par carte</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+        </div>
+      </div>
       <PaymentElement />
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '16px 0', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         <input
