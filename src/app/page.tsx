@@ -8,6 +8,7 @@
 import NewsletterSignup from '@/components/marketing/NewsletterSignup';
 import TestimonialsSection from '@/components/marketing/TestimonialsSection';
 import LangSwitch from '@/components/i18n/LangSwitch';
+import OnboardingTour from '@/components/onboarding/OnboardingTour';
 import { getServerLocale } from '@/lib/i18n/locale';
 import { translate } from '@/lib/i18n/messages';
 
@@ -21,6 +22,12 @@ export default async function LandingPage() {
 
   return (
     <>
+      {/* Onboarding modal pour les 1ers visites (cookie plio_tour).
+          Affiché uniquement sur la home — pas sur les landing pages
+          (blog, /samples, /quote) où le user arrive avec une intent
+          précise et ne veut pas être interrompu. */}
+      <OnboardingTour />
+
       <nav className="mkt-nav">
           <a href="#" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
