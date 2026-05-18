@@ -96,7 +96,7 @@ export default function Post() {
       </p>
       <ul>
         <li><strong>Headline géant en haut</strong> (qui es-tu + l&apos;offre)</li>
-        <li><strong>Visuel fort, pas un collage</strong> (1 image > 6 vignettes)</li>
+        <li><strong>Visuel fort, pas un collage</strong> (1 image &gt; 6 vignettes)</li>
         <li><strong>UN call to action</strong> (téléphone, URL courte, QR code, code promo)</li>
         <li><strong>Date de fin si offre limitée</strong> (urgence motive)</li>
         <li><strong>Identité de marque claire</strong> (logo + couleurs + ton)</li>
