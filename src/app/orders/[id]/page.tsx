@@ -19,9 +19,15 @@ import Sidebar from '@/components/account/Sidebar';
 import CancelRequestButton from '@/components/account/CancelRequestButton';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
-import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
+import type { OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
+import {
+  buildOrderTimeline,
+  computeOrderEta,
+  extractTracking,
+  type TimelineStep,
+} from '@/lib/orders/timeline';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,10 +106,10 @@ export default async function CustomerOrderDetailPage({
   const shippedEvent = [...order.events].reverse().find(
     (e) => e.kind === 'SINALITE_STATUS_CHANGED' && e.data?.includes('SHIPPED'),
   );
-  const tracking = shippedEvent ? extractTracking(shippedEvent.data) : null;
-  const eta = computeEta(order, shippedEvent?.createdAt);
+  const tracking = extractTracking(order.events);
+  const eta = computeOrderEta(order, shippedEvent?.createdAt);
 
-  const timeline = buildTimeline(order, status);
+  const timeline = buildOrderTimeline(order, status);
 
   return (
     <div className="acct-shell">
@@ -493,132 +499,5 @@ function Line({ label, value, bold }: { label: string; value: string; bold?: boo
   );
 }
 
-// ─── Timeline builder ─────────────────────────────────────────────────────
-
-interface TimelineStep {
-  label: string;
-  description: string;
-  done: boolean;
-  current: boolean;
-  timestamp: string | null;
-}
-
-function buildTimeline(
-  order: { paidAt: Date | null; events: { kind: string; createdAt: Date; data: string | null }[]; createdAt: Date },
-  status: OrderStatus,
-): TimelineStep[] {
-  const eventByKind = new Map<OrderEventKind, Date>();
-  for (const e of order.events) {
-    if (!eventByKind.has(e.kind as OrderEventKind)) eventByKind.set(e.kind as OrderEventKind, e.createdAt);
-  }
-
-  const sinaliteStatuses = order.events
-    .filter((e) => e.kind === 'SINALITE_STATUS_CHANGED' && e.data)
-    .map((e) => ({
-      status: extractSinaliteStatus(e.data!),
-      at: e.createdAt,
-    }))
-    .filter((x): x is { status: string; at: Date } => x.status !== null);
-
-  const findSinalite = (s: string) => sinaliteStatuses.find((x) => x.status === s)?.at ?? null;
-
-  const paymentAt = eventByKind.get('PAYMENT_SUCCEEDED') ?? order.paidAt;
-  const submittedAt = eventByKind.get('SINALITE_SUBMITTED');
-  const productionAt = findSinalite('IN_PRODUCTION');
-  const shippedAt = findSinalite('SHIPPED');
-  const deliveredAt = findSinalite('DELIVERED');
-
-  return [
-    {
-      label: 'Paiement confirmé',
-      description: paymentAt ? 'Carte chargée, début du workflow.' : 'En attente du paiement.',
-      done: !!paymentAt,
-      current: status === 'PAID' && !submittedAt,
-      timestamp: paymentAt ? formatDateTime(paymentAt) : null,
-    },
-    {
-      label: 'Envoi à la presse',
-      description: 'Notre presse reçoit ta commande pour le prepress.',
-      done: !!submittedAt || ['IN_PRODUCTION', 'SHIPPED', 'DELIVERED'].includes(status),
-      current: status === 'SUBMITTED',
-      timestamp: submittedAt ? formatDateTime(submittedAt) : null,
-    },
-    {
-      label: 'En production',
-      description: 'Tes fichiers sont imprimés et finis.',
-      done: !!productionAt || ['SHIPPED', 'DELIVERED'].includes(status),
-      current: status === 'IN_PRODUCTION',
-      timestamp: productionAt ? formatDateTime(productionAt) : null,
-    },
-    {
-      label: 'Expédiée',
-      description: 'En route vers ton adresse.',
-      done: !!shippedAt || status === 'DELIVERED',
-      current: status === 'SHIPPED',
-      timestamp: shippedAt ? formatDateTime(shippedAt) : null,
-    },
-    {
-      label: 'Livrée',
-      description: 'Reçue à destination.',
-      done: status === 'DELIVERED',
-      current: false,
-      timestamp: deliveredAt ? formatDateTime(deliveredAt) : null,
-    },
-  ];
-}
-
-function extractSinaliteStatus(data: string): string | null {
-  try {
-    const parsed = JSON.parse(data) as { status?: string };
-    return parsed.status ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function extractTracking(data: string | null): { number?: string; carrier?: string; url?: string } | null {
-  if (!data) return null;
-  try {
-    const parsed = JSON.parse(data) as { trackingNumber?: string; carrier?: string };
-    if (!parsed.trackingNumber) return null;
-    const carrier = parsed.carrier ?? 'UPS';
-    const url = trackingDeepLink(carrier, parsed.trackingNumber);
-    return { number: parsed.trackingNumber, carrier, url };
-  } catch {
-    return null;
-  }
-}
-
-function trackingDeepLink(carrier: string, tracking: string): string | undefined {
-  const c = carrier.toLowerCase();
-  if (c.includes('ups')) return `https://www.ups.com/track?tracknum=${encodeURIComponent(tracking)}`;
-  if (c.includes('fedex')) return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(tracking)}`;
-  if (c.includes('canada') || c.includes('post')) return `https://www.canadapost-postescanada.ca/track-reperage/en#/details/${encodeURIComponent(tracking)}`;
-  return undefined;
-}
-
-function computeEta(
-  order: { createdAt: Date; status: string },
-  shippedAt?: Date,
-): { day: string; relative: string } | null {
-  if (order.status === 'CANCELLED' || order.status === 'FAILED') return null;
-  if (order.status === 'DELIVERED' && shippedAt) {
-    return { day: formatDateShort(shippedAt), relative: 'livrée' };
-  }
-  const base = shippedAt ?? order.createdAt;
-  const daysAhead = shippedAt ? 3 : 7;
-  const eta = new Date(base);
-  eta.setDate(eta.getDate() + daysAhead);
-  const today = new Date();
-  const diffDays = Math.round((eta.getTime() - today.getTime()) / (24 * 3600 * 1000));
-  const relative = diffDays <= 0 ? 'aujourd\'hui' : diffDays === 1 ? 'demain' : `dans ${diffDays} jours`;
-  return { day: formatDateShort(eta), relative };
-}
-
-function formatDateShort(d: Date): string {
-  return d.toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'short' });
-}
-
-function formatDateTime(d: Date): string {
-  return `${formatDate(d.toISOString())} · ${d.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
-}
+// Timeline + tracking + ETA helpers moved to @/lib/orders/timeline so the
+// public /track page peut réutiliser exactement la même logique.

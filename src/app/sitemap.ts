@@ -24,6 +24,7 @@ const STATIC_PUBLIC_ROUTES = [
   { path: '/samples', priority: 0.6, changeFreq: 'monthly' as const },
   { path: '/reseller', priority: 0.6, changeFreq: 'monthly' as const },
   { path: '/quote', priority: 0.7, changeFreq: 'monthly' as const },
+  { path: '/track', priority: 0.5, changeFreq: 'monthly' as const },
   { path: '/legal/terms', priority: 0.3, changeFreq: 'yearly' as const },
   { path: '/legal/privacy', priority: 0.3, changeFreq: 'yearly' as const },
   { path: '/legal/refund-policy', priority: 0.3, changeFreq: 'yearly' as const },
