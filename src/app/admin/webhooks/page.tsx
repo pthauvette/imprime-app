@@ -320,7 +320,16 @@ export default async function AdminWebhooksPage({
                         {e.source === 'STRIPE' ? 'Stripe' : 'Sinalite'}
                       </span>
                     </td>
-                    <td><span className="adm-wh-evt">{e.eventType}</span></td>
+                    <td>
+                      <Link
+                        href={`/admin/webhooks/${e.id}` as Route}
+                        className="adm-wh-evt"
+                        title="Voir détail + payload + diff"
+                        style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 500 }}
+                      >
+                        {e.eventType}
+                      </Link>
+                    </td>
                     <td><span className="adm-wh-ref" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{e.eventId}</span></td>
                     <td>
                       <StatusCell
