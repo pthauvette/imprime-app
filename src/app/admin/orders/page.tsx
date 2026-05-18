@@ -158,6 +158,19 @@ export default async function AdminOrdersPage({
           </div>
           <div className="adm-topbar-actions" style={{ display: 'flex', gap: 8 }}>
             <Link href={'/admin/orders/quick-link' as Route} className="btn btn-secondary btn-sm">+ Commande téléphonique</Link>
+            <a
+              href={(() => {
+                const params = new URLSearchParams();
+                if (filterStatus) params.set('status', filterStatus);
+                const qs = params.toString();
+                return `/api/admin/orders/export${qs ? '?' + qs : ''}`;
+              })()}
+              download
+              className="btn btn-secondary btn-sm"
+              title="Exporter les commandes filtrées en CSV pour comptabilité"
+            >
+              ⬇ Export CSV
+            </a>
             <Link href={'/admin' as Route} className="btn btn-secondary btn-sm">↗ Dashboard</Link>
           </div>
         </header>
