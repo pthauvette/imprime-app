@@ -647,6 +647,53 @@ model ReferralReward {
 // Anti-abuse : unique sur (email, jourMonth) à l'app level (lookup avant
 // create), pas au DB level pour permettre les corrections admin.
 
+// ─── RESELLER APPLICATION ─────────────────────────────────────────────────
+// Agence / freelance / studio qui veut revendre du print Plio à ses clients.
+// Application form gating l'accès au tarif reseller (blind shipping + remise
+// volume). Admin manuellement approve/reject — on a besoin de filtrer les
+// vrais resellers vs les particuliers qui veulent juste un rabais.
+//
+// Status :
+//   PENDING   : nouvelle demande, admin n'a pas encore tranché
+//   APPROVED  : admin a accepté → User row associé reçoit le tier reseller
+//               (future implementation : pricing override automatique)
+//   REJECTED  : admin a refusé (volume insuffisant, mauvais fit, etc.)
+//   ARCHIVED  : reseller actif qui ne mérite plus le tracking actif
+
+model ResellerApplication {
+  id              String    @id @default(cuid())
+  /** Nom légal de l'entreprise / studio. */
+  companyName     String
+  /** Personne contact principale. */
+  contactName     String
+  /** Email de contact — sert aussi de dedup key (1 application par email). */
+  email           String
+  phone           String?
+  /** URL du site / portfolio (optional mais fortement recommandé). */
+  website         String?
+  /** Volume mensuel estimé (cents CAD) — drives le tier de discount. */
+  estimatedMonthlyCents Int?
+  /** Solution actuelle (Vistaprint, imprimeur local, etc.) — pour comprendre
+   *  où on les chip. */
+  currentSolution String?
+  /** Types de produits principaux (cartes, flyers, brochures, signage…). */
+  projectTypes    String?
+  /** Message libre — pitch du reseller, contexte particulier. */
+  message         String?
+
+  status          String    @default("PENDING")
+  adminNotes      String?
+  /** IP + UA pour anti-spam analysis. */
+  requestIp       String?
+  requestUa       String?
+
+  createdAt       DateTime  @default(now())
+  decidedAt       DateTime?
+
+  @@index([email, createdAt])
+  @@index([status, createdAt])
+}
+
 model SampleRequest {
   id                  String   @id @default(cuid())
   /** Email du demandeur — sert aussi de lookup key contre les doublons. */

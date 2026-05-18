@@ -1,237 +1,244 @@
 /**
- * Auto-migrated from Open Design HTML artifact `reseller.html`.
+ * /reseller — landing du programme reseller B2B.
  *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * Server Component pour le contenu marketing + JSON-LD. Le form est un
+ * Client Component (ResellerApplicationForm) qui POST /api/reseller/apply.
  */
 
-export const metadata = { title: "Programme reseller — Plio" };
+import Link from 'next/link';
+import type { Route } from 'next';
+import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import ResellerApplicationForm from './ResellerApplicationForm';
+
+export const metadata = {
+  title: 'Programme reseller — Plio',
+  description: 'Pour les agences, freelances et studios qui revendent du print à leurs clients. Tarif wholesale, blind shipping inclus, application gratuite — validation sous 1-2 jours.',
+};
 
 export default function ResellerPage() {
   return (
     <>
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'Accueil', path: '/' },
+          { name: 'Programme reseller', path: '/reseller' },
+        ])}
+      />
+
       <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Plio.</a>
-          <div className="mkt-nav-links">
-            <a href="#" className="mkt-nav-link">Produits</a>
-            <a href="/pricing" className="mkt-nav-link">Tarifs</a>
-            <a href="/reseller" className="mkt-nav-link active">Reseller</a>
-            <a href="/help" className="mkt-nav-link">Aide</a>
-            <a href="/sign-in" className="mkt-nav-link">Se connecter</a>
-            <a href="/sign-up" className="mkt-nav-cta">S'inscrire →</a>
+        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
+        <div className="mkt-nav-links">
+          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
+          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
+          <Link href={'/about' as Route} className="mkt-nav-link">À propos</Link>
+          <Link href={'/reseller' as Route} className="mkt-nav-link active">Reseller</Link>
+          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
+        </div>
+      </nav>
+
+      <main>
+        <section className="hero" style={{ paddingBottom: 24 }}>
+          <div>
+            <div className="hero-eyebrow">Programme reseller · B2B</div>
+            <h1>
+              Pour les <em>agences</em> et <em>studios</em>
+              <br />
+              qui revendent du print.
+            </h1>
+            <p className="hero-lede">
+              Tarif wholesale, blind shipping inclus, livraison sans marque Plio. Application
+              gratuite, sans engagement, validation sous 1-2 jours ouvrables.
+            </p>
+            <div className="hero-actions">
+              <a href="#apply" className="hero-cta-primary">Postuler maintenant ↓</a>
+              <a href="mailto:patrick@plio.ca" className="hero-cta-secondary">Parler à un humain</a>
+            </div>
+            <div className="hero-trust">
+              <span className="hero-trust-item">Validation 1-2 j ouvrables</span>
+              <span className="hero-trust-item">Sans frais d&apos;adhésion</span>
+              <span className="hero-trust-item">Blind shipping inclus</span>
+            </div>
           </div>
-        </nav>
-      
-        <main>
-          {/* HERO */}
-          <section className="hero">
-            <div>
-              <div className="hero-eyebrow">Programme reseller · B2B</div>
-              <h1>Print en marque <em>blanche.</em></h1>
-              <p className="hero-lede">Pour les agences, freelances et studios qui revendent du print à leurs clients. Jusqu'à <strong style={{ color: "var(--accent-primary)" } as React.CSSProperties}>25 % de remise</strong>, livraison sans marque, API d'intégration.</p>
-              <div className="hero-actions">
-                <a href="/sign-up" className="hero-cta-primary">Postuler — gratuit</a>
-                <a href="#" className="hero-cta-secondary">Parler à un humain →</a>
+        </section>
+
+        {/* Benefits */}
+        <section
+          style={{
+            maxWidth: 1080,
+            margin: '40px auto 0',
+            padding: '0 28px',
+          }}
+        >
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Ce que tu obtiens</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
+            Quatre <em>avantages concrets.</em>
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
+            {BENEFITS.map((b) => (
+              <div
+                key={b.title}
+                style={{
+                  padding: 24,
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--r-lg)',
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{b.icon}</div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 400, letterSpacing: '-0.01em', margin: '0 0 8px' }}>
+                  {b.title}
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
+                  {b.desc}
+                </p>
               </div>
-              <div className="hero-trust">
-                <span className="hero-trust-item">Validation 24h</span>
-                <span className="hero-trust-item">Sans frais d'adhésion</span>
-                <span className="hero-trust-item">Blind shipping inclus</span>
-              </div>
-            </div>
-      
-            <div className="hero-visual">
-              <div className="dash-mock">
-                <div className="dash-mock-head">
-                  <span className="dash-mock-title">Mes commandes clients</span>
-                  <span className="dash-mock-badge">Reseller</span>
-                </div>
-                <div className="dash-mock-stats">
-                  <div className="dash-mock-stat">
-                    <div className="dash-mock-stat-lbl">Marge mensuelle</div>
-                    <div className="dash-mock-stat-val">847 $</div>
-                  </div>
-                  <div className="dash-mock-stat">
-                    <div className="dash-mock-stat-lbl">Commandes</div>
-                    <div className="dash-mock-stat-val">23</div>
-                  </div>
-                  <div className="dash-mock-stat">
-                    <div className="dash-mock-stat-lbl">Clients</div>
-                    <div className="dash-mock-stat-val">11</div>
-                  </div>
-                </div>
-                <div className="dash-mock-row">
-                  <div className="dash-mock-row-thumb"></div>
-                  <div className="dash-mock-row-info"><strong>Studio Vingt-deux</strong><span>Cartes 14pt · 1 000 u.</span></div>
-                  <span className="dash-mock-row-amt">+24 $</span>
-                </div>
-                <div className="dash-mock-row">
-                  <div className="dash-mock-row-thumb" style={{ background: "#fafaf7" } as React.CSSProperties}></div>
-                  <div className="dash-mock-row-info"><strong>Maison Verte</strong><span>Flyers 8.5×11 · 500 u.</span></div>
-                  <span className="dash-mock-row-amt">+18 $</span>
-                </div>
-                <div className="dash-mock-row">
-                  <div className="dash-mock-row-thumb" style={{ background: "linear-gradient(135deg, #d4af37, #f4e5b1)" } as React.CSSProperties}></div>
-                  <div className="dash-mock-row-info"><strong>Maxime Roy</strong><span>Cartes Foil · 250 u.</span></div>
-                  <span className="dash-mock-row-amt">+47 $</span>
-                </div>
-              </div>
-              <div className="floating-badge fb1">🚚 <strong>Blind shipping</strong> activé</div>
-              <div className="floating-badge fb2">★ <strong>15 %</strong> marge moyenne</div>
-            </div>
-          </section>
-      
-          {/* BENEFITS */}
-          <section>
-            <div className="section-eyebrow">Avantages reseller</div>
-            <h2 className="section-title">Tout ce qu'il faut pour <em>vendre du print</em> sans imprimer.</h2>
-            <p className="section-lede">Tu gères le client. Nous gérons la presse. Personne ne sait qu'on existe.</p>
-      
-            <div className="benefits-grid">
-              <div className="benefit-card">
-                <div className="benefit-icon">📦</div>
-                <h3 className="benefit-title">Blind shipping</h3>
-                <p className="benefit-text">Tes commandes sont expédiées directement à tes clients dans des boîtes neutres, avec ton adresse de retour. Personne ne voit le mot « Plio » nulle part.</p>
-                <div className="benefit-stat">Inclus dès le tier <strong>Studio</strong></div>
-              </div>
-              <div className="benefit-card">
-                <div className="benefit-icon">💰</div>
-                <h3 className="benefit-title">Remises volume</h3>
-                <p className="benefit-text">De <strong style={{ color: "var(--text-primary)" } as React.CSSProperties}>5 % à 25 %</strong> selon ton volume mensuel. Pas de minimum à l'engagement, calculé sur les 30 derniers jours glissants.</p>
-                <div className="benefit-stat">Auto-calculé chaque mois</div>
-              </div>
-              <div className="benefit-card">
-                <div className="benefit-icon">⚡</div>
-                <h3 className="benefit-title">API REST</h3>
-                <p className="benefit-text">Branche notre catalogue à ton Shopify, WooCommerce ou app sur mesure. Devis, commandes, suivi — tout en JSON.</p>
-                <div className="benefit-stat">Documentation OpenAPI · zéro frais d'API</div>
-              </div>
-              <div className="benefit-card">
-                <div className="benefit-icon">🎨</div>
-                <h3 className="benefit-title">Marque blanche</h3>
-                <p className="benefit-text">Tes factures sortent à ton entête. Tes courriels de tracking aussi. Tu personnalises le sous-domaine (<code style={{ fontFamily: "var(--font-mono)", fontSize: "12px", padding: "2px 6px", background: "var(--bg-sunken)", borderRadius: "4px" } as React.CSSProperties}>print.tonagence.com</code>).</p>
-                <div className="benefit-stat">Disponible tier <strong>Agency</strong></div>
-              </div>
-              <div className="benefit-card">
-                <div className="benefit-icon">👥</div>
-                <h3 className="benefit-title">Multi-utilisateurs</h3>
-                <p className="benefit-text">Invite ton équipe avec rôles (admin, designer, comptable). Facturation centralisée, accès séparés par client.</p>
-                <div className="benefit-stat">Jusqu'à <strong>15 sièges</strong> inclus</div>
-              </div>
-              <div className="benefit-card">
-                <div className="benefit-icon">📞</div>
-                <h3 className="benefit-title">Account manager dédié</h3>
-                <p className="benefit-text">Un contact humain par téléphone et courriel pour rush, devis personnalisés, et urgences. Réponse <strong style={{ color: "var(--text-primary)" } as React.CSSProperties}>sous 30 min</strong> en jours ouvrables.</p>
-                <div className="benefit-stat">Tier <strong>Studio</strong> et plus</div>
-              </div>
-            </div>
-          </section>
-      
-          {/* WORKFLOW (dark) */}
-          <section className="workflow-section" style={{ maxWidth: "none", padding: "0" } as React.CSSProperties}>
-            <div className="workflow-section-inner">
-              <div className="section-eyebrow">Comment ça marche</div>
-              <h2 className="section-title">De ton client à <em>la presse</em> en 4 étapes.</h2>
-              <p className="section-lede">Tu restes l'unique point de contact pour ton client. On reste invisible.</p>
-      
-              <div className="workflow-steps">
-                <div className="wf-step">
-                  <div className="wf-num">01</div>
-                  <h3 className="wf-title">Configure le devis</h3>
-                  <p className="wf-text">Wizard intuitif ou API. Ajoute ta marge automatique — fixe ou pourcentage.</p>
-                  <div className="wf-meta">~2 min</div>
-                </div>
-                <div className="wf-step">
-                  <div className="wf-num">02</div>
-                  <h3 className="wf-title">Facture ton client</h3>
-                  <p className="wf-text">Génère une facture à ton nom (PDF) ou paiement Stripe sur ton sous-domaine.</p>
-                  <div className="wf-meta">Marque blanche</div>
-                </div>
-                <div className="wf-step">
-                  <div className="wf-num">03</div>
-                  <h3 className="wf-title">On imprime</h3>
-                  <p className="wf-text">Production à Markham. Prépresse vérifiée par notre équipe.</p>
-                  <div className="wf-meta">2-7 jours</div>
-                </div>
-                <div className="wf-step">
-                  <div className="wf-num">04</div>
-                  <h3 className="wf-title">Livraison blind</h3>
-                  <p className="wf-text">UPS livre directement chez ton client. Boîte neutre, ton adresse de retour.</p>
-                  <div className="wf-meta">0 mention Plio</div>
-                </div>
-              </div>
-            </div>
-          </section>
-      
-          {/* TIERS */}
-          <section>
-            <div className="section-eyebrow">Tiers de remise</div>
-            <h2 className="section-title">Plus tu <em>vends,</em> moins tu paies.</h2>
-            <p className="section-lede">Remises calculées sur ton volume mensuel glissant. Aucun engagement, aucune cotisation.</p>
-      
-            <div className="tiers-grid">
-              <div className="tier-card">
-                <h3 className="tier-name">Starter</h3>
-                <p className="tier-desc">Premiers pas</p>
-                <span className="tier-spend">0 — 500 $/mois</span>
-                <div className="tier-discount">5<span className="unit"> %</span></div>
-                <ul className="tier-list">
-                  <li>Remise auto sur catalogue</li>
-                  <li>5 échantillons / mois</li>
-                  <li>Templates gratuits</li>
-                  <li>Support courriel</li>
-                </ul>
-              </div>
-              <div className="tier-card">
-                <h3 className="tier-name">Pro</h3>
-                <p className="tier-desc">Freelances actifs</p>
-                <span className="tier-spend">500 — 2 500 $/mois</span>
-                <div className="tier-discount">10<span className="unit"> %</span></div>
-                <ul className="tier-list">
-                  <li>Tout de Starter +</li>
-                  <li>Échantillons illimités</li>
-                  <li>Prépresse prioritaire</li>
-                  <li>Wallet avec bonus 3 %</li>
-                </ul>
-              </div>
-              <div className="tier-card featured">
-                <h3 className="tier-name">Studio</h3>
-                <p className="tier-desc">Studios &amp; agences</p>
-                <span className="tier-spend">2 500 — 10 000 $/mois</span>
-                <div className="tier-discount">18<span className="unit"> %</span></div>
-                <ul className="tier-list">
-                  <li>Tout de Pro +</li>
-                  <li>★ Blind shipping inclus</li>
-                  <li>Account manager dédié</li>
-                  <li>Multi-utilisateurs (5)</li>
-                  <li>Wallet bonus 5 %</li>
-                  <li>API access</li>
-                </ul>
-              </div>
-              <div className="tier-card">
-                <h3 className="tier-name">Agency</h3>
-                <p className="tier-desc">Grosses agences</p>
-                <span className="tier-spend">10 000 $+ /mois</span>
-                <div className="tier-discount">25<span className="unit"> %</span></div>
-                <ul className="tier-list">
-                  <li>Tout de Studio +</li>
-                  <li>Marque blanche complète</li>
-                  <li>Sous-domaine custom</li>
-                  <li>15 sièges inclus</li>
-                  <li>SLA contractuel</li>
-                  <li>Wallet bonus 8 %</li>
-                </ul>
-              </div>
-            </div>
-          </section>
-      
-          {/* FINAL CTA */}
-          <div className="final-cta">
-            <h2>Prêt à <em>imprimer pour tes clients ?</em></h2>
-            <p>Inscription gratuite, validation sous 24h, premier devis offert.</p>
-            <a href="/sign-up" className="hero-cta-primary">Postuler au programme →</a>
+            ))}
           </div>
-        </main>
+        </section>
+
+        {/* How it works */}
+        <section
+          style={{
+            maxWidth: 1080,
+            margin: '64px auto 0',
+            padding: '0 28px',
+          }}
+        >
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Comment ça marche</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
+            Trois étapes, <em>aucune friction.</em>
+          </h2>
+          <ol style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, padding: 0, listStyle: 'none', margin: 0 }}>
+            {STEPS.map((s, i) => (
+              <li key={s.title} style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 28, color: 'var(--accent-primary)', fontWeight: 700, marginBottom: 8 }}>
+                  {String(i + 1).padStart(2, '0')}
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 400, letterSpacing: '-0.01em', margin: '0 0 8px' }}>
+                  {s.title}
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
+                  {s.desc}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* FAQ */}
+        <section
+          style={{
+            maxWidth: 760,
+            margin: '64px auto 0',
+            padding: '0 28px',
+          }}
+        >
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Questions fréquentes</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 24px' }}>
+            Avant de postuler.
+          </h2>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {FAQS.map((f) => (
+              <details
+                key={f.q}
+                style={{
+                  padding: 20,
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--r-md)',
+                }}
+              >
+                <summary style={{ cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {f.q}
+                </summary>
+                <p style={{ marginTop: 10, marginBottom: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                  {f.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {/* Apply form */}
+        <section
+          id="apply"
+          style={{
+            maxWidth: 760,
+            margin: '64px auto 96px',
+            padding: '0 28px',
+          }}
+        >
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Postuler</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 12px' }}>
+            Application reseller.
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 24px' }}>
+            On répond sous 1-2 jours ouvrables. Aucun engagement, gratuit.
+          </p>
+          <ResellerApplicationForm />
+        </section>
+      </main>
     </>
   );
 }
+
+const BENEFITS = [
+  {
+    icon: '💰',
+    title: 'Tarif wholesale',
+    desc: 'Tu factures à ton tarif retail, tu paies au tarif wholesale Plio. La marge te revient en entier.',
+  },
+  {
+    icon: '📦',
+    title: 'Blind shipping',
+    desc: 'Le colis arrive chez ton client sans logo Plio nulle part. Bordereau anonyme, packing slip neutre.',
+  },
+  {
+    icon: '⚡',
+    title: 'Devis instantané',
+    desc: 'Pas besoin d\'attendre 48 h pour donner un prix à ton client. Le wizard te donne le coût final en 2 minutes.',
+  },
+  {
+    icon: '🇨🇦',
+    title: '100 % imprimé au Canada',
+    desc: 'Pas d\'outsource étranger. Tes clients reçoivent leur commande en 4-7 jours.',
+  },
+];
+
+const STEPS = [
+  {
+    title: 'Tu postules',
+    desc: 'Formulaire ci-dessous : 3 min à remplir, on demande juste les essentiels.',
+  },
+  {
+    title: 'On valide',
+    desc: 'Sous 1-2 jours ouvrables, on regarde ton site / portfolio et on confirme.',
+  },
+  {
+    title: 'Tu commandes',
+    desc: 'Account activé avec le tier reseller. Tarif wholesale appliqué auto à tes commandes.',
+  },
+];
+
+const FAQS = [
+  {
+    q: 'Quel volume minimum pour être accepté ?',
+    a: 'Pas de minimum strict. On regarde le sérieux de la démarche, le portfolio / site web, et le type de clients que tu sers. Un freelance avec 3 clients réguliers est aussi valide qu\'une agence de 20 personnes.',
+  },
+  {
+    q: 'Y a-t-il des frais d\'adhésion ?',
+    a: 'Zéro. Pas d\'abonnement mensuel, pas de frais cachés. Tu paies seulement les commandes que tu passes — au tarif wholesale.',
+  },
+  {
+    q: 'Le blind shipping coûte-t-il extra ?',
+    a: 'Non, c\'est inclus dans toutes les commandes des comptes reseller. Le colis part avec ton adresse comme expéditeur (si tu veux), aucun logo Plio sur les bordereaux.',
+  },
+  {
+    q: 'Puis-je facturer mon client à mon nom ?',
+    a: 'Oui. La facture Plio est pour toi (reseller). Tu émets ta propre facture à ton client final au tarif que tu veux. On ne contacte jamais ton client directement.',
+  },
+  {
+    q: 'Y a-t-il une API pour intégrer Plio à mon flux de travail ?',
+    a: 'Pas encore — pour MVP on s\'attend que tu utilises le wizard standard. Une API resellers viendra quand on aura assez de demande pour la justifier. Si c\'est un blocker pour toi, dis-le dans ton application, on priorisera.',
+  },
+];

@@ -15,6 +15,7 @@ export type AdminSidebarKey =
   | 'emails'
   | 'reviews'
   | 'samples'
+  | 'reseller-applications'
   | 'audit'
   | 'templates'
   | 'products'
@@ -145,6 +146,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
         { key: 'users', href: '/admin/users' as Route, label: 'Utilisateurs', icon: ICONS.users, count: counts.users },
         { key: 'reviews', href: '/admin/reviews' as Route, label: 'Reviews', icon: ICONS.reviews, count: counts.reviews, urgent: urgents.reviews },
         { key: 'samples', href: '/admin/samples' as Route, label: 'Échantillons', icon: ICONS.samples, count: counts.samples, urgent: urgents.samples },
+        { key: 'reseller-applications', href: '/admin/reseller-applications' as Route, label: 'Demandes reseller', icon: ICONS.users, count: counts['reseller-applications'], urgent: urgents['reseller-applications'] },
       ],
     },
     {
