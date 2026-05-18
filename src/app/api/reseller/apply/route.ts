@@ -15,6 +15,7 @@ import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { logEmail as log } from '@/lib/logger';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
@@ -119,6 +120,16 @@ export const POST = withErrorHandler(async (req: Request) => {
       }
     }
   }
+
+  // Slack notification info-level — application reseller à modérer
+  void sendCriticalAlert({
+    severity: 'info',
+    title: `🎯 Nouvelle demande reseller · ${body.companyName}`,
+    body: `Contact : ${body.contactName} (${body.email})${body.website ? `\nSite : ${body.website}` : ''}${body.estimatedMonthlyCents ? `\nVolume estimé : ${(body.estimatedMonthlyCents / 100).toFixed(2)} $ / mois` : ''}`,
+    context: { email: body.email },
+    actionUrl: `${APP_URL}/admin/reseller-applications`,
+    actionLabel: 'Modérer dans /admin/reseller-applications',
+  });
 
   return NextResponse.json({ ok: true, id: application.id });
 });

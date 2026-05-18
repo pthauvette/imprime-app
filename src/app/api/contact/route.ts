@@ -21,6 +21,7 @@ import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { log } from '@/lib/logger';
 
 const BodySchema = z.object({
@@ -135,6 +136,18 @@ export const POST = withErrorHandler(async (req: Request) => {
       messageLength: body.message.length,
       ip: clientIp(req),
     },
+  });
+
+  // Slack notification (info-level) — best-effort, doublon avec l'email
+  // admin mais utile pour les admins qui vivent dans Slack (réponse plus
+  // rapide). Pas de detail PII dans le titre — juste sender + subject preview.
+  void sendCriticalAlert({
+    severity: 'info',
+    title: `💬 Nouveau message · ${body.name}`,
+    body: `Sujet : ${body.subject}\n\n${body.message.slice(0, 200)}${body.message.length > 200 ? '…' : ''}`,
+    context: { email: body.email },
+    actionUrl: `${APP_URL}/admin/messages`,
+    actionLabel: 'Voir dans /admin/messages',
   });
 
   const anySent = sends.some((s) => s.sent);

@@ -19,6 +19,7 @@ import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { logEmail as log } from '@/lib/logger';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
@@ -135,6 +136,16 @@ export const POST = withErrorHandler(async (req: Request) => {
       }
     }
   }
+
+  // Slack notification info-level — kit physique à préparer
+  void sendCriticalAlert({
+    severity: 'info',
+    title: `📦 Nouveau kit d'échantillons à expédier · ${body.name}`,
+    body: `${body.selectedSamples.length} échantillon(s) demandé(s) : ${body.selectedSamples.join(', ')}\n\nLivraison : ${body.shipCity}, ${body.shipProvince}`,
+    context: { email: body.email },
+    actionUrl: `${APP_URL}/admin/samples`,
+    actionLabel: 'Voir dans /admin/samples',
+  });
 
   return NextResponse.json({ ok: true, id: request.id });
 });
