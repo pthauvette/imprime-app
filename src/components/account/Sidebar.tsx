@@ -12,6 +12,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     title: 'Compte',
     items: [
       { href: '/orders', label: 'Mes commandes', count: 12 },
+      { href: '/account/favorites' as Route, label: '★ Configurations sauvées' },
       { href: '/drafts' as Route, label: 'Brouillons', count: 3 },
       { href: '/addresses' as Route, label: 'Adresses', count: 4 },
       { href: '/wallet' as Route, label: 'Portefeuille' },

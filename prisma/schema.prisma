@@ -46,12 +46,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts     Account[]
-  sessions     Session[]
-  orders       Order[]
-  addresses    Address[]
-  drafts       Draft[]
-  designDrafts DesignDraft[]
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  addresses     Address[]
+  drafts        Draft[]
+  designDrafts  DesignDraft[]
+  savedConfigs  SavedConfig[]
 
   @@index([email])
 }
@@ -526,4 +527,51 @@ model ProductOverride {
 
   @@index([disabled])
   @@index([featured])
+}
+
+// ─── SAVED CONFIG ─────────────────────────────────────────────────────────
+// Permet à un user de sauvegarder une configuration produit Sinalite sans
+// passer commande, pour la retrouver d'un clic plus tard. Complète le flow
+// "Recommander" (qui exige une commande PAIEMENT effectuée).
+//
+// Use cases :
+//   - Designer prépare des cartes mais attend l'approbation du client →
+//     sauve, revient plus tard pour upload + payer.
+//   - Customer fidèle a 3 produits récurrents qu'il commande chaque
+//     trimestre → 3 SavedConfigs persistants, deep-link sur /order/upload.
+//   - Quick-restart : sur /order/start on affiche les 3 configs les plus
+//     récemment utilisées comme tuiles "Reprendre".
+//
+// Snapshots : on stocke productName + summary pour pouvoir afficher la
+// config même si Sinalite a retiré le produit (cas marginal mais on veut
+// pas montrer "Produit inconnu"). Le deep-link, lui, retombera au notFound
+// gracefully côté wizard si productId n'existe plus.
+
+model SavedConfig {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /** Nom donné par l'user (ex: "Cartes biz UV 500ex"). */
+  name        String
+  /** Sinalite product ID. Pas de FK (Sinalite externe). */
+  productId   Int
+  /** Snapshot du nom produit Sinalite au moment de la sauvegarde (resilience
+   *  si le produit disparaît Sinalite-side). */
+  productName String
+  /** IDs d'options sélectionnés (incl. qty + turnaround), JSON string array
+   *  pour resilience cross-DB. Format : "[4,30,107,224,78]". */
+  optionIds   String
+  /** Snapshot human-readable, ex : "14pt UV brillante · 500 unités · Standard". */
+  summary     String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  /** Bumpé chaque fois que l'user clique "Utiliser" (deep-link vers wizard). */
+  lastUsedAt  DateTime?
+  /** Compteur d'usage (analytics + sort par fréquence). */
+  timesUsed   Int      @default(0)
+
+  @@index([userId, lastUsedAt])
+  @@index([userId, createdAt])
 }

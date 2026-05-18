@@ -299,7 +299,14 @@ export default function QuantityClient({
           </Link>
         </div>
         <div className="shell-footer-center">↵ Entrée pour continuer · ←→ pour ajuster</div>
-        <div className="shell-footer-right">
+        <div className="shell-footer-right" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <SaveConfigButton
+            productId={product.id}
+            productName={product.name.trim()}
+            optionIds={nextOptions}
+            summary={`${qtyValue ? formatNumber(qtyValue) + ' unités' : ''}${turnaroundId ? ' · ' + (turnaroundOptions.find((o) => o.id === turnaroundId)?.name ?? '') : ''}`.trim()}
+            disabled={currentPrice === null}
+          />
           <button
             className="btn btn-primary"
             onClick={() => router.push(nextHref)}
@@ -310,6 +317,79 @@ export default function QuantityClient({
         </div>
       </footer>
     </div>
+  );
+}
+
+// ─── SaveConfigButton ────────────────────────────────────────────────────
+// Bouton "★ Sauvegarder" inline qui appelle POST /api/saved-configs avec un
+// nom suggéré par défaut (le summary). En cas de 401 (pas connecté), on
+// redirige vers sign-in avec callback vers cette page (l'user revient ici,
+// peut re-cliquer). Optimistic feedback : bouton devient "✓ Sauvé" 2s.
+
+function SaveConfigButton({
+  productId, productName, optionIds, summary, disabled,
+}: {
+  productId: number;
+  productName: string;
+  optionIds: number[];
+  summary: string;
+  disabled: boolean;
+}) {
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'duplicate'>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    if (state !== 'idle' || disabled) return;
+    setError(null);
+    setState('saving');
+    const defaultName = `${productName} · ${summary}`.slice(0, 100);
+    const name = window.prompt('Nom pour cette configuration :', defaultName);
+    if (!name) {
+      setState('idle');
+      return;
+    }
+    try {
+      const res = await fetch('/api/saved-configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, productId, productName, optionIds, summary }),
+      });
+      if (res.status === 401) {
+        window.location.href = `/sign-in?callbackUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setState(data.duplicate ? 'duplicate' : 'saved');
+      setTimeout(() => setState('idle'), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+      setState('idle');
+    }
+  }
+
+  const label =
+    state === 'saving' ? 'Sauvegarde…' :
+    state === 'saved' ? '✓ Sauvegardé' :
+    state === 'duplicate' ? '✓ Déjà sauvegardé' :
+    '★ Sauvegarder';
+
+  return (
+    <>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={save}
+        disabled={disabled || state === 'saving'}
+        title="Sauve cette configuration pour la retrouver d'un clic plus tard"
+        style={{ opacity: disabled ? 0.4 : 1 }}
+      >
+        {label}
+      </button>
+      {error && (
+        <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>
+      )}
+    </>
   );
 }
 

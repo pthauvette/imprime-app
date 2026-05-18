@@ -103,6 +103,24 @@ export default async function OrderStartPage({
 
   const totalProducts = visibleProducts.length;
 
+  // Fetch top-3 saved configs pour l'user connecté → widget "Reprendre"
+  // au-dessus de la category grid. Pas d'auth = pas de widget (silencieux).
+  const session = await auth();
+  let recentConfigs: Array<{ id: string; name: string; productName: string; summary: string }> = [];
+  if (session?.user?.id) {
+    try {
+      const rows = await prisma.savedConfig.findMany({
+        where: { userId: session.user.id },
+        orderBy: [{ lastUsedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+        take: 3,
+        select: { id: true, name: true, productName: true, summary: true },
+      });
+      recentConfigs = rows;
+    } catch {
+      // DB ou table SavedConfig pas migrée : on cache silencieusement le widget.
+    }
+  }
+
   return (
     <div className="shell">
       <header className="shell-header">
@@ -175,6 +193,57 @@ export default async function OrderStartPage({
               <span className="search-kbd">/</span>
             </label>
           </div>
+
+          {recentConfigs.length > 0 && (
+            <section
+              aria-label="Configurations sauvegardées"
+              style={{
+                marginBottom: 24,
+                padding: 20,
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--accent-primary)',
+                borderRadius: 'var(--r-lg)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                  ★ Reprends une configuration sauvée
+                </div>
+                <Link href={'/account/favorites' as Route} style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Tout voir →
+                </Link>
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {recentConfigs.map((c) => (
+                  <a
+                    key={c.id}
+                    href={`/api/saved-configs/${c.id}/redirect`}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto',
+                      gap: 12,
+                      padding: '12px 16px',
+                      background: 'var(--bg-canvas)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--r-md)',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      alignItems: 'center',
+                      transition: 'border-color var(--dur-fast)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{c.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+                        {c.productName} · {c.summary}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 13, color: 'var(--accent-primary)', fontWeight: 600 }}>Continuer →</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
 
           {fetchError && (
             <div
