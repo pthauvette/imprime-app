@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Route } from 'next';
+import CommandPalette from './CommandPalette';
 
 /**
  * Sidebar admin — réutilisée par les 10 pages /admin/*.
@@ -139,7 +140,7 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
       label: 'Opérations',
       items: [
         { key: 'dashboard', href: '/admin' as Route, label: 'Tableau de bord', icon: ICONS.dashboard },
-        { key: 'search', href: '/admin/search' as Route, label: 'Recherche', icon: ICONS.search },
+        { key: 'search', href: '/admin/search' as Route, label: 'Recherche · ⌘K', icon: ICONS.search },
         { key: 'notifications', href: '/admin/notifications' as Route, label: 'Notifications', icon: ICONS.reviews, urgent: urgents.notifications },
         { key: 'orders', href: '/admin/orders' as Route, label: 'Commandes', icon: ICONS.orders, count: counts.orders },
         { key: 'webhooks', href: '/admin/webhooks' as Route, label: 'Webhooks', icon: ICONS.webhooks, count: counts.webhooks, urgent: urgents.webhooks },
@@ -185,6 +186,11 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
 
   return (
     <aside className="adm-nav">
+      {/* Command palette dispo partout via Cmd/Ctrl+K — Client Component
+          monté ici dans le Server Component sidebar pour pas avoir à modifier
+          chaque page admin. */}
+      <CommandPalette />
+
       <div className="adm-nav-brand">
         <span className="adm-nav-brand-mark">Plio.</span>
         <span className="adm-nav-brand-tag">Admin</span>
