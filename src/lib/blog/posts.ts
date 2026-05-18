@@ -20,6 +20,11 @@ import * as formatsStandardsCartes from '@/content/blog/formats-standards-cartes
 import * as preparerFichierImpression from '@/content/blog/preparer-fichier-impression-pdf';
 import * as flyersMarketingLocal from '@/content/blog/flyers-marketing-local';
 import * as livraisonImpressionCanada from '@/content/blog/livraison-impression-canada-delais';
+import * as brochuresPliees from '@/content/blog/brochures-pliees-types';
+import * as postcardsMarketing from '@/content/blog/postcards-marketing-direct';
+import * as ecoPrinting from '@/content/blog/eco-printing-papiers-recycles';
+import * as brandingCoherence from '@/content/blog/branding-coherence-imprimes';
+import * as calculerPrixImpression from '@/content/blog/calculer-prix-impression-marge';
 
 export interface PostMeta {
   slug: string;
@@ -49,6 +54,11 @@ const POSTS: BlogPost[] = [
   { meta: preparerFichierImpression.meta, Component: preparerFichierImpression.default },
   { meta: flyersMarketingLocal.meta, Component: flyersMarketingLocal.default },
   { meta: livraisonImpressionCanada.meta, Component: livraisonImpressionCanada.default },
+  { meta: brochuresPliees.meta, Component: brochuresPliees.default },
+  { meta: postcardsMarketing.meta, Component: postcardsMarketing.default },
+  { meta: ecoPrinting.meta, Component: ecoPrinting.default },
+  { meta: brandingCoherence.meta, Component: brandingCoherence.default },
+  { meta: calculerPrixImpression.meta, Component: calculerPrixImpression.default },
 ];
 
 /** Tous les posts, triés date desc. */
