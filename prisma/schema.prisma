@@ -957,6 +957,34 @@ model ExperimentOverride {
   updatedAt    DateTime @updatedAt
 }
 
+// ─── NPS RESPONSE ────────────────────────────────────────────────────────
+// Net Promoter Score feedback — interne uniquement (jamais affiché public).
+// Distinct du `Review` model (5★ + comment, modéré, public landing) :
+//   - NPS = score 0-10 + free-text "pourquoi", non-modéré, admin-only
+//   - Une réponse par order, idempotent via @unique sur orderId
+//
+// Bucket convention :
+//   - 0-6  : Detractor
+//   - 7-8  : Passive
+//   - 9-10 : Promoter
+// NPS score = % promoters - % detractors (range -100 à +100).
+
+model NpsResponse {
+  id        String   @id @default(cuid())
+  /** Order qui a généré la réponse — unique = max 1 NPS par order. */
+  orderId   String   @unique
+  /** Score 0-10 inclus. Contrainte app-side via Zod. */
+  score     Int
+  /** Pourquoi cette note (free-text, max 2000 chars). NULL si user
+   *  a juste cliqué le score sans expliquer. */
+  comment   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([score, createdAt])
+  @@index([createdAt])
+}
+
 // ─── SINALITE OFFLINE CACHE ──────────────────────────────────────────────
 // Cache write-through pour les endpoints catalog (listProducts, product
 // detail). Si Sinalite API est down, on sert depuis cette table (stale)
