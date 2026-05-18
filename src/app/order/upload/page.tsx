@@ -16,6 +16,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useEffect, useRef, Suspense, type ChangeEvent, type DragEvent } from 'react';
+import PdfMarginOverlay from '@/components/upload/PdfMarginOverlay';
 
 export default function UploadPage() {
   return (
@@ -483,56 +484,15 @@ function UploadingState({ progress }: { progress: UploadProgress }) {
 }
 
 function UploadedPreview({ file, label }: { file: UploadedFile; label: string }) {
-  // Si on a un thumbnail PDF rendu, affiche-le centré dans la carte avec
-  // le filename en overlay bas. Sinon fallback au preview text-only.
+  // Si on a un thumbnail PDF rendu, affiche-le via PdfMarginOverlay qui
+  // ajoute un toggle "Vérifier les marges" pour superposer bleed/trim/safe.
+  // Sinon fallback au preview text-only.
   if (file.thumbnailDataUrl) {
     return (
-      <div
-        style={{
-          width: '92%',
-          aspectRatio: '7/4',
-          background: 'white',
-          border: '1px solid var(--border-default)',
-          borderRadius: 2,
-          boxShadow: 'var(--shadow-md)',
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'grid',
-          placeItems: 'center',
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={file.thumbnailDataUrl}
-          alt={`Aperçu de ${file.name}`}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'contain',
-            background: 'white',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0, left: 0, right: 0,
-            background: 'linear-gradient(0deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%)',
-            padding: '24px 12px 8px',
-            display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            gap: 8,
-            color: 'white',
-            fontSize: 11,
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {file.name}
-          </span>
-          <span style={{ opacity: 0.8, whiteSpace: 'nowrap' }}>page 1 / aperçu</span>
-        </div>
-      </div>
+      <PdfMarginOverlay
+        thumbnailDataUrl={file.thumbnailDataUrl}
+        filename={file.name}
+      />
     );
   }
 
