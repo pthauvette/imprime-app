@@ -25,7 +25,8 @@ export type AdminAuditKind =
   | 'ADMIN_PROMO_UPDATE'
   | 'ADMIN_PRODUCT_OVERRIDE_UPSERT'
   | 'ADMIN_PRODUCT_OVERRIDE_DELETE'
-  | 'ADMIN_DATA_EXPORT';
+  | 'ADMIN_DATA_EXPORT'
+  | 'ADMIN_USER_NOTES_UPDATE';
 
 export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT';
 

@@ -29,7 +29,7 @@ async function importSendFresh() {
 const baseUser: User = {
   id: 'u_1', email: 't@p.ca', name: 'T', firstName: 'T', lastName: null,
   phone: null, emailVerified: null, image: null, role: 'USER',
-  emailDeliveryNotifications: true, referralCode: null, referredByCode: null, referralCreditCents: 0,
+  emailDeliveryNotifications: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null,
   createdAt: new Date(), updatedAt: new Date(),
 };
 

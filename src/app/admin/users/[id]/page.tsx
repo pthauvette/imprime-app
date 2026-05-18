@@ -9,6 +9,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { notFound } from 'next/navigation';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import UserNotesEditor from '@/components/admin/UserNotesEditor';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
@@ -479,6 +480,14 @@ export default async function AdminUserDetailPage({
 
           {/* ─── RIGHT ──────────────────────────────────────────── */}
           <aside className="ud-col-right">
+
+            {/* Admin notes — memo libre sur ce customer */}
+            <UserNotesEditor
+              userId={user.id}
+              initialNotes={user.adminNotes}
+              updatedAt={user.adminNotesUpdatedAt}
+              updatedBy={user.adminNotesUpdatedBy}
+            />
 
             {/* Profile */}
             <div className="ud-card">
