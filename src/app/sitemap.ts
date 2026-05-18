@@ -19,6 +19,7 @@ const STATIC_PUBLIC_ROUTES = [
   { path: '/about', priority: 0.7, changeFreq: 'monthly' as const },
   { path: '/contact', priority: 0.7, changeFreq: 'monthly' as const },
   { path: '/help', priority: 0.6, changeFreq: 'monthly' as const },
+  { path: '/search', priority: 0.4, changeFreq: 'monthly' as const },
   { path: '/status', priority: 0.4, changeFreq: 'daily' as const },
   { path: '/samples', priority: 0.6, changeFreq: 'monthly' as const },
   { path: '/reseller', priority: 0.6, changeFreq: 'monthly' as const },
