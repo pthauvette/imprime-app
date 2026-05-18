@@ -23,6 +23,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendAdminDailySummaryEmail } from '@/lib/emails/send';
 import { log } from '@/lib/logger';
+import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
 import type { AdminDailySummaryVars } from '@/lib/emails/vars';
 
 export const runtime = 'nodejs';
@@ -218,5 +219,6 @@ export async function GET(req: NextRequest) {
     recipients: sends,
   };
   log.info(result, 'cron/daily-summary ran');
+  void pingCronHealthcheck('daily-summary', 'success', { orders24h, revenue24h });
   return NextResponse.json(result);
 }

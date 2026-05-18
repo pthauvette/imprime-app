@@ -21,6 +21,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getEmailsReadyForRetry, processDelivery } from '@/lib/emails/queue';
 import { log } from '@/lib/logger';
+import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
   const ready = await getEmailsReadyForRetry(BATCH_SIZE);
 
   if (ready.length === 0) {
+    void pingCronHealthcheck('email-retry', 'success', { processed: 0 });
     return NextResponse.json({
       ok: true,
       latencyMs: Date.now() - start,
@@ -75,5 +77,6 @@ export async function GET(req: NextRequest) {
   };
 
   log.info(result, 'cron/email-retry ran');
+  void pingCronHealthcheck('email-retry', 'success', { sent, stillFailed });
   return NextResponse.json(result);
 }

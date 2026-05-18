@@ -20,6 +20,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
+import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -76,9 +77,11 @@ export async function GET(req: NextRequest) {
     };
 
     log.info(result, 'cron/cleanup ran');
+    void pingCronHealthcheck('cleanup', 'success');
     return NextResponse.json(result);
   } catch (err) {
     log.error({ err }, 'cron/cleanup failed');
+    void pingCronHealthcheck('cleanup', 'fail', { error: err instanceof Error ? err.message : 'unknown' });
     return NextResponse.json(
       {
         ok: false,
