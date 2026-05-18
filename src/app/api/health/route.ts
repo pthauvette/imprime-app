@@ -1,19 +1,20 @@
 /**
  * GET /api/health — health check endpoint pour UptimeRobot / monitoring.
  *
- * Stratégie : un endpoint léger qui touche les dépendances critiques
- * (DB + Sinalite + S3 facultatif) en parallèle avec timeouts courts.
- * Retourne 200 si tout est vert, 503 si une dépendance critique fail.
+ * Stratégie : un endpoint léger qui touche les dépendances critiques en
+ * parallèle avec timeouts courts. Retourne 200 si tout est vert, 503 si
+ * une dépendance CRITIQUE fail.
  *
- * Format de réponse compatible avec les conventions IETF Health Check
- * (draft-inadarei-api-health-check) :
+ * Catégories :
+ *   - CRITIQUE (503 si fail) : db:postgres (pas de site sans DB)
+ *   - DEGRADED (200 + warn)  : api:sinalite, api:stripe, email:queue, webhooks:recent
+ *
+ * Format IETF Health Check (draft-inadarei-api-health-check) :
  *   { status: 'pass'|'warn'|'fail', version, releaseId, checks: {...} }
- *
- * UptimeRobot peut juste regarder le status HTTP. Pour debug profond,
- * il y a le JSON body avec timings par dependency.
  */
 
 import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -23,22 +24,35 @@ const TIMEOUT_MS = 3000;
 const SHA = process.env.AWS_COMMIT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev';
 const VERSION = process.env.npm_package_version ?? '0.0.0';
 
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' })
+  : null;
+
 interface CheckResult {
   status: 'pass' | 'fail';
   latencyMs: number;
   error?: string;
+  /** Optional details for diagnostics (count, threshold breach, etc.). */
+  detail?: Record<string, unknown>;
 }
 
-async function timed<T>(fn: () => Promise<T>): Promise<CheckResult> {
+async function timed<T>(
+  fn: () => Promise<T>,
+  detailFn?: (result: T) => Record<string, unknown>,
+): Promise<CheckResult> {
   const start = Date.now();
   try {
-    await Promise.race([
+    const result = await Promise.race([
       fn(),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS),
       ),
     ]);
-    return { status: 'pass', latencyMs: Date.now() - start };
+    return {
+      status: 'pass',
+      latencyMs: Date.now() - start,
+      ...(detailFn ? { detail: detailFn(result) } : {}),
+    };
   } catch (err) {
     return {
       status: 'fail',
@@ -50,29 +64,65 @@ async function timed<T>(fn: () => Promise<T>): Promise<CheckResult> {
 
 export async function GET() {
   const start = Date.now();
+  const now = Date.now();
 
-  // Run checks in parallel. Database is critical (any fail = overall fail).
-  // Sinalite is degraded-mode tolerable (orders can't be placed but site
-  // browse + admin still works).
-  const [db, sinalite] = await Promise.all([
+  // Run checks in parallel
+  const [db, sinalite, stripeCheck, emailQueue, webhookRecent] = await Promise.all([
+    // Critical : DB ping
     timed(() => prisma.$queryRaw`SELECT 1`),
+    // Degraded : Sinalite API auth + product fetch
     timed(async () => {
-      // Lightest possible Sinalite ping : on tape /product/1 (un produit
-      // unique, retourne JSON minimal ~1KB) au lieu de /product qui
-      // retourne le catalog complet (~1MB). Si le token + le product fetch
-      // marchent, l'auth est valide + l'API répond.
-      // NOTE : pas `/products` (avec s) — l'API utilise `/product` singulier.
       const res = await fetch(`${process.env.SINALITE_API_BASE}/product/1`, {
         signal: AbortSignal.timeout(TIMEOUT_MS),
         headers: { 'Authorization': `Bearer ${await getSinaliteToken()}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     }),
+    // Degraded : Stripe API auth (balance retrieve = no PII, lightweight)
+    stripe
+      ? timed(
+          async () => {
+            const balance = await stripe.balance.retrieve({}, { timeout: TIMEOUT_MS });
+            return balance;
+          },
+          (b) => ({
+            available: b.available[0]?.amount ?? null,
+            currency: b.available[0]?.currency,
+          }),
+        )
+      : Promise.resolve<CheckResult>({ status: 'fail', latencyMs: 0, error: 'STRIPE_SECRET_KEY not set' }),
+    // Degraded : email queue dead-letter count (alert si > 10 dans la dernière heure)
+    timed(
+      async () => {
+        const oneHourAgo = new Date(now - 60 * 60 * 1000);
+        const failedCount = await prisma.emailDelivery.count({
+          where: { status: 'DEAD', updatedAt: { gte: oneHourAgo } },
+        });
+        if (failedCount > 10) throw new Error(`${failedCount} dead emails in last hour`);
+        return failedCount;
+      },
+      (failed) => ({ deadInLastHour: failed }),
+    ),
+    // Degraded : webhook failure rate (alert si > 5 failures dans les 15 derniers min)
+    timed(
+      async () => {
+        const fifteenMinAgo = new Date(now - 15 * 60 * 1000);
+        const failures = await prisma.webhookEvent.count({
+          where: { success: false, processedAt: { gte: fifteenMinAgo } },
+        });
+        if (failures > 5) throw new Error(`${failures} webhook failures in last 15min`);
+        return failures;
+      },
+      (failures) => ({ failedLast15min: failures }),
+    ),
   ]);
 
   const checks = {
     'db:postgres': db,
     'api:sinalite': sinalite,
+    'api:stripe': stripeCheck,
+    'email:queue': emailQueue,
+    'webhooks:recent': webhookRecent,
   };
 
   const isCritical = (name: string) => name === 'db:postgres';
@@ -98,21 +148,13 @@ export async function GET() {
       status: httpStatus,
       headers: {
         'Cache-Control': 'no-store, max-age=0',
-        // CORS for monitoring tools that ping from anywhere
         'Access-Control-Allow-Origin': '*',
       },
     },
   );
 }
 
-/**
- * Tiny helper to get a cached Sinalite token without importing the full
- * client (which has heavy validation on import).
- */
 async function getSinaliteToken(): Promise<string> {
-  // Path Sinalite = /auth/token (pas /oauth/token — easy mistake, le sandbox
-  // accepte les deux par tolérance Auth0 mais liveapi.sinalite.com 404 sur
-  // /oauth/token). Garder en sync avec src/lib/sinalite/client.ts.
   const res = await fetch(`${process.env.SINALITE_AUTH_BASE}/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

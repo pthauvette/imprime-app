@@ -52,6 +52,18 @@ const CHECK_LABELS: Record<string, { name: string; desc: string }> = {
     name: 'API d\'impression',
     desc: 'Notre presse partenaire. Si down, les commandes ne peuvent pas être soumises (mais le site reste browse-able).',
   },
+  'api:stripe': {
+    name: 'Paiements',
+    desc: 'Processeur de paiement. Si down, le checkout ne peut pas finaliser les achats.',
+  },
+  'email:queue': {
+    name: 'Envoi d\'emails',
+    desc: 'Queue d\'envoi pour confirmations, expéditions, factures. Alerte si > 10 emails en échec dans la dernière heure.',
+  },
+  'webhooks:recent': {
+    name: 'Webhooks récents',
+    desc: 'Notifications Stripe + Sinalite. Alerte si > 5 échecs dans les 15 dernières minutes.',
+  },
 };
 
 async function fetchHealth(): Promise<HealthResponse | null> {
