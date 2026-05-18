@@ -24,19 +24,21 @@ interface Props {
     disabled: boolean;
     featured: boolean;
     displayName: string | null;
+    marginPct: number | null;
   } | null;
 }
 
 export default function ProductOverrideActions({ productId, productName, override }: Props) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [optimistic, setOptimistic] = useState<{ disabled: boolean; featured: boolean }>({
+  const [optimistic, setOptimistic] = useState<{ disabled: boolean; featured: boolean; marginPct: number | null }>({
     disabled: override?.disabled ?? false,
     featured: override?.featured ?? false,
+    marginPct: override?.marginPct ?? null,
   });
   const [error, setError] = useState<string | null>(null);
 
-  async function update(patch: Partial<{ disabled: boolean; featured: boolean; displayName: string | null }>) {
+  async function update(patch: Partial<{ disabled: boolean; featured: boolean; displayName: string | null; marginPct: number | null }>) {
     setError(null);
     const optimisticNext = { ...optimistic, ...patch };
     setOptimistic(optimisticNext);
@@ -57,6 +59,7 @@ export default function ProductOverrideActions({ productId, productName, overrid
         setOptimistic({
           disabled: override?.disabled ?? false,
           featured: override?.featured ?? false,
+          marginPct: override?.marginPct ?? null,
         });
       }
     });
@@ -69,6 +72,26 @@ export default function ProductOverrideActions({ productId, productName, overrid
     );
     if (next === null) return; // cancel
     await update({ displayName: next.trim() || null });
+  }
+
+  async function setMargin() {
+    const current = override?.marginPct;
+    const next = window.prompt(
+      `Margin % appliquée sur le prix Sinalite (ex: 10 = +10%, -5 = remise 5%, vide = aucune marge).\n\nProduit : "${productName}"`,
+      current === null || current === undefined ? '' : String(current),
+    );
+    if (next === null) return; // cancel
+    const trimmed = next.trim();
+    if (trimmed === '') {
+      await update({ marginPct: null });
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed) || parsed < -50 || parsed > 500) {
+      setError('Marge doit être un entier entre -50 et 500');
+      return;
+    }
+    await update({ marginPct: parsed });
   }
 
   return (
@@ -137,6 +160,30 @@ export default function ProductOverrideActions({ productId, productName, overrid
         }}
       >
         {override?.displayName ? '✎ Renommé' : 'Renommer'}
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={setMargin}
+        title="Définir une marge % appliquée au prix Sinalite pour ce produit"
+        style={{
+          padding: '4px 10px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          letterSpacing: '0.04em',
+          fontWeight: 600,
+          border: '1px solid',
+          borderColor: optimistic.marginPct !== null ? 'var(--success, #16a34a)' : 'var(--border-default)',
+          background: optimistic.marginPct !== null ? 'var(--success-soft, #f0fdf4)' : 'transparent',
+          color: optimistic.marginPct !== null ? 'var(--success, #16a34a)' : 'var(--text-secondary)',
+          borderRadius: 'var(--r-sm)',
+          cursor: busy ? 'wait' : 'pointer',
+          opacity: busy ? 0.5 : 1,
+        }}
+      >
+        {optimistic.marginPct !== null
+          ? `${optimistic.marginPct > 0 ? '+' : ''}${optimistic.marginPct}%`
+          : 'Marge'}
       </button>
       {error && (
         <span style={{ fontSize: 10, color: 'var(--danger)' }} role="alert">

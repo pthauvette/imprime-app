@@ -125,19 +125,95 @@ function ManualConfirmation() {
   );
 }
 
+/**
+ * Détaille un message friendly + actionnable selon le status Stripe.
+ * Mapping basé sur https://stripe.com/docs/payments/intents#intent-statuses
+ *   - requires_payment_method = carte refusée / 3DS failed → retry avec
+ *     autre carte. Le cart est préservé (CartClearOnMount n'a pas fired
+ *     sur ce branch), donc retourner à /order/review marche.
+ *   - requires_action          = 3DS pending → user doit compléter chez
+ *     sa banque (rare ici, Stripe gère normalement l'inline).
+ *   - processing               = en cours de capture, normal, refresh.
+ *   - canceled                 = annulée (rare, jamais sur succès auto).
+ */
+function describePendingStatus(status: string): {
+  title: string;
+  body: string;
+  retryable: boolean;
+  emoji: string;
+} {
+  switch (status) {
+    case 'requires_payment_method':
+      return {
+        emoji: '💳',
+        title: 'Carte refusée',
+        body: 'Ta banque a refusé le paiement. Essaie une autre carte ou contacte ton émetteur. Ton panier est conservé.',
+        retryable: true,
+      };
+    case 'requires_action':
+      return {
+        emoji: '🔐',
+        title: 'Vérification 3D Secure requise',
+        body: 'Ta banque demande une vérification supplémentaire. Retourne au checkout pour compléter.',
+        retryable: true,
+      };
+    case 'processing':
+      return {
+        emoji: '⏳',
+        title: 'Paiement en cours…',
+        body: 'Stripe finalise la transaction. Cette page se met à jour automatiquement dans quelques secondes.',
+        retryable: false,
+      };
+    case 'canceled':
+      return {
+        emoji: '✕',
+        title: 'Paiement annulé',
+        body: "Le paiement a été annulé avant d'être confirmé. Tu peux relancer la commande depuis ton panier.",
+        retryable: true,
+      };
+    default:
+      return {
+        emoji: '⏳',
+        title: 'Paiement en attente',
+        body: `Statut Stripe : ${status}. Si tu vois ce message plus de quelques minutes, contacte-nous.`,
+        retryable: false,
+      };
+  }
+}
+
 function PendingState({ status, intentId }: { status: string; intentId: string }) {
+  const d = describePendingStatus(status);
+  // Auto-refresh pour `processing` — capture habituellement < 5s
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 48, textAlign: 'center' }}>
-      <div>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 48, letterSpacing: '-0.025em', fontWeight: 400, margin: '0 0 16px' }}>
-          Paiement en cours…
+      <div style={{ maxWidth: 520 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>{d.emoji}</div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 40, letterSpacing: '-0.025em', fontWeight: 400, margin: '0 0 16px' }}>
+          {d.title}
         </h1>
-        <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '0 0 8px' }}>
-          Statut Stripe : <strong>{status}</strong>
+        <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '0 0 24px', lineHeight: 1.5 }}>
+          {d.body}
         </p>
-        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>{intentId}</p>
-        <Link href={'/orders' as Route} className="btn btn-primary" style={{ marginTop: 32 }}>Voir mes commandes</Link>
+        {status === 'processing' && (
+          // eslint-disable-next-line @next/next/no-html-link-for-pages
+          <meta httpEquiv="refresh" content="6" />
+        )}
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {d.retryable && (
+            <Link href={'/order/review' as Route} className="btn btn-primary">
+              {status === 'requires_payment_method' ? 'Essayer une autre carte' : 'Retour au checkout'}
+            </Link>
+          )}
+          <Link
+            href={'/orders' as Route}
+            className={d.retryable ? 'btn btn-ghost' : 'btn btn-primary'}
+          >
+            Mes commandes
+          </Link>
+        </div>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 32 }}>
+          Référence Stripe : {intentId}
+        </p>
       </div>
     </div>
   );
@@ -152,7 +228,18 @@ function ErrorState({ message, isInfo = false }: { message: string; isInfo?: boo
           {isInfo ? 'Confirmation' : 'Erreur'}
         </h1>
         <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '0 0 32px' }}>{message}</p>
-        <Link href={'/' as Route} className="btn btn-primary">Retour à l'accueil</Link>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link href={'/order/review' as Route} className="btn btn-primary">
+            Retour au checkout
+          </Link>
+          <Link href={'/' as Route} className="btn btn-ghost">
+            Accueil
+          </Link>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 24 }}>
+          Si le problème persiste, écris à{' '}
+          <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>bonjour@plio.ca</a>
+        </p>
       </div>
     </div>
   );

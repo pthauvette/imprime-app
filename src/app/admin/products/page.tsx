@@ -268,7 +268,7 @@ export default async function AdminProductsPage({
                         <ProductOverrideActions
                           productId={p.id}
                           productName={p.name}
-                          override={ov ? { disabled: ov.disabled, featured: ov.featured, displayName: ov.displayName } : null}
+                          override={ov ? { disabled: ov.disabled, featured: ov.featured, displayName: ov.displayName, marginPct: ov.marginPct } : null}
                         />
                       </td>
                     </tr>

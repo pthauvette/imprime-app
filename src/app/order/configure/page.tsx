@@ -9,7 +9,7 @@
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { sinalite } from '@/lib/sinalite/client';
-import { getVariantIndex } from '@/lib/sinalite/pricing';
+import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import ConfigureClient from '@/components/wizard/ConfigureClient';
 import type { SinaliteOption } from '@/lib/sinalite/types';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
@@ -33,29 +33,31 @@ export default async function ConfigurePage({
   const { productId } = parsed.data;
   const designId = params.designId ?? null;
 
-  let product, detail, variantIndexMap;
+  let product, detail, enrichedIndex;
   try {
-    [product, detail, { index: variantIndexMap }] = await Promise.all([
+    [product, detail, enrichedIndex] = await Promise.all([
       sinalite.getProduct(productId),
       sinalite.getProductDetail(productId),
-      getVariantIndex(productId),
+      getEnrichedVariantIndex(productId),
     ]);
   } catch {
     notFound();
   }
 
-  // Serialize variant index Map → Record for client serialization. Used to
-  // compute live price as soon as the user picks an option in Step 3, instead
-  // of waiting until Step 4 ("Quantité"). Same lookup pattern as
-  // QuantityClient: key = sortedOptionIds.join('-').
+  // Serialize variant index Map → Record for client serialization. Prix
+  // déjà markés up via marginPct admin (cf. lib/products/pricing.ts).
   const variantIndex: Record<string, number> = {};
-  variantIndexMap.forEach((price, key) => {
+  enrichedIndex.index.forEach((price, key) => {
     variantIndex[key] = price;
   });
+  const hiddenOptionIds = enrichedIndex.hiddenOptionIds;
 
-  // Group options by `group` field
+  // Group options by `group` field, en filtrant celles cachées par l'admin
+  // (ProductOverride.hiddenOptionIds). Cohérent avec QuantityClient qui
+  // applique le même filtre.
   const optionGroups: Record<string, SinaliteOption[]> = {};
   for (const opt of detail.options) {
+    if (hiddenOptionIds.has(opt.id)) continue;
     (optionGroups[opt.group] ??= []).push(opt);
   }
 

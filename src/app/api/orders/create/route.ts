@@ -108,21 +108,31 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Phase 1: server-side price computation (anti-tampering).
   // Variants-index first (O(1) après le premier lookup grâce au cache 10 min),
   // fallback à POST /price/... pour les combos avec exclusions ou custom_size.
-  const { getVariantIndex, lookupVariant } = await import('@/lib/sinalite/pricing');
+  const { lookupVariant } = await import('@/lib/sinalite/pricing');
+  const { getEnrichedVariantIndex } = await import('@/lib/products/pricing');
   let subtotal = 0;
   // Cache product details across items for the same productId
   const detailCache = new Map<number, Awaited<ReturnType<typeof sinalite.getProductDetail>>>();
   // Map productId → human name, populated via sinalite.getProduct (cheap)
   const productNames = new Map<number, string>();
   for (const item of payload.items) {
-    const { index } = await getVariantIndex(item.productId);
+    // Index enrichi : marginPct admin déjà appliqué. lookupVariant retourne
+    // le prix avec markup directement, donc subtotal computé ici = total
+    // attendu par le client (qui a vu ce même prix dans le wizard). Si
+    // l'admin baisse la marge entre le wizard et le checkout, le check
+    // expectedSubtotal va catch la divergence et forcer un refresh.
+    const { index, marginPct } = await getEnrichedVariantIndex(item.productId);
     const local = lookupVariant(item.optionIds, index);
 
     if (local !== null) {
       subtotal += local;
     } else {
       const remote = await sinalite.getPrice(item.productId, item.optionIds);
-      subtotal += parseFloat(remote.price);
+      const remotePrice = parseFloat(remote.price);
+      // Variant manquant de l'index → fallback Sinalite, mais on applique
+      // quand même le markup admin pour rester cohérent avec le wizard.
+      const multiplier = marginPct !== null ? 1 + marginPct / 100 : 1;
+      subtotal += Math.round(remotePrice * multiplier * 100) / 100;
     }
 
     // Pre-fetch product detail for buildSinalitePayload phase

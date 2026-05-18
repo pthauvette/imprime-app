@@ -524,9 +524,14 @@ model ProductOverride {
   /** Override la description ou ajoute une description custom (Sinalite n'en
    *  fournit pas vraiment). Markdown supporté côté UI. */
   displayDescription  String?
-  /** Markup en % appliqué au prix Sinalite. NULL = pas de markup.
-   *  Réservé pour future implémentation (pas wired dans pricing pour l'instant). */
+  /** Markup en % appliqué au prix Sinalite à chaque variant lookup.
+   *  NULL = pas de markup, 10 = +10%, -5 = -5% (rare mais possible).
+   *  Appliqué à TOUS les prix du variantIndex pour ce produit. */
   marginPct           Int?
+  /** JSON string array d'option IDs à cacher du wizard customer pour ce
+   *  produit (ex: "[107,108]" pour exclure certains finishings). Utile
+   *  pour limiter le catalogue sans toucher Sinalite. NULL = rien caché. */
+  hiddenOptionIds     String?
   /** Notes internes admin (jamais affichées customer). */
   notes               String?
 

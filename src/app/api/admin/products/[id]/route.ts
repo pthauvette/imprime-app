@@ -24,6 +24,8 @@ const UpsertSchema = z.object({
   displayName: z.string().max(200).nullable().optional(),
   displayDescription: z.string().max(2000).nullable().optional(),
   marginPct: z.number().int().min(-50).max(500).nullable().optional(),
+  /** Array d'option IDs à cacher du wizard customer. Stocké en JSON string. */
+  hiddenOptionIds: z.array(z.number().int().positive()).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
 });
 
@@ -41,6 +43,14 @@ export const PUT = withErrorHandler(async (req: Request, ctx: RouteCtx) => {
 
   const body = await parseBody(req, UpsertSchema);
 
+  // hiddenOptionIds : array → JSON string (NULL = pas d'override sur ce champ).
+  // null explicite signifie "clear" → on stocke NULL pour reset.
+  const hiddenOptionIdsSerialized = body.hiddenOptionIds === undefined
+    ? undefined
+    : body.hiddenOptionIds === null
+      ? null
+      : JSON.stringify(body.hiddenOptionIds);
+
   // Upsert : si l'override n'existe pas on le crée avec defaults + patch,
   // sinon on met à jour seulement les champs présents dans body.
   const override = await prisma.productOverride.upsert({
@@ -52,6 +62,7 @@ export const PUT = withErrorHandler(async (req: Request, ctx: RouteCtx) => {
       displayName: body.displayName ?? null,
       displayDescription: body.displayDescription ?? null,
       marginPct: body.marginPct ?? null,
+      hiddenOptionIds: hiddenOptionIdsSerialized ?? null,
       notes: body.notes ?? null,
     },
     update: {
@@ -60,6 +71,7 @@ export const PUT = withErrorHandler(async (req: Request, ctx: RouteCtx) => {
       ...(body.displayName !== undefined && { displayName: body.displayName }),
       ...(body.displayDescription !== undefined && { displayDescription: body.displayDescription }),
       ...(body.marginPct !== undefined && { marginPct: body.marginPct }),
+      ...(hiddenOptionIdsSerialized !== undefined && { hiddenOptionIds: hiddenOptionIdsSerialized }),
       ...(body.notes !== undefined && { notes: body.notes }),
     },
   });

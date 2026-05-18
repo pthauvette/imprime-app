@@ -12,7 +12,7 @@
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { sinalite } from '@/lib/sinalite/client';
-import { getVariantIndex } from '@/lib/sinalite/pricing';
+import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import QuantityClient from '@/components/wizard/QuantityClient';
 import type { SinaliteOption } from '@/lib/sinalite/types';
 
@@ -39,20 +39,25 @@ export default async function QuantityPage({
 
   const { productId, options: baseOptionIds } = parsed.data;
 
-  let product, detail, variantIndexMap;
+  let product, detail, enrichedIndex;
   try {
-    [product, detail, { index: variantIndexMap }] = await Promise.all([
+    [product, detail, enrichedIndex] = await Promise.all([
       sinalite.getProduct(productId),
       sinalite.getProductDetail(productId),
-      getVariantIndex(productId),
+      getEnrichedVariantIndex(productId),
     ]);
   } catch {
     notFound();
   }
+  const variantIndexMap = enrichedIndex.index;
+  const hiddenOptionIds = enrichedIndex.hiddenOptionIds;
 
-  // Extract qty + turnaround groups from product options
-  const qtyOptions: SinaliteOption[] = detail.options.filter((o) => o.group === 'qty');
-  const turnaroundOptions: SinaliteOption[] = detail.options.filter((o) => o.group === 'Turnaround');
+  // Extract qty + turnaround groups from product options. Filtre les options
+  // cachées par l'admin (ProductOverride.hiddenOptionIds) — cohérent avec
+  // configure/page.tsx, sinon l'user pourrait quand même choisir une qty
+  // hidden depuis l'URL et obtenir un prix.
+  const qtyOptions: SinaliteOption[] = detail.options.filter((o) => o.group === 'qty' && !hiddenOptionIds.has(o.id));
+  const turnaroundOptions: SinaliteOption[] = detail.options.filter((o) => o.group === 'Turnaround' && !hiddenOptionIds.has(o.id));
 
   if (qtyOptions.length === 0) {
     // Some products may not have a "qty" group — handle gracefully
