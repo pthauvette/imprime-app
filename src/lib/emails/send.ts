@@ -15,6 +15,7 @@ import type { Order, User } from '@prisma/client';
 import { queueEmail } from './queue';
 import { logEmail } from '@/lib/logger';
 import { parseItemsSnapshot, type DisplayItem } from '@/lib/orders/items';
+import { renderLifecycleTimeline } from './lifecycle-timeline';
 import type {
   OrderConfirmationVars,
   OrderShippedVars,
@@ -261,6 +262,9 @@ export async function sendOrderDeliveredEmail(input: {
     TOTAL: cad(order.amountCents),
     REORDER_URL: `${APP_URL}/order/start?reorder=${order.id}`,
     FEEDBACK_URL: `${APP_URL}/orders/${order.id}?feedback=true`,
+    // Mini-timeline 4 étapes — toutes done à ce stade (livraison = closure
+    // visuelle satisfaisante du workflow customer).
+    LIFECYCLE_TIMELINE_HTML: renderLifecycleTimeline(4),
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
   return queueEmail({

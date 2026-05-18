@@ -91,6 +91,9 @@ export type OrderDeliveredVars = {
   TOTAL: string;
   FEEDBACK_URL: string;
   REORDER_URL: string;
+  /** Bloc HTML de la mini-timeline 4 étapes (toutes done à ce stade).
+   *  Généré par renderLifecycleTimeline(4). */
+  LIFECYCLE_TIMELINE_HTML: string;
   UNSUBSCRIBE_URL: string;
 };
 
