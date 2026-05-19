@@ -15,6 +15,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
+import NpsAutoPrompt from '@/components/account/NpsAutoPrompt';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   type LoyaltyTier,
@@ -98,6 +99,33 @@ export default async function AccountDashboardPage() {
 
   if (!user) redirect('/sign-in' as Route);
 
+  // ─── NPS eligibility (Round 13 #2) ─────────────────────────────────────
+  // On invite l'user à laisser un NPS quand :
+  //   - Il a ≥1 order DELIVERED dont updatedAt ≥ 14 j
+  //   - Aucun NpsResponse existant pour cet order
+  // Le cookie de snooze "plus tard" est checké côté client (le SSR ne sait
+  // pas par-user; alternative serait read cookies() ici, mais on garde le
+  // best-effort côté client pour pas faire échouer le SSR si la table
+  // NpsResponse n'est pas migrée localement).
+  const npsCutoff = new Date(Date.now() - 14 * 24 * 3600 * 1000);
+  let npsCandidate: { id: string; sinaliteOrderId: string | null } | null = null;
+  try {
+    const eligible = await prisma.order.findFirst({
+      where: {
+        userId,
+        status: 'DELIVERED',
+        updatedAt: { lte: npsCutoff },
+        npsResponse: { is: null },
+      },
+      orderBy: { updatedAt: 'asc' }, // le plus ancien éligible = priorité
+      select: { id: true, sinaliteOrderId: true },
+    });
+    npsCandidate = eligible ?? null;
+  } catch {
+    // Table NpsResponse pas migrée localement — pas grave, skip silencieux
+    npsCandidate = null;
+  }
+
   const greeting = user.firstName ?? user.name?.split(' ')[0] ?? user.email.split('@')[0];
   const ltvCents = ltvAgg._sum.amountCents ?? 0;
   const ltvLast365dCents = ltv365Agg._sum.amountCents ?? 0;
@@ -110,6 +138,13 @@ export default async function AccountDashboardPage() {
   return (
     <div className="acct-shell">
       <Sidebar active="/account" />
+
+      {npsCandidate && (
+        <NpsAutoPrompt
+          orderId={npsCandidate.id}
+          orderLabel={`ta commande #${npsCandidate.sinaliteOrderId ?? npsCandidate.id.slice(-6).toUpperCase()}`}
+        />
+      )}
 
       <main style={{ padding: '40px 48px 80px', maxWidth: 1200 }}>
         {/* Greeting */}
