@@ -55,10 +55,17 @@ interface Breakdown {
   /** Code promo appliqué, ou null. */
   promoCode: string | null;
   shipping: number;
+  /** Prix de livraison original avant perks (cf. perks.goldFreeShipping). Optionnel. */
+  originalShipping?: number;
   tax: number;
   taxLines: { code: string; label: string; rate: number; amount: number }[];
   total: number;
   currency: string;
+  /** Perks appliqués server-side (Round 13 #5). */
+  perks?: {
+    goldFreeShipping: boolean;
+    loyaltyTier: string | null;
+  };
 }
 
 export default function ReviewPage() {
@@ -338,6 +345,31 @@ function ReviewPageInner() {
                 />
               )}
               <Total label={`Livraison${ship ? ' (' + ship.method + ')' : ''}`} value={breakdown.shipping} />
+              {breakdown.perks?.goldFreeShipping && (
+                <div style={{
+                  marginTop: 4,
+                  marginBottom: 8,
+                  padding: '8px 12px',
+                  background: 'var(--accent-soft)',
+                  borderRadius: 'var(--r-sm)',
+                  fontSize: 12,
+                  color: 'var(--accent-primary)',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}>
+                  <span aria-hidden>🥇</span>
+                  <span>
+                    Livraison <strong>offerte</strong> avec ton statut OR
+                    {typeof breakdown.originalShipping === 'number' && breakdown.originalShipping > 0 && (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 6 }}>
+                        (économie {breakdown.originalShipping.toFixed(2)} $)
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
               {breakdown.taxLines.map((t) => (
                 <Total key={t.code} label={t.label} value={t.amount} />
               ))}
