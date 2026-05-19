@@ -18,6 +18,10 @@ const SEGMENT_LABELS: Record<string, string> = {
   newsletter: 'Newsletter',
   customers: 'Clients',
   all: 'Tous',
+  'tier-gold': 'Tier OR',
+  'tier-silver': 'Tier ARGENT',
+  'tier-bronze': 'Tier BRONZE',
+  'inactive-90d': 'Inactifs 90 j+',
 };
 
 export default async function AdminBroadcastPage() {
