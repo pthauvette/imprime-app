@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
+import { classifyCustomer, rfmSummary } from '@/lib/customers/segment';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,12 +121,38 @@ export default async function AdminUserDetailPage({
 
   // ─── Aggregates ────────────────────────────────────────────────────────
   const orderCount = user.orders.length;
-  const ltvCents = user.orders.reduce((a, o) => a + o.amountCents, 0);
-  const aovCents = orderCount > 0 ? Math.round(ltvCents / orderCount) : 0;
+  // LTV excludes FAILED + CANCELLED parce que ces orders ont été refundées
+  const successfulOrders = user.orders.filter(
+    (o) => o.status !== 'FAILED' && o.status !== 'CANCELLED',
+  );
+  const ltvCents = successfulOrders.reduce((a, o) => a + o.amountCents, 0);
+  const aovCents = successfulOrders.length > 0
+    ? Math.round(ltvCents / successfulOrders.length)
+    : 0;
   const lastOrder = user.orders[0];
+  const firstOrder = user.orders[user.orders.length - 1];
   const failedCount = user.orders.filter((o) => o.status === 'FAILED').length;
   const refundCount = events.filter((e) => e.kind === 'REFUND_ISSUED').length;
   const lastSession = user.sessions[0];
+
+  // ─── Segment classification (Round 12 #2) ──────────────────────────────
+  const cutoff365 = Date.now() - 365 * 24 * 3600 * 1000;
+  const ordersLast365d = successfulOrders.filter(
+    (o) => o.createdAt.getTime() >= cutoff365,
+  ).length;
+  const customerSegment = classifyCustomer({
+    ltvCents,
+    orderCount: successfulOrders.length,
+    ordersLast365d,
+    lastOrderDate: lastOrder?.createdAt ?? null,
+    firstOrderDate: firstOrder?.createdAt ?? null,
+  });
+  const rfm = rfmSummary({
+    ltvCents,
+    orderCount: successfulOrders.length,
+    lastOrderDate: lastOrder?.createdAt ?? null,
+    firstOrderDate: firstOrder?.createdAt ?? null,
+  });
 
   const riskTone: 'good' | 'warn' | 'bad' =
     failedCount + refundCount === 0 ? 'good'
@@ -174,9 +201,8 @@ export default async function AdminUserDetailPage({
               ) : (
                 <span className="ud-tag" style={{ background: 'var(--bg-sunken)', color: 'var(--text-muted)' }}>Guest</span>
               )}
-              {ltvCents >= 100_000 && (
-                <span className="ud-tag vip">High-value · LTV {formatCurrency(ltvCents / 100)}</span>
-              )}
+              {/* Segment badge — VIP / Actif / À risque / Perdu / Nouveau */}
+              <SegmentBadge segment={customerSegment} />
               {user.role === 'ADMIN' && (
                 <span className="ud-tag vip">Admin</span>
               )}
@@ -245,6 +271,74 @@ export default async function AdminUserDetailPage({
                 ? (lastOrder.sinaliteOrderId ? `#SIN-${lastOrder.sinaliteOrderId}` : `#${lastOrder.id.slice(-6).toUpperCase()}`)
                 : '—'}
             </div>
+          </div>
+        </section>
+
+        {/* ─── RFM panel (Round 12 #2) ────────────────────────────── */}
+        <section
+          style={{
+            marginTop: 16,
+            padding: 20,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--r-lg)',
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr',
+            gap: 24,
+            alignItems: 'start',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                fontWeight: 600,
+                marginBottom: 4,
+              }}
+            >
+              Segment
+            </div>
+            <SegmentBadge segment={customerSegment} large />
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                marginTop: 6,
+                maxWidth: 200,
+                lineHeight: 1.4,
+              }}
+            >
+              {customerSegment.reason}
+            </div>
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 16,
+              borderLeft: '1px solid var(--border-subtle)',
+              paddingLeft: 24,
+            }}
+          >
+            <RfmStat
+              label="Récence"
+              value={rfm.recencyDays !== null ? `${rfm.recencyDays} j` : '—'}
+              hint="depuis la dernière commande"
+            />
+            <RfmStat
+              label="Fréquence"
+              value={rfm.frequencyPerYear > 0 ? `${rfm.frequencyPerYear}/an` : '—'}
+              hint="commandes par année extrapolées"
+            />
+            <RfmStat
+              label="Valeur"
+              value={`${rfm.monetaryDollars} $`}
+              hint="LTV net (excl. refunds)"
+            />
           </div>
         </section>
 
@@ -689,4 +783,90 @@ function eventIcon(k: OrderEventKind): string {
     REFUND_ISSUED: '↩',
     ERROR: '!',
   }[k] ?? '·';
+}
+
+// ─── Segment / RFM display helpers (Round 12 #2) ─────────────────────────
+
+function SegmentBadge({
+  segment,
+  large,
+}: {
+  segment: ReturnType<typeof classifyCustomer>;
+  large?: boolean;
+}) {
+  const toneStyles: Record<typeof segment.tone, { bg: string; color: string }> = {
+    success: { bg: 'var(--success-soft, #f0fdf4)', color: 'var(--success, #16a34a)' },
+    accent: { bg: 'var(--accent-soft)', color: 'var(--accent-primary)' },
+    warning: { bg: 'var(--warning-soft, #FFF6E5)', color: 'var(--warning, #D97706)' },
+    danger: { bg: 'var(--danger-soft, #fef2f2)', color: 'var(--danger, #dc2626)' },
+    muted: { bg: 'var(--bg-sunken)', color: 'var(--text-muted)' },
+  };
+  const { bg, color } = toneStyles[segment.tone];
+  const icon =
+    segment.segment === 'VIP' ? '⭐'
+    : segment.segment === 'ACTIVE' ? '✓'
+    : segment.segment === 'AT_RISK' ? '⚠'
+    : segment.segment === 'LOST' ? '✕'
+    : '•';
+  return (
+    <span
+      title={segment.reason}
+      style={{
+        display: 'inline-block',
+        padding: large ? '6px 14px' : '3px 10px',
+        background: bg,
+        color,
+        borderRadius: 'var(--r-pill)',
+        fontSize: large ? 14 : 11,
+        fontFamily: 'var(--font-mono)',
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+      }}
+    >
+      {icon} {segment.label}
+    </span>
+  );
+}
+
+function RfmStat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          fontWeight: 600,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 600,
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--text-primary)',
+          marginBottom: 2,
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>
+        {hint}
+      </div>
+    </div>
+  );
 }
