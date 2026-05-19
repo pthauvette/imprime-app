@@ -110,7 +110,7 @@ describe('POST /api/admin/orders/bulk markStatus', () => {
 
     // createMany 2 events SINALITE_STATUS_CHANGED avec tracking JSON
     expect(prisma.orderEvent.createMany).toHaveBeenCalledTimes(1);
-    const eventCall = vi.mocked(prisma.orderEvent.createMany).mock.calls[0][0];
+    const eventCall = vi.mocked(prisma.orderEvent.createMany).mock.calls[0][0]!;
     const eventData = eventCall.data as Array<{ orderId: string; kind: string; data: string }>;
     expect(eventData).toHaveLength(2);
     expect(eventData[0].kind).toBe('SINALITE_STATUS_CHANGED');
@@ -159,7 +159,7 @@ describe('POST /api/admin/orders/bulk markStatus', () => {
     const POST = await importPost();
     await POST(makeReq({ action: 'markStatus', ids: ['o1'], status: 'SHIPPED' }));
 
-    const eventCall = vi.mocked(prisma.orderEvent.createMany).mock.calls[0][0];
+    const eventCall = vi.mocked(prisma.orderEvent.createMany).mock.calls[0][0]!;
     const eventData = eventCall.data as Array<{ data: string }>;
     const parsed = JSON.parse(eventData[0].data);
     expect(parsed.status).toBe('SHIPPED');
