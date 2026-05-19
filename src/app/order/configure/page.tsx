@@ -12,7 +12,7 @@ import { sinalite } from '@/lib/sinalite/client';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import ConfigureClient from '@/components/wizard/ConfigureClient';
 import type { SinaliteOption } from '@/lib/sinalite/types';
-import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import JsonLd, { breadcrumbSchema, productSchema } from '@/components/seo/JsonLd';
 
 export const metadata = { title: "Configure ta commande" };
 export const dynamic = 'force-dynamic';
@@ -87,6 +87,17 @@ export default async function ConfigurePage({
     }
   }
 
+  // ─── Compute price range pour AggregateOffer schema ─────────────────
+  // On scanne le variantIndex (déjà markup admin appliqué) pour donner
+  // un range CAD à Google. Si toutes les valeurs sont 0/missing on omet.
+  const priceValues = Object.values(variantIndex).filter((v) => v > 0);
+  const priceCents = priceValues.length > 0
+    ? {
+        low: Math.round(Math.min(...priceValues) * 100),
+        high: Math.round(Math.max(...priceValues) * 100),
+      }
+    : null;
+
   return (
     <>
       <JsonLd data={breadcrumbSchema([
@@ -94,6 +105,17 @@ export default async function ConfigurePage({
         { name: 'Commander', path: '/order/start' },
         { name: product.name ?? 'Produit', path: `/order/configure?productId=${productId}` },
       ])} />
+      <JsonLd
+        data={productSchema({
+          id: productId,
+          name: product.name?.trim() || `Produit Plio #${productId}`,
+          description: detail.metadata?.join(' ') ?? null,
+          sku: product.sku ?? null,
+          category: product.category ?? null,
+          priceCents,
+          pageUrl: `/order/configure?productId=${productId}`,
+        })}
+      />
       <ConfigureClient
         product={product}
         optionGroups={optionGroups}
