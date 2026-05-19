@@ -124,6 +124,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               }).catch(() => {/* déjà set ou user disparu, no-op */});
             }
           }
+
+          // Step 1c: si l'user vient de /sign-up, on a posé un cookie
+          // plio_pending_profile avec firstName/lastName/companyName +
+          // opt-in marketing. Cookie 15min TTL — survit le round-trip
+          // magic-link. On le lit ici pour populer le User row.
+          const pendingRaw = cookieStore.get('plio_pending_profile')?.value;
+          if (pendingRaw) {
+            try {
+              const pending = JSON.parse(decodeURIComponent(pendingRaw)) as {
+                firstName?: string;
+                lastName?: string;
+                companyName?: string;
+                emailMarketing?: boolean;
+              };
+              const updateData: {
+                firstName?: string;
+                lastName?: string;
+                name?: string;
+                emailMarketing?: boolean;
+              } = {};
+              if (pending.firstName) updateData.firstName = pending.firstName.slice(0, 100);
+              if (pending.lastName) updateData.lastName = pending.lastName.slice(0, 100);
+              if (pending.firstName || pending.lastName) {
+                updateData.name = [pending.firstName, pending.lastName]
+                  .filter(Boolean).join(' ').slice(0, 200);
+              }
+              // companyName est stocké dans Address (pas sur User pour MVP).
+              // Pour MVP : on respecte juste l'opt-out marketing si l'user
+              // n'a pas coché le checkbox.
+              if (pending.emailMarketing === false) updateData.emailMarketing = false;
+              if (Object.keys(updateData).length > 0) {
+                await prisma.user.update({
+                  where: { id: user.id },
+                  data: updateData,
+                }).catch(() => {/* no-op */});
+              }
+            } catch {
+              // JSON parse fail ou autre — ignore
+            }
+          }
         } catch {
           // cookies() peut throw hors d'un request context — ignore.
         }

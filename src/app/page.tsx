@@ -33,7 +33,7 @@ export default async function LandingPage() {
       <OnboardingTour />
 
       <nav className="mkt-nav">
-          <a href="#" className="mkt-brand">Plio.</a>
+          <a href="/" className="mkt-brand">Plio.</a>
           <div className="mkt-nav-links">
             <a href="#products" className="mkt-nav-link">{t('nav.products')}</a>
             <a href="#how" className="mkt-nav-link">{t('nav.howItWorks')}</a>

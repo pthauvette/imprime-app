@@ -542,7 +542,7 @@ function PaymentForm({ total }: { total: number }) {
           style={{ marginTop: 2, accentColor: 'var(--accent-primary)' }}
         />
         <span>
-          J'accepte les <a href="#" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>conditions générales</a> et la <a href="#" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>politique de remboursement</a>.
+          J&apos;accepte les <a href="/legal/terms" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>conditions générales</a> et la <a href="/legal/refund-policy" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>politique de remboursement</a>.
         </span>
       </label>
       {stripeError && (

@@ -34,9 +34,9 @@ export default function NotFound() {
                   <a href="/orders" className="err-sugg-pill">Mes commandes</a>
                   <a href="/samples" className="err-sugg-pill">Échantillons gratuits</a>
                   <a href="/wallet" className="err-sugg-pill">Portefeuille</a>
-                  <a href="#" className="err-sugg-pill">FAQ</a>
-                  <a href="#" className="err-sugg-pill">Templates</a>
-                  <a href="#" className="err-sugg-pill">Contact support</a>
+                  <a href="/help" className="err-sugg-pill">FAQ</a>
+                  <a href="/templates" className="err-sugg-pill">Templates</a>
+                  <a href="/contact" className="err-sugg-pill">Contact support</a>
                 </div>
               </div>
             </div>
