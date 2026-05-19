@@ -26,6 +26,7 @@ import {
   processSinaliteEvent,
   SinaliteWebhookPayload,
 } from '@/lib/webhooks/sinalite-process';
+import { verifySinaliteSignature } from '@/lib/webhooks/sinalite-signature';
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 
@@ -45,16 +46,28 @@ const MAX_TIMESTAMP_FUTURE_MS = 5 * 60 * 1000;
 export async function POST(req: Request) {
   const start = Date.now();
 
-  if (WEBHOOK_SECRET) {
+  // Read as text first so we can persist for replay, then parse + verify HMAC.
+  const rawBody = await req.text();
+
+  // ─── Signature verification (mandatory in production) ────────────────
+  // Avant : if (WEBHOOK_SECRET) — si env vide en prod, ANY unsigned payload
+  // était accepté → pouvait advance orders à DELIVERED. Maintenant : hard-fail
+  // en prod si secret missing. En dev/test, on log un warn et on continue
+  // pour pas casser les fixtures locales.
+  if (!WEBHOOK_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+      logSinalite.error('SINALITE_WEBHOOK_SECRET not set in production — rejecting webhook');
+      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
+    }
+    logSinalite.warn('SINALITE_WEBHOOK_SECRET not set — allowing in non-prod (DO NOT use this in production)');
+  } else {
     const signature = req.headers.get('x-sinalite-signature');
-    if (signature !== WEBHOOK_SECRET) {
-      logSinalite.error('invalid signature on webhook');
+    if (!verifySinaliteSignature(rawBody, signature, WEBHOOK_SECRET)) {
+      logSinalite.error({ hasHeader: !!signature }, 'invalid signature on webhook');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
   }
 
-  // Read as text first so we can persist for replay, then parse.
-  const rawBody = await req.text();
   let payload: ReturnType<typeof SinaliteWebhookPayload.parse>;
   try {
     payload = SinaliteWebhookPayload.parse(JSON.parse(rawBody));
