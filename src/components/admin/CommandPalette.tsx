@@ -14,7 +14,7 @@ import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface ResultItem {
-  type: 'order' | 'user' | 'message' | 'quote' | 'reseller';
+  type: 'order' | 'user' | 'message' | 'quote' | 'reseller' | 'broadcast';
   id: string;
   href: string;
   primary: string;
@@ -28,6 +28,7 @@ const TYPE_ICONS: Record<ResultItem['type'], string> = {
   message: '💬',
   quote: '💰',
   reseller: '🎯',
+  broadcast: '📨',
 };
 
 export default function CommandPalette() {
