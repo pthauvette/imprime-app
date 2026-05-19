@@ -11,7 +11,7 @@ import { notFound } from 'next/navigation';
 import { sinalite } from '@/lib/sinalite/client';
 import { applyProductOverrides } from '@/lib/products/overrides';
 import { findCategoryGroup } from '@/lib/catalogue';
-import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import JsonLd, { breadcrumbSchema, itemListSchema } from '@/components/seo/JsonLd';
 import ProductListClient from '@/components/wizard/ProductListClient';
 import HeaderUserSlot from '@/components/account/HeaderUserSlot';
 
@@ -44,6 +44,16 @@ export default async function ProductPickerPage({
         { name: 'Commander', path: '/order/start' },
         { name: family.name, path: `/order/product?category=${slug}` },
       ])} />
+      {products.length > 0 && (
+        <JsonLd
+          data={itemListSchema(
+            products.map((p) => ({
+              name: p.name.trim(),
+              path: `/order/configure?productId=${p.id}`,
+            })),
+          )}
+        />
+      )}
       <header className="shell-header">
         <div className="shell-header-left">
           <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>
