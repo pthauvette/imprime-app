@@ -718,17 +718,40 @@ export default async function AdminUserDetailPage({
               </div>
             </div>
 
-            {/* Danger zone (placeholders) */}
+            {/* Danger zone (Round 14 #5 : actions non-wired retirées —
+                remplacées par des hints actionables vers les vrais workflows
+                existants. Build des vrais boutons demande des API routes
+                dédiées + audit logging strict — voir backlog pour PR future).
+                PIPEDA : suppression de compte se fait via /admin/notifications
+                qui surface les DeleteAccountRequest rows pour traitement
+                manuel + ops/delete-user.md runbook. */}
             <div className="ud-danger">
               <div className="ud-danger-label">Zone dangereuse</div>
-              <button className="ud-danger-btn" disabled title="Pas encore branché">
-                <span>Forcer la déconnexion · toutes les sessions</span>
-                <span className="arrow">→</span>
-              </button>
-              <button className="ud-danger-btn" disabled title="Pas encore branché">
-                <span>Supprimer le compte · GDPR</span>
-                <span className="arrow">→</span>
-              </button>
+              <div style={{
+                padding: '14px 16px',
+                background: 'var(--bg-sunken)',
+                border: '1px dashed var(--border-default)',
+                borderRadius: 'var(--r-md)',
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                lineHeight: 1.5,
+              }}>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>
+                  Actions critiques
+                </strong>
+                <p style={{ margin: '0 0 6px' }}>
+                  <strong>Force-logout</strong> : non-supporté avec stratégie JWT
+                  actuelle (le token reste valide jusqu&apos;à expiration).
+                </p>
+                <p style={{ margin: 0 }}>
+                  <strong>Supprimer le compte (PIPEDA)</strong> : voir{' '}
+                  <Link href={'/admin/notifications' as Route} style={{ color: 'var(--accent-primary)' }}>
+                    Notifications → Demandes critiques
+                  </Link>
+                  {' '}qui surface les <code>DeleteAccountRequest</code> pour
+                  traitement manuel.
+                </p>
+              </div>
             </div>
 
           </aside>
