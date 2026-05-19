@@ -31,6 +31,8 @@ export type AdminSidebarKey =
   | 'products'
   | 'users'
   | 'finances'
+  | 'finances-products'
+  | 'finances-tax-report'
   | 'promo-codes'
   | 'settings';
 
@@ -176,6 +178,8 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
       label: 'Finance',
       items: [
         { key: 'finances', href: '/admin/finances' as Route, label: 'Finances', icon: ICONS.finances },
+        { key: 'finances-products', href: '/admin/finances/products' as Route, label: 'Marges produits', icon: ICONS.finances },
+        { key: 'finances-tax-report', href: '/admin/finances/tax-report' as Route, label: 'Rapport TPS/TVQ', icon: ICONS.finances },
         { key: 'promo-codes', href: '/admin/promo-codes' as Route, label: 'Codes promo', icon: ICONS['promo-codes'], count: counts['promo-codes'] },
       ],
     },
@@ -185,7 +189,11 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
         { key: 'experiments', href: '/admin/experiments' as Route, label: 'Expériences A/B', icon: ICONS.audit },
         { key: 'crons', href: '/admin/crons' as Route, label: 'Cron monitor', icon: ICONS.audit },
         { key: 'audit', href: '/admin/audit' as Route, label: 'Journal admin', icon: ICONS.audit },
-        { key: 'settings', href: '/admin' as Route, label: 'Réglages', icon: ICONS.settings },
+        // "Réglages" : pointait sur /admin (= dashboard) → dead link.
+        // Renvoie maintenant vers /admin/crons qui est la page admin
+        // "config tech" la plus proche. Si on fait une vraie page
+        // /admin/settings plus tard, on update ici.
+        { key: 'settings', href: '/admin/crons' as Route, label: 'Réglages', icon: ICONS.settings },
       ],
     },
   ];

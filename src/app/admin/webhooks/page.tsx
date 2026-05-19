@@ -186,9 +186,9 @@ export default async function AdminWebhooksPage({
               {allEventsCount} events traités · {total24h} dernières 24 h
             </p>
           </div>
-          <div className="adm-topbar-actions">
-            <button className="btn btn-primary btn-sm" disabled title="Pas encore branché">⚡ Test endpoint</button>
-          </div>
+          {/* Round 14 #5 : "⚡ Test endpoint" disabled button retiré.
+              Re-add quand on aura un real "send sample event" workflow
+              (e.g. POST to /api/webhooks/stripe avec un event simulé). */}
         </header>
 
         {/* ─── Health stats ──────────────────────────────────────── */}
@@ -267,14 +267,9 @@ export default async function AdminWebhooksPage({
             <button type="submit" className="btn btn-secondary btn-sm" style={{ marginLeft: 8 }}>Filtrer</button>
           </form>
 
-          <div className="adm-filter-group">
-            <span className="adm-filter-label">Statut</span>
-            <div className="adm-pills">
-              <button className="active" disabled>200 OK</button>
-              <button disabled title="Non tracké dans la DB actuelle">4xx</button>
-              <button disabled title="Non tracké dans la DB actuelle">5xx</button>
-            </div>
-          </div>
+          {/* Round 14 #5 : status pills (200/4xx/5xx) retirés — WebhookEvent
+              n'a pas de statusCode tracké en DB actuelle. Ajouter quand
+              on migrera le schema pour tracker le HTTP status retourné. */}
 
           <form action="/admin/webhooks" method="get" style={{ marginLeft: 'auto' }}>
             {filterSource && <input type="hidden" name="source" value={filterSource} />}
@@ -296,7 +291,9 @@ export default async function AdminWebhooksPage({
             <table className="adm-wh-table">
               <thead>
                 <tr>
-                  <th style={{ width: 36 }}><input type="checkbox" className="adm-wh-check" disabled /></th>
+                  {/* Round 14 #5 : checkbox bulk-select retirée (pas de bulk
+                      action wired sur cette page — la per-event Replay marche
+                      via ReplayButton ci-dessous). */}
                   <th style={{ width: 170 }}>Timestamp</th>
                   <th style={{ width: 90 }}>Source</th>
                   <th>Event type</th>
@@ -309,7 +306,6 @@ export default async function AdminWebhooksPage({
               <tbody>
                 {events.map((e) => (
                   <tr key={e.id}>
-                    <td><input type="checkbox" className="adm-wh-check" disabled /></td>
                     <td>
                       <span className="adm-wh-time">
                         {formatDateTime(e.processedAt.toISOString())}
@@ -396,9 +392,9 @@ export default async function AdminWebhooksPage({
                   <> · <span style={{ color: 'var(--color-danger, #c0392b)' }}>{stripeFailed24h} échec{stripeFailed24h > 1 ? 's' : ''}</span></>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary btn-sm" disabled>↻ Replay 24 h</button>
-              </div>
+              {/* Round 14 #5 : bulk "Replay 24 h" disabled retiré. Per-event
+                  replay marche via ReplayButton dans la list ci-dessous —
+                  c'est la seule path supportée pour l'instant. */}
             </div>
             <div className="adm-endpoint-row">
               <div>
@@ -419,9 +415,7 @@ export default async function AdminWebhooksPage({
                   <> · <span style={{ color: 'var(--color-danger, #c0392b)' }}>{sinaliteFailed24h} échec{sinaliteFailed24h > 1 ? 's' : ''}</span></>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary btn-sm" disabled>↻ Replay failed</button>
-              </div>
+              {/* Round 14 #5 : "Replay failed" bulk disabled retiré (cf. ci-dessus). */}
             </div>
           </div>
         </section>

@@ -62,30 +62,27 @@ export default async function AdminTemplatesPage() {
               {ALL_TEMPLATES.length} publié{ALL_TEMPLATES.length > 1 ? 's' : ''} · {draftsCount} brouillon{draftsCount > 1 ? 's' : ''} · {designs30d} design{designs30d > 1 ? 's' : ''} créé{designs30d > 1 ? 's' : ''} ce mois-ci
             </p>
           </div>
-          <div className="adm-topbar-actions">
-            <button
-              className="btn btn-primary btn-sm"
-              disabled
-              title="Édition de templates pas encore wirée — utilise le code (src/lib/templates/)"
-            >
-              + Nouveau template
-            </button>
-          </div>
+          {/* Round 14 #5 : "+ Nouveau template" disabled retiré. Templates
+              vivent dans le code (src/lib/templates/) — pas de UI éditeur
+              pour MVP. Hint dans le copy de la page. */}
         </header>
 
-        <div className="adm-pills" style={{ marginBottom: 24 }}>
-          <div className="adm-pill active">
+        {/* Pills informationnelles (distribution par type). Pas de click-to-filter
+            wired — c'est un overview, pas un filter. Si on veut le filter plus
+            tard, ajouter du searchParams handling sur cette page. */}
+        <div className="adm-pills" style={{ marginBottom: 24 }} aria-label="Distribution des templates par type">
+          <span className="adm-pill active">
             Tous <span className="adm-pill-count">{ALL_TEMPLATES.length}</span>
-          </div>
+          </span>
           {productTypes.map((pt) => (
-            <div key={pt.type} className="adm-pill">
+            <span key={pt.type} className="adm-pill">
               {pt.label} <span className="adm-pill-count">{pt.count}</span>
-            </div>
+            </span>
           ))}
           {draftsCount > 0 && (
-            <div className="adm-pill">
+            <span className="adm-pill">
               Brouillons <span className="adm-pill-count">{draftsCount}</span>
-            </div>
+            </span>
           )}
         </div>
 
