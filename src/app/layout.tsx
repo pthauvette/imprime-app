@@ -4,6 +4,7 @@ import '@/styles/globals.css';
 import JsonLd, { organizationSchema, websiteSchema, localBusinessSchema } from '@/components/seo/JsonLd';
 import { LocaleProvider } from '@/components/i18n/LocaleProvider';
 import { getServerLocale } from '@/lib/i18n/locale';
+import { getServerTheme } from '@/lib/theme';
 import CookieConsent from '@/components/legal/CookieConsent';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
@@ -86,9 +87,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // attribute matchent ce que le user a choisi. Default fr si pas de cookie.
   const locale = await getServerLocale();
   const htmlLang = locale === 'en' ? 'en-CA' : 'fr-CA';
+  // Theme lu depuis cookie plio_theme — server-side pour éviter FOUC.
+  const theme = await getServerTheme();
 
   return (
-    <html lang={htmlLang}>
+    <html lang={htmlLang} data-theme={theme}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />

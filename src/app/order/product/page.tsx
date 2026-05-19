@@ -13,6 +13,7 @@ import { applyProductOverrides } from '@/lib/products/overrides';
 import { findCategoryGroup } from '@/lib/catalogue';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import ProductListClient from '@/components/wizard/ProductListClient';
+import HeaderUserSlot from '@/components/account/HeaderUserSlot';
 
 export const metadata = { title: "Quel produit ?" };
 export const dynamic = 'force-dynamic';
@@ -75,6 +76,7 @@ export default async function ProductPickerPage({
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
+          <HeaderUserSlot hideWhenAnonymous />
         </div>
       </header>
 

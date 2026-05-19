@@ -15,6 +15,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import type { CaProvince } from '@/lib/sinalite/types';
 import { readSavedShip, writeSavedShip } from '@/lib/cart/ship-store';
 import AddressAutocomplete from '@/components/order/AddressAutocomplete';
+import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
 const CA_PROVINCES: { code: CaProvince; name: string }[] = [
   { code: 'AB', name: 'Alberta' }, { code: 'BC', name: 'Colombie-Britannique' },
@@ -174,6 +175,7 @@ function ShippingPageInner() {
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
+          <ClientHeaderUserSlot hideWhenAnonymous />
         </div>
       </header>
 

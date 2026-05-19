@@ -17,6 +17,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useEffect, useRef, Suspense, type ChangeEvent, type DragEvent } from 'react';
 import PdfMarginOverlay from '@/components/upload/PdfMarginOverlay';
+import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import {
   getMarginSpecBySinaliteCategory,
   DEFAULT_MARGIN_SPEC,
@@ -115,6 +116,7 @@ function UploadPageInner() {
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
+          <ClientHeaderUserSlot hideWhenAnonymous />
         </div>
       </header>
 
