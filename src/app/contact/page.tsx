@@ -106,17 +106,17 @@ export default function ContactPage() {
               <ul>
                 <li><a href="/about">Notre histoire</a></li>
                 <li><a href="/contact">Contact</a></li>
-                <li><a href="#">Carrières</a></li>
-                <li><a href="#">Presse</a></li>
+                <li><a href="/blog">Blog</a></li>
+                <li><a href="/reseller">Programme reseller</a></li>
               </ul>
             </div>
             <div className="footer-col">
               <h4>Aide</h4>
               <ul>
-                <li><a href="/contact">Centre d'aide</a></li>
+                <li><a href="/help">Centre d&apos;aide</a></li>
                 <li><a href="/contact">Contact</a></li>
-                <li><a href="#">Specs techniques</a></li>
-                <li><a href="#">Statut système</a></li>
+                <li><a href="/samples">Échantillons gratuits</a></li>
+                <li><a href="/status">Statut système</a></li>
               </ul>
             </div>
             <div className="footer-col">

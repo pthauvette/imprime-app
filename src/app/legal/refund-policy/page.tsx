@@ -186,15 +186,15 @@ export default function RefundPolicyPage() {
               <ul>
                 <li><a href="/about">Notre histoire</a></li>
                 <li><a href="/contact">Contact</a></li>
-                <li><a href="#">Carrières</a></li>
+                <li><a href="/blog">Blog</a></li>
               </ul>
             </div>
             <div className="footer-col">
               <h4>Aide</h4>
               <ul>
-                <li><a href="/contact">Centre d'aide</a></li>
+                <li><a href="/help">Centre d&apos;aide</a></li>
                 <li><a href="/contact">Contact</a></li>
-                <li><a href="#">Specs techniques</a></li>
+                <li><a href="/samples">Échantillons gratuits</a></li>
               </ul>
             </div>
             <div className="footer-col">
