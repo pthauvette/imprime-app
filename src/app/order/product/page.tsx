@@ -9,9 +9,10 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { notFound } from 'next/navigation';
 import { sinalite } from '@/lib/sinalite/client';
-import { applyProductOverrides, type EnrichedProduct } from '@/lib/products/overrides';
+import { applyProductOverrides } from '@/lib/products/overrides';
 import { findCategoryGroup } from '@/lib/catalogue';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import ProductListClient from '@/components/wizard/ProductListClient';
 
 export const metadata = { title: "Quel produit ?" };
 export const dynamic = 'force-dynamic';
@@ -74,10 +75,6 @@ export default async function ProductPickerPage({
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            Sauvegardé · 2s
-          </span>
-          <button className="btn btn-ghost btn-sm">⌘ K</button>
         </div>
       </header>
 
@@ -92,33 +89,10 @@ export default async function ProductPickerPage({
             Tous imprimés au Canada, livrés en 4-7 jours.
           </p>
 
-          <div className="toolbar">
-            <span className="toolbar-count">
-              <strong>{products.length}</strong> produits
-            </span>
-            <div className="filter-tabs" role="tablist">
-              <div className="filter-tab active" role="tab" aria-selected="true">Tous</div>
-              <div className="filter-tab" role="tab">Bestsellers</div>
-              <div className="filter-tab" role="tab">Premium</div>
-              <div className="filter-tab" role="tab">Eco</div>
-              <div className="filter-tab" role="tab">Spécialité</div>
-            </div>
-            <button className="sort-dropdown">
-              Trier : Populaires
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
-          </div>
-
           {products.length === 0 ? (
             <EmptyProducts familyName={family.name} />
           ) : (
-            <div className="product-list">
-              {products.map((p, i) => (
-                <ProductRow key={p.id} product={p} index={i} />
-              ))}
-            </div>
+            <ProductListClient products={products} />
           )}
         </div>
 
@@ -167,66 +141,6 @@ export default async function ProductPickerPage({
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────
-
-function ProductRow({ product, index }: { product: EnrichedProduct; index: number }) {
-  const lower = product.name.toLowerCase();
-  // Admin override.featured prend précédence sur l'heuristique nom-based,
-  // sinon on retombe sur les heuristiques par défaut.
-  const isBestseller = product.override?.featured ?? (lower.includes('uv') || lower.includes('14pt'));
-  const isPremium =
-    lower.includes('soft touch') || lower.includes('18pt') ||
-    lower.includes('foil') || lower.includes('lamination');
-  const isEco = lower.includes('kraft') || lower.includes('recycled');
-
-  let finishClass = '';
-  if (lower.includes('uv') || lower.includes('gloss')) finishClass = 'gloss';
-  else if (lower.includes('matte')) finishClass = 'matte';
-  else if (lower.includes('foil')) finishClass = 'foil';
-  else if (lower.includes('soft touch')) finishClass = 'soft';
-  else if (lower.includes('kraft')) finishClass = 'kraft';
-
-  return (
-    <Link
-      href={`/order/configure?productId=${product.id}` as Route}
-      className="product-row"
-      style={{ '--i': String(index) } as React.CSSProperties}
-    >
-      <div className="product-thumb">
-        <div className={`product-thumb-img ${finishClass}`}>
-          <div className="logo-mock" />
-        </div>
-      </div>
-      <div className="product-info">
-        <div className="product-info-top">
-          <span className="product-name">{product.name.trim()}</span>
-          {isBestseller && <span className="badge badge-accent">Bestseller</span>}
-          {isPremium && !isBestseller && <span className="badge badge-info">Premium</span>}
-          {isEco && <span className="badge badge-success">Eco</span>}
-        </div>
-        <div className="product-desc">
-          Catégorie : <strong>{product.category}</strong> · SKU{' '}
-          <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{product.sku}</code>
-        </div>
-        <div className="product-specs">
-          <span className="product-spec">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            4-7 jours
-          </span>
-          <span className="product-spec">📦 ID #{product.id}</span>
-        </div>
-      </div>
-      <div className="product-price">
-        <span className="product-price-label">À partir de</span>
-        <span className="product-price-value">Voir prix →</span>
-        <span className="product-price-unit">Configure pour devis</span>
-        <span className="product-cta">Configurer →</span>
-      </div>
-    </Link>
-  );
-}
 
 function EmptyProducts({ familyName }: { familyName: string }) {
   return (
