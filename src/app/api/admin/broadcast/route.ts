@@ -29,7 +29,15 @@ import {
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
 import { logEmail as log } from '@/lib/logger';
 
-const SegmentSchema = z.enum(['newsletter', 'customers', 'all']);
+const SegmentSchema = z.enum([
+  'newsletter',
+  'customers',
+  'all',
+  'tier-gold',
+  'tier-silver',
+  'tier-bronze',
+  'inactive-90d',
+]);
 
 const BodySchema = z.object({
   subject: z.string().min(1).max(200),
