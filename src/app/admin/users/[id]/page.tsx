@@ -15,6 +15,7 @@ import { auth } from '@/auth';
 import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { classifyCustomer, rfmSummary } from '@/lib/customers/segment';
+import { TIER_LABELS, type LoyaltyTier } from '@/lib/customers/loyalty';
 
 export const dynamic = 'force-dynamic';
 
@@ -203,6 +204,8 @@ export default async function AdminUserDetailPage({
               )}
               {/* Segment badge — VIP / Actif / À risque / Perdu / Nouveau */}
               <SegmentBadge segment={customerSegment} />
+              {/* Loyalty tier — BRONZE / SILVER / GOLD, recompute mensuel */}
+              <LoyaltyTierTag tier={(user.loyaltyTier as LoyaltyTier) ?? 'BRONZE'} />
               {user.role === 'ADMIN' && (
                 <span className="ud-tag vip">Admin</span>
               )}
@@ -868,5 +871,35 @@ function RfmStat({
         {hint}
       </div>
     </div>
+  );
+}
+
+// ─── Loyalty tier badge (Round 12 #3) ────────────────────────────────────
+
+function LoyaltyTierTag({ tier }: { tier: LoyaltyTier }) {
+  const palette: Record<LoyaltyTier, { bg: string; color: string; emoji: string }> = {
+    BRONZE: { bg: '#FEF3C7', color: '#92400E', emoji: '🥉' },
+    SILVER: { bg: '#F3F4F6', color: '#374151', emoji: '🥈' },
+    GOLD:   { bg: '#FEF3C7', color: '#B45309', emoji: '🥇' },
+  };
+  const { bg, color, emoji } = palette[tier];
+  return (
+    <span
+      title={`Tier fidélité ${TIER_LABELS[tier]} — recomputé mensuellement (revenu 365j)`}
+      style={{
+        display: 'inline-block',
+        padding: '3px 10px',
+        background: bg,
+        color,
+        borderRadius: 'var(--r-pill)',
+        fontSize: 11,
+        fontFamily: 'var(--font-mono)',
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+      }}
+    >
+      {emoji} {TIER_LABELS[tier]}
+    </span>
   );
 }
