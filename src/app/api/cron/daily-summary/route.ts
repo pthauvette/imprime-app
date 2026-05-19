@@ -136,6 +136,7 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const last24hStart = new Date(now.getTime() - 24 * 3600 * 1000);
 
+  try {
   // Fetch tout en parallèle
   const [
     rev24h,
@@ -219,13 +220,31 @@ export async function GET(req: NextRequest) {
     },
     recipients: sends,
   };
-  log.info(result, 'cron/daily-summary ran');
-  void pingCronHealthcheck('daily-summary', 'success', { orders24h, revenue24h });
-  void recordCronRun({
-    name: 'daily-summary',
-    status: 'success',
-    latencyMs: Date.now() - start,
-    data: { orders24h, revenue24h, recipients: sends.length },
-  });
-  return NextResponse.json(result);
+    log.info(result, 'cron/daily-summary ran');
+    void pingCronHealthcheck('daily-summary', 'success', { orders24h, revenue24h });
+    void recordCronRun({
+      name: 'daily-summary',
+      status: 'success',
+      latencyMs: Date.now() - start,
+      data: { orders24h, revenue24h, recipients: sends.length },
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    // Round 14 #4 — was missing : sans ce catch, un throw skip
+    // recordCronRun('fail') + healthcheck fail → Healthchecks.io ne détecte
+    // qu'au timeout next-ping.
+    log.error({ err }, 'cron/daily-summary failed');
+    const errMsg = err instanceof Error ? err.message : 'unknown';
+    void pingCronHealthcheck('daily-summary', 'fail', { error: errMsg });
+    void recordCronRun({
+      name: 'daily-summary',
+      status: 'fail',
+      latencyMs: Date.now() - start,
+      errorMessage: errMsg,
+    });
+    return NextResponse.json(
+      { ok: false, error: errMsg, latencyMs: Date.now() - start },
+      { status: 500 },
+    );
+  }
 }

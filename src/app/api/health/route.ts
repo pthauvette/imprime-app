@@ -78,17 +78,17 @@ export async function GET() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     }),
-    // Degraded : Stripe API auth (balance retrieve = no PII, lightweight)
+    // Degraded : Stripe API auth — Round 14 #4 fix : on ne retourne PLUS
+    // la balance dans le detail (endpoint /api/health est public + wildcard
+    // CORS dropped, mais defense en profondeur). On vérifie juste que
+    // l'API répond — pas besoin d'exposer le montant à qui poll ça.
     stripe
       ? timed(
           async () => {
-            const balance = await stripe.balance.retrieve({}, { timeout: TIMEOUT_MS });
-            return balance;
+            await stripe.balance.retrieve({}, { timeout: TIMEOUT_MS });
+            return { ok: true };
           },
-          (b) => ({
-            available: b.available[0]?.amount ?? null,
-            currency: b.available[0]?.currency,
-          }),
+          () => ({ reachable: true }),
         )
       : Promise.resolve<CheckResult>({ status: 'fail', latencyMs: 0, error: 'STRIPE_SECRET_KEY not set' }),
     // Degraded : email queue dead-letter count (alert si > 10 dans la dernière heure)
@@ -148,7 +148,10 @@ export async function GET() {
       status: httpStatus,
       headers: {
         'Cache-Control': 'no-store, max-age=0',
-        'Access-Control-Allow-Origin': '*',
+        // Round 14 #4 fix : wildcard CORS dropped. /api/health est consommé
+        // par Healthchecks.io (server-side curl, pas de CORS) + monitoring
+        // dashboards intern. Aucune raison de l'exposer cross-origin. Si
+        // un service externe doit poll, ajoute son origin spécifique.
       },
     },
   );

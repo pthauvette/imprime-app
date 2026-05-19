@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
 
   const start = Date.now();
 
+  try {
   // Fetch emails prêtes pour retry
   const ready = await getEmailsReadyForRetry(BATCH_SIZE);
 
@@ -83,13 +84,30 @@ export async function GET(req: NextRequest) {
     stillFailed,
   };
 
-  log.info(result, 'cron/email-retry ran');
-  void pingCronHealthcheck('email-retry', 'success', { sent, stillFailed });
-  void recordCronRun({
-    name: 'email-retry',
-    status: 'success',
-    latencyMs: Date.now() - start,
-    data: { processed: results.length, sent, stillFailed },
-  });
-  return NextResponse.json(result);
+    log.info(result, 'cron/email-retry ran');
+    void pingCronHealthcheck('email-retry', 'success', { sent, stillFailed });
+    void recordCronRun({
+      name: 'email-retry',
+      status: 'success',
+      latencyMs: Date.now() - start,
+      data: { processed: results.length, sent, stillFailed },
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    // Round 14 #4 — was missing : sans ce catch, un throw skip
+    // recordCronRun('fail') + healthcheck fail.
+    log.error({ err }, 'cron/email-retry failed');
+    const errMsg = err instanceof Error ? err.message : 'unknown';
+    void pingCronHealthcheck('email-retry', 'fail', { error: errMsg });
+    void recordCronRun({
+      name: 'email-retry',
+      status: 'fail',
+      latencyMs: Date.now() - start,
+      errorMessage: errMsg,
+    });
+    return NextResponse.json(
+      { ok: false, error: errMsg, latencyMs: Date.now() - start },
+      { status: 500 },
+    );
+  }
 }
