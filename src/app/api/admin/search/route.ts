@@ -19,7 +19,7 @@ import { withErrorHandler } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
 
 interface ResultItem {
-  type: 'order' | 'user' | 'message' | 'quote' | 'reseller';
+  type: 'order' | 'user' | 'message' | 'quote' | 'reseller' | 'broadcast';
   id: string;
   href: string;
   primary: string;
@@ -42,7 +42,7 @@ export const GET = withErrorHandler(async (req: Request) => {
 
   const ilike = { contains: q, mode: 'insensitive' as const };
 
-  const [orders, users, messages, quotes, resellers] = await Promise.all([
+  const [orders, users, messages, quotes, resellers, broadcasts] = await Promise.all([
     prisma.order.findMany({
       where: {
         OR: [
@@ -150,6 +150,27 @@ export const GET = withErrorHandler(async (req: Request) => {
         createdAt: true,
       },
     }),
+    prisma.emailBroadcast.findMany({
+      where: {
+        OR: [
+          { subject: ilike },
+          { body: ilike },
+          { notes: ilike },
+          { adminEmail: ilike },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: PER_TYPE,
+      select: {
+        id: true,
+        subject: true,
+        segment: true,
+        status: true,
+        recipientCount: true,
+        adminEmail: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   const results: ResultItem[] = [];
@@ -204,6 +225,16 @@ export const GET = withErrorHandler(async (req: Request) => {
       primary: r.companyName,
       secondary: `${r.contactName} · ${r.email}`,
       meta: `${r.status} · ${r.createdAt.toLocaleDateString('fr-CA')}`,
+    });
+  }
+  for (const b of broadcasts) {
+    results.push({
+      type: 'broadcast',
+      id: b.id,
+      href: '/admin/broadcast',
+      primary: b.subject,
+      secondary: `${b.segment} · ${b.recipientCount} dest. · ${b.adminEmail}`,
+      meta: `${b.status} · ${b.createdAt.toLocaleDateString('fr-CA')}`,
     });
   }
 
