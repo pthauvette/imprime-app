@@ -398,7 +398,9 @@ export async function sendReengagementFollowUpEmail(input: {
   reviewUrl: string;
 }) {
   const { order, user } = input;
-  if (!user.emailDeliveryNotifications) {
+  // Round 13 #1 : check le flag granulaire emailReengagement (pas le legacy
+  // emailDeliveryNotifications qui ne couvre que les ship/delivered).
+  if (!user.emailReengagement) {
     logEmail.info({ userId: user.id, kind: 'reengagement-follow-up' }, 'skipping — user opted out');
     return { sent: false, optedOut: true };
   }
@@ -431,7 +433,8 @@ export async function sendReengagementWinbackEmail(input: {
   daysSinceLast: number;
 }) {
   const { user } = input;
-  if (!user.emailDeliveryNotifications) {
+  // Round 13 #1 : flag granulaire (winback campaigns)
+  if (!user.emailReengagement) {
     logEmail.info({ userId: user.id, kind: 'reengagement-winback' }, 'skipping — user opted out');
     return { sent: false, optedOut: true };
   }

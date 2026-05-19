@@ -5,7 +5,7 @@
  *   - 'newsletter' : NewsletterSubscriber actifs (consentement EXPRESS via
  *     coche du form au moment de l'inscription — IP enregistrée comme preuve)
  *   - 'customers' : User avec au moins 1 commande payée dans les 24 derniers
- *     mois ET emailDeliveryNotifications = true. Le statut "existing business
+ *     mois ET emailMarketing = true. Le statut "existing business
  *     relationship" donne 24 mois de implied consent pour des emails liés au
  *     commerce.
  *   - 'all' : union newsletter + customers, dédupé par email lowercase
@@ -70,7 +70,7 @@ export async function resolveRecipients(segment: BroadcastSegment): Promise<stri
     // Users opted-in qui ont au moins une commande payée dans les 24 derniers mois.
     const users = await prisma.user.findMany({
       where: {
-        emailDeliveryNotifications: true,
+        emailMarketing: true,
         orders: {
           some: {
             status: { in: [...PAID_STATUSES] },
@@ -90,7 +90,7 @@ export async function resolveRecipients(segment: BroadcastSegment): Promise<stri
       : 'BRONZE';
     const users = await prisma.user.findMany({
       where: {
-        emailDeliveryNotifications: true,
+        emailMarketing: true,
         loyaltyTier: tier,
         // BRONZE inclut tous les nouveaux users qui n'ont jamais commandé —
         // pour CASL on garde uniquement ceux avec ≥ 1 order dans la fenêtre.
@@ -108,7 +108,7 @@ export async function resolveRecipients(segment: BroadcastSegment): Promise<stri
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 3600 * 1000);
     const users = await prisma.user.findMany({
       where: {
-        emailDeliveryNotifications: true,
+        emailMarketing: true,
         orders: {
           some: {
             status: { in: [...PAID_STATUSES] },

@@ -51,7 +51,7 @@ describe('resolveRecipients — segments existants', () => {
     ] as never);
     await resolveRecipients('customers');
     const arg = vi.mocked(prisma.user.findMany).mock.calls[0]?.[0];
-    expect(arg?.where?.emailDeliveryNotifications).toBe(true);
+    expect(arg?.where?.emailMarketing).toBe(true);
     expect((arg?.where?.orders?.some?.status as { in?: string[] })?.in).toEqual(
       expect.arrayContaining(['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED']),
     );
@@ -64,7 +64,7 @@ describe('resolveRecipients — tier segments (Round 12 #5)', () => {
     await resolveRecipients('tier-gold');
     const arg = vi.mocked(prisma.user.findMany).mock.calls[0]?.[0];
     expect(arg?.where?.loyaltyTier).toBe('GOLD');
-    expect(arg?.where?.emailDeliveryNotifications).toBe(true);
+    expect(arg?.where?.emailMarketing).toBe(true);
     // GOLD a une CASL implicite via le tier (revenu > 2000 $) — pas besoin du filtre order
     expect(arg?.where?.orders).toBeUndefined();
   });
@@ -95,7 +95,7 @@ describe('resolveRecipients — inactive-90d', () => {
     await resolveRecipients('inactive-90d');
     const arg = vi.mocked(prisma.user.findMany).mock.calls[0]?.[0];
     const where = arg?.where as Record<string, unknown>;
-    expect(where?.emailDeliveryNotifications).toBe(true);
+    expect(where?.emailMarketing).toBe(true);
     const orders = where?.orders as { some?: Record<string, unknown>; none?: Record<string, unknown> };
     expect(orders?.some).toBeDefined();
     expect(orders?.none).toBeDefined();
