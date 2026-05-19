@@ -494,7 +494,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   50% { opacity: 0.4; }
 }
 
-/* Récap panel */
+/* Récap panel — sticky pour rester visible (choix + prix) pendant le scroll. */
 .recap {
   background: var(--bg-sunken);
   border-left: 1px solid var(--border-subtle);
@@ -502,6 +502,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   display: grid;
   gap: 32px;
   align-content: start;
+  position: sticky;
+  top: 72px; /* hauteur shell-header sticky */
+  align-self: start;
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
 }
 .recap-section-label {
   font-family: var(--font-mono);

@@ -150,7 +150,6 @@ export default async function OrderStartPage({
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
-          <button className="btn btn-ghost btn-sm">⌘ K</button>
         </div>
       </header>
 

@@ -133,8 +133,6 @@ export default function QuantityClient({
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Sauvegardé · 1s</span>
-          <button className="btn btn-ghost btn-sm">⌘ K</button>
         </div>
       </header>
 
