@@ -2,11 +2,11 @@
  * /settings/email-preferences — gestion CASL des préférences email.
  *
  * Cible des liens "Se désabonner" dans les footers des emails. Permet :
- *   - Opt-out des delivery notifications (shipped, delivered) — opt-able
- *   - Voir la liste des emails transactionnels jamais opt-out (magic link,
- *     confirmation order, cancellation, refund) — REQUIS par le service
+ *   - Notifs de livraison (shipped, delivered) — opt-able
+ *   - Marketing (broadcasts admin, newsletter) — opt-able
+ *   - Re-engagement (winback, follow-up post-livraison) — opt-able
  *
- * Server Action sur le toggle pour persist en DB instantanément.
+ * Server Actions sur chaque toggle pour persist en DB instantanément.
  */
 
 import { redirect } from 'next/navigation';
@@ -20,7 +20,9 @@ import Sidebar from '@/components/account/Sidebar';
 export const metadata = { title: 'Préférences email — Plio' };
 export const dynamic = 'force-dynamic';
 
-async function toggleDeliveryNotifications(formData: FormData) {
+type PrefField = 'emailDeliveryNotifications' | 'emailMarketing' | 'emailReengagement';
+
+async function togglePref(field: PrefField, formData: FormData) {
   'use server';
   const session = await auth();
   if (!session?.user?.id) {
@@ -29,9 +31,22 @@ async function toggleDeliveryNotifications(formData: FormData) {
   const enabled = formData.get('enabled') === 'true';
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { emailDeliveryNotifications: enabled },
+    data: { [field]: enabled },
   });
   revalidatePath('/settings/email-preferences');
+}
+
+async function toggleDelivery(formData: FormData) {
+  'use server';
+  await togglePref('emailDeliveryNotifications', formData);
+}
+async function toggleMarketing(formData: FormData) {
+  'use server';
+  await togglePref('emailMarketing', formData);
+}
+async function toggleReengagement(formData: FormData) {
+  'use server';
+  await togglePref('emailReengagement', formData);
 }
 
 export default async function EmailPreferencesPage() {
@@ -42,7 +57,12 @@ export default async function EmailPreferencesPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { email: true, emailDeliveryNotifications: true },
+    select: {
+      email: true,
+      emailDeliveryNotifications: true,
+      emailMarketing: true,
+      emailReengagement: true,
+    },
   });
   if (!user) {
     redirect('/sign-in' as Route);
@@ -82,7 +102,7 @@ export default async function EmailPreferencesPage() {
           Préférences <em style={{ color: 'var(--accent-primary)' }}>email.</em>
         </h1>
         <p style={{ fontSize: 16, color: 'var(--text-muted)', margin: '0 0 48px' }}>
-          On envoie le minimum. Tu peux désactiver les notifications de livraison ci-dessous.
+          On envoie le minimum. Chaque type est opt-able indépendamment.
           Les emails liés à ton compte ou à une commande active restent toujours envoyés (requis par le service).
         </p>
 
@@ -94,6 +114,8 @@ export default async function EmailPreferencesPage() {
             borderRadius: 'var(--r-xl)',
             padding: 32,
             marginBottom: 24,
+            display: 'grid',
+            gap: 24,
           }}
         >
           <h2
@@ -101,18 +123,34 @@ export default async function EmailPreferencesPage() {
               fontFamily: 'var(--font-display)',
               fontSize: 24,
               letterSpacing: '-0.01em',
-              margin: '0 0 24px',
+              margin: 0,
               fontWeight: 400,
             }}
           >
             Notifications optionnelles
           </h2>
 
-          <form action={toggleDeliveryNotifications}>
+          <form action={toggleDelivery}>
             <PreferenceRow
               title="Notifications de livraison"
               description="Email quand ta commande est expédiée et quand elle est livrée."
               enabled={user.emailDeliveryNotifications}
+            />
+          </form>
+
+          <form action={toggleMarketing}>
+            <PreferenceRow
+              title="Marketing & nouveautés"
+              description="Annonces produits, promos saisonnières, broadcasts ciblés selon ton tier de fidélité."
+              enabled={user.emailMarketing}
+            />
+          </form>
+
+          <form action={toggleReengagement}>
+            <PreferenceRow
+              title="Re-engagement"
+              description="Suivi 7 j après livraison (demande d'avis) + offres de bienvenue si tu n'as pas commandé depuis longtemps."
+              enabled={user.emailReengagement}
             />
           </form>
         </section>
@@ -153,6 +191,10 @@ export default async function EmailPreferencesPage() {
               title="Annulation ou remboursement"
               description="Envoyé si une commande est annulée ou remboursée."
             />
+            <RequiredRow
+              title="Échec de paiement"
+              description="Envoyé si une carte est refusée, pour que tu puisses ré-essayer."
+            />
           </ul>
         </section>
 
@@ -173,7 +215,7 @@ export default async function EmailPreferencesPage() {
           <span>
             <strong>Compte concerné :</strong> {user.email}
             <br />
-            Pour changer l'adresse, va dans{' '}
+            Pour changer l&apos;adresse, va dans{' '}
             <Link href={'/settings' as Route} style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>
               Paramètres du compte
             </Link>.

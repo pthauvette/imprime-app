@@ -40,8 +40,14 @@ model User {
   // Email preferences (CASL compliance — Canadian anti-spam law).
   // Transactional emails (magic link, order confirmation, cancellation,
   // refund) ne sont JAMAIS opt-out — requis pour que le service marche.
-  // Seuls les "delivery notifications" (shipped, delivered) sont opt-able.
+  // Les autres types sont opt-able indépendamment :
+  //   - emailDeliveryNotifications : ship/delivered (legacy nom, kept pour
+  //     ne pas casser le check existant — c'est le toggle "live order updates")
+  //   - emailMarketing : broadcasts admin (newsletter, annonces, tier campagnes)
+  //   - emailReengagement : winback + post-delivery follow-up
   emailDeliveryNotifications Boolean @default(true)
+  emailMarketing             Boolean @default(true)
+  emailReengagement          Boolean @default(true)
 
   // ─── Parrainage ────────────────────────────────────────────────────────
   // Le code unique de cet user pour parrainer (ex: "PATRICK7H4N").
