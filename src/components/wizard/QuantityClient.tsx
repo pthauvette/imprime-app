@@ -6,6 +6,7 @@ import type { Route } from 'next';
 import { useMemo, useState } from 'react';
 import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
 interface Props {
   product: SinaliteProduct;
@@ -133,6 +134,7 @@ export default function QuantityClient({
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
+          <ClientHeaderUserSlot hideWhenAnonymous />
         </div>
       </header>
 

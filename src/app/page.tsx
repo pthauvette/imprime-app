@@ -9,8 +9,10 @@ import NewsletterSignup from '@/components/marketing/NewsletterSignup';
 import TestimonialsSection from '@/components/marketing/TestimonialsSection';
 import LangSwitch from '@/components/i18n/LangSwitch';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
+import UserMenu from '@/components/account/UserMenu';
 import { getServerLocale } from '@/lib/i18n/locale';
 import { translate } from '@/lib/i18n/messages';
+import { auth } from '@/auth';
 
 export const metadata = { title: "Plio — Print wholesale au Canada" };
 
@@ -19,6 +21,8 @@ export default async function LandingPage() {
   // Le reste du contenu marketing reste en FR (migration incrémentale).
   const locale = await getServerLocale();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const session = await auth();
+  const sessionUser = session?.user;
 
   return (
     <>
@@ -34,9 +38,24 @@ export default async function LandingPage() {
             <a href="#products" className="mkt-nav-link">{t('nav.products')}</a>
             <a href="#how" className="mkt-nav-link">{t('nav.howItWorks')}</a>
             <a href="/blog" className="mkt-nav-link">{t('nav.blog')}</a>
-            <a href="/orders" className="mkt-nav-link">{t('nav.signIn')}</a>
-            <a href="/order/start" className="mkt-nav-cta">{t('nav.startOrder')} →</a>
-            <LangSwitch />
+            {sessionUser ? (
+              <>
+                <a href="/order/start" className="mkt-nav-cta">{t('nav.startOrder')} →</a>
+                <UserMenu
+                  user={{
+                    name: sessionUser.name ?? null,
+                    email: sessionUser.email ?? '',
+                    image: sessionUser.image ?? null,
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <a href="/sign-in" className="mkt-nav-link">{t('nav.signIn')}</a>
+                <a href="/order/start" className="mkt-nav-cta">{t('nav.startOrder')} →</a>
+                <LangSwitch />
+              </>
+            )}
           </div>
         </nav>
 

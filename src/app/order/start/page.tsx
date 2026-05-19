@@ -19,6 +19,7 @@ import { prisma } from '@/lib/db';
 import { buildReorderDeepLink } from '@/lib/orders/reorder';
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
+import HeaderUserSlot from '@/components/account/HeaderUserSlot';
 import * as Sentry from '@sentry/nextjs';
 
 export const metadata = { title: "Quoi imprimer ?" };
@@ -150,6 +151,7 @@ export default async function OrderStartPage({
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
+          <HeaderUserSlot hideWhenAnonymous />
         </div>
       </header>
 

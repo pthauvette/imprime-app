@@ -6,6 +6,7 @@ import type { Route } from 'next';
 import { useState, useMemo } from 'react';
 import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
 type OptionGroupMap = Record<string, SinaliteOption[]>;
 
@@ -114,6 +115,7 @@ export default function ConfigureClient({
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
+          <ClientHeaderUserSlot hideWhenAnonymous />
         </div>
       </header>
 

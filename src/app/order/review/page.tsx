@@ -21,6 +21,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { useCart, type CartItem } from '@/lib/cart/store';
+import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 function getStripe() {
@@ -245,6 +246,7 @@ function ReviewPageInner() {
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
+          <ClientHeaderUserSlot hideWhenAnonymous />
         </div>
       </header>
 
