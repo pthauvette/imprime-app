@@ -33,7 +33,7 @@ const baseUser: User = {
   emailVerified: null,
   image: null,
   role: 'USER',
-  emailDeliveryNotifications: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null, // default
+  emailDeliveryNotifications: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null, loyaltyTier: 'BRONZE', loyaltyTierComputedAt: null, // default
   createdAt: new Date(),
   updatedAt: new Date(),
 };

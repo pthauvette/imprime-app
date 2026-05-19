@@ -16,6 +16,12 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
 import { formatCurrency, formatDate } from '@/lib/format';
+import {
+  type LoyaltyTier,
+  TIER_LABELS,
+  TIER_PERKS,
+  nextTierProgress,
+} from '@/lib/customers/loyalty';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Mon compte · Plio' };
@@ -40,12 +46,13 @@ export default async function AccountDashboardPage() {
   const userId = session.user.id;
 
   // Parallel fetch tout ce dont on a besoin
-  const [user, recentOrders, ltvAgg, referralsCount, savedConfigsCount, lastSavedConfig] = await Promise.all([
+  const [user, recentOrders, ltvAgg, ltv365Agg, referralsCount, savedConfigsCount, lastSavedConfig] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
         firstName: true,
         name: true,
+        loyaltyTier: true,
         email: true,
         referralCode: true,
         referralCreditCents: true,
@@ -71,6 +78,15 @@ export default async function AccountDashboardPage() {
       _sum: { amountCents: true },
       _count: { _all: true },
     }),
+    // Revenu 365 derniers jours pour loyalty tier progress
+    prisma.order.aggregate({
+      where: {
+        userId,
+        paidAt: { gte: new Date(Date.now() - 365 * 24 * 3600 * 1000) },
+        status: { notIn: ['CANCELLED', 'FAILED'] },
+      },
+      _sum: { amountCents: true },
+    }),
     prisma.referralReward.count({ where: { referrerId: userId } }),
     prisma.savedConfig.count({ where: { userId } }),
     prisma.savedConfig.findFirst({
@@ -84,6 +100,7 @@ export default async function AccountDashboardPage() {
 
   const greeting = user.firstName ?? user.name?.split(' ')[0] ?? user.email.split('@')[0];
   const ltvCents = ltvAgg._sum.amountCents ?? 0;
+  const ltvLast365dCents = ltv365Agg._sum.amountCents ?? 0;
   const orderCount = ltvAgg._count._all;
   const referralUrl = user.referralCode
     ? `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca'}?ref=${user.referralCode}`
@@ -131,6 +148,7 @@ export default async function AccountDashboardPage() {
             value={String(referralsCount)}
             hint={referralUrl ? 'Partage ton code' : 'Active ton code'}
           />
+          <LoyaltyCard tier={(user.loyaltyTier as 'BRONZE' | 'SILVER' | 'GOLD') ?? 'BRONZE'} revenueLast365dCents={ltvLast365dCents} />
         </section>
 
         {/* Grid : Recent orders + Side widgets */}
@@ -391,6 +409,95 @@ function EmptyState() {
       >
         Démarrer une commande →
       </Link>
+    </div>
+  );
+}
+
+/**
+ * LoyaltyCard — affiche le tier courant + progress vers next tier.
+ *
+ * Pattern : carte dense pour la rangée de stats. Pas de CTA — c'est de
+ * l'info pure. Les perks complets sont visibles ailleurs (futur :
+ * /account/loyalty page).
+ */
+function LoyaltyCard({
+  tier,
+  revenueLast365dCents,
+}: {
+  tier: LoyaltyTier;
+  revenueLast365dCents: number;
+}) {
+  const progress = nextTierProgress({ revenueLast365dCents });
+  const TIER_COLORS: Record<LoyaltyTier, string> = {
+    BRONZE: '#B45309',
+    SILVER: '#6B7280',
+    GOLD: '#D97706',
+  };
+  const TIER_EMOJI: Record<LoyaltyTier, string> = {
+    BRONZE: '🥉',
+    SILVER: '🥈',
+    GOLD: '🥇',
+  };
+  const perksPreview = TIER_PERKS[tier][0] ?? '';
+
+  return (
+    <div
+      style={{
+        padding: 20,
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--r-lg)',
+      }}
+    >
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>
+        Statut fidélité
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 28,
+          letterSpacing: '-0.02em',
+          color: TIER_COLORS[tier],
+          fontWeight: 400,
+          lineHeight: 1.1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <span>{TIER_EMOJI[tier]}</span>
+        <span>{TIER_LABELS[tier]}</span>
+      </div>
+      {progress.next && progress.needsCents !== null ? (
+        <>
+          <div
+            style={{
+              marginTop: 10,
+              height: 6,
+              background: 'var(--bg-sunken)',
+              borderRadius: 999,
+              overflow: 'hidden',
+            }}
+            aria-label={`Progression vers ${TIER_LABELS[progress.next]}`}
+          >
+            <div
+              style={{
+                width: `${progress.progressPct}%`,
+                height: '100%',
+                background: 'var(--accent-primary)',
+                transition: 'width 0.3s ease',
+              }}
+            />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+            +{formatCurrency(progress.needsCents / 100)} pour atteindre {TIER_LABELS[progress.next]}
+          </div>
+        </>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+          {perksPreview}
+        </div>
+      )}
     </div>
   );
 }

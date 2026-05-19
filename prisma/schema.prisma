@@ -54,6 +54,17 @@ model User {
   // checkout (logique dans api/orders/create). Ne peut pas devenir négatif.
   referralCreditCents        Int       @default(0)
 
+  // ─── Loyalty tier ─────────────────────────────────────────────────────
+  // Tier basé sur le revenu net 365 derniers jours. Recomputé mensuellement
+  // via /api/cron/loyalty-tiers. Sert à :
+  //  - Display badge sur /account
+  //  - Future : free shipping GOLD, priorité production, etc.
+  // BRONZE = default, SILVER ≥ $500/an, GOLD ≥ $2000/an.
+  // Cf src/lib/customers/loyalty.ts.
+  loyaltyTier              String   @default("BRONZE")
+  /** Dernière fois que le tier a été recalculé. NULL = jamais. */
+  loyaltyTierComputedAt    DateTime?
+
   // ─── Notes admin ───────────────────────────────────────────────────────
   // Memo interne admin sur ce customer (free-text, jamais affiché au user).
   // Use cases : "client réticent au paiement carte", "appelle plutôt qu'écrit",
