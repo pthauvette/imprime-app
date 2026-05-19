@@ -10,17 +10,24 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { withSlowQueryLog } from './db/slow-query-log';
 
 declare global {
   // eslint-disable-next-line no-var
   var __prisma: PrismaClient | undefined;
 }
 
-export const prisma =
-  globalThis.__prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-  });
+// Wrap with slow query log extension. $extends erode le type — cast vers
+// PrismaClient préserve la surface API pour les call sites existants.
+function makeClient(): PrismaClient {
+  return withSlowQueryLog(
+    new PrismaClient({
+      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+    }),
+  );
+}
+
+export const prisma = globalThis.__prisma ?? makeClient();
 
 if (process.env.NODE_ENV !== 'production') {
   globalThis.__prisma = prisma;
