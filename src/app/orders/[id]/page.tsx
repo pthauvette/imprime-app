@@ -18,6 +18,7 @@ import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
 import CancelRequestButton from '@/components/account/CancelRequestButton';
 import NpsWidget from '@/components/account/NpsWidget';
+import OrderEventsTimeline from '@/components/account/OrderEventsTimeline';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import type { OrderStatus } from '@/lib/db/orders';
@@ -280,6 +281,19 @@ export default async function CustomerOrderDetailPage({
                 ))}
               </div>
             </section>
+
+            {/* Historique détaillé — chaque OrderEvent (Round 13 #4).
+                Complète le "Suivi en direct" (5 macro-étapes) en montrant
+                chaque webhook reçu / chaque transition d'état avec son
+                payload friendly (tracking, refund, statut presse…). */}
+            {order.events.length > 0 && (
+              <section className="panel" style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-xl)' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '-0.01em', margin: '0 0 20px', fontWeight: 400 }}>
+                  Historique détaillé
+                </h2>
+                <OrderEventsTimeline events={order.events} showErrors={isAdmin} />
+              </section>
+            )}
 
             <section className="panel" style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-xl)' }}>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '-0.01em', margin: '0 0 20px', fontWeight: 400 }}>
