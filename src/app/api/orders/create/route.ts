@@ -25,6 +25,7 @@ import { findOrCreateUserByEmail, createPendingOrder } from '@/lib/db/orders';
 import { buildItemsSnapshot } from '@/lib/orders/items';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { applyShippingPerks } from '@/lib/customers/perks';
 import { normalizeCode, validatePromo } from '@/lib/promo/validate';
 
 // ─── STRIPE ───────────────────────────────────────────────────────────────
@@ -206,28 +207,40 @@ export const POST = withErrorHandler(async (req: Request) => {
     discountAmount = r.discountCents / 100;
   }
 
+  // Phase 2b-pre: loyalty GOLD perk = livraison gratuite (Round 13 #5).
+  // Lookup session ici en avance pour pouvoir applique le perk AVANT
+  // taxe (sinon le user paie la taxe sur du shipping qu'on ne facture pas).
+  // Source de vérité = DB user.loyaltyTier (jamais trust le payload client).
+  const earlySession = await auth();
+  let userLoyaltyTier: string | null = null;
+  let userReferralCreditCents = 0;
+  if (earlySession?.user?.id) {
+    const userPrefs = await prisma.user.findUnique({
+      where: { id: earlySession.user.id },
+      select: { loyaltyTier: true, referralCreditCents: true },
+    });
+    userLoyaltyTier = userPrefs?.loyaltyTier ?? null;
+    userReferralCreditCents = userPrefs?.referralCreditCents ?? 0;
+  }
+  const perks = applyShippingPerks({
+    tier: userLoyaltyTier,
+    shippingPrice: payload.shippingPrice,
+  });
+  const effectiveShippingPrice = perks.effectiveShippingPrice;
+  const goldFreeShippingApplied = perks.goldFreeShipping;
+
   // Phase 2b: tax computation — taxe sur (subtotal - discount + shipping)
-  const taxableSubtotal = subtotal - discountAmount + payload.shippingPrice;
+  const taxableSubtotal = subtotal - discountAmount + effectiveShippingPrice;
   const tax = computeTax(taxableSubtotal, payload.shippingAddress.province);
   const grossTotalCents = Math.round((taxableSubtotal + tax.total) * 100);
 
   // Phase 2c: applique le crédit de parrainage si user connecté + balance > 0.
-  // Lookup session ici (avant Stripe intent) pour pouvoir déduire. Pour les
-  // guests, pas de crédit — il faut être logged in pour avoir un User row.
   // Stripe interdit un PaymentIntent à 0 cents → on cap au max grossTotal - 50¢
-  // pour garder un minimum de 50¢ chargé (et éviter "fully covered by credit"
-  // qui demande un autre flow).
-  const earlySession = await auth();
+  // pour garder un minimum de 50¢ chargé.
   let referralCreditApplied = 0;
-  if (earlySession?.user?.id) {
-    const balance = await prisma.user.findUnique({
-      where: { id: earlySession.user.id },
-      select: { referralCreditCents: true },
-    });
-    if (balance && balance.referralCreditCents > 0) {
-      const maxCoverable = Math.max(0, grossTotalCents - 50);
-      referralCreditApplied = Math.min(balance.referralCreditCents, maxCoverable);
-    }
+  if (userReferralCreditCents > 0) {
+    const maxCoverable = Math.max(0, grossTotalCents - 50);
+    referralCreditApplied = Math.min(userReferralCreditCents, maxCoverable);
   }
   const totalCents = grossTotalCents - referralCreditApplied;
 
@@ -254,6 +267,7 @@ export const POST = withErrorHandler(async (req: Request) => {
       shippingMethod: payload.shippingMethod,
       contactEmail: payload.contact.email,
       referralCreditApplied: String(referralCreditApplied),
+      ...(goldFreeShippingApplied && { goldFreeShipping: 'true' }),
     },
   });
 
@@ -295,7 +309,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     amountCents: totalCents,
     itemsCount: payload.items.length,
     subtotalCents: Math.round(subtotal * 100),
-    shippingCents: Math.round(payload.shippingPrice * 100),
+    shippingCents: Math.round(effectiveShippingPrice * 100),
     taxCents: Math.round(tax.total * 100),
     discountCents: Math.round(discountAmount * 100),
     referralCreditAppliedCents: referralCreditApplied,
@@ -338,11 +352,19 @@ export const POST = withErrorHandler(async (req: Request) => {
       subtotal,
       discount: discountAmount,
       promoCode: promoRecord?.code ?? null,
-      shipping: payload.shippingPrice,
+      shipping: effectiveShippingPrice,
+      originalShipping: payload.shippingPrice,
       tax: tax.total,
       taxLines: tax.lines,
       total: taxableSubtotal + tax.total,
       currency: 'CAD',
+      // Perks appliqués automatiquement côté serveur (Round 13 #5).
+      // Le client peut s'en servir pour afficher un toast/badge "🥇 Livraison
+      // offerte avec ton statut OR" sans avoir à re-fetch user.
+      perks: {
+        goldFreeShipping: goldFreeShippingApplied,
+        loyaltyTier: userLoyaltyTier,
+      },
     },
   });
 });
