@@ -321,6 +321,36 @@ function ShippingPageInner() {
               // wizard (cas multi-item où l'user ajoute un 2e produit).
               // Auto-cleared sur /order/confirmation.
               writeSavedShip({ firstName, lastName, email, phone, line1, line2, city, province, postalCode });
+              // Capture abandoned-cart : on a l'email + on quitte shipping
+              // pour review. Cron envoie un recovery 24h+ après si pas
+              // de checkout. Best-effort fire-and-forget — pas d'await
+              // pour pas bloquer le router.push.
+              if (productId && email.includes('@')) {
+                const resumeParams = new URLSearchParams({
+                  options,
+                  files,
+                  ship: JSON.stringify({
+                    firstName, lastName, email, phone,
+                    line1, line2, city, province, postalCode,
+                    method: selectedMethod, price: selectedShippingPrice,
+                  }),
+                });
+                void fetch('/api/abandoned-cart', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    email,
+                    productId: Number(productId),
+                    resumeQuery: resumeParams.toString(),
+                    lastStep: 'shipping',
+                  }),
+                  // keepalive : permet à la requête de survivre à la
+                  // navigation router.push qui va suivre immédiatement.
+                  keepalive: true,
+                }).catch(() => {
+                  // Silencieux : on n'embête pas le user si le tracker fail
+                });
+              }
               router.push(nextHref);
             }}
             disabled={!canContinue}
