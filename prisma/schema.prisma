@@ -218,6 +218,10 @@ model Order {
   designDraft      DesignDraft?
   review           Review?
   npsResponse      NpsResponse?
+  webhookEvents    WebhookEvent[]   @relation("OrderWebhookEvents")
+  emailDeliveriesAttached EmailDelivery[] @relation("OrderEmailAttachments")
+  referralReward   ReferralReward?  @relation("OrderReferralReward")
+  contactMessages  ContactMessage[] @relation("OrderContactMessages")
 
   @@index([userId, createdAt])
   @@index([status])
@@ -373,7 +377,10 @@ model WebhookEvent {
   latencyMs   Int?
   error       String?
   // Link vers l'Order si on a pu résoudre — accélère les joins admin.
+  // FK + SetNull pour qu'un Order supprimé n'orphan pas la WebhookEvent
+  // row (qu'on garde pour audit / replay).
   orderId     String?
+  order       Order?   @relation("OrderWebhookEvents", fields: [orderId], references: [id], onDelete: SetNull)
 
   // Raw body du webhook — null pour les rows pré-migration. Stocké comme
   // string brute (pas parsé) pour replay fidèle. Limit pratique : Stripe
@@ -450,8 +457,11 @@ model EmailDelivery {
   /** Label optionnel pour grouper/dédup (orderId, action, etc.). */
   label         String?
   /** Si set, processDelivery génère la facture PDF de cet order à la volée
-   *  et l'attache à l'email (idempotent au retry — pas de bytes en DB). */
+   *  et l'attache à l'email (idempotent au retry — pas de bytes en DB).
+   *  FK avec SetNull pour qu'un Order supprimé ne crashe pas le retry —
+   *  l'email part juste sans attachment. */
   attachOrderId String?
+  attachOrder   Order?  @relation("OrderEmailAttachments", fields: [attachOrderId], references: [id], onDelete: SetNull)
   /** Première fois que le destinataire a ouvert l'email (pixel tracking).
    *  NULL = pas encore ouvert (ou client mail bloque les images). */
   openedAt      DateTime?
@@ -714,8 +724,11 @@ model ReferralReward {
   referrer        User     @relation("ReferralReferrer", fields: [referrerId], references: [id])
   refereeUserId   String   @unique
   referee         User     @relation("ReferralReferee", fields: [refereeUserId], references: [id])
-  /** Order qui a triggered le credit (1ère commande payée du filleul). */
-  refereeOrderId  String?
+  /** Order qui a triggered le credit (1ère commande payée du filleul).
+   *  FK + SetNull pour qu'un Order supprimé n'orphan pas le ReferralReward
+   *  (qu'on garde pour audit referral). UNIQUE = max 1 reward par order. */
+  refereeOrderId  String?  @unique
+  refereeOrder    Order?   @relation("OrderReferralReward", fields: [refereeOrderId], references: [id], onDelete: SetNull)
   /** Cents de crédit attribués à CHAQUE side (typique 1000 = 10$ CAD). */
   creditCents     Int
   status          String   @default("PENDING")
@@ -763,8 +776,11 @@ model ContactMessage {
   status          String    @default("OPEN")
   /** Notes internes admin (jamais affichées customer). */
   adminNotes      String?
-  /** Si lié à un Order spécifique (extracted du subject ou du body). */
+  /** Si lié à un Order spécifique (extracted du subject ou du body).
+   *  FK + SetNull pour garder le ContactMessage si l'Order disparait
+   *  (le message reste pertinent pour le customer support). */
   orderId         String?
+  order           Order?    @relation("OrderContactMessages", fields: [orderId], references: [id], onDelete: SetNull)
   /** Source : 'contact-form' | 'help-fab' | 'wizard-help'. */
   source          String?
   /** IP + UA pour anti-spam. */

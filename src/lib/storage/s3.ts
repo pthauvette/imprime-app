@@ -106,6 +106,21 @@ export async function createUploadPresign(opts: PresignOptions): Promise<Presign
 
   const maxBytes = Math.min(opts.maxBytes ?? MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_BYTES);
 
+  // ─── SÉCURITÉ : MIME enforcement multi-couche ─────────────────────
+  // L'audit (Round 14 #3) a flaggé un risque théorique : si le client
+  // passait un contentType mal-validé, il pourrait upload un text/html
+  // arbitrary qui se ferait servir par S3.
+  // Défense en profondeur appliquée :
+  //   1. Route /api/uploads/presign valide contentType via isAllowedMime()
+  //      avant d'appeler ici → on filtre déjà l'allowlist.
+  //   2. createUploadPresign re-valide isAllowedMime() (ligne 95 ci-dessus).
+  //   3. La policy S3 ci-dessous force `Content-Type` à matcher EXACTEMENT
+  //      ce qu'on a signé (['eq', '$Content-Type', opts.contentType]) — donc
+  //      même si le client uploade en multipart avec un autre header, S3
+  //      rejette le PUT. Pas de bypass possible côté browser.
+  //   4. x-amz-meta-content-type-options=nosniff évite que les browsers
+  //      content-sniff (UTF-8 inspection) un fichier servi via S3 et
+  //      l'interprètent comme HTML/script.
   const presigned = await createPresignedPost(getClient(), {
     Bucket: BUCKET,
     Key: key,
@@ -116,10 +131,15 @@ export async function createUploadPresign(opts: PresignOptions): Promise<Presign
       // Si on veut plus secure plus tard : remove ce ACL et utiliser des
       // presigned GET URLs valides 7j pour Sinalite.
       ['eq', '$acl', 'public-read'],
+      // Defense in depth : si le bucket policy laisse passer un mauvais
+      // Content-Type via une autre route, le metadata nosniff empêche le
+      // browser de sniffer.
+      ['eq', '$x-amz-meta-content-type-options', 'nosniff'],
     ],
     Fields: {
       'Content-Type': opts.contentType,
       acl: 'public-read',
+      'x-amz-meta-content-type-options': 'nosniff',
     },
     Expires: 600, // 10 min pour upload — large mais raisonnable pour 100MB+
   });
