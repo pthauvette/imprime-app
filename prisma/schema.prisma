@@ -217,6 +217,7 @@ model Order {
   events           OrderEvent[]
   designDraft      DesignDraft?
   review           Review?
+  npsResponse      NpsResponse?
 
   @@index([userId, createdAt])
   @@index([status])
@@ -990,6 +991,7 @@ model NpsResponse {
   id        String   @id @default(cuid())
   /** Order qui a généré la réponse — unique = max 1 NPS par order. */
   orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   /** Score 0-10 inclus. Contrainte app-side via Zod. */
   score     Int
   /** Pourquoi cette note (free-text, max 2000 chars). NULL si user
