@@ -1,23 +1,33 @@
 'use client';
 
 /**
- * Actions inline pour une config sauvegardée : Utiliser / Renommer / Supprimer.
+ * Actions inline pour une config sauvegardée : Utiliser / Renommer /
+ * Organiser (folder + tags Round 18 #2) / Supprimer.
  *
  * "Utiliser" : POST /api/saved-configs/[id] qui bump le compteur + retourne
- *  l'URL deep-link vers le wizard. On window.location.href pour navigate
- *  (router.push() ne re-render pas le server component pre-fill aussi
- *  rapidement et on veut un cold start propre du wizard).
- *
- * "Supprimer" : confirm() inline pour MVP. Future : modal Plio styled.
+ *  l'URL deep-link vers le wizard.
+ * "Organiser" : PUT /api/saved-configs/[id] avec folder?:string|null + tags?
+ *  (CSV ou null pour clear). Datalist propose les folders existants.
  */
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-export default function FavoriteActions({ id, name }: { id: string; name: string }) {
+interface Props {
+  id: string;
+  name: string;
+  folder?: string | null;
+  tags?: string | null;
+  existingFolders?: string[];
+}
+
+export default function FavoriteActions({ id, name, folder, tags, existingFolders = [] }: Props) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [folderInput, setFolderInput] = useState(folder ?? '');
+  const [tagsInput, setTagsInput] = useState(tags ?? '');
 
   async function use() {
     setError(null);
@@ -26,9 +36,7 @@ export default function FavoriteActions({ id, name }: { id: string; name: string
         const res = await fetch(`/api/saved-configs/${id}`, { method: 'POST' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-        if (data.url) {
-          window.location.href = data.url;
-        }
+        if (data.url) window.location.href = data.url;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur');
       }
@@ -57,6 +65,32 @@ export default function FavoriteActions({ id, name }: { id: string; name: string
     });
   }
 
+  async function saveOrganize() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const cleanFolder = folderInput.trim();
+        const cleanTags = tagsInput.trim();
+        const res = await fetch(`/api/saved-configs/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            folder: cleanFolder === '' ? null : cleanFolder,
+            tags: cleanTags === '' ? null : cleanTags,
+          }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.error ?? `HTTP ${res.status}`);
+        }
+        setEditing(false);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur');
+      }
+    });
+  }
+
   async function remove() {
     if (!window.confirm(`Supprimer "${name}" ?`)) return;
     setError(null);
@@ -74,39 +108,57 @@ export default function FavoriteActions({ id, name }: { id: string; name: string
     });
   }
 
+  if (editing) {
+    return (
+      <div style={{ display: 'grid', gap: 8, minWidth: 240 }}>
+        <input
+          type="text"
+          list={`folders-${id}`}
+          placeholder="Dossier (ex: cartes-biz)"
+          value={folderInput}
+          onChange={(e) => setFolderInput(e.target.value)}
+          maxLength={50}
+          style={{ padding: '6px 10px', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, background: 'var(--bg-canvas)', color: 'var(--text-primary)' }}
+        />
+        <datalist id={`folders-${id}`}>
+          {existingFolders.map((f) => <option key={f} value={f} />)}
+        </datalist>
+        <input
+          type="text"
+          placeholder="Tags séparés par virgule"
+          value={tagsInput}
+          onChange={(e) => setTagsInput(e.target.value)}
+          maxLength={300}
+          style={{ padding: '6px 10px', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, background: 'var(--bg-canvas)', color: 'var(--text-primary)' }}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={saveOrganize} disabled={busy} style={{ flex: 1 }}>
+            {busy ? '…' : 'Enregistrer'}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)} disabled={busy}>
+            Annuler
+          </button>
+        </div>
+        {error && <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <button
-        type="button"
-        className="btn btn-primary btn-sm"
-        onClick={use}
-        disabled={busy}
-        style={{ opacity: busy ? 0.5 : 1 }}
-      >
+      <button type="button" className="btn btn-primary btn-sm" onClick={use} disabled={busy} style={{ opacity: busy ? 0.5 : 1 }}>
         Utiliser →
       </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={rename}
-        disabled={busy}
-        title="Renommer"
-      >
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)} disabled={busy} title="Organiser (dossier + tags)">
+        📁
+      </button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={rename} disabled={busy} title="Renommer">
         Renommer
       </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={remove}
-        disabled={busy}
-        title="Supprimer"
-        style={{ color: 'var(--danger)' }}
-      >
+      <button type="button" className="btn btn-ghost btn-sm" onClick={remove} disabled={busy} title="Supprimer" style={{ color: 'var(--danger)' }}>
         ✕
       </button>
-      {error && (
-        <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>
-      )}
+      {error && <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>}
     </div>
   );
 }

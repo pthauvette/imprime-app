@@ -19,7 +19,12 @@ import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 type RouteCtx = { params: Promise<{ id: string }> };
 
 const RenameSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().min(1).max(100).optional(),
+  // Round 18 #2 — folder/tags update via même endpoint pour simplicité.
+  // null explicite = retirer du folder. undefined = ne pas toucher.
+  folder: z.string().trim().min(1).max(50).nullable().optional(),
+  /** Tags CSV — server normalise lowercase + dédup + max 10 tags. */
+  tags: z.string().max(300).nullable().optional(),
 });
 
 async function getOwnedConfig(id: string, userId: string) {
@@ -55,9 +60,28 @@ export const PUT = withErrorHandler(async (req: Request, ctx: RouteCtx) => {
   }
 
   const body = await parseBody(req, RenameSchema);
+
+  // Round 18 #2 — normalize folder + tags
+  const updateData: { name?: string; folder?: string | null; tags?: string | null } = {};
+  if (body.name) updateData.name = body.name.trim();
+  if (body.folder !== undefined) {
+    updateData.folder = body.folder === null ? null : body.folder.toLowerCase().trim();
+  }
+  if (body.tags !== undefined) {
+    if (body.tags === null || body.tags.trim() === '') {
+      updateData.tags = null;
+    } else {
+      // Normalize : lowercase, trim, dedupe, cap à 10 tags max
+      const tagList = Array.from(new Set(
+        body.tags.split(',').map((t) => t.toLowerCase().trim()).filter(Boolean),
+      )).slice(0, 10);
+      updateData.tags = tagList.join(',');
+    }
+  }
+
   const updated = await prisma.savedConfig.update({
     where: { id },
-    data: { name: body.name.trim() },
+    data: updateData,
   });
   return NextResponse.json({ config: updated });
 });
