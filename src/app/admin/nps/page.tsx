@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
 
@@ -21,7 +21,7 @@ export const metadata = { title: 'Admin — NPS' };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminNpsPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   if (!session?.user?.id || session.user.role !== 'ADMIN') {
     redirect('/sign-in?callbackUrl=/admin/nps' as Route);
   }

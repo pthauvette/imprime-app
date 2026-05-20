@@ -11,7 +11,7 @@ import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { ORDER_STATUS, type OrderStatus } from '@/lib/db/orders';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { formatCurrency, formatDate } from '@/lib/format';
 import OrderBulkBar from './OrderBulkBar';
 
@@ -53,7 +53,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? '1') || 1);
   const filterStatus = (ORDER_STATUS as readonly string[]).includes(sp.status ?? '')

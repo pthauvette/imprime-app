@@ -15,7 +15,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
@@ -51,7 +51,7 @@ export default async function AdminAuditPage({
 }: {
   searchParams: Promise<{ source?: string; kind?: string; adminId?: string; page?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const sp = await searchParams;
   const source: Source = (['admin', 'webhook'].includes(sp.source ?? '') ? sp.source : 'all') as Source;
   const kindFilter = sp.kind ?? null;

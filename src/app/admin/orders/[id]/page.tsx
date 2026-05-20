@@ -9,7 +9,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import OrderActions from '@/components/admin/OrderActions';
@@ -62,7 +62,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { id } = await params;
 
   const order = await prisma.order.findUnique({

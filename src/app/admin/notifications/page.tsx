@@ -21,7 +21,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
@@ -49,7 +49,7 @@ const PRIORITY_COLOR: Record<Priority, { bg: string; text: string; label: string
 };
 
 export default async function AdminNotificationsPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const now = Date.now();
   const sevenDaysAgo = new Date(now - 7 * 24 * 3600 * 1000);
 

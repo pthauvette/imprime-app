@@ -5,7 +5,7 @@
  * manuel sur les FAILED/DEAD, détail de l'erreur pour debug.
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
@@ -28,7 +28,7 @@ export default async function AdminEmailsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { status: statusParam } = await searchParams;
   const filter: StatusFilter = (
     ['PENDING', 'SENT', 'FAILED', 'DEAD'].includes(statusParam ?? '') ? statusParam : 'all'

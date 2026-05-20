@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { computeTax } from '@/lib/taxes';
@@ -75,7 +75,7 @@ export default async function TaxReportPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const sp = await searchParams;
   const range = resolveRange(sp.preset, sp.from, sp.to);
 

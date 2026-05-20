@@ -16,7 +16,7 @@
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { EXPERIMENTS, type ExperimentId } from '@/lib/ab/experiments';
 import ExperimentToggle from './ExperimentToggle';
@@ -25,7 +25,7 @@ export const metadata = { title: 'Admin — Expériences A/B' };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminExperimentsPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   if (!session?.user?.id || session.user.role !== 'ADMIN') {
     redirect('/sign-in?callbackUrl=/admin/experiments' as Route);
   }

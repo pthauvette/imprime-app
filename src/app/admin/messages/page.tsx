@@ -8,7 +8,7 @@
  *  - Si orderId détecté : lien vers /admin/orders/[id]
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -30,7 +30,7 @@ export default async function AdminMessagesPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { status: statusParam } = await searchParams;
   const filter = STATUS_TABS.some((t) => t.key === statusParam) ? statusParam! : 'OPEN';
 

@@ -18,7 +18,7 @@
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
 
@@ -29,7 +29,7 @@ const KNOWN_CRONS = ['cleanup', 'daily-summary', 'email-retry', 're-engagement',
 type CronName = (typeof KNOWN_CRONS)[number];
 
 export default async function AdminCronsPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   if (!session?.user?.id || session.user.role !== 'ADMIN') {
     redirect('/sign-in?callbackUrl=/admin/crons' as Route);
   }

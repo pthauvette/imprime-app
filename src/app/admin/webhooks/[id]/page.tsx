@@ -20,7 +20,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { formatDateTime } from '@/lib/format';
 import ReplayButton from '../ReplayButton';
 
@@ -32,7 +32,7 @@ export default async function AdminWebhookDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { id } = await params;
 
   const event = await prisma.webhookEvent.findUnique({ where: { id } });

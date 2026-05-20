@@ -6,7 +6,7 @@
  * mailto pour répondre direct.
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime, formatCurrency } from '@/lib/format';
@@ -27,7 +27,7 @@ export default async function AdminResellerApplicationsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { status: statusParam } = await searchParams;
   const filter = STATUS_TABS.some((t) => t.key === statusParam) ? statusParam! : 'PENDING';
 

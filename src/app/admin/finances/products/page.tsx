@@ -18,7 +18,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { parseItemsSnapshot } from '@/lib/orders/items';
@@ -66,7 +66,7 @@ export default async function ProductsReportPage({
 }: {
   searchParams: Promise<{ preset?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { preset: presetRaw } = await searchParams;
   const preset: Preset = (['7d', '30d', '90d', 'ytd'] as const).includes(presetRaw as Preset)
     ? (presetRaw as Preset)

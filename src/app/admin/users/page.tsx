@@ -11,7 +11,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { formatCurrency, formatDate } from '@/lib/format';
 import UserBulkBar from './UserBulkBar';
 
@@ -36,7 +36,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? '1') || 1);
   const filter: UserFilter = (

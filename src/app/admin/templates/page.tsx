@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { ALL_TEMPLATES, listProductTypes } from '@/lib/templates/registry';
@@ -21,7 +21,7 @@ export const metadata = { title: 'Admin — Templates · Plio' };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminTemplatesPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
 
   const [usersCount, ordersCount, allDbTemplates, draftsCount, recentDrafts, designs30d] = await Promise.all([
     prisma.user.count(),

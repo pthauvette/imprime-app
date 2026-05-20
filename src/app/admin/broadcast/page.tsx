@@ -5,7 +5,7 @@
  * MVP (on peut ajouter quand on a un editor markdown plus poussé).
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
@@ -25,7 +25,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 };
 
 export default async function AdminBroadcastPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
 
   const [recentBroadcasts, ordersCount, usersCount] = await Promise.all([
     prisma.emailBroadcast.findMany({

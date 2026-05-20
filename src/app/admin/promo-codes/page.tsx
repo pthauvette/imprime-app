@@ -5,7 +5,7 @@
  * Toggle active inline via PATCH /api/admin/promo-codes/[id] — refresh page.
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDate } from '@/lib/format';
@@ -20,7 +20,7 @@ function cad(cents: number): string {
 }
 
 export default async function AdminPromoCodesPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
 
   const [codes, totalOrders, totalUsers] = await Promise.all([
     prisma.promoCode.findMany({

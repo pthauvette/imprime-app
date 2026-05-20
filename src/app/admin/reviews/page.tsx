@@ -6,7 +6,7 @@
  * featured (top-3 sur landing).
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import ReviewsBulkList, { type ReviewListItem } from './ReviewsBulkList';
@@ -19,7 +19,7 @@ export default async function AdminReviewsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { status: statusParam } = await searchParams;
   const filter = ['PENDING', 'APPROVED', 'REJECTED'].includes(statusParam ?? '') ? statusParam! : 'PENDING';
 

@@ -19,7 +19,7 @@
 
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { renderEmail, EMAIL_SUBJECTS, type EmailTemplate } from '@/lib/emails/render';
 import { ALL_TEMPLATES, getSampleVars } from '@/lib/emails/sample-vars';
@@ -54,7 +54,7 @@ export default async function EmailPreviewPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   if (!session?.user?.id || session.user.role !== 'ADMIN') {
     redirect('/sign-in?callbackUrl=/admin/email-preview' as Route);
   }
