@@ -60,7 +60,15 @@ export async function recordWalletTx(opts: RecordOpts): Promise<{ balanceAfterCe
 
     await tx.user.update({
       where: { id: opts.userId },
-      data: { walletCents: newBalance },
+      data: {
+        walletCents: newBalance,
+        // Round 19 #3 — bump l'activity clock pour rolling expiration
+        // (12 mois inactif → expire via cron). Reset le warning aussi
+        // pour les EXPIRY (sinon on re-warn next cycle alors qu'on vient
+        // d'expirer).
+        walletLastActivityAt: new Date(),
+        ...(opts.kind === 'EXPIRY' && { walletExpiryWarningAt: null }),
+      },
     });
 
     const txRow = await tx.walletTransaction.create({

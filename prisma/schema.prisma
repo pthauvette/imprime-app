@@ -68,6 +68,14 @@ model User {
   walletCents                Int       @default(0)
   walletTransactions         WalletTransaction[]
 
+  // Round 19 #3 — Rolling expiration : si le wallet n'a aucune activité
+  // (topup OU spend) depuis 12 mois → expire. lastActivityAt est bumpé à
+  // chaque recordWalletTx. NULL = jamais d'activité (donc rien à expirer).
+  // walletExpiryWarningAt = quand on a envoyé le heads-up email à 11 mois
+  // (dédup : 1 warning par cycle de 12 mois).
+  walletLastActivityAt       DateTime?
+  walletExpiryWarningAt      DateTime?
+
   // Round 18 #5 — Tax-exempt B2B (resellers + registered cas spéciaux).
   // taxExempt=true → checkout calcule TPS/TVQ=0. taxExemptCertId stocke
   // le numéro de certificat d'exemption (TPS, TVQ, Indian-status, diplomat)
