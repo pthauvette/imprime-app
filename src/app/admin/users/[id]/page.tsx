@@ -10,6 +10,7 @@ import type { Route } from 'next';
 import { notFound } from 'next/navigation';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import UserNotesEditor from '@/components/admin/UserNotesEditor';
+import PipedaDeleteButton from '@/components/admin/PipedaDeleteButton';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
@@ -93,6 +94,13 @@ export default async function AdminUserDetailPage({
           orderBy: { createdAt: 'desc' },
           take: 20,
           include: { referee: { select: { email: true } } },
+        },
+        // Round 16 #1 — surface les demandes PIPEDA actives pour
+        // que le composant PipedaDeleteButton puisse les rendre.
+        deleteRequests: {
+          where: { status: { in: ['PENDING', 'APPROVED'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
       },
     }),
@@ -720,40 +728,43 @@ export default async function AdminUserDetailPage({
               </div>
             </div>
 
-            {/* Danger zone (Round 14 #5 : actions non-wired retirées —
-                remplacées par des hints actionables vers les vrais workflows
-                existants. Build des vrais boutons demande des API routes
-                dédiées + audit logging strict — voir backlog pour PR future).
-                PIPEDA : suppression de compte se fait via /admin/notifications
-                qui surface les DeleteAccountRequest rows pour traitement
-                manuel + ops/delete-user.md runbook. */}
+            {/* Danger zone — Round 16 #1 : PipedaDeleteButton apparaît si
+                une DeleteAccountRequest active existe pour ce user. Sinon
+                panel info sur force-logout (non-supporté avec JWT). */}
             <div className="ud-danger">
               <div className="ud-danger-label">Zone dangereuse</div>
-              <div style={{
-                padding: '14px 16px',
-                background: 'var(--bg-sunken)',
-                border: '1px dashed var(--border-default)',
-                borderRadius: 'var(--r-md)',
-                fontSize: 12,
-                color: 'var(--text-muted)',
-                lineHeight: 1.5,
-              }}>
-                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>
-                  Actions critiques
-                </strong>
-                <p style={{ margin: '0 0 6px' }}>
-                  <strong>Force-logout</strong> : non-supporté avec stratégie JWT
-                  actuelle (le token reste valide jusqu&apos;à expiration).
-                </p>
-                <p style={{ margin: 0 }}>
-                  <strong>Supprimer le compte (PIPEDA)</strong> : voir{' '}
-                  <Link href={'/admin/notifications' as Route} style={{ color: 'var(--accent-primary)' }}>
-                    Notifications → Demandes critiques
-                  </Link>
-                  {' '}qui surface les <code>DeleteAccountRequest</code> pour
-                  traitement manuel.
-                </p>
-              </div>
+              {user.deleteRequests.length > 0 ? (
+                <PipedaDeleteButton
+                  userId={user.id}
+                  userEmail={user.email}
+                  requestId={user.deleteRequests[0]!.id}
+                  requestCreatedAt={user.deleteRequests[0]!.createdAt.toISOString()}
+                  requestReason={user.deleteRequests[0]!.reason}
+                />
+              ) : (
+                <div style={{
+                  padding: '14px 16px',
+                  background: 'var(--bg-sunken)',
+                  border: '1px dashed var(--border-default)',
+                  borderRadius: 'var(--r-md)',
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                  lineHeight: 1.5,
+                }}>
+                  <p style={{ margin: '0 0 6px' }}>
+                    <strong>Force-logout</strong> : non-supporté avec stratégie JWT
+                    actuelle (le token reste valide jusqu&apos;à expiration).
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    <strong>Suppression PIPEDA</strong> : aucune demande active.
+                    Si l&apos;user soumet sa demande via{' '}
+                    <Link href={'/settings/privacy' as Route} style={{ color: 'var(--accent-primary)' }}>
+                      /settings/privacy
+                    </Link>
+                    , un bouton d&apos;approbation apparaîtra ici.
+                  </p>
+                </div>
+              )}
             </div>
 
           </aside>
