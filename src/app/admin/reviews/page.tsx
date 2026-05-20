@@ -9,31 +9,37 @@
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdminPagination from '@/components/admin/AdminPagination';
 import ReviewsBulkList, { type ReviewListItem } from './ReviewsBulkList';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Reviews · Plio' };
 
+const PER_PAGE = 25;
+
 export default async function AdminReviewsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const { session } = await requireAdminPage();
-  const { status: statusParam } = await searchParams;
-  const filter = ['PENDING', 'APPROVED', 'REJECTED'].includes(statusParam ?? '') ? statusParam! : 'PENDING';
+  const sp = await searchParams;
+  const filter = ['PENDING', 'APPROVED', 'REJECTED'].includes(sp.status ?? '') ? sp.status! : 'PENDING';
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
 
-  const [reviews, counts, orders, users] = await Promise.all([
+  const [reviews, totalForFilter, counts, orders, users] = await Promise.all([
     prisma.review.findMany({
       where: { status: filter },
       orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
-      take: 100,
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
       include: {
         order: {
           select: { sinaliteOrderId: true, productSummary: true, amountCents: true, user: { select: { email: true } } },
         },
       },
     }),
+    prisma.review.count({ where: { status: filter } }),
     prisma.review.groupBy({ by: ['status'], _count: { _all: true } }),
     prisma.order.count(),
     prisma.user.count(),
@@ -122,6 +128,13 @@ export default async function AdminReviewsPage({
               user: { email: r.order.user.email },
             },
           }))}
+        />
+        <AdminPagination
+          page={page}
+          total={totalForFilter}
+          perPage={PER_PAGE}
+          baseHref="/admin/reviews"
+          extraParams={{ status: filter }}
         />
       </main>
     </div>

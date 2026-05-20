@@ -8,6 +8,7 @@
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDate } from '@/lib/format';
 import PromoCreateForm from './PromoCreateForm';
 import PromoToggleButton from './PromoToggleButton';
@@ -19,20 +20,29 @@ function cad(cents: number): string {
   return (cents / 100).toFixed(2).replace('.', ',') + ' $';
 }
 
-export default async function AdminPromoCodesPage() {
-  const { session } = await requireAdminPage();
+const PER_PAGE = 50;
 
-  const [codes, totalOrders, totalUsers] = await Promise.all([
+export default async function AdminPromoCodesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { session } = await requireAdminPage();
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
+
+  const [codes, totalCodes, totalOrders, totalUsers, activeCount] = await Promise.all([
     prisma.promoCode.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
       include: { _count: { select: { orders: true } } },
     }),
+    prisma.promoCode.count(),
     prisma.order.count(),
     prisma.user.count(),
+    prisma.promoCode.count({ where: { active: true } }),
   ]);
-
-  const activeCount = codes.filter((c) => c.active).length;
 
   return (
     <div className="adm-shell">
@@ -127,6 +137,12 @@ export default async function AdminPromoCodesPage() {
               </tbody>
             </table>
           )}
+          <AdminPagination
+            page={page}
+            total={totalCodes}
+            perPage={PER_PAGE}
+            baseHref="/admin/promo-codes"
+          />
         </section>
       </main>
     </div>

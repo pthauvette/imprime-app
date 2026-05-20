@@ -10,6 +10,7 @@
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDateTime, formatCurrency } from '@/lib/format';
 import QuoteActions from './QuoteActions';
 
@@ -24,21 +25,26 @@ const STATUS_TABS = [
   { key: 'ARCHIVED', label: 'Archivés' },
 ];
 
+const PER_PAGE = 25;
+
 export default async function AdminQuotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const { session } = await requireAdminPage();
-  const { status: statusParam } = await searchParams;
-  const filter = STATUS_TABS.some((t) => t.key === statusParam) ? statusParam! : 'PENDING';
+  const sp = await searchParams;
+  const filter = STATUS_TABS.some((t) => t.key === sp.status) ? sp.status! : 'PENDING';
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
 
-  const [quotes, counts, ordersCount, usersCount] = await Promise.all([
+  const [quotes, totalForFilter, counts, ordersCount, usersCount] = await Promise.all([
     prisma.customQuoteRequest.findMany({
       where: { status: filter },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
     }),
+    prisma.customQuoteRequest.count({ where: { status: filter } }),
     prisma.customQuoteRequest.groupBy({
       by: ['status'],
       _count: { _all: true },
@@ -179,6 +185,13 @@ export default async function AdminQuotesPage({
             ))}
           </div>
         )}
+        <AdminPagination
+          page={page}
+          total={totalForFilter}
+          perPage={PER_PAGE}
+          baseHref="/admin/quotes"
+          extraParams={{ status: filter }}
+        />
       </main>
     </div>
   );
