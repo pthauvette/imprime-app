@@ -12,6 +12,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
+import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import type { OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -147,11 +148,14 @@ export default async function AdminDashboard() {
   const chartData = Array.from(byDay.entries()).map(([day, val]) => ({ day, val }));
   const maxVal = Math.max(1, ...chartData.map((d) => d.val));
 
+  // Round 15 #3 : counts dynamiques via helper centralisé. Conserve
+  // ordersCount / pendingWebhooks déjà calculés (besoin pour les KPIs
+  // sur cette page de dashboard).
+  const sidebarCounts = await getAdminSidebarCounts();
   const counts = {
+    ...sidebarCounts,
     orders: totalOrders,
     webhooks: pendingWebhooks,
-    templates: 3,
-    products: 468,
     users: totalUsers,
   };
 

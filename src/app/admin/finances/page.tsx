@@ -24,6 +24,7 @@ import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
+import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatCurrency, formatDate } from '@/lib/format';
 
 export const metadata = { title: 'Admin — Finances' };
@@ -193,11 +194,12 @@ export default async function AdminFinancesPage({
 
   const provinceColors = ['var(--accent-primary)', 'var(--info)', 'var(--warning)', 'var(--success)', 'var(--text-muted)'];
 
+  // Round 15 #3 : counts dynamiques via helper centralisé.
+  const sidebarCountsBase = await getAdminSidebarCounts();
   const sidebarCounts = {
+    ...sidebarCountsBase,
     orders: sidebarOrders,
     webhooks: sidebarWebhooks,
-    templates: 3,
-    products: 468,
     users: sidebarUsers,
   };
 

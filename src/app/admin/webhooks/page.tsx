@@ -18,6 +18,7 @@ import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
+import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatDateTime } from '@/lib/format';
 import ReplayButton from './ReplayButton';
 
@@ -161,11 +162,12 @@ export default async function AdminWebhooksPage({
     ? Math.round(((total24h - totalPrev24h) / totalPrev24h) * 100)
     : null;
 
+  // Round 15 #3 : counts dynamiques via helper centralisé.
+  const sidebarCountsBase = await getAdminSidebarCounts();
   const sidebarCounts = {
+    ...sidebarCountsBase,
     orders: sidebarOrders,
     webhooks: allEventsCount,
-    templates: 3,
-    products: 468,
     users: sidebarUsers,
   };
 

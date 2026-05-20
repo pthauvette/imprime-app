@@ -12,6 +12,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { ORDER_STATUS, type OrderStatus } from '@/lib/db/orders';
 import { requireAdminPage } from '@/lib/admin-auth';
+import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import OrderBulkBar from './OrderBulkBar';
 
@@ -132,12 +133,13 @@ export default async function AdminOrdersPage({
     { key: 'FAILED', label: 'Échec', count: countByStatus('FAILED') + countByStatus('CANCELLED') },
   ];
 
+  // Round 15 #3 : counts dynamiques via helper (templates/products/webhooks
+  // étaient hardcoded 3/468/3 avant). On override `orders` avec la valeur
+  // déjà calculée pour cette page.
+  const sidebarCountsBase = await getAdminSidebarCounts();
   const sidebarCounts = {
+    ...sidebarCountsBase,
     orders: countByStatus(null),
-    webhooks: 3, // TODO: real count from WebhookEvent table
-    templates: 3,
-    products: 468,
-    users: await prisma.user.count(),
   };
 
   return (
