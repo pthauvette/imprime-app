@@ -11,7 +11,8 @@
  * d'inclure le lien dans le message.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const SUBJECTS = [
   'Question avant achat',
@@ -24,10 +25,21 @@ const SUBJECTS = [
 ] as const;
 
 export default function ContactForm() {
+  const sp = useSearchParams();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState<string>(SUBJECTS[0]);
   const [message, setMessage] = useState('');
+
+  // Round 18 #3 — prefil depuis /help search no-result CTA.
+  // ?subject=Q: foo → message body prefilled, subject reste sur "Question
+  // avant achat" (catégorie admin la plus pertinente pour FAQ-driven).
+  useEffect(() => {
+    const querySubject = sp.get('subject');
+    if (querySubject && message === '') {
+      setMessage(`${querySubject}\n\n`);
+    }
+  }, [sp, message]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -115,10 +115,27 @@ export default function HelpSearch({ items }: { items: FaqItem[] }) {
           }}
         >
           <div style={{ fontSize: 32, marginBottom: 8 }}>🤔</div>
-          <p style={{ fontSize: 14, margin: 0 }}>
-            Aucune réponse pour &laquo; {query || activeCategory} &raquo;.<br />
-            <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>Écris-nous direct</a> — on te répond et on ajoute la Q&amp;A.
+          <p style={{ fontSize: 14, margin: '0 0 18px' }}>
+            Aucune réponse pour <strong style={{ color: 'var(--text-primary)' }}>&laquo; {query || activeCategory} &raquo;</strong>.<br />
+            Ces questions vont nourrir notre FAQ — n&apos;hésite pas à demander.
           </p>
+          {/* Round 18 #3 — préfille /contact avec la question, triage admin
+              + ajout à la FAQ post-réponse. mailto: fallback pour les users
+              qui préfèrent leur client mail (réponse SLA identique). */}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a
+              href={`/contact?subject=${encodeURIComponent(`Q: ${query || activeCategory || 'Aide générale'}`)}`}
+              className="btn btn-primary"
+            >
+              📩 Poser la question
+            </a>
+            <a
+              href={`mailto:bonjour@plio.ca?subject=${encodeURIComponent(`Q: ${query || activeCategory || 'Aide'}`)}`}
+              className="btn btn-ghost"
+            >
+              Email direct
+            </a>
+          </div>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 24 }}>
