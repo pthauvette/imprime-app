@@ -1,8 +1,5 @@
 /**
- * Auto-migrated from Open Design HTML artifact `landing.html`.
- *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * / — landing page marketing. Server Component avec i18n + onboarding tour.
  */
 
 import NewsletterSignup from '@/components/marketing/NewsletterSignup';

@@ -75,22 +75,27 @@ export default async function AdminFinancesPage({
     sidebarUsers,
     sidebarWebhooks,
   ] = await Promise.all([
+    // Round 16 #3 : .catch fallbacks pour éviter 500 dashboard si table manque.
+    // Aggregates throwers → fallback à un shape minimal vide.
     prisma.order.aggregate({
       where: { paidAt: { gte: periodStart, lt: periodEnd } },
       _sum: { amountCents: true, taxCents: true, subtotalCents: true, shippingCents: true },
       _count: { _all: true },
-    }),
+    }).catch(() => ({
+      _sum: { amountCents: 0, taxCents: 0, subtotalCents: 0, shippingCents: 0 },
+      _count: { _all: 0 },
+    })),
     prisma.order.aggregate({
       where: { paidAt: { gte: prevStart, lt: prevEnd } },
       _sum: { amountCents: true },
       _count: { _all: true },
-    }),
+    }).catch(() => ({ _sum: { amountCents: 0 }, _count: { _all: 0 } })),
     prisma.order.groupBy({
       by: ['province'],
       where: { paidAt: { gte: periodStart, lt: periodEnd } },
       _sum: { amountCents: true, taxCents: true, subtotalCents: true },
       _count: { _all: true },
-    }),
+    }).catch(() => []),
     prisma.order.groupBy({
       by: ['userId'],
       where: { paidAt: { gte: periodStart, lt: periodEnd } },
@@ -98,11 +103,11 @@ export default async function AdminFinancesPage({
       _count: { _all: true },
       orderBy: { _sum: { amountCents: 'desc' } },
       take: 8,
-    }),
+    }).catch(() => []),
     prisma.order.findMany({
       where: { paidAt: { gte: periodStart, lt: periodEnd } },
       select: { amountCents: true, paidAt: true },
-    }),
+    }).catch(() => []),
     // Refunds in period — count REFUND_ISSUED events.
     // TODO: store refund amountCents in OrderEvent.data so we can sum
     // accurately instead of assuming full-order refund.
@@ -112,14 +117,14 @@ export default async function AdminFinancesPage({
         createdAt: { gte: periodStart, lt: periodEnd },
       },
       include: { order: { select: { amountCents: true } } },
-    }),
+    }).catch(() => []),
     prisma.orderEvent.findMany({
       where: {
         kind: 'REFUND_ISSUED',
         createdAt: { gte: prevStart, lt: prevEnd },
       },
       include: { order: { select: { amountCents: true } } },
-    }),
+    }).catch(() => []),
     prisma.orderEvent.findMany({
       where: { kind: 'REFUND_ISSUED' },
       include: {
@@ -127,10 +132,10 @@ export default async function AdminFinancesPage({
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
-    }),
-    prisma.order.count(),
-    prisma.user.count(),
-    prisma.webhookEvent.count(),
+    }).catch(() => []),
+    prisma.order.count().catch(() => 0),
+    prisma.user.count().catch(() => 0),
+    prisma.webhookEvent.count().catch(() => 0),
   ]);
 
   // ─── User lookup for top customers ─────────────────────────────────────

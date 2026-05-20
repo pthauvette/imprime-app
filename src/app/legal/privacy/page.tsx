@@ -1,9 +1,5 @@
 /**
- * Auto-migrated from Open Design HTML artifact `privacy.html`.
- *
- * NOTE: Lift-and-shift static rendering. Scripts ont été strip, data hardcodée.
- * Pour brancher la vraie data DB ou ajouter de l'interactivité, convertir en
- * Client Component ('use client') ou ajouter du data fetching Server Component.
+ * /legal/privacy — politique de confidentialité.
  */
 
 export const metadata = { title: "Confidentialité — Plio" };

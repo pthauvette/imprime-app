@@ -1,9 +1,5 @@
 /**
- * Auto-migrated from Open Design HTML artifact `terms.html`.
- *
- * NOTE: Lift-and-shift static rendering. Scripts ont été strip, data hardcodée.
- * Pour brancher la vraie data DB ou ajouter de l'interactivité, convertir en
- * Client Component ('use client') ou ajouter du data fetching Server Component.
+ * /legal/terms — conditions d'utilisation.
  */
 
 export const metadata = { title: "Conditions d'utilisation — Plio" };

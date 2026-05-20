@@ -55,43 +55,50 @@ export default async function AdminDashboard() {
     newsletterStats, savedConfigsCount,
     last30dOrdersForTop,
   ] = await Promise.all([
+    // Round 16 #3 : .catch fallbacks pour éviter 500 dashboard si table
+    // manque (migration locale pas appliquée, ou table renommée).
     prisma.order.aggregate({
       where: { paidAt: { gte: startOfDay } },
       _sum: { amountCents: true },
       _count: { _all: true },
-    }),
+    }).catch(() => ({ _sum: { amountCents: 0 }, _count: { _all: 0 } })),
     prisma.order.aggregate({
       where: { paidAt: { gte: yesterdayStart, lt: startOfDay } },
       _sum: { amountCents: true },
       _count: { _all: true },
-    }),
+    }).catch(() => ({ _sum: { amountCents: 0 }, _count: { _all: 0 } })),
+    // Round 16 #3 : pas de .catch ici — le type retourné par groupBy est
+    // strict (PickEnumerable) et un fallback sur tableau vide casse
+    // l'inférence de `reduce` plus bas. Cette query a peu de chances de
+    // throw (table Order est core et la migration est appliquée depuis le
+    // jour 1) donc on tolère qu'elle propage si DB throw.
     prisma.order.groupBy({
       by: ['status'],
       _count: { _all: true },
     }),
-    prisma.user.count(),
+    prisma.user.count().catch(() => 0),
     prisma.orderEvent.findMany({
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: { order: { include: { user: true } } },
-    }),
+    }).catch(() => []),
     prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { user: true },
-    }),
-    prisma.order.count({ where: { status: 'FAILED' } }),
-    prisma.webhookEvent.count(),
+    }).catch(() => []),
+    prisma.order.count({ where: { status: 'FAILED' } }).catch(() => 0),
+    prisma.webhookEvent.count().catch(() => 0),
     prisma.order.aggregate({
       where: { paidAt: { gte: thirtyDaysAgo } },
       _sum: { amountCents: true },
       _count: { _all: true },
-    }),
+    }).catch(() => ({ _sum: { amountCents: 0 }, _count: { _all: 0 } })),
     prisma.order.aggregate({
       where: { paidAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
       _sum: { amountCents: true },
       _count: { _all: true },
-    }),
+    }).catch(() => ({ _sum: { amountCents: 0 }, _count: { _all: 0 } })),
     // Defensive try-catches : si les tables ne sont pas encore migrées en
     // prod (cas transient pendant rollout), on retourne 0 plutôt que crash.
     prisma.review.count({ where: { status: 'PENDING' } }).catch(() => 0),
@@ -107,7 +114,7 @@ export default async function AdminDashboard() {
     prisma.order.findMany({
       where: { paidAt: { gte: thirtyDaysAgo } },
       select: { itemsSnapshot: true, productSummary: true },
-    }),
+    }).catch(() => []),
   ]);
 
   const today = (rev24h._sum.amountCents ?? 0) / 100;

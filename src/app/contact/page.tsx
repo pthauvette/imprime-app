@@ -1,12 +1,9 @@
 /**
- * Auto-migrated from Open Design HTML artifact `contact.html`.
- *
- * NOTE: Lift-and-shift static rendering. Scripts ont été strip, data hardcodée.
- * Pour brancher la vraie data DB ou ajouter de l'interactivité, convertir en
- * Client Component ('use client') ou ajouter du data fetching Server Component.
+ * /contact — page contact + formulaire (ContactForm client).
  */
 
 import ContactForm from './ContactForm';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = { title: "Parle-nous — Plio" };
 
@@ -95,44 +92,7 @@ export default function ContactPage() {
           </section>
         </main>
       
-        <footer>
-          <div className="footer-grid">
-            <div className="footer-brand">
-              <span className="footer-brand-mark">Plio.</span>
-              <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 1 à 7 jours. Imprimé à Markham (ON).</p>
-            </div>
-            <div className="footer-col">
-              <h4>Entreprise</h4>
-              <ul>
-                <li><a href="/about">Notre histoire</a></li>
-                <li><a href="/contact">Contact</a></li>
-                <li><a href="/blog">Blog</a></li>
-                <li><a href="/reseller">Programme reseller</a></li>
-              </ul>
-            </div>
-            <div className="footer-col">
-              <h4>Aide</h4>
-              <ul>
-                <li><a href="/help">Centre d&apos;aide</a></li>
-                <li><a href="/contact">Contact</a></li>
-                <li><a href="/samples">Échantillons gratuits</a></li>
-                <li><a href="/status">Statut système</a></li>
-              </ul>
-            </div>
-            <div className="footer-col">
-              <h4>Légal</h4>
-              <ul>
-                <li><a href="/legal/terms">Conditions d'utilisation</a></li>
-                <li><a href="/legal/privacy">Confidentialité</a></li>
-                <li><a href="/legal/refund-policy">Remboursements</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
-            <span>Démocratik inc. · Montréal</span>
-          </div>
-        </footer>
+        <MarketingFooter />
     </>
   );
 }
