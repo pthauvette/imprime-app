@@ -34,7 +34,10 @@ export default async function AdminEmailsPage({
     ['PENDING', 'SENT', 'FAILED', 'DEAD'].includes(statusParam ?? '') ? statusParam : 'all'
   ) as StatusFilter;
 
-  const [emails, counts, orders, users] = await Promise.all([
+  // Round 21 #5 — stats analytics par template (sent count + open rate)
+  // sur 30 derniers jours. Pour MVP : query simple, on agrège côté JS.
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+  const [emails, counts, orders, users, templateStats] = await Promise.all([
     prisma.emailDelivery.findMany({
       where: filter === 'all' ? {} : { status: filter },
       orderBy: { createdAt: 'desc' },
@@ -46,7 +49,42 @@ export default async function AdminEmailsPage({
     }),
     prisma.order.count(),
     prisma.user.count(),
+    // Per-template aggregate sur 30j : count sent + count opened
+    prisma.emailDelivery.groupBy({
+      by: ['template', 'status'],
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      _count: { _all: true },
+    }).catch(() => []),
   ]);
+
+  // Build template stats map : { template → { sent, dead, opened, openRate } }
+  // Open rate computed séparément via openedAt count.
+  const openedByTemplate = await prisma.emailDelivery.groupBy({
+    by: ['template'],
+    where: {
+      createdAt: { gte: thirtyDaysAgo },
+      openedAt: { not: null },
+    },
+    _count: { _all: true },
+  }).catch(() => []);
+  const openedMap = new Map(openedByTemplate.map((g) => [g.template, g._count._all]));
+
+  interface TplStat { template: string; sent: number; dead: number; opened: number; openRate: number }
+  const tplStatsMap = new Map<string, TplStat>();
+  for (const s of templateStats) {
+    const existing = tplStatsMap.get(s.template) ?? { template: s.template, sent: 0, dead: 0, opened: 0, openRate: 0 };
+    if (s.status === 'SENT') existing.sent += s._count._all;
+    if (s.status === 'DEAD') existing.dead += s._count._all;
+    tplStatsMap.set(s.template, existing);
+  }
+  for (const [tpl, opened] of openedMap.entries()) {
+    const existing = tplStatsMap.get(tpl);
+    if (existing) {
+      existing.opened = opened;
+      existing.openRate = existing.sent > 0 ? (opened / existing.sent) * 100 : 0;
+    }
+  }
+  const tplStatsList = Array.from(tplStatsMap.values()).sort((a, b) => b.sent - a.sent);
 
   const countByStatus = (s: string) => counts.find((c) => c.status === s)?._count._all ?? 0;
   const total = counts.reduce((a, c) => a + c._count._all, 0);
@@ -77,6 +115,59 @@ export default async function AdminEmailsPage({
             </p>
           </div>
         </header>
+
+        {/* Round 21 #5 — Analytics par template (30j) */}
+        {tplStatsList.length > 0 && (
+          <section style={{
+            marginBottom: 24,
+            padding: 20,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--r-xl)',
+          }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, margin: '0 0 14px', letterSpacing: '-0.01em' }}>
+              📊 Analytics par template · 30 derniers jours
+            </h2>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  <th style={{ padding: '8px 4px', fontWeight: 600 }}>Template</th>
+                  <th style={{ padding: '8px 4px', fontWeight: 600, textAlign: 'right' }}>Sent</th>
+                  <th style={{ padding: '8px 4px', fontWeight: 600, textAlign: 'right' }}>Opened</th>
+                  <th style={{ padding: '8px 4px', fontWeight: 600, textAlign: 'right' }}>Open rate</th>
+                  <th style={{ padding: '8px 4px', fontWeight: 600, textAlign: 'right' }}>DEAD</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tplStatsList.map((s) => {
+                  const rateColor = s.openRate >= 30 ? 'var(--success, #16a34a)' : s.openRate >= 15 ? 'var(--accent-primary)' : 'var(--text-muted)';
+                  return (
+                    <tr key={s.template} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '10px 4px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)' }}>
+                        {s.template}
+                      </td>
+                      <td style={{ padding: '10px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                        {s.sent}
+                      </td>
+                      <td style={{ padding: '10px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                        {s.opened}
+                      </td>
+                      <td style={{ padding: '10px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: rateColor }}>
+                        {s.sent > 0 ? `${s.openRate.toFixed(1)}%` : '—'}
+                      </td>
+                      <td style={{ padding: '10px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: s.dead > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                        {s.dead}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)' }}>
+              Open rate = (rows avec openedAt set) / (rows SENT). Tracking via pixel 1×1 dans email body (peut être bloqué par certains clients mail).
+            </p>
+          </section>
+        )}
 
         {/* Tabs filtres */}
         <section style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12 }}>
