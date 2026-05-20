@@ -68,6 +68,14 @@ model User {
   walletCents                Int       @default(0)
   walletTransactions         WalletTransaction[]
 
+  // Round 18 #5 — Tax-exempt B2B (resellers + registered cas spéciaux).
+  // taxExempt=true → checkout calcule TPS/TVQ=0. taxExemptCertId stocke
+  // le numéro de certificat d'exemption (TPS, TVQ, Indian-status, diplomat)
+  // pour traçabilité audit Revenu Québec / ARC. Admin-only toggle (le
+  // self-serve serait fraud-prone — back-tax owed si déclaration mensongère).
+  taxExempt                  Boolean   @default(false)
+  taxExemptCertId            String?
+
   // ─── Loyalty tier ─────────────────────────────────────────────────────
   // Tier basé sur le revenu net 365 derniers jours. Recomputé mensuellement
   // via /api/cron/loyalty-tiers. Sert à :

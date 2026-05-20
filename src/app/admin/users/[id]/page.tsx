@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import UserNotesEditor from '@/components/admin/UserNotesEditor';
 import PipedaDeleteButton from '@/components/admin/PipedaDeleteButton';
+import TaxExemptToggle from '@/components/admin/TaxExemptToggle';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
@@ -726,6 +727,26 @@ export default async function AdminUserDetailPage({
                 <span className="label">Refunds</span>
                 <span className={`value${refundCount === 0 ? ' good' : ''}`}>{refundCount}</span>
               </div>
+            </div>
+
+            {/* Round 18 #5 — Tax-exempt B2B */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                color: 'var(--text-muted)',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+                marginBottom: 8,
+              }}>
+                Statut fiscal
+              </div>
+              <TaxExemptToggle
+                userId={user.id}
+                initialExempt={user.taxExempt}
+                initialCertId={user.taxExemptCertId}
+              />
             </div>
 
             {/* Danger zone — Round 16 #1 : PipedaDeleteButton apparaît si
