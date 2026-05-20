@@ -14,6 +14,7 @@ vi.mock('@/lib/emails/render', () => ({
 import * as render from '@/lib/emails/render';
 import type { Order, User } from '@prisma/client';
 import { makeTestUser } from './factories/user';
+import { makeTestOrder } from './factories/order';
 
 async function importSendFresh() {
   vi.resetModules();
@@ -30,19 +31,13 @@ async function importSendFresh() {
 // Round 19 #1 — factory remplace fixture inline.
 const baseUser: User = makeTestUser({ id: 'u_1', email: 't@p.ca', name: 'T', firstName: 'T', lastName: null });
 
-const baseOrder: Order = {
+// Round 21 #1 — factory remplace fixture inline
+const baseOrder: Order = makeTestOrder({
   id: 'o_1', userId: 'u_1', paymentIntentId: 'pi_x',
-  amountCents: 18742, currency: 'CAD', paidAt: new Date(),
-  sinaliteOrderId: '48312', status: 'PAID', failureReason: null,
-  sinalitePayload: '{}', productSummary: 'Cartes', itemsSnapshot: null,
-  itemsCount: 250, subtotalCents: 15275, shippingCents: 1250, taxCents: 2217,
-  discountCents: 0, referralCreditAppliedCents: 0, walletCreditAppliedCents: 0, promoCodeId: null, adminNotes: null,
-  shippingMethod: 'UPS Standard', province: 'QC',
-  shipName: 'X', shipLine1: '1 rue', shipLine2: null,
-  shipCity: 'Mtl', shipProvince: 'QC', shipPostalCode: 'H2X 1A1',
-  shipPhone: '+15140000000',
-  createdAt: new Date(), updatedAt: new Date(),
-};
+  productSummary: 'Cartes',
+  shipName: 'X', shipLine1: '1 rue', shipPhone: '+15140000000',
+  shipCity: 'Mtl',
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();

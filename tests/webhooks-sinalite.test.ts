@@ -68,6 +68,7 @@ import * as orders from '@/lib/db/orders';
 import { prisma } from '@/lib/db';
 import * as emails from '@/lib/emails/send';
 import { makeTestUser } from './factories/user';
+import { makeTestOrder } from './factories/order';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 // Round 19 #1 — factory remplace inline fixture.
@@ -79,37 +80,8 @@ const baseUser: User = makeTestUser({
   lastName: 'One',
 });
 
-const baseOrder: Order = {
-  id: 'order_db_1',
-  userId: 'user_1',
-  paymentIntentId: 'pi_test',
-  amountCents: 18742,
-  currency: 'CAD',
-  paidAt: new Date(),
-  sinaliteOrderId: '48312',
-  status: 'SUBMITTED',
-  failureReason: null,
-  sinalitePayload: '{}',
-  productSummary: 'Cartes 14pt UV', itemsSnapshot: null,
-  itemsCount: 250,
-  subtotalCents: 15275,
-  shippingCents: 1250,
-  taxCents: 2217,
-  discountCents: 0, referralCreditAppliedCents: 0, walletCreditAppliedCents: 0,
-  promoCodeId: null,
-  adminNotes: null,
-  shippingMethod: 'UPS Standard',
-  province: 'QC',
-  shipName: 'Test User',
-  shipLine1: '123 rue Test',
-  shipLine2: null,
-  shipCity: 'Montréal',
-  shipProvince: 'QC',
-  shipPostalCode: 'H2X 1A1',
-  shipPhone: '+15145550000',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
+// Round 21 #1 — factory replace inline fixture
+const baseOrder: Order = makeTestOrder({ id: 'order_db_1', userId: 'user_1', status: 'SUBMITTED' });
 
 function makeReq(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request('http://localhost/api/webhooks/sinalite', {
