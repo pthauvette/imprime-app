@@ -18,6 +18,8 @@ vi.mock('@/lib/db', () => ({
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      // Round 17 #3 : updateMany pour claim atomique.
+      updateMany: vi.fn(async () => ({ count: 1 })),
       findMany: vi.fn(async () => []),
     },
     order: {

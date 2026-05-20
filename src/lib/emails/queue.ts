@@ -111,8 +111,27 @@ export async function processDelivery(deliveryId: string): Promise<{
   sent: boolean;
   id: string;
 }> {
+  // Round 17 #3 : claim atomique pour éviter qu'un cron N+1 réenvoie un
+  // email que cron N est en train de traiter (cron run interval = 5min,
+  // SES peut prendre > 5min sur attachment lourd). On update where
+  // status IN ('PENDING', 'FAILED') → returns count. Si 0, un autre
+  // run a déjà claimé — skip.
+  const claim = await prisma.emailDelivery.updateMany({
+    where: {
+      id: deliveryId,
+      status: { in: ['PENDING', 'FAILED'] },
+    },
+    data: { status: 'PROCESSING' },
+  });
+  if (claim.count === 0) {
+    // Soit SENT/DEAD/PROCESSING déjà → skip cleanly
+    return { sent: false, id: deliveryId };
+  }
+
   const delivery = await prisma.emailDelivery.findUnique({ where: { id: deliveryId } });
   if (!delivery) return { sent: false, id: deliveryId };
+  // Defense in depth : si le claim a marché mais que le delivery est
+  // déjà SENT/DEAD (rare race en prod, test mocks loose), bail out cleanly.
   if (delivery.status === 'SENT') return { sent: true, id: deliveryId };
   if (delivery.status === 'DEAD') return { sent: false, id: deliveryId };
 
@@ -237,12 +256,26 @@ async function buildInvoiceAttachments(
  * /api/cron/email-retry toutes les 5 min.
  */
 export async function getEmailsReadyForRetry(limit = 50) {
+  // Round 17 #3 : on inclut maintenant PROCESSING dont updatedAt > 30min
+  // (stuck — un cron run précédent a crashé après le claim atomique).
+  // 30min est un cap large : SES + attachment PDF + retry intern devrait
+  // jamais dépasser ça. Si un cron run < 30min essaie de re-claim,
+  // l'updateMany dans processDelivery va return count=0 et skip.
+  const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
   return prisma.emailDelivery.findMany({
     where: {
-      status: 'FAILED',
       OR: [
-        { nextAttemptAt: null },
-        { nextAttemptAt: { lt: new Date() } },
+        {
+          status: 'FAILED',
+          OR: [
+            { nextAttemptAt: null },
+            { nextAttemptAt: { lt: new Date() } },
+          ],
+        },
+        {
+          status: 'PROCESSING',
+          updatedAt: { lt: thirtyMinAgo },
+        },
       ],
     },
     select: { id: true },
