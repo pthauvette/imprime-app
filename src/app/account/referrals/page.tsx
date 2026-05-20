@@ -20,6 +20,7 @@ import Sidebar from '@/components/account/Sidebar';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { ensureReferralCode, buildShareUrl, REFERRAL_REWARD_CENTS } from '@/lib/referrals/code';
+import { getLeaderboard } from '@/lib/referrals/leaderboard';
 import { formatCurrency, formatDate } from '@/lib/format';
 import CopyButton from './CopyButton';
 
@@ -40,7 +41,7 @@ export default async function ReferralsPage() {
     // Génération échouée (très rare) — on affiche un placeholder + retry button
   }
 
-  const [user, rewards] = await Promise.all([
+  const [user, rewards, leaderboard] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { referralCreditCents: true },
@@ -53,6 +54,8 @@ export default async function ReferralsPage() {
         referee: { select: { firstName: true, email: true } },
       },
     }),
+    // Round 19 #2 — leaderboard top 5 + ma place si pas dans top
+    getLeaderboard({ currentUserId: session.user.id, topN: 5 }).catch(() => ({ top: [], me: null })),
   ]);
 
   const balance = (user?.referralCreditCents ?? 0) / 100;
@@ -152,6 +155,33 @@ export default async function ReferralsPage() {
           </section>
         )}
 
+        {/* Round 19 #2 — Leaderboard top referrers */}
+        {(leaderboard.top.length > 0 || leaderboard.me) && (
+          <section style={{ marginBottom: 28 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, letterSpacing: '-0.01em', margin: '0 0 16px' }}>
+              🏆 Top 5 parrains
+            </h2>
+            <div style={{
+              padding: 16,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--r-lg)',
+              display: 'grid',
+              gap: 8,
+            }}>
+              {leaderboard.top.map((entry) => (
+                <LeaderboardRow key={entry.userId} entry={entry} />
+              ))}
+              {leaderboard.me && (
+                <>
+                  <div style={{ borderTop: '1px dashed var(--border-default)', margin: '4px 0' }} />
+                  <LeaderboardRow entry={leaderboard.me} />
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Historique */}
         <section>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, letterSpacing: '-0.01em', margin: '0 0 16px' }}>
@@ -232,6 +262,39 @@ export default async function ReferralsPage() {
           </ol>
         </section>
       </main>
+    </div>
+  );
+}
+
+function LeaderboardRow({ entry }: { entry: { rank: number; displayName: string; totalCreditCents: number; refereeCount: number; isMe: boolean } }) {
+  const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : '·';
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        gap: 12,
+        padding: '10px 14px',
+        background: entry.isMe ? 'var(--accent-soft)' : 'transparent',
+        border: entry.isMe ? '1px solid var(--accent-primary)' : '1px solid transparent',
+        borderRadius: 'var(--r-md)',
+        alignItems: 'center',
+      }}
+    >
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: entry.isMe ? 'var(--accent-primary)' : 'var(--text-muted)', minWidth: 32 }}>
+        {medal} #{entry.rank}
+      </span>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: entry.isMe ? 700 : 500, color: 'var(--text-primary)', fontFamily: entry.isMe ? 'inherit' : 'var(--font-mono)' }}>
+          {entry.displayName}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          {entry.refereeCount} parrainage{entry.refereeCount > 1 ? 's' : ''}
+        </div>
+      </div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600, color: entry.isMe ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+        {formatCurrency(entry.totalCreditCents / 100)}
+      </div>
     </div>
   );
 }
