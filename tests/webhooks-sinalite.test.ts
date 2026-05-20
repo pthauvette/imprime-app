@@ -95,7 +95,7 @@ const baseOrder: Order = {
   subtotalCents: 15275,
   shippingCents: 1250,
   taxCents: 2217,
-  discountCents: 0, referralCreditAppliedCents: 0,
+  discountCents: 0, referralCreditAppliedCents: 0, walletCreditAppliedCents: 0,
   promoCodeId: null,
   adminNotes: null,
   shippingMethod: 'UPS Standard',

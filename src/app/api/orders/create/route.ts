@@ -214,16 +214,18 @@ export const POST = withErrorHandler(async (req: Request) => {
   const earlySession = await auth();
   let userLoyaltyTier: string | null = null;
   let userReferralCreditCents = 0;
+  let userWalletCents = 0;
   let userTaxExempt = false;
   let userTaxExemptCertId: string | null = null;
   if (earlySession?.user?.id) {
     const userPrefs = await prisma.user.findUnique({
       where: { id: earlySession.user.id },
-      // Round 18 #5 — load taxExempt + certId pour skip tax au checkout
-      select: { loyaltyTier: true, referralCreditCents: true, taxExempt: true, taxExemptCertId: true },
+      // Round 20 #3 — load walletCents pour appliquer comme credit au checkout
+      select: { loyaltyTier: true, referralCreditCents: true, walletCents: true, taxExempt: true, taxExemptCertId: true },
     });
     userLoyaltyTier = userPrefs?.loyaltyTier ?? null;
     userReferralCreditCents = userPrefs?.referralCreditCents ?? 0;
+    userWalletCents = userPrefs?.walletCents ?? 0;
     userTaxExempt = userPrefs?.taxExempt ?? false;
     userTaxExemptCertId = userPrefs?.taxExemptCertId ?? null;
   }
@@ -243,15 +245,21 @@ export const POST = withErrorHandler(async (req: Request) => {
     : computeTax(taxableSubtotal, payload.shippingAddress.province);
   const grossTotalCents = Math.round((taxableSubtotal + tax.total) * 100);
 
-  // Phase 2c: applique le crédit de parrainage si user connecté + balance > 0.
-  // Stripe interdit un PaymentIntent à 0 cents → on cap au max grossTotal - 50¢
-  // pour garder un minimum de 50¢ chargé.
+  // Phase 2c: applique les crédits dans l'ordre wallet → referral.
+  // Round 20 #3 — Wallet first (le wallet = "argent" déjà payé via topup,
+  // referral = bonus marketing). FIFO du plus restrictif au plus flexible.
+  // Stripe interdit un PaymentIntent à 0 cents → cap au max grossTotal - 50¢.
+  let walletCreditApplied = 0;
+  if (userWalletCents > 0) {
+    const maxCoverable = Math.max(0, grossTotalCents - 50);
+    walletCreditApplied = Math.min(userWalletCents, maxCoverable);
+  }
   let referralCreditApplied = 0;
   if (userReferralCreditCents > 0) {
-    const maxCoverable = Math.max(0, grossTotalCents - 50);
-    referralCreditApplied = Math.min(userReferralCreditCents, maxCoverable);
+    const remainingMax = Math.max(0, grossTotalCents - walletCreditApplied - 50);
+    referralCreditApplied = Math.min(userReferralCreditCents, remainingMax);
   }
-  const totalCents = grossTotalCents - referralCreditApplied;
+  const totalCents = grossTotalCents - walletCreditApplied - referralCreditApplied;
 
   // Phase 3: build the Sinalite payload (will be POSTed by webhook after Stripe confirms)
   const sinalitePayload = buildSinalitePayload(payload, detailCache);
@@ -322,6 +330,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     taxCents: Math.round(tax.total * 100),
     discountCents: Math.round(discountAmount * 100),
     referralCreditAppliedCents: referralCreditApplied,
+    walletCreditAppliedCents: walletCreditApplied,
     promoCodeId: promoRecord?.id,
     shippingMethod: payload.shippingMethod,
     province: payload.shippingAddress.province,

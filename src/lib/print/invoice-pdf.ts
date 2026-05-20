@@ -261,6 +261,15 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8A
     totalsRow(line.label, `${cad(Math.round(line.amount * 100))} $`);
   }
 
+  // Round 20 #3 — Wallet credit appliqué (préfère "Crédit prépayé" en label
+  // user-friendly vs "wallet" jargon).
+  if (order.walletCreditAppliedCents > 0) {
+    totalsRow('Crédit prépayé', `-${cad(order.walletCreditAppliedCents)} $`, { color: COLOR_BRAND });
+  }
+  if (order.referralCreditAppliedCents > 0) {
+    totalsRow('Crédit parrainage', `-${cad(order.referralCreditAppliedCents)} $`, { color: COLOR_BRAND });
+  }
+
   // Trait + total à payer
   r.y -= 4;
   drawRule(r);
