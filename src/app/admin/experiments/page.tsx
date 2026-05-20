@@ -19,6 +19,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { EXPERIMENTS, type ExperimentId } from '@/lib/ab/experiments';
+import { verdictForExperiment } from '@/lib/ab/analyze';
 import ExperimentToggle from './ExperimentToggle';
 
 export const metadata = { title: 'Admin — Expériences A/B' };
@@ -221,6 +222,9 @@ function ExperimentCard({ exp }: { exp: ExperimentRow }) {
         />
       </div>
 
+      {/* Round 20 #1 — verdict summary (lift + winner / data sufficiency) */}
+      <ExperimentVerdictBanner exp={exp} />
+
       <div
         style={{
           display: 'grid',
@@ -266,6 +270,81 @@ function ExperimentCard({ exp }: { exp: ExperimentRow }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Round 20 #1 — Banner verdict pour une experiment (lift + sufficient data).
+ *
+ * Picks le primary goal (le plus de conversions all-variants combined) et
+ * computes le lift vs control. Affiche un verdict human-readable.
+ */
+function ExperimentVerdictBanner({ exp }: { exp: ExperimentRow }) {
+  // Le primary goal = celui avec le plus de conversions cumulées toutes
+  // variants. Si pas de conversion → primary goal = 'order_placed' par
+  // default (TODO : declarable côté schema experiment).
+  const goalCounts = new Map<string, number>();
+  for (const variantStats of exp.stats.values()) {
+    for (const [goal, conv] of variantStats.conversions.entries()) {
+      goalCounts.set(goal, (goalCounts.get(goal) ?? 0) + conv.count);
+    }
+  }
+  const sortedGoals = Array.from(goalCounts.entries()).sort(([, a], [, b]) => b - a);
+  const primaryGoal = sortedGoals[0]?.[0] ?? 'order_placed';
+
+  // Build VariantSummary[] pour analyze
+  const summaries = exp.variants.map((v, idx) => {
+    const stats = exp.stats.get(v.id);
+    const assignments = stats?.assignments ?? 0;
+    const conversions = stats?.conversions.get(primaryGoal)?.count ?? 0;
+    return {
+      variantId: v.id,
+      assignments,
+      conversions,
+      rate: assignments > 0 ? conversions / assignments : 0,
+      isControl: idx === 0, // convention : 1er variant = control
+    };
+  });
+
+  const verdict = verdictForExperiment(summaries);
+  const bg = verdict.winnerVariantId
+    ? 'var(--accent-soft)'
+    : verdict.hasEnoughData
+      ? 'var(--bg-sunken)'
+      : 'var(--bg-canvas)';
+  const borderColor = verdict.winnerVariantId
+    ? 'var(--accent-primary)'
+    : 'var(--border-default)';
+
+  return (
+    <div style={{
+      marginTop: 12,
+      padding: '10px 14px',
+      background: bg,
+      border: `1px solid ${borderColor}`,
+      borderRadius: 'var(--r-md)',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+      fontSize: 13,
+    }}>
+      <span style={{
+        color: verdict.winnerVariantId ? 'var(--accent-primary)' : 'var(--text-secondary)',
+        fontWeight: verdict.winnerVariantId ? 600 : 400,
+      }}>
+        {verdict.message}
+      </span>
+      <span style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 11,
+        color: 'var(--text-muted)',
+      }}>
+        primary goal : <strong style={{ color: 'var(--text-primary)' }}>{primaryGoal}</strong>
+        {' · '}
+        {verdict.totalAssignments} assignments
+      </span>
     </div>
   );
 }
