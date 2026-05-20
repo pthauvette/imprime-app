@@ -1050,6 +1050,10 @@ model AbandonedCart {
   @@index([emailSentAt, updatedAt])
   /** Anti-spam : retrouver vite si déjà capturé pour cet email. */
   @@index([email, updatedAt])
+  /** Round 16 #4 : UNIQUE pour fix la race condition (2 POSTs concurrents
+   *  pour le même (email, productId) créaient 2 rows). L'API utilise
+   *  maintenant prisma.upsert sur ce composite key — atomique côté DB. */
+  @@unique([email, productId])
 }
 
 // ─── CRON RUN HISTORY ────────────────────────────────────────────────────
