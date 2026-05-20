@@ -117,7 +117,7 @@ const baseUser: User = {
   emailVerified: null,
   image: null,
   role: 'USER',
-  emailDeliveryNotifications: true, emailMarketing: true, emailReengagement: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null, loyaltyTier: 'BRONZE', loyaltyTierComputedAt: null,
+  emailDeliveryNotifications: true, emailMarketing: true, emailReengagement: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null, loyaltyTier: 'BRONZE', loyaltyTierComputedAt: null, walletCents: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

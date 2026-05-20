@@ -59,9 +59,48 @@ export async function processStripeEvent(
       await handlePaymentFailed(event.data.object as Stripe.PaymentIntent, ctx);
       break;
     }
+    case 'checkout.session.completed': {
+      // Round 18 #1 — wallet topup via Stripe Checkout. Distinct des
+      // payment_intent.succeeded car le wizard d'order utilise Payment
+      // Intents direct alors que le topup utilise Checkout Sessions
+      // (meilleur UX pour un montant variable + bonus visible).
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.metadata?.kind === 'wallet_topup') {
+        await handleWalletTopup(session);
+      } else {
+        logStripe.info({ sessionId: session.id, metadata: session.metadata }, 'checkout.session.completed without wallet_topup metadata — ignored');
+      }
+      break;
+    }
     default:
       logStripe.info({ eventType: event.type }, 'unhandled event');
   }
+}
+
+async function handleWalletTopup(session: Stripe.Checkout.Session): Promise<void> {
+  const { processWalletTopup } = await import('@/lib/wallet/operations');
+  const meta = session.metadata ?? {};
+  const userId = meta.userId;
+  const amountCents = parseInt(meta.amountCents ?? '0', 10);
+  const bonusCents = parseInt(meta.bonusCents ?? '0', 10);
+  const tierLabel = meta.tierLabel || null;
+  const paymentIntentId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : session.payment_intent?.id ?? session.id;
+
+  if (!userId || !amountCents) {
+    throw new Error(`wallet_topup webhook missing userId or amountCents in metadata: ${JSON.stringify(meta)}`);
+  }
+
+  const result = await processWalletTopup({
+    userId, amountCents, bonusCents, tierLabel,
+    paymentIntentId,
+  });
+  logStripe.info({
+    userId, amountCents, bonusCents,
+    totalCredit: result.totalCreditCents,
+    newBalance: result.balanceAfterCents,
+  }, 'wallet topup processed');
 }
 
 async function handlePaymentSucceeded(
