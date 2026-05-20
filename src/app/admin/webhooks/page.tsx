@@ -21,6 +21,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatDateTime } from '@/lib/format';
 import ReplayButton from './ReplayButton';
+import BulkReplayActions from './BulkReplayActions';
 
 export const metadata = { title: 'Admin — Webhooks' };
 export const dynamic = 'force-dynamic';
@@ -339,9 +340,10 @@ export default async function AdminWebhooksPage({
             <table className="adm-wh-table">
               <thead>
                 <tr>
-                  {/* Round 14 #5 : checkbox bulk-select retirée (pas de bulk
-                      action wired sur cette page — la per-event Replay marche
-                      via ReplayButton ci-dessous). */}
+                  {/* Round 20 #2 : checkbox bulk-select wired via BulkReplayActions client */}
+                  <th style={{ width: 32 }}>
+                    <input type="checkbox" data-webhook-select-all aria-label="Sélectionner tout" />
+                  </th>
                   <th style={{ width: 170 }}>Timestamp</th>
                   <th style={{ width: 90 }}>Source</th>
                   <th>Event type</th>
@@ -354,6 +356,9 @@ export default async function AdminWebhooksPage({
               <tbody>
                 {events.map((e) => (
                   <tr key={e.id}>
+                    <td>
+                      <input type="checkbox" data-webhook-id={e.id} aria-label={`Sélectionner ${e.eventId}`} />
+                    </td>
                     <td>
                       <span className="adm-wh-time">
                         {formatDateTime(e.processedAt.toISOString())}
@@ -401,6 +406,9 @@ export default async function AdminWebhooksPage({
               </tbody>
             </table>
           )}
+
+          {/* Round 20 #2 — Bulk replay actions (sticky bar quand selection > 0) */}
+          {events.length > 0 && <BulkReplayActions eventIds={events.map((e) => e.id)} />}
 
           {listTotal > 0 && (
             <Pagination
