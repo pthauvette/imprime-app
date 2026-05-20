@@ -84,6 +84,14 @@ model User {
   taxExempt                  Boolean   @default(false)
   taxExemptCertId            String?
 
+  // Round 21 #4 — Reseller status auto-détecté par cron monthly :
+  //   NONE          : default (< 5 orders/365j ou moins)
+  //   AUTO_DETECTED : 5+ orders dans les 365 derniers jours, candidat
+  //   VERIFIED      : admin a manuellement confirmé (badge "Reseller officiel")
+  // resellerDetectedAt = quand le cron a basculé en AUTO_DETECTED (audit).
+  resellerStatus             String    @default("NONE")
+  resellerDetectedAt         DateTime?
+
   // ─── Loyalty tier ─────────────────────────────────────────────────────
   // Tier basé sur le revenu net 365 derniers jours. Recomputé mensuellement
   // via /api/cron/loyalty-tiers. Sert à :

@@ -45,6 +45,8 @@ export const DEFAULT_TEST_USER: User = {
   loyaltyTierComputedAt: null,
   taxExempt: false,
   taxExemptCertId: null,
+  resellerStatus: 'NONE',
+  resellerDetectedAt: null,
   adminNotes: null,
   adminNotesUpdatedAt: null,
   adminNotesUpdatedBy: null,
