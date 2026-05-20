@@ -25,7 +25,7 @@ import { formatDateTime } from '@/lib/format';
 export const metadata = { title: 'Admin — Cron monitor' };
 export const dynamic = 'force-dynamic';
 
-const KNOWN_CRONS = ['cleanup', 'daily-summary', 'email-retry', 're-engagement', 'abandoned-cart', 'loyalty-tiers', 'wallet-expiry', 'broadcasts'] as const;
+const KNOWN_CRONS = ['cleanup', 'daily-summary', 'email-retry', 're-engagement', 'abandoned-cart', 'loyalty-tiers', 'wallet-expiry', 'broadcasts', 'reseller-detection'] as const;
 type CronName = (typeof KNOWN_CRONS)[number];
 
 export default async function AdminCronsPage() {

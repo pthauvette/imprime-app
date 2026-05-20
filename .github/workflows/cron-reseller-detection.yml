@@ -1,0 +1,27 @@
+name: Reseller detection monthly
+
+# Tape /api/cron/reseller-detection le 1er du mois à 07h UTC (après
+# loyalty-tiers à 05h, après que tier soit à jour). Scan users 365j
+# orders → bascule AUTO_DETECTED ou déclasse.
+
+on:
+  schedule:
+    - cron: '0 7 1 * *'
+  workflow_dispatch:
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping /api/cron/reseller-detection
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://plio.ca/api/cron/reseller-detection

@@ -217,6 +217,30 @@ export default async function AdminUserDetailPage({
               <SegmentBadge segment={customerSegment} />
               {/* Loyalty tier — BRONZE / SILVER / GOLD, recompute mensuel */}
               <LoyaltyTierTag tier={(user.loyaltyTier as LoyaltyTier) ?? 'BRONZE'} />
+              {/* Round 21 #4 — Reseller badge si AUTO_DETECTED ou VERIFIED */}
+              {user.resellerStatus !== 'NONE' && (
+                <span
+                  title={
+                    user.resellerStatus === 'VERIFIED'
+                      ? 'Reseller officiellement vérifié par admin'
+                      : `Auto-détecté reseller (5+ orders/365j). Détecté le ${user.resellerDetectedAt ? new Date(user.resellerDetectedAt).toLocaleDateString('fr-CA') : '—'}`
+                  }
+                  style={{
+                    display: 'inline-block',
+                    padding: '3px 10px',
+                    background: user.resellerStatus === 'VERIFIED' ? '#1F3D2B' : '#5B7A6A',
+                    color: '#fff',
+                    borderRadius: 'var(--r-pill)',
+                    fontSize: 11,
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {user.resellerStatus === 'VERIFIED' ? '✓ Reseller' : '~ Reseller (auto)'}
+                </span>
+              )}
               {user.role === 'ADMIN' && (
                 <span className="ud-tag vip">Admin</span>
               )}
