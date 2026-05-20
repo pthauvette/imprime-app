@@ -157,10 +157,10 @@ export default async function AdminMessagesPage({
                 )}
 
                 <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <a href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject)}`} className="btn btn-primary btn-sm">
-                    ✉ Répondre
-                  </a>
-                  <MessageActions id={m.id} status={m.status} />
+                  {/* Round 18 #4 : mailto fallback retiré, le bouton "✉ Répondre"
+                      vit maintenant dans MessageActions et envoie via la queue
+                      (retry + audit + auto-mark ANSWERED). */}
+                  <MessageActions id={m.id} status={m.status} email={m.email} subject={m.subject} />
                 </div>
               </div>
             ))}
