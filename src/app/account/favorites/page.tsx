@@ -19,6 +19,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
 import FavoriteActions from './FavoriteActions';
+import ExportImportActions from './ExportImportActions';
 
 export const metadata = { title: 'Configurations sauvées — Plio' };
 export const dynamic = 'force-dynamic';
@@ -78,9 +79,12 @@ export default async function FavoritesPage({
               {' '}reprends d'un clic là où tu en étais.
             </p>
           </div>
-          <Link href={'/order/start' as Route} className="btn btn-primary">
-            + Nouvelle commande
-          </Link>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <ExportImportActions />
+            <Link href={'/order/start' as Route} className="btn btn-primary">
+              + Nouvelle commande
+            </Link>
+          </div>
         </header>
 
         {/* Round 18 #2 — folder + tag filter chips */}
