@@ -13,6 +13,12 @@ vi.mock('@/lib/db', () => ({
     abandonedCart: {
       findFirst: vi.fn(),
       findMany: vi.fn(async () => []),
+      // Round 16 #4 : capture endpoint utilise maintenant upsert atomique
+      // sur UNIQUE (email, productId).
+      upsert: vi.fn(async (args: { create: Record<string, unknown> }) => ({
+        id: 'cart_new',
+        ...args.create,
+      })),
       create: vi.fn(async (args: { data: Record<string, unknown> }) => ({
         id: 'cart_new',
         ...args.data,
@@ -81,8 +87,10 @@ function makeReq(body: unknown): Request {
 }
 
 describe('POST /api/abandoned-cart (capture)', () => {
-  it('create row si aucun existant', async () => {
-    vi.mocked(prisma.abandonedCart.findFirst).mockResolvedValueOnce(null);
+  // Round 16 #4 : refactored à prisma.upsert atomique sur UNIQUE
+  // (email, productId). Plus de findFirst + create/update — un seul call DB.
+
+  it('appelle upsert avec where email_productId composite', async () => {
     const POST = await importCapture();
     const res = await POST(
       makeReq({
@@ -93,23 +101,27 @@ describe('POST /api/abandoned-cart (capture)', () => {
       }),
     );
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.updated).toBe(false);
-    expect(prisma.abandonedCart.create).toHaveBeenCalledTimes(1);
-    const create = vi.mocked(prisma.abandonedCart.create).mock.calls[0][0];
-    expect(create.data.email).toBe('sophie@studio.ca');
-    expect(create.data.productId).toBe(7);
-  });
-
-  it('update si row récente (< 7j) pour même email/productId', async () => {
-    vi.mocked(prisma.abandonedCart.findFirst).mockResolvedValueOnce({
-      id: 'cart_existing',
+    expect(prisma.abandonedCart.upsert).toHaveBeenCalledTimes(1);
+    const args = vi.mocked(prisma.abandonedCart.upsert).mock.calls[0]![0]!;
+    expect(args.where).toEqual({
+      email_productId: { email: 'sophie@studio.ca', productId: 7 },
+    });
+    expect(args.create).toEqual(expect.objectContaining({
       email: 'sophie@studio.ca',
       productId: 7,
-    } as never);
+      resumeQuery: 'options=12,34',
+      lastStep: 'shipping',
+    }));
+    expect(args.update).toEqual(expect.objectContaining({
+      resumeQuery: 'options=12,34',
+      lastStep: 'shipping',
+      emailSentAt: null, // reset pour re-éligibilité recovery
+    }));
+  });
 
+  it('update reset emailSentAt à null (re-eligible pour recovery)', async () => {
     const POST = await importCapture();
-    const res = await POST(
+    await POST(
       makeReq({
         email: 'sophie@studio.ca',
         productId: 7,
@@ -117,14 +129,8 @@ describe('POST /api/abandoned-cart (capture)', () => {
         lastStep: 'upload',
       }),
     );
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.updated).toBe(true);
-    expect(prisma.abandonedCart.update).toHaveBeenCalledTimes(1);
-    expect(prisma.abandonedCart.create).not.toHaveBeenCalled();
-    // update reset emailSentAt to null (re-eligible)
-    const upd = vi.mocked(prisma.abandonedCart.update).mock.calls[0][0];
-    expect(upd.data.emailSentAt).toBeNull();
+    const args = vi.mocked(prisma.abandonedCart.upsert).mock.calls[0]![0]!;
+    expect(args.update.emailSentAt).toBeNull();
   });
 
   it('400 si email invalide', async () => {
@@ -153,8 +159,7 @@ describe('POST /api/abandoned-cart (capture)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('email lowercase normalisé', async () => {
-    vi.mocked(prisma.abandonedCart.findFirst).mockResolvedValueOnce(null);
+  it('email lowercase normalisé dans where + create', async () => {
     const POST = await importCapture();
     await POST(
       makeReq({
@@ -164,8 +169,9 @@ describe('POST /api/abandoned-cart (capture)', () => {
         lastStep: 'shipping',
       }),
     );
-    const create = vi.mocked(prisma.abandonedCart.create).mock.calls[0][0];
-    expect(create.data.email).toBe('sophie@studio.ca');
+    const args = vi.mocked(prisma.abandonedCart.upsert).mock.calls[0]![0]!;
+    expect(args.where.email_productId?.email).toBe('sophie@studio.ca');
+    expect(args.create.email).toBe('sophie@studio.ca');
   });
 });
 
