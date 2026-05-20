@@ -15,6 +15,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
+import ProductionStatusWidget from '@/components/account/ProductionStatusWidget';
 import NpsAutoPrompt from '@/components/account/NpsAutoPrompt';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
@@ -67,6 +68,7 @@ export default async function AccountDashboardPage() {
       select: {
         id: true,
         createdAt: true,
+        paidAt: true, // Round 21 #3 — needed for ProductionStatusWidget
         status: true,
         amountCents: true,
         productSummary: true,
@@ -185,6 +187,14 @@ export default async function AccountDashboardPage() {
           />
           <LoyaltyCard tier={(user.loyaltyTier as 'BRONZE' | 'SILVER' | 'GOLD') ?? 'BRONZE'} revenueLast365dCents={ltvLast365dCents} />
         </section>
+
+        {/* Round 21 #3 — In-production widget. Filter on existing recentOrders
+            pour éviter une query supplémentaire. */}
+        <ProductionStatusWidget
+          orders={recentOrders.filter((o) =>
+            ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED'].includes(o.status)
+          )}
+        />
 
         {/* Grid : Recent orders + Side widgets */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'start' }}>
