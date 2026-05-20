@@ -209,10 +209,8 @@ export default async function SettingsPage() {
 function KV({ label, value }: { label: string; value: string }) {
   return (
     <div
+      className="settings-2col-grid"
       style={{
-        display: 'grid',
-        gridTemplateColumns: '180px 1fr',
-        gap: 16,
         alignItems: 'baseline',
         padding: '8px 0',
         borderBottom: '1px solid var(--border-subtle)',
