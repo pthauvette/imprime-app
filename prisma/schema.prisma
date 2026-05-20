@@ -709,8 +709,20 @@ model SavedConfig {
   /** Compteur d'usage (analytics + sort par fréquence). */
   timesUsed   Int      @default(0)
 
+  /** Round 18 #2 — Folder organization. NULL = pas dans un folder
+   *  (display dans le "root" / "Tous"). Free-text 1-50 chars, normalisé
+   *  lowercase au save pour matcher. Pas une table FoldersJoinTable :
+   *  un folder existe = au moins 1 SavedConfig le référence. */
+  folder      String?
+  /** Round 18 #2 — Tags CSV (lowercase, comma-separated). Filter UI :
+   *  "show me only configs with tag 'biz-cards' or 'recurring'".
+   *  Garde un format simple (CSV) plutôt qu'un m:n parce que < 5 tags
+   *  par config typique + lookup ne nécessite pas d'index. */
+  tags        String?
+
   @@index([userId, lastUsedAt])
   @@index([userId, createdAt])
+  @@index([userId, folder])
 }
 
 // ─── REFERRAL ─────────────────────────────────────────────────────────────
