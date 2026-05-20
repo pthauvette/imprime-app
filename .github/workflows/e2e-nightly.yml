@@ -1,0 +1,75 @@
+name: E2E nightly (happy-path wizard navigation)
+
+# Run nightly contre prod. Couvre les steps 1-4 du wizard sans
+# déclencher de paiement Stripe. Le full flow (Stripe + Sinalite real)
+# reste gated par E2E_FULL_FLOW=1 et doit être déclenché manuellement.
+#
+# Round 17 #5 — ferme le gap AUDIT.md "happy-path.spec.ts gated par
+# E2E_FULL_FLOW=1 + PDF fixture manquante → CI never runs".
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 6h UTC = 2h Montréal (low traffic)
+  workflow_dispatch:
+    inputs:
+      include_full_flow:
+        description: 'Run full Stripe checkout (DANGER — creates real test orders in prod)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: e2e-nightly
+  cancel-in-progress: false
+
+jobs:
+  happy-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      INCLUDE_FULL_FLOW: ${{ github.event.inputs.include_full_flow }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Verify PDF fixture exists
+        run: |
+          if [ ! -f e2e/fixtures/test-card.pdf ]; then
+            echo "::error::e2e/fixtures/test-card.pdf manque — full flow tests vont skip."
+            exit 1
+          fi
+          echo "PDF fixture OK ($(stat -c%s e2e/fixtures/test-card.pdf) bytes)"
+
+      - name: Run happy-path E2E (navigation steps 1-4, no payment)
+        env:
+          E2E_BASE_URL: https://www.plio.ca
+          CI: 'true'
+        run: pnpm exec playwright test e2e/happy-path.spec.ts
+
+      - name: Run FULL flow (Stripe + Sinalite)
+        if: github.event_name == 'workflow_dispatch' && env.INCLUDE_FULL_FLOW == 'true'
+        env:
+          E2E_BASE_URL: https://www.plio.ca
+          E2E_FULL_FLOW: '1'
+          CI: 'true'
+        run: pnpm exec playwright test e2e/happy-path.spec.ts
+
+      - name: Upload Playwright report (failure only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nightly-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 30
