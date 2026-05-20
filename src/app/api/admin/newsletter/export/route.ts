@@ -50,7 +50,7 @@ export async function GET() {
   const csv = [header, ...rows].join('\n');
 
   void recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    kind: 'ADMIN_DATA_EXPORT',
     adminId: guard.userId,
     adminEmail: guard.user.email,
     targetType: 'USER',

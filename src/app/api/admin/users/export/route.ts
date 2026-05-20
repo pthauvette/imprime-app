@@ -144,7 +144,7 @@ export const GET = withErrorHandler(async (req: Request) => {
 
   // Audit (PII export — sensible)
   void recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    kind: 'ADMIN_DATA_EXPORT',
     adminId: guard.userId,
     adminEmail: guard.user.email,
     targetType: 'USER',
