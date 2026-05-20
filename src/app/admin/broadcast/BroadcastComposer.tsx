@@ -82,6 +82,10 @@ export default function BroadcastComposer() {
   const [testInfo, setTestInfo] = useState<string | null>(null);
   const [busy, startTransition] = useTransition();
   const [testBusy, startTestTransition] = useTransition();
+  // Round 19 #4 — scheduling. mode 'now' = immédiat (legacy), 'later'
+  // affiche un datetime-local input. scheduledAt en ISO string (UTC).
+  const [sendMode, setSendMode] = useState<'now' | 'later'>('now');
+  const [scheduledLocal, setScheduledLocal] = useState('');
 
   // Live count quand segment change
   useEffect(() => {
@@ -166,11 +170,32 @@ export default function BroadcastComposer() {
       setError('Subject requis et body min 20 caractères.');
       return;
     }
+    // Round 19 #4 — scheduling : si sendMode=later, valider le datetime
+    let scheduledIso: string | undefined;
+    if (sendMode === 'later') {
+      if (!scheduledLocal) {
+        setError('Choisis une date/heure pour programmer.');
+        return;
+      }
+      const dt = new Date(scheduledLocal);
+      if (Number.isNaN(dt.getTime())) {
+        setError('Date/heure invalide.');
+        return;
+      }
+      if (dt.getTime() < Date.now() + 60_000) {
+        setError('Date doit être dans au moins 1 min dans le futur.');
+        return;
+      }
+      scheduledIso = dt.toISOString();
+    }
+
+    const action = sendMode === 'later' ? 'programmer' : 'envoyer maintenant';
     const confirmMsg =
-      `Envoyer ce broadcast à ${count} destinataire${count > 1 ? 's' : ''} ?\n\n` +
+      `${sendMode === 'later' ? 'Programmer' : 'Envoyer'} ce broadcast à ${count} destinataire${count > 1 ? 's' : ''} ?\n\n` +
       `Segment : ${LABEL_BY_KEY[segment]}\n` +
-      `Sujet : ${subj}\n\n` +
-      `Cette action est irréversible (les emails seront enqueued immédiatement).`;
+      `Sujet : ${subj}\n` +
+      (scheduledIso ? `Quand : ${new Date(scheduledIso).toLocaleString('fr-CA')}\n\n` : '\n') +
+      `Cette action est irréversible (${sendMode === 'later' ? 'le broadcast sera processé par le cron à l\'heure indiquée' : 'les emails seront enqueued immédiatement'}).`;
     if (!window.confirm(confirmMsg)) return;
 
     setError(null);
@@ -186,15 +211,22 @@ export default function BroadcastComposer() {
             segment,
             notes: notes.trim() || undefined,
             confirmedCount: count,
+            scheduledAt: scheduledIso,
           }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-        setDone(`✓ ${data.enqueued} email${data.enqueued > 1 ? 's' : ''} enqueued. Voir la queue dans /admin/emails.`);
+        if (data.scheduled) {
+          setDone(`✓ Broadcast programmé pour ${new Date(data.scheduledAt).toLocaleString('fr-CA')} (~${data.plannedRecipients} destinataires).`);
+        } else {
+          setDone(`✓ ${data.enqueued} email${data.enqueued > 1 ? 's' : ''} enqueued. Voir la queue dans /admin/emails.`);
+        }
         setSubject('');
         setBody('');
         setNotes('');
         setPreviewHtml(null);
+        setSendMode('now');
+        setScheduledLocal('');
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur');
@@ -307,6 +339,56 @@ export default function BroadcastComposer() {
           </div>
         )}
 
+        {/* Round 19 #4 — Schedule controls */}
+        <div style={{ display: 'grid', gap: 8, padding: 12, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)' }}>
+          <span style={labelStyle}>Quand envoyer ?</span>
+          <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="sendMode"
+                checked={sendMode === 'now'}
+                onChange={() => setSendMode('now')}
+                disabled={busy}
+              />
+              Maintenant
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="sendMode"
+                checked={sendMode === 'later'}
+                onChange={() => setSendMode('later')}
+                disabled={busy}
+              />
+              Programmer pour…
+            </label>
+          </div>
+          {sendMode === 'later' && (
+            <input
+              type="datetime-local"
+              value={scheduledLocal}
+              onChange={(e) => setScheduledLocal(e.target.value)}
+              disabled={busy}
+              min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--r-sm)',
+                fontSize: 13,
+                fontFamily: 'var(--font-mono)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          )}
+          {sendMode === 'later' && scheduledLocal && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Précision cron : ±5 min. Le broadcast sera processé au prochain tick après cette heure.
+            </span>
+          )}
+        </div>
+
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -323,12 +405,18 @@ export default function BroadcastComposer() {
             className="btn btn-primary"
             style={{ opacity: busy || count === null || count === 0 ? 0.6 : 1, flex: 1, minWidth: 200 }}
           >
-            {busy ? 'Envoi…' : count === null ? 'Calcul…' : `📨 Envoyer à ${count} destinataire${count > 1 ? 's' : ''}`}
+            {busy
+              ? (sendMode === 'later' ? 'Programmation…' : 'Envoi…')
+              : count === null
+                ? 'Calcul…'
+                : sendMode === 'later'
+                  ? `📅 Programmer pour ${count} destinataire${count > 1 ? 's' : ''}`
+                  : `📨 Envoyer à ${count} destinataire${count > 1 ? 's' : ''}`}
           </button>
         </div>
 
         <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
-          ⚠️ Action irréversible. Les emails sont enqueués immédiatement et envoyés par le worker SES.
+          ⚠️ Action irréversible. {sendMode === 'later' ? 'Le broadcast sera processé par le cron à l\'heure indiquée.' : 'Les emails sont enqueués immédiatement.'}
         </p>
       </form>
 
