@@ -34,7 +34,12 @@ interface SP {
   type?: string;
   q?: string;
   page?: string;
+  /** Round 16 #2 : filter by HTTP status — '2xx', '4xx', '5xx' */
+  status?: string;
 }
+
+type StatusFilter = '2xx' | '4xx' | '5xx';
+const STATUS_FILTERS: readonly StatusFilter[] = ['2xx', '4xx', '5xx'] as const;
 
 export default async function AdminWebhooksPage({
   searchParams,
@@ -49,6 +54,9 @@ export default async function AdminWebhooksPage({
     : null;
   const filterType = (sp.type ?? '').trim();
   const search = (sp.q ?? '').trim();
+  const filterStatus: StatusFilter | null = (STATUS_FILTERS as readonly string[]).includes(sp.status ?? '')
+    ? (sp.status as StatusFilter)
+    : null;
 
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
@@ -57,10 +65,20 @@ export default async function AdminWebhooksPage({
 
   // ─── WHERE clause for the listing ──────────────────────────────────────
   type WhWhere = NonNullable<NonNullable<Parameters<typeof prisma.webhookEvent.findMany>[0]>['where']>;
+  // Round 16 #2 : statusCode tracking enabled. 2xx = success path,
+  // 4xx = bad request (signature/payload), 5xx = server error.
+  const statusWhere: WhWhere = filterStatus === '2xx'
+    ? { statusCode: { gte: 200, lt: 300 } }
+    : filterStatus === '4xx'
+    ? { statusCode: { gte: 400, lt: 500 } }
+    : filterStatus === '5xx'
+    ? { statusCode: { gte: 500, lt: 600 } }
+    : {};
   const where: WhWhere = {
     ...(filterSource ? { source: filterSource } : {}),
     ...(filterType ? { eventType: filterType } : {}),
     ...(search ? { eventId: { contains: search, mode: 'insensitive' as const } } : {}),
+    ...statusWhere,
   };
 
   const [
@@ -269,13 +287,41 @@ export default async function AdminWebhooksPage({
             <button type="submit" className="btn btn-secondary btn-sm" style={{ marginLeft: 8 }}>Filtrer</button>
           </form>
 
-          {/* Round 14 #5 : status pills (200/4xx/5xx) retirés — WebhookEvent
-              n'a pas de statusCode tracké en DB actuelle. Ajouter quand
-              on migrera le schema pour tracker le HTTP status retourné. */}
+          {/* Round 16 #2 : status filter pills réactivées (statusCode était
+              déjà tracké dans WebhookEvent — le commentaire Round 14 était
+              incorrect). 2xx/4xx/5xx → range query sur statusCode. */}
+          <div className="adm-filter-group">
+            <span className="adm-filter-label">Statut</span>
+            <div className="adm-pills">
+              <a
+                href={`/admin/webhooks${buildFilterQS({ source: filterSource, type: filterType, q: search, status: null })}`}
+                className={filterStatus === null ? 'active' : ''}
+                style={{ textDecoration: 'none' }}
+              >
+                Tous
+              </a>
+              {(['2xx', '4xx', '5xx'] as const).map((s) => (
+                <a
+                  key={s}
+                  href={`/admin/webhooks${buildFilterQS({ source: filterSource, type: filterType, q: search, status: s })}`}
+                  className={filterStatus === s ? 'active' : ''}
+                  style={{ textDecoration: 'none' }}
+                  title={
+                    s === '2xx' ? 'Success (200-299)' :
+                    s === '4xx' ? 'Bad request / unauthorized (400-499)' :
+                    'Server error (500-599)'
+                  }
+                >
+                  {s === '2xx' ? '✓ 2xx' : s === '4xx' ? '⚠ 4xx' : '✕ 5xx'}
+                </a>
+              ))}
+            </div>
+          </div>
 
           <form action="/admin/webhooks" method="get" style={{ marginLeft: 'auto' }}>
             {filterSource && <input type="hidden" name="source" value={filterSource} />}
             {filterType && <input type="hidden" name="type" value={filterType} />}
+            {filterStatus && <input type="hidden" name="status" value={filterStatus} />}
             <input
               className="adm-search-input"
               name="q"
@@ -433,13 +479,27 @@ function buildParams(opts: {
   type: string;
   q: string;
   page?: number;
+  status?: StatusFilter | null;
 }): string {
   const params = new URLSearchParams();
   if (opts.source) params.set('source', opts.source);
   if (opts.type) params.set('type', opts.type);
   if (opts.q) params.set('q', opts.q);
+  if (opts.status) params.set('status', opts.status);
   if (opts.page && opts.page > 1) params.set('page', String(opts.page));
   return params.toString();
+}
+
+/** Round 16 #2 : QS builder pour les status filter pills. Préserve les
+ *  autres filtres + supprime page (reset à 1 quand on change de filter). */
+function buildFilterQS(opts: {
+  source: Source | null;
+  type: string;
+  q: string;
+  status: StatusFilter | null;
+}): string {
+  const qs = buildParams(opts);
+  return qs ? `?${qs}` : '';
 }
 
 function StatusCell({
