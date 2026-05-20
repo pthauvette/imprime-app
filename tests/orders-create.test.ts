@@ -1,0 +1,261 @@
+/**
+ * Tests pour /api/orders/create — Round 15 #5.
+ *
+ * Cible : la route est complexe (Stripe + Sinalite + auth + Prisma). On test
+ * le payload validation + l'intégration du GOLD perk (Round 13 #5) +
+ * referral credit (Round 11). Les helpers sous-jacents (applyShippingPerks,
+ * validatePromo, buildItemsSnapshot) sont déjà testés ailleurs.
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('@/auth', () => ({
+  auth: vi.fn(async () => null), // default : guest
+}));
+
+vi.mock('@/lib/db', () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn(async () => null),
+      update: vi.fn(async () => ({ id: 'u_test', email: 't@plio.ca' })),
+    },
+    designDraft: {
+      update: vi.fn(async () => ({})),
+    },
+    abandonedCart: {
+      updateMany: vi.fn(async () => ({ count: 0 })),
+    },
+  },
+}));
+
+vi.mock('@/lib/db/orders', () => ({
+  findOrCreateUserByEmail: vi.fn(async () => ({
+    id: 'u_test', email: 't@plio.ca', firstName: 'T', lastName: 'P',
+  })),
+  createPendingOrder: vi.fn(async () => ({ id: 'order_test' })),
+}));
+
+vi.mock('@/lib/sinalite/client', () => ({
+  sinalite: {
+    getProductDetail: vi.fn(async () => ({
+      id: 1, name: 'Cartes UV', sku: 'BC-14UV',
+      options: [
+        { id: 4, group: 'Stock', name: '14pt UV' },
+        { id: 30, group: 'size', name: '3.5x2' },
+        { id: 1, group: 'qty', name: '100' },
+      ],
+      metadata: [],
+    })),
+    getProduct: vi.fn(async () => ({ id: 1, name: 'Cartes UV', category: 'Business Cards' })),
+  },
+}));
+
+vi.mock('@/lib/sinalite/types', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/sinalite/types')>('@/lib/sinalite/types');
+  return actual;
+});
+
+vi.mock('@/lib/products/pricing', () => ({
+  getEnrichedVariantIndex: vi.fn(async () => ({
+    index: new Map<string, number>([['1-4-30', 50]]),
+    hiddenOptionIds: new Set<number>(),
+  })),
+}));
+
+vi.mock('@/lib/promo/validate', () => ({
+  normalizeCode: (s: string) => s.trim().toUpperCase(),
+  validatePromo: vi.fn(async () => ({ ok: true, discountCents: 0, code: { code: 'TEST' } })),
+}));
+
+vi.mock('@/lib/orders/items', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/orders/items')>('@/lib/orders/items');
+  return {
+    ...actual,
+    buildItemsSnapshot: vi.fn(() => '[]'),
+  };
+});
+
+// Mock Stripe via vi.hoisted pour qu'il soit dispo dans le mock factory
+const stripeMock = vi.hoisted(() => ({
+  paymentIntents: {
+    create: vi.fn(async () => ({
+      id: 'pi_test_123',
+      client_secret: 'pi_test_123_secret',
+    })),
+  },
+  refunds: { create: vi.fn() },
+  balance: { retrieve: vi.fn() },
+}));
+
+vi.mock('stripe', () => {
+  function StripeMock(this: unknown) {
+    return stripeMock;
+  }
+  return { default: StripeMock };
+});
+
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+
+const URL = 'http://localhost/api/orders/create';
+
+function makeReq(body: unknown) {
+  return new Request(URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+const validPayload = {
+  items: [{
+    productId: 1,
+    optionIds: [4, 30, 1],
+    files: [{ type: 'front', url: 'https://s3.example.com/file.pdf' }],
+  }],
+  contact: {
+    firstName: 'Test', lastName: 'User',
+    email: 'test@plio.ca',
+    phone: '+15145551234',
+  },
+  shippingAddress: {
+    line1: '123 rue Test', city: 'Montreal',
+    province: 'QC', postalCode: 'H2X 1Y4',
+  },
+  shippingMethod: 'UPS Standard',
+  shippingPrice: 20,
+  expectedSubtotal: 50,
+};
+
+beforeEach(() => {
+  vi.mocked(auth).mockReset();
+  vi.mocked(auth).mockResolvedValue(null as never);
+  vi.mocked(prisma.user.findUnique).mockReset();
+  vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+  stripeMock.paymentIntents.create.mockClear();
+  vi.resetModules();
+});
+
+describe('/api/orders/create — payload validation', () => {
+  it('400 si payload manque items', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({ ...validPayload, items: [] }));
+    expect(res.status).toBe(400);
+  });
+
+  it('400 si email invalide', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({ ...validPayload, contact: { ...validPayload.contact, email: 'not-an-email' } }));
+    expect(res.status).toBe(400);
+  });
+
+  it('400 si postalCode invalide format', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({
+      ...validPayload,
+      shippingAddress: { ...validPayload.shippingAddress, postalCode: 'INVALID' },
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  it('400 si province pas Canada', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({
+      ...validPayload,
+      shippingAddress: { ...validPayload.shippingAddress, province: 'CA' }, // état US
+    }));
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('/api/orders/create — GOLD perk integration (Round 13 #5)', () => {
+  it('GOLD user → shippingCents = 0 dans Stripe metadata', async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: 'u_gold', email: 'gold@plio.ca', role: 'USER' },
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      loyaltyTier: 'GOLD', referralCreditCents: 0,
+    } as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+
+    expect(stripeMock.paymentIntents.create).toHaveBeenCalledOnce();
+    const calls = stripeMock.paymentIntents.create.mock.calls as unknown as Array<[Record<string, unknown> & { metadata?: Record<string, string> }]>;
+    const piArgs = calls[0]?.[0];
+    expect(piArgs).toBeDefined();
+    // metadata stamp goldFreeShipping=true
+    expect(piArgs!.metadata?.goldFreeShipping).toBe('true');
+  });
+
+  it('SILVER user → shipping facturé normalement, no perk metadata', async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: 'u_silver', email: 's@plio.ca', role: 'USER' },
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      loyaltyTier: 'SILVER', referralCreditCents: 0,
+    } as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+
+    const calls = stripeMock.paymentIntents.create.mock.calls as unknown as Array<[Record<string, unknown> & { metadata?: Record<string, string> }]>;
+    const piArgs = calls[0]?.[0];
+    expect(piArgs).toBeDefined();
+    expect(piArgs!.metadata?.goldFreeShipping).toBeUndefined();
+  });
+
+  it('Guest (no session) → pas de tier check, shipping facturé', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+
+    // Pas de user.findUnique parce que pas de session
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    const calls = stripeMock.paymentIntents.create.mock.calls as unknown as Array<[Record<string, unknown> & { metadata?: Record<string, string> }]>;
+    const piArgs = calls[0]?.[0];
+    expect(piArgs).toBeDefined();
+    expect(piArgs!.metadata?.goldFreeShipping).toBeUndefined();
+  });
+});
+
+describe('/api/orders/create — referral credit (Round 11)', () => {
+  it('Applique le credit si user logged-in avec balance > 0', async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: 'u_credit', email: 'c@plio.ca', role: 'USER' },
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      loyaltyTier: 'BRONZE', referralCreditCents: 1000, // 10$
+    } as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+
+    const calls = stripeMock.paymentIntents.create.mock.calls as unknown as Array<[Record<string, unknown> & { metadata?: Record<string, string> }]>;
+    const piArgs = calls[0]?.[0];
+    expect(piArgs).toBeDefined();
+    // metadata stamp referralCreditApplied > 0
+    expect(parseInt(piArgs!.metadata?.referralCreditApplied ?? '0', 10)).toBeGreaterThan(0);
+  });
+
+  it('Pas de credit pour guest', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+
+    const calls = stripeMock.paymentIntents.create.mock.calls as unknown as Array<[Record<string, unknown> & { metadata?: Record<string, string> }]>;
+    const piArgs = calls[0]?.[0];
+    expect(piArgs).toBeDefined();
+    expect(piArgs!.metadata?.referralCreditApplied).toBe('0');
+  });
+});
