@@ -13,8 +13,11 @@ import { prisma } from '@/lib/db';
 import Link from 'next/link';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDateTime } from '@/lib/format';
 import MessageActions from './MessageActions';
+
+const PER_PAGE = 25;
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Messages · Plio' };
@@ -28,18 +31,21 @@ const STATUS_TABS = [
 export default async function AdminMessagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const { session } = await requireAdminPage();
-  const { status: statusParam } = await searchParams;
-  const filter = STATUS_TABS.some((t) => t.key === statusParam) ? statusParam! : 'OPEN';
+  const sp = await searchParams;
+  const filter = STATUS_TABS.some((t) => t.key === sp.status) ? sp.status! : 'OPEN';
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
 
-  const [messages, counts, ordersCount, usersCount] = await Promise.all([
+  const [messages, totalForFilter, counts, ordersCount, usersCount] = await Promise.all([
     prisma.contactMessage.findMany({
       where: { status: filter },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
     }),
+    prisma.contactMessage.count({ where: { status: filter } }),
     prisma.contactMessage.groupBy({
       by: ['status'],
       _count: { _all: true },
@@ -158,6 +164,13 @@ export default async function AdminMessagesPage({
                 </div>
               </div>
             ))}
+            <AdminPagination
+              page={page}
+              total={totalForFilter}
+              perPage={PER_PAGE}
+              baseHref="/admin/messages"
+              extraParams={{ status: filter }}
+            />
           </div>
         )}
       </main>

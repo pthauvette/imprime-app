@@ -8,26 +8,32 @@
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Newsletter · Plio' };
 
+const PER_PAGE = 50; // newsletter list = plus compact, OK pour plus de rows
+
 export default async function AdminNewsletterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const { session } = await requireAdminPage();
-  const { status: statusParam } = await searchParams;
-  const filter = ['ACTIVE', 'UNSUBSCRIBED', 'BOUNCED'].includes(statusParam ?? '') ? statusParam! : 'ACTIVE';
+  const sp = await searchParams;
+  const filter = ['ACTIVE', 'UNSUBSCRIBED', 'BOUNCED'].includes(sp.status ?? '') ? sp.status! : 'ACTIVE';
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
 
-  const [subscribers, counts, orders, users] = await Promise.all([
+  const [subscribers, totalForFilter, counts, orders, users] = await Promise.all([
     prisma.newsletterSubscriber.findMany({
       where: { status: filter },
       orderBy: { subscribedAt: 'desc' },
-      take: 200,
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
     }),
+    prisma.newsletterSubscriber.count({ where: { status: filter } }),
     prisma.newsletterSubscriber.groupBy({ by: ['status'], _count: { _all: true } }),
     prisma.order.count(),
     prisma.user.count(),
@@ -158,6 +164,13 @@ export default async function AdminNewsletterPage({
               </tbody>
             </table>
           )}
+          <AdminPagination
+            page={page}
+            total={totalForFilter}
+            perPage={PER_PAGE}
+            baseHref="/admin/newsletter"
+            extraParams={{ status: filter }}
+          />
         </section>
 
         <p style={{ marginTop: 24, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
