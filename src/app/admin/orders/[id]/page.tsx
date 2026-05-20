@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
+import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import OrderActions from '@/components/admin/OrderActions';
 import AdminNotesPanel from '@/components/admin/AdminNotesPanel';
@@ -86,16 +87,14 @@ export default async function AdminOrderDetailPage({
   const status = order.status as OrderStatus;
   const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
 
-  const [ordersCount, usersCount] = await Promise.all([
-    prisma.order.count(),
-    prisma.user.count(),
-  ]);
+  // Round 15 #3 : counts dynamiques (avant : 3/3/468 hardcoded).
+  const sidebarCounts = await getAdminSidebarCounts();
 
   return (
     <div className="adm-shell">
       <AdminSidebar
         active="orders"
-        counts={{ orders: ordersCount, users: usersCount, webhooks: 3, templates: 3, products: 468 }}
+        counts={sidebarCounts}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

@@ -12,6 +12,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import UserNotesEditor from '@/components/admin/UserNotesEditor';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
+import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { classifyCustomer, rfmSummary } from '@/lib/customers/segment';
@@ -166,11 +167,12 @@ export default async function AdminUserDetailPage({
 
   const initials = userInitials(displayName, user.email);
 
+  // Round 15 #3 : counts dynamiques via helper centralisé.
+  const sidebarCountsBase = await getAdminSidebarCounts();
   const sidebarCounts = {
+    ...sidebarCountsBase,
     orders: sidebarOrders,
     webhooks: sidebarWebhooks,
-    templates: 3,
-    products: 468,
     users: sidebarUsers,
   };
 
