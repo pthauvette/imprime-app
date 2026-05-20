@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import WalletTopupForm from '@/components/account/WalletTopupForm';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -22,15 +23,22 @@ import { formatCurrency, formatDate } from '@/lib/format';
 export const metadata = { title: 'Portefeuille — Plio' };
 export const dynamic = 'force-dynamic';
 
-export default async function WalletPage() {
+export default async function WalletPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topup?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect('/sign-in?callbackUrl=/wallet' as Route);
   const userId = session.user.id;
+  const sp = await searchParams;
+  const topupStatus = sp.topup; // 'success' | 'cancelled' | undefined
 
   const [user, rewardsEarned, rewardsReceived, ordersWithCredit] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { referralCode: true, referralCreditCents: true },
+      // Round 18 #1 — walletCents (prepaid topup)
+      select: { referralCode: true, referralCreditCents: true, walletCents: true },
     }),
     prisma.referralReward.findMany({
       where: { referrerId: userId },
@@ -86,6 +94,36 @@ export default async function WalletPage() {
           </p>
         </header>
 
+        {/* Topup status banner */}
+        {topupStatus === 'success' && (
+          <div role="status" style={{
+            padding: 16,
+            marginBottom: 24,
+            background: 'var(--success-soft, #f0fdf4)',
+            border: '1px solid var(--success, #16a34a)',
+            borderRadius: 'var(--r-md)',
+            color: 'var(--success, #16a34a)',
+            fontSize: 14,
+            fontWeight: 500,
+          }}>
+            ✓ Top-up confirmé. Le crédit apparaîtra dans ton solde dans quelques secondes
+            (synchronisation Stripe webhook).
+          </div>
+        )}
+        {topupStatus === 'cancelled' && (
+          <div role="status" style={{
+            padding: 16,
+            marginBottom: 24,
+            background: 'var(--bg-sunken)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--r-md)',
+            color: 'var(--text-secondary)',
+            fontSize: 14,
+          }}>
+            Top-up annulé — aucun montant prélevé.
+          </div>
+        )}
+
         {/* Balance card */}
         <section
           style={{
@@ -102,15 +140,21 @@ export default async function WalletPage() {
         >
           <div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.85, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>
-              Solde disponible
+              Solde total disponible
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.025em' }}>
-              {formatCurrency(user.referralCreditCents / 100)}
+              {formatCurrency((user.walletCents + user.referralCreditCents) / 100)}
             </div>
-            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 8 }}>
-              {user.referralCreditCents > 0
-                ? 'Appliqué automatiquement au prochain checkout.'
-                : 'Pas encore de crédit — parraine un ami pour commencer.'}
+            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 8, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {user.walletCents > 0 && (
+                <span>💳 Prépayé : {formatCurrency(user.walletCents / 100)}</span>
+              )}
+              {user.referralCreditCents > 0 && (
+                <span>🎁 Parrainage : {formatCurrency(user.referralCreditCents / 100)}</span>
+              )}
+              {user.walletCents === 0 && user.referralCreditCents === 0 && (
+                <span>Pas encore de crédit — recharge ton wallet ou parraine un ami.</span>
+              )}
             </div>
           </div>
           {user.referralCode && (
@@ -131,6 +175,9 @@ export default async function WalletPage() {
             </Link>
           )}
         </section>
+
+        {/* Top-up form (Round 18 #1) */}
+        <WalletTopupForm />
 
         {/* Stats */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>

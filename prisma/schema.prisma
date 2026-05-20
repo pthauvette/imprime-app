@@ -60,6 +60,14 @@ model User {
   // checkout (logique dans api/orders/create). Ne peut pas devenir négatif.
   referralCreditCents        Int       @default(0)
 
+  // Round 18 #1 — Wallet prepaid balance en cents CAD. Top-up via Stripe
+  // Checkout (cf POST /api/wallet/topup) + bonus tier (5/8/12% selon
+  // amount). Append-only ledger via WalletTransaction pour audit.
+  // Déduit AVANT le referralCreditCents au checkout (FIFO du plus
+  // restrictif au plus flexible).
+  walletCents                Int       @default(0)
+  walletTransactions         WalletTransaction[]
+
   // ─── Loyalty tier ─────────────────────────────────────────────────────
   // Tier basé sur le revenu net 365 derniers jours. Recomputé mensuellement
   // via /api/cron/loyalty-tiers. Sert à :
@@ -1149,4 +1157,44 @@ model SinaliteCacheEntry {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── WALLET TRANSACTIONS (Round 18 #1) ──────────────────────────────────
+// Append-only ledger des mouvements wallet customer. Le balance courant
+// est cached sur User.walletCents (pour query rapide au checkout sans
+// agréger toutes les rows), mais peut être reconstitué via :
+//   SELECT SUM(amountCents) FROM WalletTransaction WHERE userId=X
+//
+// Kinds :
+//   TOPUP             : achat de crédit via Stripe Checkout (+)
+//   TOPUP_BONUS       : bonus tier (5/8/12 %) ajouté au TOPUP (+)
+//   ORDER_SPEND       : utilisation au checkout (-)
+//   REFUND            : crédit reversé suite à cancel/refund order (+)
+//   ADMIN_ADJUSTMENT  : correction manuelle admin (+ ou -)
+//   EXPIRY            : credit expiré (politique future) (-)
+
+model WalletTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** TOPUP | TOPUP_BONUS | ORDER_SPEND | REFUND | ADMIN_ADJUSTMENT | EXPIRY */
+  kind          String
+  /** Signed cents : + pour credit, - pour debit. */
+  amountCents   Int
+  /** Snapshot du User.walletCents APRÈS cette transaction (audit). */
+  balanceAfterCents Int
+  /** Stripe PaymentIntent ID (pour TOPUP). NULL pour autres kinds. */
+  paymentIntentId String?
+  /** OrderId si lié à un order (ORDER_SPEND, REFUND). */
+  orderId       String?
+  /** AdminId si ADMIN_ADJUSTMENT. */
+  adminId       String?
+  /** Description libre (ex: "Topup $500 → +25$ bonus", "Refund order #SIN-1234"). */
+  description   String
+
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([kind, createdAt])
+  @@index([paymentIntentId])
 }
