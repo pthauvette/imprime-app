@@ -123,6 +123,30 @@ async function handlePaymentSucceeded(
 
   await markOrderPaid(intent.id);
 
+  // Round 20 #3 — débite le wallet si applicable. Ledger preserve l'audit.
+  // Lazy import : opérations wallet seulement chargées si nécessaire.
+  // Idempotent par construction : si webhook ré-déclenché (replay), le
+  // status order n'est plus PENDING → early return ci-dessus, on n'arrive
+  // jamais ici 2x pour le même order.
+  if (order.walletCreditAppliedCents > 0) {
+    try {
+      const { recordWalletTx } = await import('@/lib/wallet/operations');
+      await recordWalletTx({
+        userId: order.userId,
+        kind: 'ORDER_SPEND',
+        amountCents: -order.walletCreditAppliedCents,
+        orderId: order.id,
+        description: `Order #${order.sinaliteOrderId ?? order.id.slice(-6)} — wallet applied`,
+      });
+    } catch (err) {
+      // Non-fatal : on log + alert mais on ne fail pas le webhook. Sinon
+      // le client serait débit Stripe mais order resterait PENDING.
+      // Le wallet sera réconcilié manuellement par admin.
+      logStripe.error({ err, orderId: order.id, walletApplied: order.walletCreditAppliedCents },
+        'wallet debit failed (non-fatal — manual reconcile needed)');
+    }
+  }
+
   // Best-effort referral credit award (idempotent via @unique on refereeUserId)
   try {
     const { awardReferralCreditIfEligible } = await import('@/lib/referrals/award');

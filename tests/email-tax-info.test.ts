@@ -36,7 +36,7 @@ const baseOrder: Order = {
   sinaliteOrderId: '48312', status: 'PAID', failureReason: null,
   sinalitePayload: '{}', productSummary: 'Cartes', itemsSnapshot: null,
   itemsCount: 250, subtotalCents: 15275, shippingCents: 1250, taxCents: 2217,
-  discountCents: 0, referralCreditAppliedCents: 0, promoCodeId: null, adminNotes: null,
+  discountCents: 0, referralCreditAppliedCents: 0, walletCreditAppliedCents: 0, promoCodeId: null, adminNotes: null,
   shippingMethod: 'UPS Standard', province: 'QC',
   shipName: 'X', shipLine1: '1 rue', shipLine2: null,
   shipCity: 'Mtl', shipProvince: 'QC', shipPostalCode: 'H2X 1A1',

@@ -100,6 +100,10 @@ export async function generateTimelinePdf(input: TimelinePdfInput): Promise<Uint
   y -= 16;
   drawKV(page, MARGIN, y, 'Taxes', cad(input.order.taxCents), fontBody, fontBody, fontMono);
   y -= 16;
+  if (input.order.walletCreditAppliedCents > 0) {
+    drawKV(page, MARGIN, y, 'Crédit prépayé', `−${cad(input.order.walletCreditAppliedCents)}`, fontBody, fontBody, fontMono);
+    y -= 16;
+  }
   if (input.order.referralCreditAppliedCents > 0) {
     drawKV(page, MARGIN, y, 'Crédit parrainage', `−${cad(input.order.referralCreditAppliedCents)}`, fontBody, fontBody, fontMono);
     y -= 16;

@@ -219,6 +219,10 @@ model Order {
    *  pas de balance ou a choisi de ne pas l'appliquer. Permet d'audit
    *  pourquoi le total payé est < subtotal + shipping + tax. */
   referralCreditAppliedCents Int @default(0)
+  /** Round 20 #3 — Wallet prepaid credit déduit à ce checkout (cents).
+   *  Appliqué AVANT le referralCredit (FIFO du plus restrictif au plus
+   *  flexible : wallet = "argent" déjà payé, referral = bonus marketing). */
+  walletCreditAppliedCents   Int @default(0)
   shippingMethod   String
   province         String
 

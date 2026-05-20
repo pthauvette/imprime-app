@@ -95,6 +95,10 @@ export type CreateOrderInput = {
   discountCents?: number;
   /** Crédit parrainage déduit (cents). 0 si pas applicable. */
   referralCreditAppliedCents?: number;
+  /** Round 20 #3 — Wallet prepaid credit déduit (cents). 0 si pas applicable.
+   *  Le débit effectif du wallet se fait dans le webhook Stripe payment_intent.succeeded
+   *  (atomique avec mark order PAID) — pas ici (PENDING peut être annulé). */
+  walletCreditAppliedCents?: number;
 };
 
 export async function createPendingOrder(input: CreateOrderInput) {
@@ -114,6 +118,7 @@ export async function createPendingOrder(input: CreateOrderInput) {
     taxCents: input.taxCents,
     discountCents: input.discountCents ?? 0,
     referralCreditAppliedCents: input.referralCreditAppliedCents ?? 0,
+    walletCreditAppliedCents: input.walletCreditAppliedCents ?? 0,
     promoCodeId: input.promoCodeId ?? null,
     shippingMethod: input.shippingMethod,
     province: input.province,
