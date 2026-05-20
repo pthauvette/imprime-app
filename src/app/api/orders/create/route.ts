@@ -214,13 +214,18 @@ export const POST = withErrorHandler(async (req: Request) => {
   const earlySession = await auth();
   let userLoyaltyTier: string | null = null;
   let userReferralCreditCents = 0;
+  let userTaxExempt = false;
+  let userTaxExemptCertId: string | null = null;
   if (earlySession?.user?.id) {
     const userPrefs = await prisma.user.findUnique({
       where: { id: earlySession.user.id },
-      select: { loyaltyTier: true, referralCreditCents: true },
+      // Round 18 #5 — load taxExempt + certId pour skip tax au checkout
+      select: { loyaltyTier: true, referralCreditCents: true, taxExempt: true, taxExemptCertId: true },
     });
     userLoyaltyTier = userPrefs?.loyaltyTier ?? null;
     userReferralCreditCents = userPrefs?.referralCreditCents ?? 0;
+    userTaxExempt = userPrefs?.taxExempt ?? false;
+    userTaxExemptCertId = userPrefs?.taxExemptCertId ?? null;
   }
   const perks = applyShippingPerks({
     tier: userLoyaltyTier,
@@ -230,8 +235,12 @@ export const POST = withErrorHandler(async (req: Request) => {
   const goldFreeShippingApplied = perks.goldFreeShipping;
 
   // Phase 2b: tax computation — taxe sur (subtotal - discount + shipping)
+  // Round 18 #5 — si user.taxExempt, skip tax entièrement. Cert ID archivé
+  // dans le User row + snapshot dans sinalitePayload pour audit fiscal.
   const taxableSubtotal = subtotal - discountAmount + effectiveShippingPrice;
-  const tax = computeTax(taxableSubtotal, payload.shippingAddress.province);
+  const tax = userTaxExempt
+    ? { lines: [], total: 0, combinedRate: 0 }
+    : computeTax(taxableSubtotal, payload.shippingAddress.province);
   const grossTotalCents = Math.round((taxableSubtotal + tax.total) * 100);
 
   // Phase 2c: applique le crédit de parrainage si user connecté + balance > 0.
