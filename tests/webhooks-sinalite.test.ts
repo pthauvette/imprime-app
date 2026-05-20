@@ -67,22 +67,17 @@ vi.mock('@/lib/logger', () => {
 import * as orders from '@/lib/db/orders';
 import { prisma } from '@/lib/db';
 import * as emails from '@/lib/emails/send';
+import { makeTestUser } from './factories/user';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
-const baseUser: User = {
+// Round 19 #1 — factory remplace inline fixture.
+const baseUser: User = makeTestUser({
   id: 'user_1',
   email: 'buyer@plio.ca',
   name: 'Buyer One',
   firstName: 'Buyer',
   lastName: 'One',
-  phone: null,
-  emailVerified: null,
-  image: null,
-  role: 'USER',
-  emailDeliveryNotifications: true, emailMarketing: true, emailReengagement: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null, loyaltyTier: 'BRONZE', loyaltyTierComputedAt: null, walletCents: 0, taxExempt: false, taxExemptCertId: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
+});
 
 const baseOrder: Order = {
   id: 'order_db_1',

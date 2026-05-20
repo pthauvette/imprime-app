@@ -22,21 +22,10 @@ vi.mock('@/lib/emails/render', () => ({
 }));
 
 import * as render from '@/lib/emails/render';
+import { makeTestUser } from './factories/user';
 
-const baseUser: User = {
-  id: 'user_1',
-  email: 'test@plio.ca',
-  name: 'Test User',
-  firstName: 'Test',
-  lastName: 'User',
-  phone: null,
-  emailVerified: null,
-  image: null,
-  role: 'USER',
-  emailDeliveryNotifications: true, emailMarketing: true, emailReengagement: true, referralCode: null, referredByCode: null, referralCreditCents: 0, adminNotes: null, adminNotesUpdatedAt: null, adminNotesUpdatedBy: null, loyaltyTier: 'BRONZE', loyaltyTierComputedAt: null, walletCents: 0, taxExempt: false, taxExemptCertId: null, // default
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
+// Round 19 #1 — factory replace les 4 fixtures inline.
+const baseUser: User = makeTestUser({ id: 'user_1' });
 
 const baseOrder: Order = {
   id: 'order_1',
