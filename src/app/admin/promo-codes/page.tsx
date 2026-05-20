@@ -5,6 +5,8 @@
  * Toggle active inline via PATCH /api/admin/promo-codes/[id] — refresh page.
  */
 
+import Link from 'next/link';
+import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
@@ -98,7 +100,12 @@ export default async function AdminPromoCodesPage({
                 {codes.map((c) => (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={td}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{c.code}</div>
+                      <Link
+                        href={`/admin/promo-codes/${c.id}` as Route}
+                        style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--accent-primary)', textDecoration: 'none' }}
+                      >
+                        {c.code}
+                      </Link>
                       {c.label && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{c.label}</div>}
                     </td>
                     <td style={td}>
