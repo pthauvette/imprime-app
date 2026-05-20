@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import type { OrderEventKind } from '@/lib/db/orders';
@@ -38,7 +38,7 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
 };
 
 export default async function AdminDashboard() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const now = new Date();
   const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
   const yesterdayStart = new Date(startOfDay.getTime() - 24 * 3600 * 1000);

@@ -8,7 +8,7 @@
  * ou Slack alert).
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import SearchUI from './SearchUI';
@@ -21,7 +21,7 @@ export default async function AdminSearchPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { q = '' } = await searchParams;
 
   const [ordersCount, usersCount] = await Promise.all([

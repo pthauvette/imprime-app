@@ -11,7 +11,7 @@ import { notFound } from 'next/navigation';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import UserNotesEditor from '@/components/admin/UserNotesEditor';
 import { prisma } from '@/lib/db';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { classifyCustomer, rfmSummary } from '@/lib/customers/segment';
@@ -70,7 +70,7 @@ export default async function AdminUserDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { id } = await params;
 
   const [

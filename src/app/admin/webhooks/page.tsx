@@ -17,7 +17,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { formatDateTime } from '@/lib/format';
 import ReplayButton from './ReplayButton';
 
@@ -40,7 +40,7 @@ export default async function AdminWebhooksPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? '1') || 1);
   const filterSource: Source | null = (SOURCES as readonly string[]).includes(sp.source ?? '')

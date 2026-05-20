@@ -13,7 +13,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { notFound } from 'next/navigation';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { ALL_TEMPLATES, getTemplateBySlug } from '@/lib/templates/registry';
@@ -48,7 +48,7 @@ export default async function AdminTemplateEditorPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { slug } = await params;
   const template = getTemplateBySlug(slug);
   if (!template) notFound();

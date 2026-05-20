@@ -7,9 +7,40 @@
  */
 
 import { NextResponse } from 'next/server';
+import type { Session } from 'next-auth';
 import { auth } from '@/auth';
 import type { User } from '@prisma/client';
 import { prisma } from '@/lib/db';
+
+/**
+ * Garde pour les Server Component pages /admin/* — defense-in-depth.
+ *
+ * Le middleware (src/middleware.ts) gate déjà /admin/* à l'edge, mais
+ * si le matcher est modifié ou si un RSC streaming bypass arrive, cette
+ * fonction est un second rempart : redirect immédiat.
+ *
+ * Returns la session pour que la page puisse s'en servir (sidebar user).
+ *
+ *   const { session } = await requireAdminPage();
+ *
+ * Si non-authentifié → redirect /sign-in. Si authentifié non-ADMIN →
+ * notFound() (pas 403 pour ne pas leak l'existence de /admin/*).
+ */
+export async function requireAdminPage(): Promise<{ session: Session }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    const { redirect } = await import('next/navigation');
+    redirect('/sign-in?callbackUrl=/admin');
+    // unreachable — redirect throws — needed for TS narrowing
+    throw new Error('redirected');
+  }
+  if (session.user.role !== 'ADMIN') {
+    const { notFound } = await import('next/navigation');
+    notFound();
+    throw new Error('not found');
+  }
+  return { session };
+}
 
 /**
  * Garde pour les API routes : retourne une 401/403 si le caller n'est pas

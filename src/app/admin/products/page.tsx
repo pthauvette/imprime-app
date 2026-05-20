@@ -9,7 +9,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { sinalite, SinaliteError } from '@/lib/sinalite/client';
 import { fetchOverridesMap } from '@/lib/products/overrides';
@@ -32,7 +32,7 @@ export default async function AdminProductsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? '1') || 1);
   const filterCategory = sp.category ?? null;

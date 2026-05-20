@@ -10,7 +10,7 @@
  * Pas de pagination pour MVP — limit 100, l'admin filter par status.
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
@@ -30,7 +30,7 @@ export default async function AdminSamplesPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const { status: statusParam } = await searchParams;
   const filter = STATUS_TABS.some((t) => t.key === statusParam) ? statusParam! : 'PENDING';
 

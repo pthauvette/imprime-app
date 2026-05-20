@@ -12,7 +12,7 @@
  * À enrichir avec un picker visuel dans une v2 si le volume grandit.
  */
 
-import { auth } from '@/auth';
+import { requireAdminPage } from '@/lib/admin-auth';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import QuickLinkForm from './QuickLinkForm';
@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Commande téléphonique · Plio' };
 
 export default async function AdminQuickLinkPage() {
-  const session = await auth();
+  const { session } = await requireAdminPage();
   const [ordersCount, usersCount] = await Promise.all([
     prisma.order.count(),
     prisma.user.count(),
