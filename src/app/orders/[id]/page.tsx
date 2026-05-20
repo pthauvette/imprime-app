@@ -462,6 +462,27 @@ export default async function CustomerOrderDetailPage({
               ⬇ Télécharger la facture PDF
             </a>
 
+            {/* Round 19 #5 — Timeline PDF (vue customer, pas le reçu fiscal) */}
+            <a
+              href={`/api/orders/${order.id}/timeline.pdf`}
+              download
+              title="PDF récap de la commande + timeline des événements"
+              style={{
+                display: 'block',
+                padding: '14px 18px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--r-md)',
+                textAlign: 'center',
+                fontSize: 14,
+                color: 'var(--text-primary)',
+                textDecoration: 'none',
+                fontWeight: 500,
+              }}
+            >
+              📄 Télécharger l&apos;historique PDF
+            </a>
+
             <Link
               href={`/order/start?reorder=${order.id}` as Route}
               title="Repart avec les mêmes options · tu ré-uploads tes fichiers"
