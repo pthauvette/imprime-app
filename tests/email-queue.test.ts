@@ -17,6 +17,9 @@ vi.mock('@/lib/db', () => ({
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      // Round 17 #3 : updateMany ajouté pour claim atomique
+      // (PENDING/FAILED → PROCESSING) dans processDelivery.
+      updateMany: vi.fn(async () => ({ count: 1 })),
       findMany: vi.fn(async () => []),
     },
   },
@@ -176,14 +179,20 @@ describe('processDelivery — retry backoff', () => {
 });
 
 describe('getEmailsReadyForRetry', () => {
-  it('query FAILED + nextAttemptAt < now OR null', async () => {
+  it('query : FAILED ready retry OR PROCESSING stuck > 30min', async () => {
+    // Round 17 #3 : la query inclut maintenant les PROCESSING stuck
+    // (cron run précédent a crashé après le claim atomique).
     vi.mocked(prisma.emailDelivery.findMany).mockResolvedValueOnce([
       { id: 'a' }, { id: 'b' },
     ] as never);
     const result = await getEmailsReadyForRetry(50);
     expect(result).toHaveLength(2);
-    const call = vi.mocked(prisma.emailDelivery.findMany).mock.calls[0][0];
-    expect(call?.where?.status).toBe('FAILED');
-    expect(call?.take).toBe(50);
+    const call = vi.mocked(prisma.emailDelivery.findMany).mock.calls[0]![0]!;
+    expect(call.take).toBe(50);
+    const orClauses = call.where?.OR as Array<{ status: string }>;
+    expect(orClauses).toHaveLength(2);
+    expect(orClauses.map((c) => c.status)).toEqual(
+      expect.arrayContaining(['FAILED', 'PROCESSING']),
+    );
   });
 });
