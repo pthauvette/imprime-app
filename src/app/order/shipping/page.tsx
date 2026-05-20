@@ -219,7 +219,7 @@ function ShippingPageInner() {
                 />
               </FieldWrapper>
               <Field label="Adresse 2 (suite, app, unité — optionnel)" value={line2} onChange={setLine2} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px 160px', gap: 12 }}>
+              <div className="ship-addr-grid">
                 <Field label="Ville" value={city} onChange={setCity} />
                 <FieldWrapper label="Province">
                   <select
@@ -434,11 +434,8 @@ function ShippingRow({ method, selected, recommended, onClick }: { method: Shipp
   return (
     <button
       onClick={onClick}
+      className="ship-method-grid"
       style={{
-        display: 'grid',
-        gridTemplateColumns: '80px 1fr auto auto',
-        gap: 20,
-        alignItems: 'center',
         padding: selected ? '17px 23px' : '18px 24px',
         background: selected ? 'linear-gradient(90deg, var(--accent-soft) 0%, var(--bg-surface) 30%)' : 'var(--bg-surface)',
         border: `${selected ? 2 : 1}px solid ${selected ? 'var(--accent-primary)' : 'var(--border-default)'}`,

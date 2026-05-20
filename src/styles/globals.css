@@ -494,6 +494,42 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   50% { opacity: 0.4; }
 }
 
+/* Round 17 #2 : mobile reflow batch. Les inline gridTemplateColumns
+ * hard-coded ne reflow pas <600px → city/postal/method écrasés.
+ * On expose 3 classes qui se collapse en stack mobile. */
+.ship-addr-grid {
+  display: grid;
+  grid-template-columns: 1fr 200px 160px;
+  gap: 12px;
+}
+@media (max-width: 600px) {
+  .ship-addr-grid { grid-template-columns: 1fr; }
+}
+
+.ship-method-grid {
+  display: grid;
+  grid-template-columns: 80px 1fr auto auto;
+  gap: 20px;
+  align-items: center;
+}
+@media (max-width: 600px) {
+  .ship-method-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    text-align: left;
+  }
+}
+
+.settings-2col-grid {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 700px) {
+  .settings-2col-grid { grid-template-columns: 1fr; }
+}
+
 /* Récap panel — sticky pour rester visible (choix + prix) pendant le scroll. */
 .recap {
   background: var(--bg-sunken);
