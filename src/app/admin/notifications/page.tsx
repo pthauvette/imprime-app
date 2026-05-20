@@ -63,44 +63,47 @@ export default async function AdminNotificationsPage() {
     deadEmails,
     ordersCount,
     usersCount,
+  // Round 16 #3 : .catch(() => []) sur chaque query — si une table manque
+  // (migration locale pas appliquée), la query throw mais le dashboard
+  // affiche juste 0 notifications de ce type au lieu de crash full 500.
   ] = await Promise.all([
     prisma.deleteAccountRequest.findMany({
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' }, // les plus vieilles en premier (PIPEDA deadline 30j)
       take: 20,
-    }),
+    }).catch(() => []),
     prisma.sampleRequest.findMany({
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' },
       take: 20,
-    }),
+    }).catch(() => []),
     prisma.resellerApplication.findMany({
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' },
       take: 20,
-    }),
+    }).catch(() => []),
     prisma.customQuoteRequest.findMany({
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' },
       take: 20,
-    }),
+    }).catch(() => []),
     prisma.contactMessage.findMany({
       where: { status: 'OPEN' },
       orderBy: { createdAt: 'asc' },
       take: 20,
-    }),
+    }).catch(() => []),
     prisma.webhookEvent.findMany({
       where: { success: false, processedAt: { gte: sevenDaysAgo } },
       orderBy: { processedAt: 'desc' },
       take: 20,
-    }),
+    }).catch(() => []),
     prisma.emailDelivery.findMany({
       where: { status: 'DEAD', updatedAt: { gte: sevenDaysAgo } },
       orderBy: { updatedAt: 'desc' },
       take: 20,
-    }),
-    prisma.order.count(),
-    prisma.user.count(),
+    }).catch(() => []),
+    prisma.order.count().catch(() => 0),
+    prisma.user.count().catch(() => 0),
   ]);
 
   const notifs: Notif[] = [];

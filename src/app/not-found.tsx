@@ -1,8 +1,5 @@
 /**
- * Auto-migrated from Open Design HTML artifact `not-found.html`.
- *
- * NOTE: Lift-and-shift static rendering. Interactive scripts ont été strip.
- * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
+ * not-found.tsx — page 404 globale (Next.js convention).
  */
 
 export const metadata = { title: "404 — Plio" };
