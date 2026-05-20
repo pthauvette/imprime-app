@@ -12,20 +12,18 @@ import { describe, it, expect } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import type { Order } from '@prisma/client';
 import { generateInvoicePdf } from '@/lib/print/invoice-pdf';
+import { makeTestOrder } from './factories/order';
 
-const baseOrder: Order = {
+// Round 21 #1 — factory replace inline fixture
+const baseOrder: Order = makeTestOrder({
   id: 'order_abc123', userId: 'u_1', paymentIntentId: 'pi_x',
-  amountCents: 18742, currency: 'CAD', paidAt: new Date('2026-05-17T14:30:00Z'),
-  sinaliteOrderId: '48312', status: 'PAID', failureReason: null,
-  sinalitePayload: '{}', productSummary: 'Cartes 14pt + UV', itemsSnapshot: null,
-  itemsCount: 250, subtotalCents: 15275, shippingCents: 1250, taxCents: 2217,
-  discountCents: 0, referralCreditAppliedCents: 0, walletCreditAppliedCents: 0, promoCodeId: null, adminNotes: null,
-  shippingMethod: 'UPS Standard', province: 'QC',
+  paidAt: new Date('2026-05-17T14:30:00Z'),
+  productSummary: 'Cartes 14pt + UV',
   shipName: 'Sophie Beauchamp', shipLine1: '4220 boul. St-Laurent', shipLine2: 'Suite 200',
-  shipCity: 'Montréal', shipProvince: 'QC', shipPostalCode: 'H2W 1Z3',
-  shipPhone: '+15145550144',
-  createdAt: new Date('2026-05-17T14:00:00Z'), updatedAt: new Date('2026-05-17T14:30:00Z'),
-};
+  shipPostalCode: 'H2W 1Z3', shipPhone: '+15145550144',
+  createdAt: new Date('2026-05-17T14:00:00Z'),
+  updatedAt: new Date('2026-05-17T14:30:00Z'),
+});
 
 const baseCompany = {
   legalName: 'Démocratik inc.',

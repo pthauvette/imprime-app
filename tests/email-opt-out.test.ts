@@ -23,41 +23,11 @@ vi.mock('@/lib/emails/render', () => ({
 
 import * as render from '@/lib/emails/render';
 import { makeTestUser } from './factories/user';
+import { makeTestOrder } from './factories/order';
 
-// Round 19 #1 — factory replace les 4 fixtures inline.
+// Round 19 #1 + Round 21 #1 — factories replace les fixtures inline.
 const baseUser: User = makeTestUser({ id: 'user_1' });
-
-const baseOrder: Order = {
-  id: 'order_1',
-  userId: 'user_1',
-  paymentIntentId: 'pi_test',
-  amountCents: 18742,
-  currency: 'CAD',
-  paidAt: new Date(),
-  sinaliteOrderId: '48312',
-  status: 'SHIPPED',
-  failureReason: null,
-  sinalitePayload: '{}',
-  productSummary: 'Cartes 14pt UV', itemsSnapshot: null,
-  itemsCount: 250,
-  subtotalCents: 15275,
-  shippingCents: 1250,
-  taxCents: 2217,
-  discountCents: 0, referralCreditAppliedCents: 0, walletCreditAppliedCents: 0,
-  promoCodeId: null,
-  adminNotes: null,
-  shippingMethod: 'UPS Standard',
-  province: 'QC',
-  shipName: 'Test User',
-  shipLine1: '123 rue Test',
-  shipLine2: null,
-  shipCity: 'Montréal',
-  shipProvince: 'QC',
-  shipPostalCode: 'H2X 1A1',
-  shipPhone: '+15145550000',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
+const baseOrder: Order = makeTestOrder({ id: 'order_1', userId: 'user_1', status: 'SHIPPED' });
 
 describe('sendOrderShippedEmail — opt-out gating', () => {
   beforeEach(() => {
