@@ -552,18 +552,26 @@ model EmailBroadcast {
   segment         String
   /** Nombre d'emails effectivement enqueued (post-dedup, post-opt-out filter). */
   recipientCount  Int      @default(0)
-  /** Status workflow. */
+  /** Status workflow. QUEUED → SENT après processing. Round 19 #4 ajoute
+   *  SCHEDULED qui attend que scheduledAt soit passé, et CANCELLED si
+   *  admin annule avant. */
   status          String   @default("QUEUED")
   /** Admin qui a déclenché — email pour audit (l'id User peut être supprimé). */
   adminEmail      String
   /** Optional admin notes (campagne, contexte). */
   notes           String?
 
+  /** Round 19 #4 — quand programmer l'envoi. NULL = envoyer immédiatement
+   *  (legacy comportement). Si SET + futur → status=SCHEDULED, le cron
+   *  /api/cron/broadcasts processe quand scheduledAt < now. */
+  scheduledAt     DateTime?
+
   createdAt       DateTime @default(now())
   sentAt          DateTime?
 
   @@index([createdAt])
   @@index([status, createdAt])
+  @@index([status, scheduledAt])
 }
 
 // ─── REVIEW ──────────────────────────────────────────────────────────────

@@ -46,6 +46,9 @@ const BodySchema = z.object({
   notes: z.string().max(500).optional(),
   /** Confirme qu'admin a vu le preview count avant de send. Anti foot-gun. */
   confirmedCount: z.number().int().nonnegative(),
+  /** Round 19 #4 — ISO datetime ou null/omitted = envoyer maintenant.
+   *  Si présent + futur → status=SCHEDULED, cron processera. */
+  scheduledAt: z.string().datetime().optional(),
 });
 
 function escapeHtml(s: string): string {
@@ -113,59 +116,57 @@ export const POST = withErrorHandler(async (req: Request) => {
     );
   }
 
-  // Create broadcast row first — sert d'ancrage pour audit + dedup label.
+  // Round 19 #4 — Check si on schedule pour le futur.
+  const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
+  const isFutureScheduled = scheduledAt !== null && scheduledAt.getTime() > Date.now() + 60_000;
+  // Tolerance 1min : "maintenant" envoyé via scheduler = ok envoi immédiat
+
   const broadcast = await prisma.emailBroadcast.create({
     data: {
       subject: body.subject.trim(),
       body: body.body.trim(),
       segment: body.segment,
       recipientCount: recipients.length,
-      status: 'QUEUED',
+      status: isFutureScheduled ? 'SCHEDULED' : 'QUEUED',
+      scheduledAt: isFutureScheduled ? scheduledAt : null,
       adminEmail: guard.user.email,
       notes: body.notes?.trim() ?? null,
     },
   });
 
-  // Enqueue chaque email. On utilise un label déterministe pour dédup côté
-  // queue (broadcast:<id>:<email>) — si l'admin ré-envoie le même broadcast
-  // par accident, queueEmail va rejeter en doublon.
-  const html = textToHtml(body.body);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
-  let enqueued = 0;
-  for (const email of recipients) {
-    try {
-      // CASL : un unsubscribe link unique par destinataire, avec HMAC token
-      // pour vérifier que c'est bien le bon email + résistant aux bots.
-      const unsubParams = new URLSearchParams({
-        email,
-        token: newsletterUnsubscribeToken(email),
-      });
-      const unsubscribeUrl = `${baseUrl}/newsletter/unsubscribe?${unsubParams.toString()}`;
-
-      await sendAdminCustomMessageEmail({
-        to: email,
-        replyTo: guard.user.email,
-        vars: {
-          ORDER_ID: broadcast.id.slice(-6).toUpperCase(),
-          SUBJECT: body.subject,
-          PREVIEW: body.body.slice(0, 120).replace(/\n/g, ' '),
-          BODY_HTML: html,
-          ORDER_URL: `${baseUrl}/account`,
-          SENDER_NAME: 'Équipe Plio',
-          SENDER_EMAIL: guard.user.email,
-          UNSUBSCRIBE_URL: unsubscribeUrl,
-        },
-      });
-      enqueued++;
-    } catch (err) {
-      log.error({ err, email, broadcastId: broadcast.id }, 'broadcast email enqueue failed');
-    }
+  // Path 1 : programmé pour le futur — pas de send maintenant, le cron va.
+  if (isFutureScheduled) {
+    void recordAdminAudit({
+      kind: 'ADMIN_RESEND_EMAIL',
+      adminId: guard.userId,
+      adminEmail: guard.user.email,
+      targetType: 'USER',
+      data: {
+        action: 'BROADCAST_SCHEDULED',
+        broadcastId: broadcast.id,
+        segment: body.segment,
+        subject: body.subject,
+        scheduledAt: scheduledAt!.toISOString(),
+        plannedRecipientCount: recipients.length,
+      },
+    });
+    return NextResponse.json({
+      ok: true,
+      broadcastId: broadcast.id,
+      scheduled: true,
+      scheduledAt: scheduledAt!.toISOString(),
+      plannedRecipients: recipients.length,
+    });
   }
 
-  // Mark sent même si quelques fail — le queue worker les retry.
-  await prisma.emailBroadcast.update({
-    where: { id: broadcast.id },
-    data: { status: 'SENT', sentAt: new Date(), recipientCount: enqueued },
+  // Path 2 : envoi immédiat — utilise le helper partagé avec le cron.
+  const { dispatchBroadcast } = await import('@/lib/broadcast/dispatch');
+  const { enqueued, requested } = await dispatchBroadcast({
+    id: broadcast.id,
+    subject: body.subject,
+    body: body.body,
+    segment: body.segment,
+    adminEmail: guard.user.email,
   });
 
   void recordAdminAudit({
@@ -179,7 +180,7 @@ export const POST = withErrorHandler(async (req: Request) => {
       segment: body.segment,
       subject: body.subject,
       recipientCount: enqueued,
-      requestedCount: recipients.length,
+      requestedCount: requested,
     },
   });
 
@@ -187,6 +188,6 @@ export const POST = withErrorHandler(async (req: Request) => {
     ok: true,
     broadcastId: broadcast.id,
     enqueued,
-    requested: recipients.length,
+    requested,
   });
 });
