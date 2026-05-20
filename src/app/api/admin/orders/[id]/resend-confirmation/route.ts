@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { withErrorHandler } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
+import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { sendOrderConfirmationEmail } from '@/lib/emails/send';
 
 export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -26,6 +27,20 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
   }
 
   const result = await sendOrderConfirmationEmail({ order, user: order.user });
+
+  void recordAdminAudit({
+    kind: 'ADMIN_RESEND_EMAIL',
+    adminId: guard.userId,
+    adminEmail: guard.user.email,
+    targetType: 'ORDER',
+    targetId: order.id,
+    data: {
+      template: 'order-confirmation',
+      to: order.user.email,
+      sent: result.sent,
+      deliveryId: result.id,
+    },
+  });
 
   // Le queue helper retourne { sent, id }. Si sent=false, l'email est queued
   // pour retry automatique — pas un échec final, juste pas envoyé du premier

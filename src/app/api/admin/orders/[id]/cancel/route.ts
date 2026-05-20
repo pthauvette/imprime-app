@@ -14,6 +14,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
+import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { markRefundIssued, markOrderFailed } from '@/lib/db/orders';
 import { sendOrderCancelledEmail } from '@/lib/emails/send';
 
@@ -90,6 +91,21 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     user: order.user,
     reason: body.reason,
     refundAmountCents: order.amountCents,
+  });
+
+  void recordAdminAudit({
+    kind: 'ADMIN_MANUAL_CANCEL',
+    adminId: guard.userId,
+    adminEmail: guard.user.email,
+    targetType: 'ORDER',
+    targetId: order.id,
+    data: {
+      reason: body.reason,
+      refundId: refund?.id ?? null,
+      refundedCents: refund ? order.amountCents : 0,
+      previousStatus: order.status,
+      customerEmail: order.user.email,
+    },
   });
 
   return NextResponse.json({

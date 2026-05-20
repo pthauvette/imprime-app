@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
+import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
 
@@ -59,6 +60,22 @@ export const POST = withErrorHandler(async (req: Request) => {
       SENDER_NAME: 'Équipe Plio (TEST)',
       SENDER_EMAIL: adminEmail,
       UNSUBSCRIBE_URL: `${baseUrl}/newsletter/unsubscribe?${unsubParams.toString()}`,
+    },
+  });
+
+  void recordAdminAudit({
+    kind: 'ADMIN_RESEND_EMAIL',
+    adminId: guard.userId,
+    adminEmail,
+    targetType: 'USER',
+    targetId: guard.userId,
+    data: {
+      template: 'admin-custom-message',
+      action: 'BROADCAST_TEST',
+      subject: body.subject,
+      bodyLength: body.body.length,
+      sent: result.sent,
+      deliveryId: result.id,
     },
   });
 

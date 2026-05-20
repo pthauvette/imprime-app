@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { withErrorHandler } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
+import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { sinalite } from '@/lib/sinalite/client';
 import { SinaliteOrderRequest } from '@/lib/sinalite/types';
 import { markOrderSubmitted, markOrderFailed } from '@/lib/db/orders';
@@ -60,6 +61,19 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
     if (fresh) {
       await sendOrderConfirmationEmail({ order: fresh, user: fresh.user });
     }
+    void recordAdminAudit({
+      kind: 'ADMIN_REPLAY_SINALITE',
+      adminId: guard.userId,
+      adminEmail: guard.user.email,
+      targetType: 'ORDER',
+      targetId: order.id,
+      data: {
+        sinaliteOrderId: result.orderId,
+        previousStatus: order.status,
+        success: true,
+        customerEmail: order.user.email,
+      },
+    });
     return NextResponse.json({ ok: true, sinaliteOrderId: result.orderId });
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'Sinalite replay failed';
@@ -67,6 +81,19 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
       orderId: order.id,
       reason,
       data: { adminUserId: guard.userId, action: 'replay-sinalite' },
+    });
+    void recordAdminAudit({
+      kind: 'ADMIN_REPLAY_SINALITE',
+      adminId: guard.userId,
+      adminEmail: guard.user.email,
+      targetType: 'ORDER',
+      targetId: order.id,
+      data: {
+        success: false,
+        reason,
+        previousStatus: order.status,
+        customerEmail: order.user.email,
+      },
     });
     return NextResponse.json({ error: reason }, { status: 502 });
   }
