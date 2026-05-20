@@ -39,6 +39,8 @@ export const DEFAULT_TEST_USER: User = {
   referredByCode: null,
   referralCreditCents: 0,
   walletCents: 0,
+  walletLastActivityAt: null,
+  walletExpiryWarningAt: null,
   loyaltyTier: 'BRONZE',
   loyaltyTierComputedAt: null,
   taxExempt: false,

@@ -1,0 +1,26 @@
+name: Wallet expiry monthly
+
+# Tape /api/cron/wallet-expiry le 2 du mois à 06h UTC. Warning à mois 11,
+# expire les wallets inactifs depuis 12 mois.
+
+on:
+  schedule:
+    - cron: '0 6 2 * *'
+  workflow_dispatch:
+
+jobs:
+  expire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping /api/cron/wallet-expiry
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://plio.ca/api/cron/wallet-expiry
