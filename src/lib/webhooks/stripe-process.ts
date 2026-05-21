@@ -66,15 +66,123 @@ export async function processStripeEvent(
       // (meilleur UX pour un montant variable + bonus visible).
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.metadata?.kind === 'wallet_topup') {
-        await handleWalletTopup(session);
+        // Round 22 #3 — subscription mode → store the sub ID on User
+        // pour permettre cancel later. Le invoice.paid premier viendra
+        // séparément et fera le crédit.
+        if (session.mode === 'subscription' && session.subscription) {
+          await handleWalletSubscriptionCreated(session);
+        } else {
+          // Mode 'payment' = one-shot topup, credit immediately
+          await handleWalletTopup(session);
+        }
       } else {
         logStripe.info({ sessionId: session.id, metadata: session.metadata }, 'checkout.session.completed without wallet_topup metadata — ignored');
       }
       break;
     }
+    case 'invoice.paid': {
+      // Round 22 #3 — recurring wallet topup. Stripe envoie invoice.paid
+      // chaque mois quand la subscription est chargée. Le metadata est
+      // copié depuis subscription_data.metadata (cf wallet/topup route).
+      const invoice = event.data.object as Stripe.Invoice;
+      const subId = typeof invoice.subscription === 'string'
+        ? invoice.subscription
+        : invoice.subscription?.id;
+      if (subId && invoice.metadata?.kind === 'wallet_topup') {
+        await handleWalletRecurringInvoice(invoice);
+      } else if (subId) {
+        // Invoice paid pour une subscription qui n'est PAS un wallet topup
+        // (jamais le cas actuellement, mais defensive). Log et ignore.
+        logStripe.info({ invoiceId: invoice.id, subId }, 'invoice.paid pour sub non-wallet — ignored');
+      }
+      break;
+    }
+    case 'customer.subscription.deleted': {
+      // Round 22 #3 — user a cancel (ou expiration after cancel_at_period_end).
+      // Nullify les fields wallet auto-renew côté DB.
+      const sub = event.data.object as Stripe.Subscription;
+      await handleWalletSubscriptionDeleted(sub);
+      break;
+    }
     default:
       logStripe.info({ eventType: event.type }, 'unhandled event');
   }
+}
+
+async function handleWalletSubscriptionCreated(session: Stripe.Checkout.Session): Promise<void> {
+  const { prisma } = await import('@/lib/db');
+  const meta = session.metadata ?? {};
+  const userId = meta.userId;
+  const amountCents = parseInt(meta.amountCents ?? '0', 10);
+  const subId = typeof session.subscription === 'string'
+    ? session.subscription
+    : session.subscription?.id;
+
+  if (!userId || !subId || !amountCents) {
+    throw new Error(`subscription session missing userId/subId/amountCents: ${JSON.stringify(meta)}`);
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      walletAutoRenewStripeSubId: subId,
+      walletAutoRenewAmountCents: amountCents,
+    },
+  });
+  logStripe.info({ userId, subId, amountCents }, 'wallet auto-renew subscription created');
+  // Note : le invoice.paid premier viendra séparément (Stripe charge la
+  // 1ère période immédiatement). On ne crédite pas ici pour éviter double-credit.
+}
+
+async function handleWalletRecurringInvoice(invoice: Stripe.Invoice): Promise<void> {
+  const { processWalletTopup } = await import('@/lib/wallet/operations');
+  const meta = invoice.metadata ?? {};
+  const userId = meta.userId;
+  const amountCents = parseInt(meta.amountCents ?? '0', 10);
+  const bonusCents = parseInt(meta.bonusCents ?? '0', 10);
+  const tierLabel = meta.tierLabel || null;
+
+  if (!userId || !amountCents) {
+    throw new Error(`invoice.paid metadata invalide : ${JSON.stringify(meta)}`);
+  }
+
+  // Idempotence : le invoice ID est unique Stripe-side, on l'utilise comme
+  // paymentIntentId pour le WalletTransaction (le user a payé via cette invoice).
+  const paymentIntentId = typeof invoice.payment_intent === 'string'
+    ? invoice.payment_intent
+    : invoice.payment_intent?.id ?? invoice.id;
+
+  const result = await processWalletTopup({
+    userId, amountCents, bonusCents, tierLabel,
+    paymentIntentId,
+  });
+  logStripe.info({
+    userId, amountCents, bonusCents,
+    invoiceId: invoice.id,
+    newBalance: result.balanceAfterCents,
+  }, 'wallet recurring topup processed');
+}
+
+async function handleWalletSubscriptionDeleted(sub: Stripe.Subscription): Promise<void> {
+  const { prisma } = await import('@/lib/db');
+  // Find user qui avait cette sub ID. Si déjà nullified (admin delete
+  // route a déjà run), no-op.
+  const user = await prisma.user.findFirst({
+    where: { walletAutoRenewStripeSubId: sub.id },
+    select: { id: true },
+  });
+  if (!user) {
+    logStripe.info({ subId: sub.id }, 'subscription.deleted pour sub non-trackée — ignored');
+    return;
+  }
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      walletAutoRenewStripeSubId: null,
+      walletAutoRenewAmountCents: null,
+    },
+  });
+  logStripe.info({ userId: user.id, subId: sub.id }, 'wallet auto-renew subscription deleted');
 }
 
 async function handleWalletTopup(session: Stripe.Checkout.Session): Promise<void> {
