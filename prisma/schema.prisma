@@ -76,6 +76,14 @@ model User {
   walletLastActivityAt       DateTime?
   walletExpiryWarningAt      DateTime?
 
+  // Round 22 #3 — Auto-renew via Stripe Subscription. 1 sub par user MVP.
+  // Le user choisit un montant fixe à recharger chaque mois (cf
+  // WALLET_TIERS preset). Webhook invoice.paid → recordWalletTx TOPUP.
+  // Webhook subscription.deleted → nullify ces fields.
+  walletAutoRenewStripeSubId String?
+  /** Cents par mois (matche un tier de WALLET_TIERS). */
+  walletAutoRenewAmountCents Int?
+
   // Round 18 #5 — Tax-exempt B2B (resellers + registered cas spéciaux).
   // taxExempt=true → checkout calcule TPS/TVQ=0. taxExemptCertId stocke
   // le numéro de certificat d'exemption (TPS, TVQ, Indian-status, diplomat)

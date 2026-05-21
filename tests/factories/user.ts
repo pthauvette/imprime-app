@@ -41,6 +41,8 @@ export const DEFAULT_TEST_USER: User = {
   walletCents: 0,
   walletLastActivityAt: null,
   walletExpiryWarningAt: null,
+  walletAutoRenewStripeSubId: null,
+  walletAutoRenewAmountCents: null,
   loyaltyTier: 'BRONZE',
   loyaltyTierComputedAt: null,
   taxExempt: false,

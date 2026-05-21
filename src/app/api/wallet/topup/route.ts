@@ -26,6 +26,9 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 const BodySchema = z.object({
   amountCents: z.number().int().positive(),
+  /** Round 22 #3 — true = Stripe Subscription monthly recurring,
+   *  false (default) = one-shot Checkout Session. */
+  autoRenew: z.boolean().optional(),
 });
 
 export const POST = withErrorHandler(async (req: Request) => {
@@ -49,11 +52,24 @@ export const POST = withErrorHandler(async (req: Request) => {
   const tier = tierForAmount(body.amountCents);
   const bonusCents = computeBonus(body.amountCents);
   const totalCreditCents = body.amountCents + bonusCents;
+  const isSubscription = body.autoRenew === true;
 
-  // Stripe Checkout Session — line_item showing the credit amount + bonus separately
-  // pour que le client voie clairement la valeur. Metadata = source of truth pour le webhook.
+  // Round 22 #3 — Stripe Checkout mode='subscription' pour auto-renew.
+  // Diff vs one-shot : recurring=month, subscription_data.metadata =
+  // copied to invoice.metadata pour que les webhooks invoice.paid puissent
+  // identifier le wallet user. Pour MVP : 1 sub max par user (le composer
+  // côté UI refuse de créer une 2e si une existe déjà — cf route /api/wallet/subscription).
+  const metadata = {
+    kind: 'wallet_topup',
+    userId: session.user.id,
+    amountCents: String(body.amountCents),
+    bonusCents: String(bonusCents),
+    tierLabel: tier?.label ?? '',
+    totalCreditCents: String(totalCreditCents),
+  };
+
   const checkout = await stripe.checkout.sessions.create({
-    mode: 'payment',
+    mode: isSubscription ? 'subscription' : 'payment',
     payment_method_types: ['card'],
     customer_email: session.user.email,
     line_items: [
@@ -61,26 +77,27 @@ export const POST = withErrorHandler(async (req: Request) => {
         price_data: {
           currency: 'cad',
           unit_amount: body.amountCents,
+          ...(isSubscription && { recurring: { interval: 'month' as const } }),
           product_data: {
-            name: `Top-up wallet Plio — ${(body.amountCents / 100).toFixed(2)} $`,
+            name: isSubscription
+              ? `Top-up auto mensuel — ${(body.amountCents / 100).toFixed(2)} $`
+              : `Top-up wallet Plio — ${(body.amountCents / 100).toFixed(2)} $`,
             description: tier
-              ? `Inclut ${(bonusCents / 100).toFixed(2)} $ bonus (${tier.bonusPct} %)`
+              ? `Inclut ${(bonusCents / 100).toFixed(2)} $ bonus (${tier.bonusPct} %)${isSubscription ? ' chaque mois' : ''}`
               : 'Aucun bonus à ce niveau',
           },
         },
         quantity: 1,
       },
     ],
-    success_url: `${APP_URL}/wallet?topup=success`,
+    success_url: `${APP_URL}/wallet?topup=success${isSubscription ? '&sub=1' : ''}`,
     cancel_url: `${APP_URL}/wallet?topup=cancelled`,
-    metadata: {
-      kind: 'wallet_topup',
-      userId: session.user.id,
-      amountCents: String(body.amountCents),
-      bonusCents: String(bonusCents),
-      tierLabel: tier?.label ?? '',
-      totalCreditCents: String(totalCreditCents),
-    },
+    metadata,
+    // En subscription mode, on copy metadata sur le Subscription object
+    // pour que les invoice.paid futures sachent quoi crediter.
+    ...(isSubscription && {
+      subscription_data: { metadata },
+    }),
   });
 
   return NextResponse.json({

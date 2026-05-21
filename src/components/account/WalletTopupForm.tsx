@@ -12,9 +12,10 @@ import { WALLET_TIERS, MIN_TOPUP_CENTS, MAX_TOPUP_CENTS, computeBonus, tierForAm
 
 const PRESETS = WALLET_TIERS;
 
-export default function WalletTopupForm() {
+export default function WalletTopupForm({ hasActiveSubscription = false }: { hasActiveSubscription?: boolean }) {
   const [selectedCents, setSelectedCents] = useState<number>(PRESETS[0]!.minAmountCents);
   const [customAmount, setCustomAmount] = useState('');
+  const [autoRenew, setAutoRenew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,13 +28,17 @@ export default function WalletTopupForm() {
 
   async function handleSubmit() {
     if (!isValid || busy) return;
+    if (autoRenew && hasActiveSubscription) {
+      setError('Tu as déjà un auto-renew actif. Annule-le d\'abord pour en créer un nouveau.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const res = await fetch('/api/wallet/topup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amountCents }),
+        body: JSON.stringify({ amountCents, autoRenew }),
       });
       const data = await res.json();
       if (!res.ok || !data.checkoutUrl) {
@@ -167,6 +172,38 @@ export default function WalletTopupForm() {
         </label>
       </div>
 
+      {/* Round 22 #3 — Auto-renew toggle */}
+      <label style={{
+        display: 'flex',
+        gap: 10,
+        alignItems: 'flex-start',
+        padding: 12,
+        marginBottom: 14,
+        background: autoRenew ? 'var(--accent-soft)' : 'var(--bg-sunken)',
+        border: `1px solid ${autoRenew ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+        borderRadius: 'var(--r-md)',
+        cursor: hasActiveSubscription ? 'not-allowed' : 'pointer',
+        opacity: hasActiveSubscription ? 0.5 : 1,
+      }}>
+        <input
+          type="checkbox"
+          checked={autoRenew}
+          onChange={(e) => setAutoRenew(e.target.checked)}
+          disabled={busy || hasActiveSubscription}
+          style={{ marginTop: 2 }}
+        />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>
+            ♻ Auto-renew mensuel
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+            {hasActiveSubscription
+              ? 'Tu as déjà un auto-renew actif. Annule-le d\'abord pour en créer un nouveau.'
+              : 'Recharge automatiquement ce montant chaque mois. Annulable à tout moment.'}
+          </div>
+        </div>
+      </label>
+
       {error && (
         <div role="alert" style={{
           padding: 12,
@@ -199,7 +236,9 @@ export default function WalletTopupForm() {
         {busy
           ? 'Redirection vers Stripe…'
           : isValid
-            ? `Payer ${(amountCents / 100).toFixed(2)} $ → recevoir ${(total / 100).toFixed(2)} $ de crédit`
+            ? autoRenew
+              ? `Activer ${(amountCents / 100).toFixed(2)} $ / mois (auto-renew)`
+              : `Payer ${(amountCents / 100).toFixed(2)} $ → recevoir ${(total / 100).toFixed(2)} $ de crédit`
             : 'Choisis un montant'}
       </button>
     </section>

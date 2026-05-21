@@ -16,6 +16,7 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import WalletTopupForm from '@/components/account/WalletTopupForm';
+import WalletSubscriptionCard from '@/components/account/WalletSubscriptionCard';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -37,8 +38,14 @@ export default async function WalletPage({
   const [user, rewardsEarned, rewardsReceived, ordersWithCredit] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      // Round 18 #1 — walletCents (prepaid topup)
-      select: { referralCode: true, referralCreditCents: true, walletCents: true },
+      // Round 22 #3 — walletAutoRenew* pour afficher status + cancel button
+      select: {
+        referralCode: true,
+        referralCreditCents: true,
+        walletCents: true,
+        walletAutoRenewStripeSubId: true,
+        walletAutoRenewAmountCents: true,
+      },
     }),
     prisma.referralReward.findMany({
       where: { referrerId: userId },
@@ -177,7 +184,14 @@ export default async function WalletPage({
         </section>
 
         {/* Top-up form (Round 18 #1) */}
-        <WalletTopupForm />
+        {/* Round 22 #3 — Active subscription card (si applicable) */}
+        {user.walletAutoRenewStripeSubId && user.walletAutoRenewAmountCents && (
+          <WalletSubscriptionCard
+            amountCents={user.walletAutoRenewAmountCents}
+          />
+        )}
+
+        <WalletTopupForm hasActiveSubscription={!!user.walletAutoRenewStripeSubId} />
 
         {/* Stats */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
