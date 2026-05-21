@@ -38,6 +38,7 @@ export const DEFAULT_TEST_ORDER: Order = {
   discountCents: 0,
   referralCreditAppliedCents: 0,
   walletCreditAppliedCents: 0,
+  resellerDiscountCents: 0,
   promoCodeId: null,
   adminNotes: null,
   shippingMethod: 'UPS Standard',
