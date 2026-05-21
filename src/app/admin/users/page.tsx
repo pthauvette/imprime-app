@@ -30,6 +30,8 @@ interface SP {
   filter?: string;
   q?: string;
   page?: string;
+  /** Round 22 #1 — filter reseller status indépendant du `filter` principal */
+  reseller?: string;
 }
 
 export default async function AdminUsersPage({
@@ -46,6 +48,10 @@ export default async function AdminUsersPage({
     ? ((sp.filter ?? 'all') as UserFilter)
     : 'all';
   const search = (sp.q ?? '').trim();
+  // Round 22 #1 — reseller filter : 'verified' | 'auto' | 'any-reseller' | undefined
+  const resellerFilter = sp.reseller && ['verified', 'auto', 'any-reseller'].includes(sp.reseller)
+    ? sp.reseller as 'verified' | 'auto' | 'any-reseller'
+    : null;
 
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
@@ -124,6 +130,14 @@ export default async function AdminUsersPage({
         { lastName: { contains: search, mode: 'insensitive' as const } },
       ],
     });
+  }
+  // Round 22 #1 — reseller filter additif (stacking avec other filters)
+  if (resellerFilter === 'verified') {
+    whereParts.push({ resellerStatus: 'VERIFIED' });
+  } else if (resellerFilter === 'auto') {
+    whereParts.push({ resellerStatus: 'AUTO_DETECTED' });
+  } else if (resellerFilter === 'any-reseller') {
+    whereParts.push({ resellerStatus: { in: ['AUTO_DETECTED', 'VERIFIED'] } });
   }
   const where: UserWhere = whereParts.length === 0 ? {} : { AND: whereParts };
 
@@ -256,6 +270,7 @@ export default async function AdminUsersPage({
               const params = new URLSearchParams();
               if (key !== 'all') params.set('filter', key);
               if (search) params.set('q', search);
+              if (resellerFilter) params.set('reseller', resellerFilter);
               const href = `/admin/users${params.toString() ? '?' + params.toString() : ''}`;
               return (
                 <Link
@@ -270,6 +285,7 @@ export default async function AdminUsersPage({
           </div>
           <form action="/admin/users" method="get" className="usr-search">
             {filter !== 'all' && <input type="hidden" name="filter" value={filter} />}
+            {resellerFilter && <input type="hidden" name="reseller" value={resellerFilter} />}
             <svg className="usr-search-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <circle cx={7} cy={7} r={5} />
               <path d="M11 11l3 3" />
@@ -277,6 +293,44 @@ export default async function AdminUsersPage({
             <input type="text" name="q" defaultValue={search} placeholder="Cherche par nom, email…" />
             <span className="usr-search-kbd">↵</span>
           </form>
+        </div>
+
+        {/* Round 22 #1 — Reseller filter sub-row (additif au filter principal) */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+            Reseller
+          </span>
+          {([
+            { key: null as null | 'verified' | 'auto' | 'any-reseller', label: 'Tous' },
+            { key: 'any-reseller' as const, label: 'Resellers' },
+            { key: 'verified' as const, label: '✓ Vérifiés' },
+            { key: 'auto' as const, label: '~ Auto-détectés' },
+          ]).map((opt) => {
+            const params = new URLSearchParams();
+            if (filter !== 'all') params.set('filter', filter);
+            if (search) params.set('q', search);
+            if (opt.key) params.set('reseller', opt.key);
+            const href = `/admin/users${params.toString() ? '?' + params.toString() : ''}`;
+            const active = resellerFilter === opt.key;
+            return (
+              <Link
+                key={opt.key ?? 'all'}
+                href={href as Route}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono)',
+                  background: active ? 'var(--accent-primary)' : 'var(--bg-sunken)',
+                  color: active ? '#fff' : 'var(--text-secondary)',
+                  borderRadius: 'var(--r-pill)',
+                  textDecoration: 'none',
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                {opt.label}
+              </Link>
+            );
+          })}
         </div>
 
         {/* ─── Table ───────────────────────────────────────────── */}
