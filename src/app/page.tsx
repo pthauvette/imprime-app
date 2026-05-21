@@ -4,6 +4,7 @@
 
 import NewsletterSignup from '@/components/marketing/NewsletterSignup';
 import TestimonialsSection from '@/components/marketing/TestimonialsSection';
+import ReviewsWidget from '@/components/marketing/ReviewsWidget';
 import LangSwitch from '@/components/i18n/LangSwitch';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
 import UserMenu from '@/components/account/UserMenu';
@@ -230,6 +231,9 @@ export default async function LandingPage() {
       
           {/* TESTIMONIALS — dynamic depuis DB (revalidate 10min) */}
           <TestimonialsSection />
+
+          {/* Round 22 #4 — Customer reviews (Review.status=APPROVED) */}
+          <ReviewsWidget />
       
           {/* FAQ */}
           <section id="faq">
