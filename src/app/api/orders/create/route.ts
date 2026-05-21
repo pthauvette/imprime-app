@@ -217,17 +217,19 @@ export const POST = withErrorHandler(async (req: Request) => {
   let userWalletCents = 0;
   let userTaxExempt = false;
   let userTaxExemptCertId: string | null = null;
+  let userResellerStatus: 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' = 'NONE';
   if (earlySession?.user?.id) {
     const userPrefs = await prisma.user.findUnique({
       where: { id: earlySession.user.id },
-      // Round 20 #3 — load walletCents pour appliquer comme credit au checkout
-      select: { loyaltyTier: true, referralCreditCents: true, walletCents: true, taxExempt: true, taxExemptCertId: true },
+      // Round 22 #2 — load resellerStatus pour 5% discount auto si VERIFIED
+      select: { loyaltyTier: true, referralCreditCents: true, walletCents: true, taxExempt: true, taxExemptCertId: true, resellerStatus: true },
     });
     userLoyaltyTier = userPrefs?.loyaltyTier ?? null;
     userReferralCreditCents = userPrefs?.referralCreditCents ?? 0;
     userWalletCents = userPrefs?.walletCents ?? 0;
     userTaxExempt = userPrefs?.taxExempt ?? false;
     userTaxExemptCertId = userPrefs?.taxExemptCertId ?? null;
+    userResellerStatus = (userPrefs?.resellerStatus as typeof userResellerStatus) ?? 'NONE';
   }
   const perks = applyShippingPerks({
     tier: userLoyaltyTier,
@@ -236,10 +238,20 @@ export const POST = withErrorHandler(async (req: Request) => {
   const effectiveShippingPrice = perks.effectiveShippingPrice;
   const goldFreeShippingApplied = perks.goldFreeShipping;
 
-  // Phase 2b: tax computation — taxe sur (subtotal - discount + shipping)
+  // Round 22 #2 — Reseller perks : 5% discount auto si user.resellerStatus = VERIFIED.
+  // Calculé sur subtotal (pas sur subtotal-discount, pour ne pas double-dip
+  // avec PromoCode). Stockable séparément dans Order.resellerDiscountCents
+  // pour finance KPIs (vs discountCents = promo). Combine additivement.
+  const { computeResellerDiscount } = await import('@/lib/reseller/perks');
+  const resellerDiscountAmount = computeResellerDiscount(
+    Math.round(subtotal * 100),
+    userResellerStatus,
+  ) / 100;
+
+  // Phase 2b: tax computation — taxe sur (subtotal - all discounts + shipping)
   // Round 18 #5 — si user.taxExempt, skip tax entièrement. Cert ID archivé
   // dans le User row + snapshot dans sinalitePayload pour audit fiscal.
-  const taxableSubtotal = subtotal - discountAmount + effectiveShippingPrice;
+  const taxableSubtotal = subtotal - discountAmount - resellerDiscountAmount + effectiveShippingPrice;
   const tax = userTaxExempt
     ? { lines: [], total: 0, combinedRate: 0 }
     : computeTax(taxableSubtotal, payload.shippingAddress.province);
@@ -329,6 +341,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     shippingCents: Math.round(effectiveShippingPrice * 100),
     taxCents: Math.round(tax.total * 100),
     discountCents: Math.round(discountAmount * 100),
+    resellerDiscountCents: Math.round(resellerDiscountAmount * 100),
     referralCreditAppliedCents: referralCreditApplied,
     walletCreditAppliedCents: walletCreditApplied,
     promoCodeId: promoRecord?.id,

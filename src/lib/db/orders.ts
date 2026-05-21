@@ -99,6 +99,8 @@ export type CreateOrderInput = {
    *  Le débit effectif du wallet se fait dans le webhook Stripe payment_intent.succeeded
    *  (atomique avec mark order PAID) — pas ici (PENDING peut être annulé). */
   walletCreditAppliedCents?: number;
+  /** Round 22 #2 — Reseller 5% discount snapshot. 0 si pas VERIFIED. */
+  resellerDiscountCents?: number;
 };
 
 export async function createPendingOrder(input: CreateOrderInput) {
@@ -119,6 +121,7 @@ export async function createPendingOrder(input: CreateOrderInput) {
     discountCents: input.discountCents ?? 0,
     referralCreditAppliedCents: input.referralCreditAppliedCents ?? 0,
     walletCreditAppliedCents: input.walletCreditAppliedCents ?? 0,
+    resellerDiscountCents: input.resellerDiscountCents ?? 0,
     promoCodeId: input.promoCodeId ?? null,
     shippingMethod: input.shippingMethod,
     province: input.province,

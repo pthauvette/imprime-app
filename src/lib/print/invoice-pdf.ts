@@ -261,6 +261,11 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8A
     totalsRow(line.label, `${cad(Math.round(line.amount * 100))} $`);
   }
 
+  // Round 22 #2 — Reseller perks (5% discount auto si VERIFIED). Affiché
+  // entre les taxes et les credits, avant le total final.
+  if (order.resellerDiscountCents > 0) {
+    totalsRow('Reseller perks (-5 %)', `-${cad(order.resellerDiscountCents)} $`, { color: COLOR_BRAND });
+  }
   // Round 20 #3 — Wallet credit appliqué (préfère "Crédit prépayé" en label
   // user-friendly vs "wallet" jargon).
   if (order.walletCreditAppliedCents > 0) {
