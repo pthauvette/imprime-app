@@ -83,12 +83,21 @@ function orderUrl(order: Order): string {
 
 /**
  * URL publique de suivi (sans login required) pour les guests + customer
- * qui n'ont pas le réflexe de signin. Pré-remplit orderId + email →
- * customer voit son status en 1 click.
+ * qui n'ont pas le réflexe de signin.
+ *
+ * Round 24 #5 — privacy fix : on ne met PLUS l'email en query string.
+ * Avant : `/track?orderId=X&email=Y` → leak email PII dans access logs
+ * serveur + referrer headers vers domaines externes si l'email client
+ * suit le lien et que le user clique ensuite vers ailleurs.
+ *
+ * Le param `orderId` n'est pas PII en soi — il est déjà dans le sujet
+ * et le corps du courriel. La TrackingForm le lit via useSearchParams
+ * pour pré-remplir le numéro de commande. L'email reste à taper
+ * manuellement (preuve de propriété légère).
  */
-function trackUrl(order: Order, user: { email: string }): string {
+function trackUrl(order: Order, _user: { email: string }): string {
   const orderRef = order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase();
-  const params = new URLSearchParams({ orderId: orderRef, email: user.email });
+  const params = new URLSearchParams({ orderId: orderRef });
   return `${APP_URL}/track?${params.toString()}`;
 }
 
