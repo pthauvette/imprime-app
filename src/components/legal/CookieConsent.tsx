@@ -19,19 +19,15 @@
  */
 
 import { useEffect, useState } from 'react';
-
-const CONSENT_COOKIE = 'plio_consent';
-const CONSENT_MAX_AGE = 365 * 24 * 60 * 60;
+import { buildConsentCookie, hasConsentCookie } from '@/lib/legal/cookie-consent';
 
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Check cookie existence (no httpOnly — c'est OK ici, info user)
-    const has = document.cookie
-      .split(';')
-      .some((c) => c.trim().startsWith(`${CONSENT_COOKIE}=`));
-    if (!has) {
+    // Round 26 #1 — extraits dans @/lib/legal/cookie-consent pour test +
+    // server-side reuse. Pas de re-render si déjà ack-é.
+    if (!hasConsentCookie(document.cookie)) {
       // Small delay pour pas spammer au 1er paint (laisse la page render)
       const t = setTimeout(() => setVisible(true), 1500);
       return () => clearTimeout(t);
@@ -39,7 +35,7 @@ export default function CookieConsent() {
   }, []);
 
   function accept() {
-    document.cookie = `${CONSENT_COOKIE}=ok; path=/; max-age=${CONSENT_MAX_AGE}; SameSite=Lax`;
+    document.cookie = buildConsentCookie();
     setVisible(false);
   }
 

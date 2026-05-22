@@ -14,6 +14,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import Sidebar from '@/components/account/Sidebar';
 import DeleteAccountRequest from './DeleteAccountRequest';
+import CookieConsentResetButton from '@/components/legal/CookieConsentResetButton';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Confidentialité · Plio' };
@@ -98,6 +99,30 @@ export default async function PrivacySettingsPage() {
             <a href="/settings/email-preferences" className="btn btn-ghost btn-sm">
               Gérer →
             </a>
+          </div>
+        </section>
+
+        {/* Round 26 #1 — Cookies banner reset */}
+        <section
+          style={{
+            padding: 24,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--r-xl)',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, margin: '0 0 8px' }}>
+                Bannière cookies
+              </h2>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
+                On utilise uniquement des cookies essentiels (session, panier, langue, parrainage). Pas de tracking publicitaire.
+                Tu peux réinitialiser ton acquittement pour revoir la bannière au prochain chargement.
+              </p>
+            </div>
+            <CookieConsentResetButton />
           </div>
         </section>
 
