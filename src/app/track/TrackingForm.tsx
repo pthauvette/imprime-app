@@ -13,7 +13,8 @@
  *   - 'error' : on affiche le message d'erreur de l'API (404 / 429 / 500)
  */
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -53,11 +54,21 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function TrackingForm() {
+  const searchParams = useSearchParams();
   const [orderNumber, setOrderNumber] = useState('');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OrderResult | null>(null);
+
+  // Round 24 #5 — pré-remplir orderNumber depuis ?orderId=X
+  // (email reste à taper manuellement, c'est PII donc jamais en URL).
+  // Set seulement au mount, pour pas écraser ce que le user tape.
+  useEffect(() => {
+    const fromUrl = searchParams.get('orderId');
+    if (fromUrl) setOrderNumber(fromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
