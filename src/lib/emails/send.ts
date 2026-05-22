@@ -29,6 +29,7 @@ import type {
   ReengagementFollowUpVars,
   ReengagementWinbackVars,
   AbandonedCartVars,
+  ResellerMonthlyStatsVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -567,6 +568,38 @@ export async function sendReviewRequestEmail(input: {
     } as unknown as Record<string, string | number>,
     subject: `Une étoile pour ta commande #${displayOrderId} ?`,
     label: `review-request:${order.id}`,
+  });
+}
+
+/**
+ * Round 24 #4 — Récap mensuel reseller. Envoyé le 1er du mois aux users
+ * VERIFIED ou AUTO_DETECTED qui ont au moins 1 order le mois écoulé.
+ *
+ * Gated par emailMarketing (c'est un récap, pas un transactional).
+ *
+ * Label : `reseller-monthly-stats:<userId>:<YYYY-MM>` → idempotent au re-run.
+ */
+export async function sendResellerMonthlyStatsEmail(input: {
+  user: User;
+  vars: ResellerMonthlyStatsVars;
+  /** ex: '2026-04', utilisé pour le dedup label. */
+  monthKey: string;
+}) {
+  const { user } = input;
+  // Marketing flag : c'est un récap périodique, pas transactional.
+  if (!user.emailMarketing) {
+    logEmail.info(
+      { userId: user.id, kind: 'reseller-monthly-stats' },
+      'skipping — user opted out of marketing emails',
+    );
+    return { sent: false, optedOut: true };
+  }
+  return queueEmail({
+    to: user.email,
+    template: 'reseller-monthly-stats',
+    vars: input.vars as unknown as Record<string, string | number>,
+    subject: `Ton récap reseller — ${input.vars.MONTH_LABEL}`,
+    label: `reseller-monthly-stats:${user.id}:${input.monthKey}`,
   });
 }
 

@@ -172,6 +172,19 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     RESUME_URL: `${APP_URL}/order/review?productId=7&options=14,32&files=front:https%3A%2F%2Fs3...`,
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
   },
+  'reseller-monthly-stats': {
+    CUSTOMER_FIRST_NAME: 'Sophie',
+    MONTH_LABEL: 'avril 2026',
+    ORDERS_COUNT: 8,
+    REVENUE: '1 234,56',
+    DISCOUNT_SAVED: '61,73',
+    COMPARISON_LABEL: 'vs mois précédent : +14 %',
+    COMPARISON_DETAIL: '(6 commandes le mois précédent, 8 ce mois-ci)',
+    STATUS_HEADLINE: 'Status : RESELLER VERIFIED',
+    STATUS_DETAIL: 'Tu profites du rabais 5 % à chaque commande. Continue à commander régulièrement pour garder ton statut.',
+    DASHBOARD_URL: `${APP_URL}/account`,
+    UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
+  },
 };
 
 export const ALL_TEMPLATES: EmailTemplate[] = [
@@ -188,6 +201,7 @@ export const ALL_TEMPLATES: EmailTemplate[] = [
   'reengagement-follow-up',
   'reengagement-winback',
   'abandoned-cart',
+  'reseller-monthly-stats',
 ];
 
 /**
