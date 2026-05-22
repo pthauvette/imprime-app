@@ -46,6 +46,8 @@ interface ShipState {
   postalCode: string;
   method: string;
   price: number;
+  /** Round 26 #2 — instructions livraison (max 200 chars). Optional. */
+  note?: string;
 }
 
 interface Breakdown {
@@ -201,6 +203,8 @@ function ReviewPageInner() {
             shippingAddress: { line1: ship.line1, line2: ship.line2, city: ship.city, province: ship.province, postalCode: ship.postalCode },
             shippingMethod: ship.method,
             shippingPrice: ship.price,
+            // Round 26 #2 — instructions livraison customer (optional)
+            ...(ship.note ? { shippingNote: ship.note } : {}),
             expectedSubtotal,
             notes: `Commande Plio ${new Date().toISOString()}`,
             ...(designId ? { designId } : {}),

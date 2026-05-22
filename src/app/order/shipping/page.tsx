@@ -66,6 +66,8 @@ function ShippingPageInner() {
   const [city, setCity] = useState('');
   const [province, setProvince] = useState<CaProvince>('QC');
   const [postalCode, setPostalCode] = useState('');
+  // Round 26 #2 — instructions de livraison optionnelles (max 200 chars)
+  const [shippingNote, setShippingNote] = useState('');
 
   // Hydrate depuis localStorage au mount (post-hydration pour éviter mismatch)
   useEffect(() => {
@@ -150,6 +152,8 @@ function ShippingPageInner() {
           firstName, lastName, email, phone,
           line1, line2, city, province, postalCode,
           method: selectedMethod, price: selectedShippingPrice,
+          // Round 26 #2 — instructions livraison (trim + slice safety)
+          ...(shippingNote.trim() && { note: shippingNote.trim().slice(0, 200) }),
         }),
       )}` as Route
     : null;
@@ -276,6 +280,49 @@ function ShippingPageInner() {
                 ))}
               </div>
             )}
+          </Section>
+
+          {/* Round 26 #2 — Instructions de livraison optionnelles */}
+          <Section roman="IV." title="Instructions de livraison (optionnel)">
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+              Si tu as une consigne précise pour le livreur (sonner deux fois, porte arrière, code d&apos;immeuble),
+              écris-la ici. Transmise au transporteur via Sinalite.
+            </p>
+            <div style={{ position: 'relative' }}>
+              <textarea
+                value={shippingNote}
+                onChange={(e) => setShippingNote(e.target.value.slice(0, 200))}
+                placeholder="ex. Sonner à l'interphone 304 · porte de service côté ruelle"
+                rows={3}
+                maxLength={200}
+                style={{
+                  width: '100%',
+                  padding: 12,
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  fontFamily: 'inherit',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--r-sm)',
+                  resize: 'vertical',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 8,
+                  right: 12,
+                  fontSize: 11,
+                  color: shippingNote.length > 180 ? 'var(--warning, #D97706)' : 'var(--text-muted)',
+                  fontFamily: 'var(--font-mono)',
+                  pointerEvents: 'none',
+                }}
+                aria-live="polite"
+              >
+                {shippingNote.length} / 200
+              </div>
+            </div>
           </Section>
         </div>
 

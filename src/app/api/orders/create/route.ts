@@ -81,6 +81,10 @@ const CreateOrderSchema = z.object({
   shippingMethod: ShipMethod,
   shippingPrice: z.number().nonnegative(),
 
+  /** Round 26 #2 — instructions livraison customer (optionnel, max 200 chars).
+   *  Forwardé à Sinalite + persisté sur Order.shippingNote. */
+  shippingNote: z.string().trim().max(200).optional(),
+
   /** Sub-total computed by client — server WILL recompute and verify. */
   expectedSubtotal: z.number().nonnegative(),
 
@@ -354,6 +358,8 @@ export const POST = withErrorHandler(async (req: Request) => {
     shipProvince: payload.shippingAddress.province,
     shipPostalCode: payload.shippingAddress.postalCode,
     shipPhone: payload.contact.phone,
+    // Round 26 #2 — instructions livraison customer (Order column)
+    shippingNote: payload.shippingNote || null,
     sinalitePayload,
     productSummary,
     itemsSnapshot,
@@ -451,6 +457,18 @@ function buildSinalitePayload(
       BillCountry: 'CA' as const,
       BillPhone: p.contact.phone,
     },
-    ...(p.notes ? { notes: p.notes } : {}),
+    // Round 26 #2 — préfixer les instructions de livraison customer dans
+    // le champ `notes` (seul champ libre disponible dans SinaliteOrderRequest).
+    // Le transporteur les voit via le bon de livraison Sinalite.
+    ...buildSinaliteNotes(p.shippingNote, p.notes),
   };
+}
+
+/** Round 26 #2 — combine note customer livraison + notes générales. */
+function buildSinaliteNotes(shippingNote: string | undefined, notes: string | undefined): { notes?: string } {
+  const parts: string[] = [];
+  if (shippingNote) parts.push(`Livraison: ${shippingNote}`);
+  if (notes) parts.push(notes);
+  if (parts.length === 0) return {};
+  return { notes: parts.join('\n').slice(0, 500) };
 }
