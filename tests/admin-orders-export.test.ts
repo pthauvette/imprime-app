@@ -117,7 +117,7 @@ describe('GET /api/admin/orders/export', () => {
     // Audit fire-and-forget — sleep micro task
     await new Promise((r) => setTimeout(r, 5));
     const auditArgs = vi.mocked(prisma.adminAuditEvent.create).mock.calls[0]?.[0];
-    expect(auditArgs?.data?.kind).toBe('ADMIN_TEMPLATE_EDIT');
+    expect(auditArgs?.data?.kind).toBe('ADMIN_DATA_EXPORT');
     expect(JSON.parse(auditArgs?.data?.data ?? '{}')).toMatchObject({
       action: 'ORDERS_CSV_EXPORT',
       rowCount: 1,
