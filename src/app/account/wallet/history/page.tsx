@@ -144,7 +144,7 @@ export default async function WalletHistoryPage({
                     style={{
                       padding: '14px 20px',
                       display: 'grid',
-                      gridTemplateColumns: 'auto 1fr auto auto',
+                      gridTemplateColumns: 'auto 1fr auto auto auto',
                       gap: 16,
                       alignItems: 'center',
                       borderBottom: '1px solid var(--border-subtle)',
@@ -194,6 +194,23 @@ export default async function WalletHistoryPage({
                     }}>
                       Solde : {formatCurrency(tx.balanceAfterCents / 100)}
                     </div>
+                    {/* Round 24 #1 — PDF receipt download */}
+                    <a
+                      href={`/api/wallet/transactions/${tx.id}/receipt.pdf`}
+                      download
+                      title="Télécharger reçu PDF (audit comptable)"
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--accent-primary)',
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-mono)',
+                        padding: '4px 8px',
+                        border: '1px solid var(--border-default)',
+                        borderRadius: 'var(--r-sm)',
+                      }}
+                    >
+                      📄 PDF
+                    </a>
                   </div>
                 );
               })}
