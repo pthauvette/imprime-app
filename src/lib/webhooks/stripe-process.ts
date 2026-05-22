@@ -215,9 +215,40 @@ async function handlePaymentSucceeded(
   intent: Stripe.PaymentIntent,
   ctx: { orderId?: string },
 ): Promise<void> {
-  const order = await prisma.order.findUnique({
+  let order = await prisma.order.findUnique({
     where: { paymentIntentId: intent.id },
   });
+
+  // Round 25 #5 — payment retry fallback. Si l'Order a été créée avec
+  // un PI précédent qui a failed, le user a cliqué sur le retry link
+  // → un nouveau PI a été créé avec metadata.orderId. On retrouve l'Order
+  // par cet ID et on patch le paymentIntentId pour que les futurs events
+  // (refund, etc) matchent. Idempotent : si on est déjà mis à jour
+  // (replay du webhook), le lookup par paymentIntentId au-dessus aurait
+  // succeed sans hitter ce fallback.
+  if (!order && intent.metadata?.orderId) {
+    const candidate = await prisma.order.findUnique({
+      where: { id: intent.metadata.orderId },
+    });
+    if (candidate && (candidate.status === 'PENDING' || candidate.status === 'FAILED')) {
+      // Patch le PI reference pour que markOrderPaid() ci-dessous puisse
+      // match. Note : markOrderPaid lookups par paymentIntentId.
+      order = await prisma.order.update({
+        where: { id: candidate.id },
+        data: {
+          paymentIntentId: intent.id,
+          // Reset status à PENDING si on retry depuis FAILED, pour que
+          // le check status !== 'PENDING' ci-dessous ne bloque pas.
+          ...(candidate.status === 'FAILED' && { status: 'PENDING' }),
+        },
+      });
+      logStripe.info(
+        { orderId: order.id, oldStatus: candidate.status, newIntentId: intent.id },
+        'payment-retry: matched Order via intent.metadata.orderId fallback',
+      );
+    }
+  }
+
   if (!order) {
     logStripe.error({ intentId: intent.id }, 'no Order for paymentIntent');
     return;

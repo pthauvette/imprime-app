@@ -331,9 +331,10 @@ export async function sendOrderCancelledEmail(input: {
  * commande n'est pas passée. Sinon il imagine qu'elle est en production
  * et appelle le support 3 jours plus tard.
  *
- * Le `failureReason` est passé tel quel (déjà friendly via Stripe). Le
- * `retryUrl` pointe vers /order/start par défaut — pas de tentative de
- * resume avec un PaymentIntent fresh (trop complexe pour MVP).
+ * Round 25 #5 : RETRY_URL pointe maintenant vers /payment/retry/[orderId]?t=TOKEN
+ *   (HMAC déterministe) qui re-crée un PaymentIntent depuis le snapshot
+ *   de l'Order existante → customer reprend exactement où il était sans
+ *   rebuild le cart. Caller peut override `retryUrl` pour cas custom.
  */
 export async function sendPaymentFailedEmail(input: {
   order: Order;
@@ -342,11 +343,16 @@ export async function sendPaymentFailedEmail(input: {
   retryUrl?: string;
 }) {
   const { order, user, failureReason } = input;
+  // Round 25 #5 — self-serve retry URL avec HMAC token. Import dynamique
+  // pour éviter cycle si paymentRetryToken un jour pull du DB schema.
+  const { paymentRetryToken } = await import('@/lib/payment/retry-token');
+  const token = paymentRetryToken(order.id);
+  const defaultRetryUrl = `${APP_URL}/payment/retry/${order.id}?t=${token}`;
   const vars: PaymentFailedVars = {
     CUSTOMER_FIRST_NAME: firstName(user),
     ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
     FAILURE_REASON: failureReason,
-    RETRY_URL: input.retryUrl ?? `${APP_URL}/order/start`,
+    RETRY_URL: input.retryUrl ?? defaultRetryUrl,
   };
   return queueEmail({
     to: user.email,
