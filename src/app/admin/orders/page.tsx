@@ -17,6 +17,7 @@ import { computeOrderSlaMetrics } from '@/lib/admin/order-sla';
 import { formatCurrency, formatDate } from '@/lib/format';
 import OrderBulkBar from './OrderBulkBar';
 import OrderSlaWidget from '@/components/admin/OrderSlaWidget';
+import SavedFiltersBar from '@/components/admin/SavedFiltersBar';
 
 export const metadata = { title: 'Admin — Commandes' };
 export const dynamic = 'force-dynamic';
@@ -85,7 +86,7 @@ export default async function AdminOrdersPage({
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [orders, totalCount, statusCounts, statsToday, stats7d, stats30d, pendingAction, slaMetrics] = await Promise.all([
+  const [orders, totalCount, statusCounts, statsToday, stats7d, stats30d, pendingAction, slaMetrics, savedFilters] = await Promise.all([
     prisma.order.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -125,6 +126,16 @@ export default async function AdminOrdersPage({
       timeToSubmit: { sampleSize: 0, p50Hours: null, p95Hours: null },
       timeToShip: { sampleSize: 0, p50Hours: null, p95Hours: null },
     })),
+    // Round 26 #5 — filtres bookmarkés per-admin pour cette page.
+    // .catch fallback : si la table n'existe pas encore (migration pas
+    // appliquée), on render avec [] (le bar reste fonctionnel via API).
+    session?.user?.id
+      ? prisma.adminSavedFilter.findMany({
+          where: { userId: session.user.id, scope: 'orders' },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, name: true, queryString: true, createdAt: true },
+        }).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -188,6 +199,20 @@ export default async function AdminOrdersPage({
             <Link href={'/admin' as Route} className="btn btn-secondary btn-sm">↗ Dashboard</Link>
           </div>
         </header>
+
+        {/* ─── Round 26 #5 — Saved filters bar (admin productivity) ── */}
+        <div style={{ marginBottom: 12 }}>
+          <SavedFiltersBar
+            scope="orders"
+            basePath="/admin/orders"
+            initialFilters={savedFilters.map((f) => ({
+              id: f.id,
+              name: f.name,
+              queryString: f.queryString,
+              createdAt: f.createdAt.toISOString(),
+            }))}
+          />
+        </div>
 
         {/* ─── SLA widget (Round 25 #3) ────────────────────────────── */}
         <OrderSlaWidget metrics={slaMetrics} />
