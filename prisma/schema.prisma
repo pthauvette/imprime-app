@@ -625,6 +625,13 @@ model Review {
   /** Rejection reason si REJECTED — pour debug + audit. */
   adminNote     String?
 
+  /** Round 25 #4 — réponse publique de l'admin (style Trustpilot). NULL si
+   *  pas encore répondu. Affiché sous le comment sur la card public review. */
+  adminReply    String?
+  /** Round 25 #4 — quand la réponse a été postée. Sert au tri "récemment
+   *  répondu" + display "Plio a répondu il y a X". */
+  adminReplyAt  DateTime?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   publishedAt   DateTime?

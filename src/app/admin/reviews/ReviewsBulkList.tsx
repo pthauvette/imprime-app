@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, useMemo } from 'react';
 import { formatDateTime } from '@/lib/format';
 import ReviewActions from './ReviewActions';
+import ReviewReplyForm from './ReviewReplyForm';
 
 export interface ReviewListItem {
   id: string;
@@ -26,6 +27,9 @@ export interface ReviewListItem {
   status: string;
   isFeatured: boolean;
   adminNote: string | null;
+  // Round 25 #4 — réponse publique admin (Trustpilot-style)
+  adminReply: string | null;
+  adminReplyAt: string | null;
   createdAt: string;
   orderId: string;
   order: {
@@ -195,6 +199,17 @@ export default function ReviewsBulkList({
                 <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
                   <ReviewActions id={r.id} status={r.status} isFeatured={r.isFeatured} />
                 </div>
+
+                {/* Round 25 #4 — réponse publique admin. Seulement pour
+                    les reviews APPROVED (les autres ne sont pas visibles
+                    sur la landing, donc reply n'a pas de sens). */}
+                {r.status === 'APPROVED' && (
+                  <ReviewReplyForm
+                    reviewId={r.id}
+                    existingReply={r.adminReply}
+                    existingReplyAt={r.adminReplyAt}
+                  />
+                )}
               </div>
             </div>
           );

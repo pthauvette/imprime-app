@@ -15,6 +15,9 @@ interface ReviewForDisplay {
   comment: string;
   displayName: string;
   publishedAt: Date | null;
+  // Round 25 #4 — réponse publique admin (Trustpilot-style)
+  adminReply: string | null;
+  adminReplyAt: Date | null;
 }
 
 const MIN_COMMENT_LEN = 30;
@@ -41,6 +44,8 @@ async function fetchApprovedReviews(): Promise<ReviewForDisplay[]> {
         comment: true,
         displayName: true,
         publishedAt: true,
+        adminReply: true,
+        adminReplyAt: true,
       },
     }).then((rows) =>
       rows
@@ -145,6 +150,42 @@ function ReviewCard({ review }: { review: ReviewForDisplay }) {
       }}>
         « {review.comment} »
       </blockquote>
+
+      {/* Round 25 #4 — réponse publique admin (Trustpilot-style) */}
+      {review.adminReply && (
+        <div
+          style={{
+            marginTop: 4,
+            padding: '10px 12px',
+            background: 'var(--bg-sunken)',
+            borderLeft: '3px solid var(--accent-primary)',
+            borderRadius: '4px 8px 8px 4px',
+            fontSize: 12.5,
+            lineHeight: 1.5,
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--accent-primary)',
+              fontWeight: 700,
+              marginBottom: 4,
+            }}
+          >
+            Réponse de Plio
+            {review.adminReplyAt && (
+              <span style={{ color: 'var(--text-muted)', fontWeight: 500, marginLeft: 6 }}>
+                · {new Date(review.adminReplyAt).toLocaleDateString('fr-CA', { month: 'short', year: 'numeric' })}
+              </span>
+            )}
+          </div>
+          {review.adminReply}
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto', paddingTop: 8, borderTop: '1px dashed var(--border-subtle)' }}>
         <div style={{
