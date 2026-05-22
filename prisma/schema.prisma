@@ -257,6 +257,11 @@ model Order {
   shipPostalCode   String
   shipPhone        String
 
+  /** Round 26 #2 — instructions de livraison customer-fournies
+   *  (ex: "sonner deux fois", "porte arrière", "code 4321"). Max 200 chars.
+   *  Forwarded à Sinalite dans le payload deliveryInstructions. NULL = aucune. */
+  shippingNote     String?
+
   /** Notes internes admin (free-text). Jamais affichées au customer. */
   adminNotes       String?
 

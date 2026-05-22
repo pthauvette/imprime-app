@@ -83,6 +83,8 @@ export type CreateOrderInput = {
   shipProvince: string;
   shipPostalCode: string;
   shipPhone: string;
+  /** Round 26 #2 — instructions livraison customer-fournies. NULL = aucune. */
+  shippingNote?: string | null;
   sinalitePayload: SinaliteOrderRequest;
   /** Human-readable product summary for emails + admin without refetching Sinalite. */
   productSummary?: string;
@@ -132,6 +134,8 @@ export async function createPendingOrder(input: CreateOrderInput) {
     shipProvince: input.shipProvince,
     shipPostalCode: input.shipPostalCode,
     shipPhone: input.shipPhone,
+    // Round 26 #2 — optional shipping note
+    shippingNote: input.shippingNote ?? null,
   };
 
   if (input.promoCodeId) {

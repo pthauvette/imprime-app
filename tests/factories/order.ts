@@ -50,6 +50,8 @@ export const DEFAULT_TEST_ORDER: Order = {
   shipProvince: 'QC',
   shipPostalCode: 'H2X 1A1',
   shipPhone: '+15145550000',
+  // Round 26 #2 — instructions livraison customer (default vide)
+  shippingNote: null,
   createdAt: new Date('2026-01-01T11:00:00.000Z'),
   updatedAt: new Date('2026-01-01T12:00:00.000Z'),
 };

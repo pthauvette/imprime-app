@@ -432,6 +432,25 @@ export default async function CustomerOrderDetailPage({
                 {order.shipLine2 && <div>{order.shipLine2}</div>}
                 <div>{order.shipCity}, {order.shipProvince} {order.shipPostalCode}</div>
                 <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{order.shipPhone}</div>
+                {/* Round 26 #2 — instructions livraison customer-fournies */}
+                {order.shippingNote && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: '8px 10px',
+                      background: 'var(--bg-sunken)',
+                      borderLeft: '3px solid var(--accent-primary)',
+                      borderRadius: '4px 6px 6px 4px',
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-primary)', fontWeight: 700, marginBottom: 4 }}>
+                      Instructions
+                    </div>
+                    {order.shippingNote}
+                  </div>
+                )}
               </div>
             </Card>
 
