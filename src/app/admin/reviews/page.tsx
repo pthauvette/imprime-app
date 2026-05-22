@@ -119,6 +119,9 @@ export default async function AdminReviewsPage({
             status: r.status,
             isFeatured: r.isFeatured,
             adminNote: r.adminNote,
+            // Round 25 #4 — reply Trustpilot-style
+            adminReply: r.adminReply ?? null,
+            adminReplyAt: r.adminReplyAt?.toISOString() ?? null,
             createdAt: r.createdAt.toISOString(),
             orderId: r.orderId,
             order: {

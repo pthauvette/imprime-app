@@ -5,8 +5,10 @@
  *   - approve : status PENDING → APPROVED + publishedAt = now
  *   - reject : status → REJECTED + adminNote (raison)
  *   - feature : isFeatured = true/false (toggle top-3 sur landing)
+ *   - reply   : adminReply = string + adminReplyAt = now (Round 25 #4)
+ *               Si adminReply = "" (vide) → clear la réponse (null + null)
  *
- * Body : { action: 'approve'|'reject'|'feature', adminNote?, isFeatured? }
+ * Body : { action: 'approve'|'reject'|'feature'|'reply', adminNote?, isFeatured?, adminReply? }
  */
 
 import { NextResponse } from 'next/server';
@@ -20,6 +22,8 @@ const BodySchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('approve') }),
   z.object({ action: z.literal('reject'), adminNote: z.string().max(500).optional() }),
   z.object({ action: z.literal('feature'), isFeatured: z.boolean() }),
+  // Round 25 #4 — reply public Trustpilot-style. String vide = clear.
+  z.object({ action: z.literal('reply'), adminReply: z.string().max(1500) }),
 ]);
 
 export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -53,11 +57,20 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
         publishedAt: null,
       },
     });
-  } else {
-    // feature toggle
+  } else if (body.action === 'feature') {
     updated = await prisma.review.update({
       where: { id },
       data: { isFeatured: body.isFeatured },
+    });
+  } else {
+    // Round 25 #4 — reply (string non-vide = post / mise à jour ;
+    // string vide = clear la réponse + reset le timestamp).
+    const trimmed = body.adminReply.trim();
+    updated = await prisma.review.update({
+      where: { id },
+      data: trimmed
+        ? { adminReply: trimmed, adminReplyAt: new Date() }
+        : { adminReply: null, adminReplyAt: null },
     });
   }
 
