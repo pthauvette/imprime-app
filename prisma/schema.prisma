@@ -136,6 +136,8 @@ model User {
   referralsEarned   ReferralReward[] @relation("ReferralReferrer")
   referralReceived  ReferralReward?  @relation("ReferralReferee")
   deleteRequests    DeleteAccountRequest[]
+  /** Round 26 #5 — filtres bookmarkés per-admin */
+  savedFilters      AdminSavedFilter[]
 
   @@index([email])
   @@index([referredByCode])
@@ -1281,6 +1283,34 @@ model WalletTransaction {
 //
 // Use case admin : "ce webhook a été replay 4 fois — quand, par qui,
 // quels furent les outcomes ?" → voir la table sur /admin/webhooks/[id].
+
+// ─── ADMIN SAVED FILTER ──────────────────────────────────────────────────
+// Round 26 #5. Permet à chaque admin de bookmarker une URL filtrée
+// (ex: /admin/orders?status=PAID&q=urgent) avec un nom mnémonique.
+// Affiché en dropdown "Mes filtres" en haut de la page concernée.
+//
+// scope = clé courte qui définit OÙ ce filtre est utilisable :
+//   - "orders" : pages /admin/orders
+//   - "users", "webhooks", "reviews"… (étendable plus tard)
+//
+// Per-admin (userId FK + Cascade) : pas de partage. Si un admin est
+// supprimé, ses filtres partent avec lui.
+
+model AdminSavedFilter {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** Surface admin où le filtre s'applique : "orders" | "users" | "webhooks"… */
+  scope       String
+  /** Nom mnémonique court (ex: "Refunds urgents"). Max 60 chars. */
+  name        String
+  /** Le query string complet à appliquer (ex: "status=PAID&q=urgent").
+   *  Pas de leading ?, pas de prefixe path — juste la portion après le ?. */
+  queryString String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, scope, createdAt])
+}
 
 model WebhookReplay {
   id              String   @id @default(cuid())

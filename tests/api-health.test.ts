@@ -37,7 +37,7 @@ vi.mock('@/lib/webhooks/dead-letter', () => ({
 // Mock Stripe class — `new Stripe()` instances need `.balance.retrieve()`.
 // Module-level state so tests can override stripeBalanceMock per test
 // without breaking the `new Stripe(...)` constructor call at import time.
-const stripeBalanceMock = vi.fn(async () => ({ available: [{ amount: 12345 }] }));
+const stripeBalanceMock = vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ available: [{ amount: 12345 }] }));
 vi.mock('stripe', () => {
   class StripeMock {
     balance = { retrieve: (...args: unknown[]) => stripeBalanceMock(...args) };
