@@ -74,10 +74,10 @@ beforeEach(() => {
     user: { id: 'admin_1', email: 'admin@plio.ca' },
   } as never);
   vi.mocked(prisma.review.findUnique).mockResolvedValue(baseReview as never);
-  vi.mocked(prisma.review.update).mockImplementation(async ({ data }) => ({
+  vi.mocked(prisma.review.update).mockImplementation((async (args: { data: Record<string, unknown> }) => ({
     ...baseReview,
-    ...data,
-  } as never));
+    ...args.data,
+  })) as never);
 });
 
 describe('PATCH /api/admin/reviews/[id] — action=reply (Round 25 #4)', () => {

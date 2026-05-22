@@ -41,7 +41,7 @@ describe('sendPaymentFailedEmail', () => {
     vi.clearAllMocks();
   });
 
-  it('queue avec label payment-failed:<orderId> + default RETRY_URL', async () => {
+  it('queue avec label payment-failed:<orderId> + RETRY_URL self-serve (Round 25 #5)', async () => {
     vi.doMock('@/lib/emails/queue', () => ({
       queueEmail: vi.fn(async () => ({ sent: true, id: 'del_1' })),
     }));
@@ -64,7 +64,9 @@ describe('sendPaymentFailedEmail', () => {
     expect(call.template).toBe('payment-failed');
     expect(call.label).toBe('payment-failed:order_99');
     expect(call.vars.FAILURE_REASON).toBe('Carte refusée');
-    expect(String(call.vars.RETRY_URL)).toContain('/order/start');
+    // Round 25 #5 — RETRY_URL pointe vers /payment/retry/[orderId]?t=TOKEN
+    // (Plus vers /order/start — eviter de forcer le rebuild du cart)
+    expect(String(call.vars.RETRY_URL)).toMatch(/\/payment\/retry\/order_99\?t=[0-9a-f]{32}/);
     // ORDER_ID fallback to id.slice(-6).toUpperCase() when no sinaliteOrderId
     expect(String(call.vars.ORDER_ID)).toBe('DER_99');
   });
