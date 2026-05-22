@@ -22,6 +22,7 @@ import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
 import { recordCronRun } from '@/lib/cron/runs';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
+import { countDeadLetterWebhooks } from '@/lib/webhooks/dead-letter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,8 +34,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 const DEAD_LETTER_THRESHOLD = Number(process.env.WEBHOOK_DEAD_LETTER_THRESHOLD ?? '5');
 /** Throttle : ne pas re-alerter si un alert a déjà été envoyée < N ms. */
 const ALERT_THROTTLE_MS = 6 * 60 * 60 * 1000; // 6h
-/** Combien de temps après une failure on considère "stale" (pas un transient). */
-const STALENESS_MS = 24 * 60 * 60 * 1000; // 24h
+// Round 26 #4 — STALENESS_MS (24h) maintenant dans lib/webhooks/dead-letter.ts
+// (shared avec /api/health). Le cron consomme le count agrégé directement.
 
 export async function GET(req: NextRequest) {
   if (!CRON_SECRET) {
@@ -51,23 +52,11 @@ export async function GET(req: NextRequest) {
   }
 
   const start = Date.now();
-  const staleCutoff = new Date(Date.now() - STALENESS_MS);
 
   try {
-    // Count des dead-letters : failed, stales, jamais replayed.
-    // On groupBy source pour donner du contexte dans l'alerte.
-    const groups = await prisma.webhookEvent.groupBy({
-      by: ['source'],
-      where: {
-        success: false,
-        processedAt: { lt: staleCutoff },
-        replayCount: 0,
-      },
-      _count: { _all: true },
-    });
-
-    const total = groups.reduce((acc, g) => acc + g._count._all, 0);
-    const bySource = Object.fromEntries(groups.map((g) => [g.source, g._count._all]));
+    // Round 26 #4 — extrait dans lib/webhooks/dead-letter pour DRY avec
+    // /api/health qui expose la même metric aux monitoring tools.
+    const { total, bySource } = await countDeadLetterWebhooks();
 
     let alerted = false;
     let throttled = false;
