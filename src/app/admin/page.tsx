@@ -14,6 +14,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import RefreshButton from '@/components/admin/RefreshButton';
 import type { OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -262,7 +263,8 @@ export default async function AdminDashboard() {
               {formatDate(now.toISOString())} · {totalOrders} commande{totalOrders > 1 ? 's' : ''} au total · {totalUsers} utilisateur{totalUsers > 1 ? 's' : ''}
             </p>
           </div>
-          <div className="adm-topbar-actions">
+          <div className="adm-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <RefreshButton />
             <span className="adm-pulse">Live · Sinalite · Stripe · SES</span>
           </div>
         </header>
