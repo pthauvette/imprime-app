@@ -16,6 +16,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
 import ProductionStatusWidget from '@/components/account/ProductionStatusWidget';
+import MonthlySpendChart from '@/components/account/MonthlySpendChart';
 import NpsAutoPrompt from '@/components/account/NpsAutoPrompt';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
@@ -48,7 +49,12 @@ export default async function AccountDashboardPage() {
   const userId = session.user.id;
 
   // Parallel fetch tout ce dont on a besoin
-  const [user, recentOrders, ltvAgg, ltv365Agg, referralsCount, savedConfigsCount, lastSavedConfig] = await Promise.all([
+  // Round 23 #4 — 6 mois d'orders pour le chart (paidAt requis pour bucket)
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  sixMonthsAgo.setDate(1); // bucket sur premier du mois
+
+  const [user, recentOrders, ltvAgg, ltv365Agg, referralsCount, savedConfigsCount, lastSavedConfig, last6mOrders] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -97,6 +103,15 @@ export default async function AccountDashboardPage() {
       orderBy: { updatedAt: 'desc' },
       select: { id: true, name: true, productName: true, updatedAt: true },
     }),
+    // Round 23 #4 — 6m orders pour chart spending
+    prisma.order.findMany({
+      where: {
+        userId,
+        paidAt: { gte: sixMonthsAgo },
+        status: { notIn: ['CANCELLED', 'FAILED'] },
+      },
+      select: { paidAt: true, amountCents: true },
+    }).catch(() => []),
   ]);
 
   if (!user) redirect('/sign-in' as Route);
@@ -195,6 +210,9 @@ export default async function AccountDashboardPage() {
             ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED'].includes(o.status)
           )}
         />
+
+        {/* Round 23 #4 — Monthly spend chart (6 derniers mois) */}
+        <MonthlySpendChart orders={last6mOrders} />
 
         {/* Grid : Recent orders + Side widgets */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'start' }}>
