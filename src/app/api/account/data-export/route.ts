@@ -53,14 +53,32 @@ export const GET = withErrorHandler(async (req: Request) => {
     contactMessages,
     reviews,
     npsResponses,
+    walletTransactions,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true, email: true, name: true, firstName: true, lastName: true,
-        phone: true, role: true, emailVerified: true, emailDeliveryNotifications: true,
+        phone: true, role: true, emailVerified: true,
+        // Round 13 #1 — granular email opt-outs (3 flags séparés)
+        emailDeliveryNotifications: true,
+        emailMarketing: true,
+        emailReengagement: true,
         referralCode: true, referredByCode: true, referralCreditCents: true,
         adminNotes: true, adminNotesUpdatedAt: true, adminNotesUpdatedBy: true,
+        // Round 18 / 22 — wallet (balance + auto-renew config Stripe)
+        walletCents: true,
+        walletAutoRenewStripeSubId: true,
+        walletAutoRenewAmountCents: true,
+        // Round 18 #5 — tax-exempt B2B
+        taxExempt: true,
+        taxExemptCertId: true,
+        // Round 21 #4 + 22 #1 — reseller status (NONE/AUTO_DETECTED/VERIFIED)
+        resellerStatus: true,
+        resellerDetectedAt: true,
+        // Round 12 #3 — loyalty tier (BRONZE/SILVER/GOLD)
+        loyaltyTier: true,
+        loyaltyTierComputedAt: true,
         createdAt: true, updatedAt: true,
       },
     }),
@@ -117,6 +135,13 @@ export const GET = withErrorHandler(async (req: Request) => {
         orderBy: { createdAt: 'desc' },
       }),
     ).catch(() => []),
+    // Round 25 #1 — wallet transactions (Round 18 ledger ajouté après le
+    // data-export initial → manquait dans le payload). PIPEDA "right to
+    // access" : le user doit voir toute son historique financière.
+    prisma.walletTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => []),
   ]);
 
   if (!user) {
@@ -150,6 +175,7 @@ export const GET = withErrorHandler(async (req: Request) => {
     contactMessages,
     reviews,
     npsResponses,
+    walletTransactions,
   };
 
   void recordAdminAudit({
@@ -164,6 +190,7 @@ export const GET = withErrorHandler(async (req: Request) => {
       addressCount: addresses.length,
       reviewCount: reviews.length,
       npsCount: npsResponses.length,
+      walletTransactionCount: walletTransactions.length,
     },
   });
 

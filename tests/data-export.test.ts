@@ -23,6 +23,7 @@ vi.mock('@/lib/db', () => ({
     contactMessage: { findMany: vi.fn(async () => []) },
     review: { findMany: vi.fn(async () => []) },
     npsResponse: { findMany: vi.fn(async () => []) },
+    walletTransaction: { findMany: vi.fn(async () => []) },
     adminAuditEvent: { create: vi.fn(async () => ({})) },
   },
 }));
@@ -54,13 +55,29 @@ const baseUser = {
   phone: null,
   role: 'USER',
   emailVerified: null,
+  // Round 13 #1 — 3 flags séparés
   emailDeliveryNotifications: true,
+  emailMarketing: true,
+  emailReengagement: true,
   referralCode: null,
   referredByCode: null,
   referralCreditCents: 0,
   adminNotes: null,
   adminNotesUpdatedAt: null,
   adminNotesUpdatedBy: null,
+  // Round 18/22 wallet
+  walletCents: 5000,
+  walletAutoRenewStripeSubId: 'sub_x',
+  walletAutoRenewAmountCents: 10000,
+  // Round 18 #5 tax-exempt
+  taxExempt: false,
+  taxExemptCertId: null,
+  // Round 21 #4 / 22 #1 reseller
+  resellerStatus: 'VERIFIED',
+  resellerDetectedAt: new Date('2026-04-01'),
+  // Round 12 #3 loyalty
+  loyaltyTier: 'GOLD',
+  loyaltyTierComputedAt: new Date('2026-05-01'),
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -151,6 +168,8 @@ describe('GET /api/account/data-export', () => {
     expect(data.action).toBe('USER_DATA_EXPORT_SELF');
     expect(data).toHaveProperty('reviewCount');
     expect(data).toHaveProperty('npsCount');
+    // Round 25 #1 — wallet tx count fait partie de la signature audit
+    expect(data).toHaveProperty('walletTransactionCount');
   });
 
   it('Sinalite payload omis du JSON pour économiser la taille', async () => {
@@ -166,6 +185,68 @@ describe('GET /api/account/data-export', () => {
     const parsed = JSON.parse(body);
 
     expect(parsed.orders[0].sinalitePayload).toMatch(/snapshot omis/);
+  });
+
+  /**
+   * Round 25 #1 — regression guard. Quand on ajoute un nouveau champ User
+   * pour une feature business (loyalty, reseller, tax-exempt, wallet…),
+   * il faut l'ajouter au SELECT du data-export. Ce test bloque le merge
+   * si quelqu'un l'oublie.
+   */
+  it('payload.user inclut les champs post-Round-18 (wallet, reseller, tier, opt-outs granulaires)', async () => {
+    vi.mocked(auth).mockResolvedValue(session() as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(baseUser as never);
+
+    const GET = await importGet();
+    const res = await GET(makeReq());
+    const parsed = JSON.parse(await res.text());
+
+    // Granular opt-outs (Round 13 #1)
+    expect(parsed.user).toHaveProperty('emailMarketing');
+    expect(parsed.user).toHaveProperty('emailReengagement');
+    // Wallet (Round 18, 22)
+    expect(parsed.user).toHaveProperty('walletCents', 5000);
+    expect(parsed.user).toHaveProperty('walletAutoRenewStripeSubId', 'sub_x');
+    expect(parsed.user).toHaveProperty('walletAutoRenewAmountCents', 10000);
+    // Tax-exempt (Round 18 #5)
+    expect(parsed.user).toHaveProperty('taxExempt');
+    expect(parsed.user).toHaveProperty('taxExemptCertId');
+    // Reseller (Round 21/22)
+    expect(parsed.user).toHaveProperty('resellerStatus', 'VERIFIED');
+    expect(parsed.user).toHaveProperty('resellerDetectedAt');
+    // Loyalty (Round 12 #3)
+    expect(parsed.user).toHaveProperty('loyaltyTier', 'GOLD');
+    expect(parsed.user).toHaveProperty('loyaltyTierComputedAt');
+  });
+
+  it('payload inclut walletTransactions[] (Round 18 ledger)', async () => {
+    vi.mocked(auth).mockResolvedValue(session() as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(baseUser as never);
+    vi.mocked(prisma.walletTransaction.findMany).mockResolvedValueOnce([
+      { id: 'wt_1', userId: 'user_1', kind: 'TOPUP', amountCents: 10000, balanceAfterCents: 10000, description: 'Top-up 100 $' },
+      { id: 'wt_2', userId: 'user_1', kind: 'ORDER_SPEND', amountCents: -5000, balanceAfterCents: 5000, description: 'Order #SIN-1' },
+    ] as never);
+
+    const GET = await importGet();
+    const res = await GET(makeReq());
+    const parsed = JSON.parse(await res.text());
+
+    expect(parsed.walletTransactions).toHaveLength(2);
+    expect(parsed.walletTransactions[0]).toMatchObject({ kind: 'TOPUP', amountCents: 10000 });
+    expect(parsed.walletTransactions[1]).toMatchObject({ kind: 'ORDER_SPEND', amountCents: -5000 });
+  });
+
+  it('si walletTransaction query throw (migration pas appliquée), fallback []', async () => {
+    vi.mocked(auth).mockResolvedValue(session() as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(baseUser as never);
+    vi.mocked(prisma.walletTransaction.findMany).mockRejectedValueOnce(new Error('table missing'));
+
+    const GET = await importGet();
+    const res = await GET(makeReq());
+    const parsed = JSON.parse(await res.text());
+
+    expect(res.status).toBe(200);
+    expect(parsed.walletTransactions).toEqual([]);
   });
 
   it('si NPS query throw (migration pas appliquée), fallback []', async () => {

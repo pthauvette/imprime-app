@@ -58,8 +58,9 @@ export default async function PrivacySettingsPage() {
               </h2>
               <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
                 Télécharge un fichier JSON contenant toutes les données que Plio stocke
-                sur toi : profil, commandes, adresses, configurations sauvées,
-                brouillons, parrainages, messages.
+                sur toi : profil (incluant statut reseller, tier loyauté, opt-outs email),
+                commandes, adresses, configurations sauvées, brouillons, parrainages,
+                messages, avis publiés, historique wallet.
               </p>
             </div>
             <a
