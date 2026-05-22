@@ -199,6 +199,7 @@ export type EmailVarsMap = {
   'reengagement-follow-up': ReengagementFollowUpVars;
   'reengagement-winback': ReengagementWinbackVars;
   'abandoned-cart': AbandonedCartVars;
+  'reseller-monthly-stats': ResellerMonthlyStatsVars;
 };
 
 export type ReengagementFollowUpVars = {
@@ -231,5 +232,31 @@ export type ReengagementWinbackVars = {
   /** Number de jours depuis la dernière commande payée. */
   DAYS_SINCE_LAST: string | number;
   ORDER_START_URL: string;
+  UNSUBSCRIBE_URL: string;
+};
+
+/**
+ * Round 24 #4 — récap mensuel envoyé le 1er du mois à tous les resellers
+ * VERIFIED qui ont au moins 1 order le mois écoulé.
+ */
+export type ResellerMonthlyStatsVars = {
+  CUSTOMER_FIRST_NAME: string;
+  /** Ex: "janvier 2026". */
+  MONTH_LABEL: string;
+  /** Count des orders payées le mois écoulé. */
+  ORDERS_COUNT: string | number;
+  /** Total dépensé, format ex: "1 234,56". */
+  REVENUE: string;
+  /** Rabais 5 % cumulé, format ex: "61,73". 0 si aucune order. */
+  DISCOUNT_SAVED: string;
+  /** Phrase courte, ex: "vs mois précédent : +12 %" ou "Premier mois actif". */
+  COMPARISON_LABEL: string;
+  /** Détail optionnel (ex: nb d'orders vs nb d'orders précédent). */
+  COMPARISON_DETAIL: string;
+  /** Headline encadré status — ex: "Status : RESELLER VERIFIED". */
+  STATUS_HEADLINE: string;
+  /** Détail encadré — ex: "Tes orders contribuent à débloquer le statut Power-User…" */
+  STATUS_DETAIL: string;
+  DASHBOARD_URL: string;
   UNSUBSCRIBE_URL: string;
 };

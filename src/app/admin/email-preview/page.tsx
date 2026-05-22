@@ -42,6 +42,7 @@ const TEMPLATE_LABELS: Record<EmailTemplate, string> = {
   'reengagement-follow-up': 'Re-engagement (7j post-delivery)',
   'reengagement-winback': 'Win-back (90j inactif)',
   'abandoned-cart': 'Cart abandonné (24h+)',
+  'reseller-monthly-stats': 'Récap mensuel reseller',
 };
 
 interface SearchParams {

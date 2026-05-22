@@ -26,7 +26,8 @@ export type EmailTemplate =
   | 'admin-custom-message'
   | 'reengagement-follow-up'
   | 'reengagement-winback'
-  | 'abandoned-cart';
+  | 'abandoned-cart'
+  | 'reseller-monthly-stats';
 
 // Cache des templates chargés (au premier render)
 const cache = new Map<EmailTemplate, string>();
@@ -77,6 +78,7 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
   'reengagement-follow-up': (v) => `Comment c'était, ta commande #${v.ORDER_ID ?? ''} ?`,
   'reengagement-winback': () => `On t'a manqué ? Voici 10 % pour célébrer ton retour.`,
   'abandoned-cart': (v) => `Ta commande ${v.PRODUCT_NAME ?? 'Plio'} t'attend`,
+  'reseller-monthly-stats': (v) => `Ton récap reseller — ${v.MONTH_LABEL ?? ''}`,
 };
 
 // ─── ACTUAL SEND (via SES SMTP) ───────────────────────────────────────────

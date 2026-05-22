@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Plio · Tes stats reseller — {{MONTH_LABEL}}</title>
+</head>
+<body style="margin:0; padding:0; background:#FAFAF7; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#141C16;">
+  <div style="display:none; max-height:0; overflow:hidden;">Tes stats {{MONTH_LABEL}} sont prêtes — {{ORDERS_COUNT}} commande(s), {{REVENUE}} $ d'achats.</div>
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#FAFAF7;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px; background:#FFFFFF; border:1px solid #ECEAE3; border-radius:12px;">
+
+          <!-- Wordmark -->
+          <tr>
+            <td style="padding:32px 32px 0;">
+              <div style="font-family:Georgia, 'Times New Roman', serif; font-size:28px; color:#1F3D2B; letter-spacing:-0.02em; font-weight:400;">Plio.</div>
+            </td>
+          </tr>
+
+          <!-- Hero -->
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#7A8780; font-weight:600;">RESELLER · {{MONTH_LABEL}}</div>
+              <h1 style="font-family:Georgia, 'Times New Roman', serif; font-size:32px; line-height:1.15; letter-spacing:-0.025em; color:#141C16; margin:12px 0 0; font-weight:400;">
+                Bonjour {{CUSTOMER_FIRST_NAME}}, voici ton bilan {{MONTH_LABEL}}.
+              </h1>
+              <p style="font-size:14px; color:#4A554D; margin:12px 0 0; line-height:1.55;">
+                Récap de ton activité du mois passé. Continue comme ça — ton rabais reseller de 5 % s'applique automatiquement au checkout.
+              </p>
+            </td>
+          </tr>
+
+          <!-- KPI grid -->
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td width="33%" valign="top" style="padding:14px 12px 14px 0;">
+                    <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#7A8780; font-weight:600;">COMMANDES</div>
+                    <div style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#141C16; letter-spacing:-0.02em; margin-top:6px;">{{ORDERS_COUNT}}</div>
+                  </td>
+                  <td width="33%" valign="top" style="padding:14px 12px;">
+                    <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#7A8780; font-weight:600;">DÉPENSÉ</div>
+                    <div style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#141C16; letter-spacing:-0.02em; margin-top:6px;">{{REVENUE}} $</div>
+                  </td>
+                  <td width="33%" valign="top" style="padding:14px 0 14px 12px;">
+                    <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#7A8780; font-weight:600;">RABAIS RESELLER</div>
+                    <div style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#1F3D2B; letter-spacing:-0.02em; margin-top:6px;">{{DISCOUNT_SAVED}} $</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- vs last month -->
+          <tr>
+            <td style="padding:8px 32px 8px;">
+              <div style="border-top:1px solid #ECEAE3; padding-top:16px; font-size:13px; color:#4A554D; line-height:1.55;">
+                <strong style="color:#141C16;">{{COMPARISON_LABEL}}</strong> {{COMPARISON_DETAIL}}
+              </div>
+            </td>
+          </tr>
+
+          <!-- Encouragement / status info -->
+          <tr>
+            <td style="padding:8px 32px 8px;">
+              <div style="background:#F4F2EC; border-radius:8px; padding:14px 16px; font-size:13px; color:#4A554D; line-height:1.55;">
+                <strong style="color:#1F3D2B;">{{STATUS_HEADLINE}}</strong><br>
+                {{STATUS_DETAIL}}
+              </div>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <a href="{{DASHBOARD_URL}}" style="display:inline-block; background:#1F3D2B; color:#FAFAF7; padding:12px 22px; border-radius:6px; text-decoration:none; font-size:14px; font-weight:600; letter-spacing:0.02em;">Voir mon tableau de bord →</a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 32px 32px;">
+              <div style="border-top:1px solid #ECEAE3; padding-top:16px; font-size:11px; color:#7A8780; line-height:1.5;">
+                Récap mensuel reseller Plio · envoyé le 1er du mois ·
+                <a href="{{UNSUBSCRIBE_URL}}" style="color:#7A8780;">préférences</a>
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
