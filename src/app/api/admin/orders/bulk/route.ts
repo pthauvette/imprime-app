@@ -38,6 +38,14 @@ const BodySchema = z.discriminatedUnion('action', [
     trackingNumber: z.string().min(1).max(80).optional(),
     carrier: z.string().min(1).max(40).optional(),
   }),
+  // Round 23 #2 — bulk resend confirmation. Safe : juste un email,
+  // pas de side-effect Stripe/Sinalite. Cap 50 (vs 100 pour les autres
+  // actions) pour limiter SES throttle si beaucoup d'admins lancent
+  // des bulks en parallèle.
+  z.object({
+    action: z.literal('resendConfirmation'),
+    ids: z.array(z.string().min(1)).min(1).max(50),
+  }),
 ]);
 
 export const POST = withErrorHandler(async (req: Request) => {
@@ -67,6 +75,25 @@ export const POST = withErrorHandler(async (req: Request) => {
       ),
     );
     count = existing.length;
+  } else if (body.action === 'resendConfirmation') {
+    // Round 23 #2 — bulk resend confirmation email. On filter aux orders
+    // PAID+ (pas PENDING, n'a aucun sens) et qui ont un user (pas guest
+    // orphans). On envoie en parallèle batch ; chacun fail isolé.
+    const eligible = await prisma.order.findMany({
+      where: {
+        id: { in: body.ids },
+        status: { notIn: ['PENDING', 'FAILED'] },
+      },
+      include: { user: true },
+    });
+
+    const { sendOrderConfirmationEmail } = await import('@/lib/emails/send');
+    const results = await Promise.allSettled(
+      eligible.map((order) =>
+        sendOrderConfirmationEmail({ order, user: order.user }),
+      ),
+    );
+    count = results.filter((r) => r.status === 'fulfilled' && r.value.sent).length;
   } else if (body.action === 'markStatus') {
     // Bulk status transition. On exclut les orders déjà dans un état
     // terminal (DELIVERED, CANCELLED, FAILED) pour pas régresser

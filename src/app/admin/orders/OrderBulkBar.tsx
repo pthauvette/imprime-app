@@ -85,6 +85,35 @@ export default function OrderBulkBar() {
     });
   }
 
+  async function bulkResendConfirmation() {
+    if (selectedIds.size === 0) return;
+    const n = selectedIds.size;
+    if (n > 50) {
+      setError('Max 50 commandes par bulk resend (limite SES).');
+      return;
+    }
+    if (!confirm(`Renvoyer l'email de confirmation à ${n} customer${n > 1 ? 's' : ''} ?\n\nNote : les orders PENDING ou FAILED seront ignorées.`)) {
+      return;
+    }
+    setError(null);
+    setResult(null);
+    startTransition(async () => {
+      try {
+        const res = await fetch('/api/admin/orders/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'resendConfirmation', ids: Array.from(selectedIds) }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        setResult(`${data.count} email${data.count > 1 ? 's' : ''} renvoyé${data.count > 1 ? 's' : ''}.`);
+        clearSelection();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur');
+      }
+    });
+  }
+
   async function bulkMarkStatus(status: 'IN_PRODUCTION' | 'SHIPPED' | 'DELIVERED') {
     if (selectedIds.size === 0) return;
     const n = selectedIds.size;
@@ -179,6 +208,7 @@ export default function OrderBulkBar() {
           <StatusBtn label="⚙ En production" disabled={busy} onClick={() => bulkMarkStatus('IN_PRODUCTION')} />
           <StatusBtn label="📦 Expédiées" disabled={busy} onClick={() => bulkMarkStatus('SHIPPED')} />
           <StatusBtn label="✓ Livrées" disabled={busy} onClick={() => bulkMarkStatus('DELIVERED')} />
+          <StatusBtn label="✉ Renvoyer confirmation" disabled={busy} onClick={bulkResendConfirmation} />
           <button
             type="button"
             onClick={clearSelection}
