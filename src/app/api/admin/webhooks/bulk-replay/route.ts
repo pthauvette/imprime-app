@@ -99,6 +99,21 @@ export const POST = withErrorHandler(async (req: Request) => {
       },
     });
 
+    // Round 26 #3 — historique détaillé (fail-soft).
+    void prisma.webhookReplay.create({
+      data: {
+        webhookEventId: event.id,
+        replayedBy: guard.userId,
+        replayedByEmail: guard.user.email,
+        success,
+        statusCode: success ? 200 : 500,
+        errorMessage: replayError ? replayError.message.slice(0, 500) : null,
+        latencyMs,
+      },
+    }).catch((err) => {
+      logWebhook.warn({ err, eventId: event.id }, 'webhookReplay history insert failed (non-fatal)');
+    });
+
     results.push({
       id: event.id,
       success,

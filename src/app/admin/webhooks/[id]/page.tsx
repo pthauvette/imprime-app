@@ -38,6 +38,13 @@ export default async function AdminWebhookDetailPage({
   const event = await prisma.webhookEvent.findUnique({ where: { id } });
   if (!event) notFound();
 
+  // Round 26 #3 — historique des replays. .catch fallback : si la table
+  // n'existe pas encore (migration pas appliquée), on render avec liste vide.
+  const replays = await prisma.webhookReplay.findMany({
+    where: { webhookEventId: event.id },
+    orderBy: { replayedAt: 'desc' },
+  }).catch(() => []);
+
   const order = event.orderId
     ? await prisma.order.findUnique({
         where: { id: event.orderId },
@@ -258,6 +265,70 @@ export default async function AdminWebhookDetailPage({
             {payloadPretty}
           </pre>
         </section>
+
+        {/* Round 26 #3 — historique des replays */}
+        {replays.length > 0 && (
+          <section style={{ marginTop: 24 }}>
+            <h2
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                fontWeight: 600,
+                margin: '0 0 12px',
+              }}
+            >
+              Historique des replays ({replays.length})
+            </h2>
+            <div
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--r-lg)',
+                overflow: 'hidden',
+              }}
+            >
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-sunken)' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Quand</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Par</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Outcome</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Latence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {replays.map((r) => (
+                    <tr key={r.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)' }}>
+                        {formatDateTime(r.replayedAt)}
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        {r.replayedByEmail ?? <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                        {r.success ? (
+                          <span style={{ color: 'var(--success, #16a34a)', fontWeight: 600 }}>
+                            ✓ {r.statusCode ?? 200}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--danger)', fontWeight: 600 }} title={r.errorMessage ?? undefined}>
+                            ✗ {r.statusCode ?? 500}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                        {r.latencyMs !== null ? `${r.latencyMs} ms` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {order && (
           <section style={{ marginTop: 24 }}>

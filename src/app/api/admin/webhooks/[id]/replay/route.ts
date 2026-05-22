@@ -100,6 +100,23 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     },
   });
 
+  // Round 26 #3 — historique détaillé. Fail-soft : si le insert plante,
+  // on log mais on ne casse pas la réponse au caller (l'aggregate count
+  // ci-dessus est déjà à jour).
+  void prisma.webhookReplay.create({
+    data: {
+      webhookEventId: event.id,
+      replayedBy: guard.userId,
+      replayedByEmail: guard.user.email,
+      success,
+      statusCode: success ? 200 : 500,
+      errorMessage: replayError ? replayError.message.slice(0, 500) : null,
+      latencyMs,
+    },
+  }).catch((err) => {
+    logWebhook.warn({ err, eventId: event.id }, 'webhookReplay history insert failed (non-fatal)');
+  });
+
   // Audit log — admin action sensible, on trace
   void recordAdminAudit({
     kind: 'ADMIN_TEMPLATE_EDIT',
