@@ -74,6 +74,7 @@ export default async function AdminFinancesPage({
     sidebarOrders,
     sidebarUsers,
     sidebarWebhooks,
+    revenueByUserId,
   ] = await Promise.all([
     // Round 16 #3 : .catch fallbacks pour éviter 500 dashboard si table manque.
     // Aggregates throwers → fallback à un shape minimal vide.
@@ -136,7 +137,42 @@ export default async function AdminFinancesPage({
     prisma.order.count().catch(() => 0),
     prisma.user.count().catch(() => 0),
     prisma.webhookEvent.count().catch(() => 0),
+    // Round 23 #5 — groupBy par userId pour reseller revenue breakdown.
+    // Prisma groupBy ne supporte pas JOIN sur user.resellerStatus →
+    // on fait le mapping côté JS après (cheap : N userIds = 1 user query).
+    prisma.order.groupBy({
+      by: ['userId'],
+      where: {
+        paidAt: { gte: periodStart, lt: periodEnd },
+        status: { notIn: ['CANCELLED', 'FAILED'] },
+      },
+      _sum: { amountCents: true },
+      _count: { _all: true },
+    }).catch(() => []),
   ]);
+
+  // Round 23 #5 — Map userIds → resellerStatus, puis bucket par status
+  const allRevenueUserIds = revenueByUserId.map((r) => r.userId);
+  const userStatusList = allRevenueUserIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: allRevenueUserIds } },
+        select: { id: true, resellerStatus: true },
+      }).catch(() => [])
+    : [];
+  const statusByUserId = new Map(userStatusList.map((u) => [u.id, u.resellerStatus]));
+  const resellerBreakdown: Record<'VERIFIED' | 'AUTO_DETECTED' | 'NONE', { revenueCents: number; orderCount: number; customerCount: number }> = {
+    VERIFIED:      { revenueCents: 0, orderCount: 0, customerCount: 0 },
+    AUTO_DETECTED: { revenueCents: 0, orderCount: 0, customerCount: 0 },
+    NONE:          { revenueCents: 0, orderCount: 0, customerCount: 0 },
+  };
+  for (const r of revenueByUserId) {
+    const status = (statusByUserId.get(r.userId) ?? 'NONE') as 'VERIFIED' | 'AUTO_DETECTED' | 'NONE';
+    const bucket = resellerBreakdown[status] ?? resellerBreakdown.NONE;
+    bucket.revenueCents += r._sum.amountCents ?? 0;
+    bucket.orderCount += r._count._all;
+    bucket.customerCount += 1;
+  }
+  const totalResellerRevenue = resellerBreakdown.VERIFIED.revenueCents + resellerBreakdown.AUTO_DETECTED.revenueCents + resellerBreakdown.NONE.revenueCents;
 
   // ─── User lookup for top customers ─────────────────────────────────────
   const userIds = topCustomers.map((c) => c.userId);
@@ -323,6 +359,73 @@ export default async function AdminFinancesPage({
             )}
           </div>
         </section>
+
+        {/* Round 23 #5 — Revenue par segment reseller */}
+        {totalResellerRevenue > 0 && (
+          <section style={{
+            marginBottom: 24,
+            padding: 20,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--r-xl)',
+          }}>
+            <header style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+              <h2 className="adm-panel-title" style={{ margin: 0 }}>
+                Revenu par segment reseller
+                <span className="adm-panel-title-meta">{periodLabel}</span>
+              </h2>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Total : <strong>{formatCurrency(totalResellerRevenue / 100)}</strong>
+              </span>
+            </header>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              {([
+                { key: 'VERIFIED',      label: '✓ Resellers vérifiés', color: '#1F3D2B', subtitle: 'Perks 5% appliquées' },
+                { key: 'AUTO_DETECTED', label: '~ Auto-détectés',      color: '#5B7A6A', subtitle: 'Candidats reseller' },
+                { key: 'NONE',          label: 'Standard',             color: 'var(--text-muted)', subtitle: 'Customers réguliers' },
+              ] as const).map((seg) => {
+                const data = resellerBreakdown[seg.key];
+                const pct = totalResellerRevenue > 0 ? Math.round((data.revenueCents / totalResellerRevenue) * 100) : 0;
+                return (
+                  <div key={seg.key} style={{
+                    padding: 16,
+                    background: 'var(--bg-canvas)',
+                    border: `1px solid var(--border-subtle)`,
+                    borderRadius: 'var(--r-md)',
+                    borderLeft: `3px solid ${seg.color}`,
+                  }}>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: seg.color,
+                      fontWeight: 700,
+                      marginBottom: 4,
+                    }}>
+                      {seg.label}
+                    </div>
+                    <div style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 24,
+                      fontWeight: 400,
+                      letterSpacing: '-0.02em',
+                      color: 'var(--text-primary)',
+                    }}>
+                      {formatCurrency(data.revenueCents / 100)}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                      {pct}% du total · {data.orderCount} order{data.orderCount > 1 ? 's' : ''} · {data.customerCount} customer{data.customerCount > 1 ? 's' : ''}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>
+                      {seg.subtitle}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ─── Revenu par province + Top customers ──────────────── */}
         <section className="adm-grid-equal">
