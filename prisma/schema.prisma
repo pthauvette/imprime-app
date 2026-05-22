@@ -441,8 +441,10 @@ model WebhookEvent {
   // events ~5-50 KB, Sinalite < 1 KB. PostgreSQL TEXT pas de limite hard.
   payload     String?
   // Replay tracking : combien de fois l'admin l'a re-déclenché manuellement.
+  // L'historique détaillé (qui, quand, outcome) vit dans WebhookReplay (Round 26 #3).
   replayCount Int      @default(0)
   lastReplayAt DateTime?
+  replays     WebhookReplay[]
 
   @@unique([source, eventId])
   @@index([source, processedAt])
@@ -1270,4 +1272,34 @@ model WalletTransaction {
   @@index([userId, createdAt])
   @@index([kind, createdAt])
   @@index([paymentIntentId])
+}
+
+// ─── WEBHOOK REPLAY HISTORY ───────────────────────────────────────────────
+// Round 26 #3. Track chaque manual replay (single ou via bulk) d'un
+// WebhookEvent. L'aggregate count + lastReplayAt restent sur WebhookEvent
+// pour query rapide, mais l'historique détaillé vit ici.
+//
+// Use case admin : "ce webhook a été replay 4 fois — quand, par qui,
+// quels furent les outcomes ?" → voir la table sur /admin/webhooks/[id].
+
+model WebhookReplay {
+  id              String   @id @default(cuid())
+  webhookEventId  String
+  webhookEvent    WebhookEvent @relation(fields: [webhookEventId], references: [id], onDelete: Cascade)
+  /** Quand le replay a été déclenché. */
+  replayedAt      DateTime @default(now())
+  /** Admin qui a cliqué (User.id). NULL si replay automatique (futur). */
+  replayedBy      String?
+  /** Email snapshot pour affichage sans re-join User (admin peut être supprimé). */
+  replayedByEmail String?
+  /** true si le handler a retourné succès. */
+  success         Boolean
+  /** HTTP status code retourné par notre handler (200 = OK, 5xx = fail). */
+  statusCode      Int?
+  /** Error message (first 500 chars) si fail. */
+  errorMessage    String?
+  /** Latency du replay en ms. */
+  latencyMs       Int?
+
+  @@index([webhookEventId, replayedAt])
 }
