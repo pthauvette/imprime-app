@@ -13,8 +13,10 @@ import { prisma } from '@/lib/db';
 import { ORDER_STATUS, type OrderStatus } from '@/lib/db/orders';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
+import { computeOrderSlaMetrics } from '@/lib/admin/order-sla';
 import { formatCurrency, formatDate } from '@/lib/format';
 import OrderBulkBar from './OrderBulkBar';
+import OrderSlaWidget from '@/components/admin/OrderSlaWidget';
 
 export const metadata = { title: 'Admin — Commandes' };
 export const dynamic = 'force-dynamic';
@@ -83,7 +85,7 @@ export default async function AdminOrdersPage({
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [orders, totalCount, statusCounts, statsToday, stats7d, stats30d, pendingAction] = await Promise.all([
+  const [orders, totalCount, statusCounts, statsToday, stats7d, stats30d, pendingAction, slaMetrics] = await Promise.all([
     prisma.order.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -114,6 +116,15 @@ export default async function AdminOrdersPage({
     prisma.order.count({
       where: { status: { in: ['PENDING', 'PAID', 'FAILED'] } },
     }),
+    // Round 25 #3 — SLA widget (P50/P95 time-to-submit + time-to-ship).
+    // .catch fallback : si la query échoue (Prisma down, schema drift),
+    // on render le widget vide plutôt que de cracher toute la page.
+    computeOrderSlaMetrics().catch(() => ({
+      windowDays: 30,
+      computedAt: new Date(),
+      timeToSubmit: { sampleSize: 0, p50Hours: null, p95Hours: null },
+      timeToShip: { sampleSize: 0, p50Hours: null, p95Hours: null },
+    })),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -177,6 +188,9 @@ export default async function AdminOrdersPage({
             <Link href={'/admin' as Route} className="btn btn-secondary btn-sm">↗ Dashboard</Link>
           </div>
         </header>
+
+        {/* ─── SLA widget (Round 25 #3) ────────────────────────────── */}
+        <OrderSlaWidget metrics={slaMetrics} />
 
         {/* ─── Stats row ──────────────────────────────────────────── */}
         <section className="ord-stats">
