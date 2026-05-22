@@ -1,0 +1,30 @@
+name: Webhook dead-letter alert
+
+# Tape /api/cron/webhook-deadletter-alert toutes les 2h.
+# Compte les WebhookEvent failed + stales + jamais replayed.
+# Si > 5, ping Slack #plio-alerts. Throttle interne 6h pour pas spammer.
+#
+# Security: pas d'untrusted input. Seul CRON_SECRET (repo secret) via env
+# per safe pattern.
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/cron/webhook-deadletter-alert
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://plio.ca/api/cron/webhook-deadletter-alert
