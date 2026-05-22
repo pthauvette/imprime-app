@@ -41,7 +41,7 @@ export default async function AdminProductsPage({
 
   // Fetch products + sidebar counts in parallel (+ overrides admin pour
   // afficher l'état hidden/featured/renommé sur chaque ligne du tableau).
-  const [products, ordersCount, usersCount, syncedAt, overridesMap] = await Promise.all([
+  const [products, ordersCount, usersCount, syncedAt, overridesMap, cacheStats] = await Promise.all([
     sinalite.listProducts().catch((e: unknown) => {
       const err = e instanceof SinaliteError ? e.message : (e as Error).message;
       return { __error: err };
@@ -51,6 +51,8 @@ export default async function AdminProductsPage({
     // We don't store a "last synced" timestamp — use now (approximation)
     Promise.resolve(new Date()),
     fetchOverridesMap(),
+    // Round 23 #3 — Sinalite cache stats
+    fetchCacheStats(),
   ]);
 
   // Handle Sinalite API failure gracefully
@@ -148,6 +150,72 @@ export default async function AdminProductsPage({
             Le variants-index (pricing combos) est fetch on-demand par produit lors d'un order — pas affiché ici.
           </span>
         </div>
+
+        {/* Round 23 #3 — Sinalite cache stats (write-through cache) */}
+        {cacheStats && (
+          <details
+            style={{
+              padding: '14px 18px',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--r-md)',
+              fontSize: 13,
+              marginBottom: 24,
+            }}
+          >
+            <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}>
+              💾 Cache Sinalite — {cacheStats.totalEntries} entries
+              {cacheStats.avgAgeHours !== null && (
+                <span style={{ marginLeft: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  · âge moyen {cacheStats.avgAgeHours.toFixed(1)}h
+                </span>
+              )}
+            </summary>
+            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+              <div>
+                <div style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Entries totales</div>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>{cacheStats.totalEntries}</div>
+              </div>
+              <div>
+                <div style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Âge moyen</div>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>{cacheStats.avgAgeHours?.toFixed(1) ?? '—'} h</div>
+              </div>
+              <div>
+                <div style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Entry la plus vieille</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>
+                  {cacheStats.oldestAgeHours !== null
+                    ? cacheStats.oldestAgeHours < 24
+                      ? `${cacheStats.oldestAgeHours.toFixed(1)} h`
+                      : `${(cacheStats.oldestAgeHours / 24).toFixed(1)} j`
+                    : '—'}
+                </div>
+                {cacheStats.oldestKey && (
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, wordBreak: 'break-all' }}>
+                    {cacheStats.oldestKey}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Dernier refresh</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>
+                  {cacheStats.newestUpdatedAt
+                    ? cacheStats.newestUpdatedAt.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })
+                    : '—'}
+                </div>
+              </div>
+            </div>
+            <details style={{ marginTop: 12 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)' }}>
+                Sample keys ({cacheStats.sampleKeys.length})
+              </summary>
+              <ul style={{ marginTop: 8, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', paddingLeft: 20 }}>
+                {cacheStats.sampleKeys.map((k) => (
+                  <li key={k} style={{ wordBreak: 'break-all', marginBottom: 4 }}>{k}</li>
+                ))}
+              </ul>
+            </details>
+          </details>
+        )}
 
         {/* Category pills */}
         <div className="adm-pills" style={{ marginBottom: 24, flexWrap: 'wrap', maxWidth: '100%' }}>
@@ -321,6 +389,42 @@ const td: React.CSSProperties = {
   padding: '12px 16px',
   color: 'var(--text-primary)',
 };
+
+/**
+ * Round 23 #3 — Stats du cache Sinalite. Aggregate sur SinaliteCacheEntry.
+ * Returns null si table absente ou empty (safe fallback).
+ */
+async function fetchCacheStats(): Promise<{
+  totalEntries: number;
+  oldestKey: string | null;
+  oldestAgeHours: number | null;
+  avgAgeHours: number | null;
+  newestUpdatedAt: Date | null;
+  sampleKeys: string[];
+} | null> {
+  try {
+    const rows = await prisma.sinaliteCacheEntry.findMany({
+      select: { key: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 100, // suffit pour stats — pas d'use case full scan
+    });
+    if (rows.length === 0) return null;
+    const now = Date.now();
+    const ages = rows.map((r) => (now - r.updatedAt.getTime()) / 3600_000); // hours
+    const avgAge = ages.reduce((a, b) => a + b, 0) / ages.length;
+    const oldest = rows.reduce((a, b) => (a.updatedAt < b.updatedAt ? a : b));
+    return {
+      totalEntries: rows.length,
+      oldestKey: oldest.key,
+      oldestAgeHours: (now - oldest.updatedAt.getTime()) / 3600_000,
+      avgAgeHours: avgAge,
+      newestUpdatedAt: rows[0]?.updatedAt ?? null,
+      sampleKeys: rows.slice(0, 5).map((r) => r.key),
+    };
+  } catch {
+    return null;
+  }
+}
 
 function Pagination({
   page, totalPages, totalCount, category, search,
