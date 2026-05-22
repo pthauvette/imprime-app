@@ -16,6 +16,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
+import { countDeadLetterWebhooks } from '@/lib/webhooks/dead-letter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -67,7 +68,7 @@ export async function GET() {
   const now = Date.now();
 
   // Run checks in parallel
-  const [db, sinalite, stripeCheck, emailQueue, webhookRecent] = await Promise.all([
+  const [db, sinalite, stripeCheck, emailQueue, webhookRecent, webhookDeadLetter] = await Promise.all([
     // Critical : DB ping
     timed(() => prisma.$queryRaw`SELECT 1`),
     // Degraded : Sinalite API auth + product fetch
@@ -115,6 +116,17 @@ export async function GET() {
       },
       (failures) => ({ failedLast15min: failures }),
     ),
+    // Round 26 #4 — Degraded : webhook dead-letter pile-up (chronic).
+    // Distinct du `webhooks:recent` qui catch les transients (15min).
+    // Threshold aligné avec le cron alerter (Round 25 #2) : > 5 dead-letters.
+    timed(
+      async () => {
+        const { total, bySource } = await countDeadLetterWebhooks();
+        if (total > 5) throw new Error(`${total} webhook dead-letters > 24h not replayed`);
+        return { total, bySource };
+      },
+      (r) => ({ total: r.total, bySource: r.bySource }),
+    ),
   ]);
 
   const checks = {
@@ -123,6 +135,7 @@ export async function GET() {
     'api:stripe': stripeCheck,
     'email:queue': emailQueue,
     'webhooks:recent': webhookRecent,
+    'webhooks:deadletter': webhookDeadLetter,
   };
 
   const isCritical = (name: string) => name === 'db:postgres';
