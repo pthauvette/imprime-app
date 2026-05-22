@@ -193,6 +193,18 @@ export default async function WalletPage({
 
         <WalletTopupForm hasActiveSubscription={!!user.walletAutoRenewStripeSubId} />
 
+        {/* Round 23 #1 — link vers historique complet */}
+        {user.walletCents > 0 && (
+          <div style={{ marginBottom: 24, textAlign: 'right' }}>
+            <Link
+              href={'/account/wallet/history' as Route}
+              style={{ fontSize: 12, color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}
+            >
+              Voir l&apos;historique complet des transactions →
+            </Link>
+          </div>
+        )}
+
         {/* Stats */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
           <StatBox label="Gagné total" value={formatCurrency(totalEarnedCents / 100)} hint={`${rewardsEarned.filter((r) => r.status === 'CREDITED').length} parrainage${rewardsEarned.filter((r) => r.status === 'CREDITED').length > 1 ? 's' : ''} récompensés`} />
