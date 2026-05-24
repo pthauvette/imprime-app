@@ -28,7 +28,7 @@ vi.mock('@/lib/logger', () => {
   return { log: stub, logEmail: stub };
 });
 
-const stripeUpdate = vi.fn(async () => ({}));
+const stripeUpdate = vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({}));
 vi.mock('stripe', () => {
   class StripeMock {
     subscriptions = { update: (...args: unknown[]) => stripeUpdate(...args) };

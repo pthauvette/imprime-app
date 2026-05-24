@@ -25,8 +25,37 @@ import { formatDateTime } from '@/lib/format';
 export const metadata = { title: 'Admin — Cron monitor' };
 export const dynamic = 'force-dynamic';
 
-const KNOWN_CRONS = ['cleanup', 'daily-summary', 'email-retry', 're-engagement', 'abandoned-cart', 'loyalty-tiers', 'wallet-expiry', 'broadcasts', 'reseller-detection'] as const;
-type CronName = (typeof KNOWN_CRONS)[number];
+/**
+ * Round 29 #1 — KNOWN_CRONS sync avec .github/workflows/cron-*.yml.
+ * Expected interval (ms) sert au freshness check : si dernier run est
+ * > 2.5× l'interval, on flag stale (laisse de la marge pour scheduler
+ * lag GH Actions qui peut être ±5min sur un cron horaire).
+ */
+const CRONS: ReadonlyArray<{ name: string; expectedIntervalMs: number; label: string }> = [
+  { name: 'cleanup',                  expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 3h UTC' },
+  { name: 'daily-summary',            expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 11h UTC' },
+  { name: 'email-retry',              expectedIntervalMs: 5 * 60 * 1000,       label: 'toutes les 5 min' },
+  { name: 're-engagement',            expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 8h UTC' },
+  { name: 'abandoned-cart',           expectedIntervalMs: 6 * 3600 * 1000,     label: 'toutes les 6 h' },
+  { name: 'loyalty-tiers',            expectedIntervalMs: 30 * 24 * 3600 * 1000, label: 'mensuel 1er 5h UTC' },
+  { name: 'wallet-expiry',            expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 6h UTC' },
+  { name: 'broadcasts',               expectedIntervalMs: 5 * 60 * 1000,       label: 'toutes les 5 min' },
+  { name: 'reseller-detection',       expectedIntervalMs: 30 * 24 * 3600 * 1000, label: 'mensuel 1er 7h UTC' },
+  { name: 'reseller-monthly-stats',   expectedIntervalMs: 30 * 24 * 3600 * 1000, label: 'mensuel 1er 8h UTC' },
+  { name: 'webhook-deadletter-alert', expectedIntervalMs: 2 * 3600 * 1000,     label: 'toutes les 2 h' },
+  { name: 'stripe-clock-skew',        expectedIntervalMs: 6 * 3600 * 1000,     label: 'toutes les 6 h' },
+  { name: 'sinalite-latency',         expectedIntervalMs: 15 * 60 * 1000,      label: 'toutes les 15 min' },
+];
+const KNOWN_CRONS = CRONS.map((c) => c.name);
+type CronName = string;
+
+/** Nearest-rank quantile (Round 25 #3 / 27 #4 pattern, inlined here). */
+function quantile(values: number[], q: number): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = Math.max(0, Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1));
+  return sorted[idx]!;
+}
 
 export default async function AdminCronsPage() {
   const { session } = await requireAdminPage();
@@ -36,9 +65,8 @@ export default async function AdminCronsPage() {
 
   const cutoff7d = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 
-  const [lastRunByName, statsBy7d, recentRuns, lastFailByName] = await Promise.all([
-    // Dernier run par cron name (utilise findFirst dans une boucle —
-    // 4 queries seulement, ok)
+  const [lastRunByName, statsBy7d, recentRuns, lastFailByName, latencySampleByName] = await Promise.all([
+    // Dernier run par cron name
     Promise.all(
       KNOWN_CRONS.map((name) =>
         prisma.cronRun.findFirst({
@@ -68,10 +96,23 @@ export default async function AdminCronsPage() {
         }).then((r) => [name, r] as const),
       ),
     ),
+    // Round 29 #1 — last 30 successful runs latency par cron pour P50/P95
+    Promise.all(
+      KNOWN_CRONS.map((name) =>
+        prisma.cronRun.findMany({
+          where: { name, status: 'success' },
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+          select: { latencyMs: true },
+        }).then((rows) => [name, rows.map((r) => r.latencyMs)] as const),
+      ),
+    ),
   ]);
 
   const lastRunMap = new Map(lastRunByName);
   const lastFailMap = new Map(lastFailByName);
+  const latencyMap = new Map(latencySampleByName);
+  const now = Date.now();
 
   // Aggregate stats par cron
   type CronStats7d = { success: number; fail: number; avgLatencyMs: number };
@@ -119,15 +160,31 @@ export default async function AdminCronsPage() {
         </header>
 
         <section style={{ display: 'grid', gap: 16, marginBottom: 32 }}>
-          {KNOWN_CRONS.map((name) => (
-            <CronCard
-              key={name}
-              name={name}
-              lastRun={lastRunMap.get(name) ?? null}
-              stats7d={stats.get(name) ?? { success: 0, fail: 0, avgLatencyMs: 0 }}
-              lastFail={lastFailMap.get(name) ?? null}
-            />
-          ))}
+          {CRONS.map((cron) => {
+            const lastRun = lastRunMap.get(cron.name) ?? null;
+            const latencies = latencyMap.get(cron.name) ?? [];
+            // Round 29 #1 — freshness : si pas de run récent, on flag stale.
+            // Threshold = 2.5× l'interval pour laisser de la marge à GH Actions
+            // scheduler lag (peut être ±5min sur cron horaire).
+            const ageMs = lastRun ? now - lastRun.createdAt.getTime() : null;
+            const staleness = ageMs !== null && ageMs > cron.expectedIntervalMs * 2.5
+              ? { ageMs, expectedMs: cron.expectedIntervalMs }
+              : null;
+            return (
+              <CronCard
+                key={cron.name}
+                name={cron.name}
+                schedule={cron.label}
+                lastRun={lastRun}
+                stats7d={stats.get(cron.name) ?? { success: 0, fail: 0, avgLatencyMs: 0 }}
+                lastFail={lastFailMap.get(cron.name) ?? null}
+                p50={quantile(latencies, 0.5)}
+                p95={quantile(latencies, 0.95)}
+                latencySampleSize={latencies.length}
+                staleness={staleness}
+              />
+            );
+          })}
         </section>
 
         <section>
@@ -208,14 +265,24 @@ export default async function AdminCronsPage() {
 
 function CronCard({
   name,
+  schedule,
   lastRun,
   stats7d,
   lastFail,
+  p50,
+  p95,
+  latencySampleSize,
+  staleness,
 }: {
   name: CronName;
+  schedule: string;
   lastRun: { status: string; latencyMs: number; createdAt: Date; errorMessage: string | null; data: string | null } | null;
   stats7d: { success: number; fail: number; avgLatencyMs: number };
   lastFail: { errorMessage: string | null; createdAt: Date } | null;
+  p50: number | null;
+  p95: number | null;
+  latencySampleSize: number;
+  staleness: { ageMs: number; expectedMs: number } | null;
 }) {
   const total7d = stats7d.success + stats7d.fail;
   const successRate = total7d > 0 ? Math.round((stats7d.success / total7d) * 100) : null;
@@ -224,7 +291,8 @@ function CronCard({
     <div
       style={{
         background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
+        border: `1px solid ${staleness ? 'var(--warning, #D97706)' : 'var(--border-subtle)'}`,
+        borderLeft: staleness ? '4px solid var(--warning, #D97706)' : '1px solid var(--border-subtle)',
         borderRadius: 'var(--r-lg)',
         padding: 20,
       }}
@@ -241,17 +309,35 @@ function CronCard({
               marginBottom: 2,
             }}
           >
-            CRON
+            CRON · {schedule}
           </div>
           <div style={{ fontSize: 18, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
             {name}
           </div>
         </div>
-        {lastRun ? (
-          <StatusPill status={lastRun.status} />
-        ) : (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>jamais run</span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {staleness && (
+            <span
+              title={`Stale : aucun run depuis ${formatDuration(staleness.ageMs)}, interval attendu ${formatDuration(staleness.expectedMs)}`}
+              style={{
+                fontSize: 11,
+                fontFamily: 'var(--font-mono)',
+                background: 'var(--warning, #D97706)',
+                color: '#fff',
+                padding: '2px 8px',
+                borderRadius: 'var(--r-pill)',
+                fontWeight: 700,
+              }}
+            >
+              ⚠ STALE
+            </span>
+          )}
+          {lastRun ? (
+            <StatusPill status={lastRun.status} />
+          ) : (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>jamais run</span>
+          )}
+        </div>
       </div>
 
       <div
@@ -278,6 +364,15 @@ function CronCard({
         <Mini
           label="Latence moy. · 7 j"
           value={stats7d.avgLatencyMs > 0 ? `${stats7d.avgLatencyMs} ms` : '—'}
+        />
+        {/* Round 29 #1 — P50/P95 sur 30 derniers runs success */}
+        <Mini
+          label={`P50 · ${latencySampleSize} runs`}
+          value={p50 !== null ? `${p50} ms` : '—'}
+        />
+        <Mini
+          label={`P95 · ${latencySampleSize} runs`}
+          value={p95 !== null ? `${p95} ms` : '—'}
         />
       </div>
 
@@ -401,4 +496,16 @@ function Td({
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max) + '…';
+}
+
+/** Round 29 #1 — human-readable duration pour le staleness badge tooltip. */
+function formatDuration(ms: number): string {
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return `${sec} s`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min`;
+  const hr = Math.round(min / 60);
+  if (hr < 48) return `${hr} h`;
+  const days = Math.round(hr / 24);
+  return `${days} j`;
 }
