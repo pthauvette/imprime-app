@@ -184,8 +184,8 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
               30 secondes pour évaluer {orderLabel}. C&apos;est anonyme côté équipe et ça nous aide à nous améliorer.
             </p>
 
-            {/* Score grid 0-10 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: 4, marginBottom: 8 }}>
+            {/* Score grid 0-10 — Round 30 #4 : min cell 36px + overflow scroll mobile */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(11, minmax(36px, 1fr))', gap: 4, marginBottom: 8, overflowX: 'auto', paddingBottom: 4 }}>
               {Array.from({ length: 11 }, (_, n) => (
                 <button
                   key={n}

@@ -112,12 +112,18 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
               tu recommanderais Plio à un·e collègue ?
             </p>
 
+            {/* Round 30 #4 — NPS 0-10 : sur mobile <420px, 11 cellules de 1fr
+                deviennent ~30px chacune (impossible à tapper, < seuil 40px).
+                Min cell width 36px + overflow horizontal pour garantir
+                tap-friendliness sans break la numérotation 0..10. */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(11, 1fr)',
+                gridTemplateColumns: 'repeat(11, minmax(36px, 1fr))',
                 gap: 4,
                 marginBottom: 8,
+                overflowX: 'auto',
+                paddingBottom: 4,
               }}
             >
               {Array.from({ length: 11 }, (_, i) => {
