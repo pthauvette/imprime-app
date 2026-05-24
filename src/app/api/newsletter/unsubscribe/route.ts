@@ -87,11 +87,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
   }
 
-  await prisma.newsletterSubscriber.updateMany({
-    where: { email, status: 'ACTIVE' },
-    data: { status: 'UNSUBSCRIBED', unsubscribedAt: new Date() },
-  });
-  log.info({ email, source: 'confirmation-page' }, 'newsletter unsubscribed');
+  // Round 28 #4 — RFC 8058 expects POST to unsubscribe immediately, sans
+  // confirmation page. On exécute les 2 updates en parallèle :
+  //   1. NewsletterSubscriber (audience legacy)
+  //   2. User.emailMarketing (audience auth-ed customer — couvre les
+  //      broadcasts admin, reseller monthly stats, reengagement)
+  // Idempotent : pas d'erreur si déjà UNSUBSCRIBED ou si user pas dans
+  // la table — updateMany retourne juste { count: 0 }.
+  await Promise.all([
+    prisma.newsletterSubscriber.updateMany({
+      where: { email, status: 'ACTIVE' },
+      data: { status: 'UNSUBSCRIBED', unsubscribedAt: new Date() },
+    }),
+    prisma.user.updateMany({
+      where: { email, emailMarketing: true },
+      data: { emailMarketing: false },
+    }),
+  ]);
+  log.info({ email, source: 'one-click-post' }, 'newsletter + marketing unsubscribed');
 
   return NextResponse.json({ ok: true });
 }

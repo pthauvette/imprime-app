@@ -109,6 +109,12 @@ export async function sendEmail(opts: {
   /** EmailDelivery.id pour le pixel d'open tracking. Si fourni, on inject
    *  un <img 1x1> pointant vers /api/emails/pixel/[id] juste avant </body>. */
   deliveryId?: string;
+  /** Round 28 #4 — URL pour RFC 8058 one-click unsubscribe. Quand set,
+   *  on ajoute List-Unsubscribe + List-Unsubscribe-Post: One-Click headers.
+   *  Apple Mail / Gmail render un bouton "Unsubscribe" prominent à côté
+   *  du From name. Use case : marketing emails (broadcasts, reseller stats,
+   *  reengagement). NE PAS set pour transactional (orders, magic-link). */
+  listUnsubscribeUrl?: string;
 }) {
   let html = renderEmail(opts.template, opts.vars);
   const subject = opts.subject ?? EMAIL_SUBJECTS[opts.template](opts.vars);
@@ -138,6 +144,8 @@ export async function sendEmail(opts: {
         vars: opts.vars,
         replyTo: opts.replyTo,
         attachments: opts.attachments?.map((a) => ({ filename: a.filename, bytes: a.content.byteLength })),
+        // Round 28 #4 — surface dans le log dev pour debugging
+        listUnsubscribeUrl: opts.listUnsubscribeUrl,
       },
       'email (dev — not sent, SES not configured)',
     );
@@ -155,6 +163,17 @@ export async function sendEmail(opts: {
     },
   });
 
+  // Round 28 #4 — RFC 8058 one-click unsubscribe headers pour marketing.
+  // List-Unsubscribe = URL angle-bracketed.
+  // List-Unsubscribe-Post = signal au client mail qu'on accepte POST sans
+  // confirmation page. Combo requis pour le bouton Apple/Gmail.
+  const extraHeaders = opts.listUnsubscribeUrl
+    ? {
+        'List-Unsubscribe': `<${opts.listUnsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      }
+    : undefined;
+
   await transport.sendMail({
     from: SES_FROM,
     to: opts.to,
@@ -163,6 +182,7 @@ export async function sendEmail(opts: {
     html,
     // text fallback : strip HTML tags
     text: html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 1000),
+    ...(extraHeaders ? { headers: extraHeaders } : {}),
     ...(opts.attachments && opts.attachments.length > 0
       ? {
           attachments: opts.attachments.map((a) => ({
