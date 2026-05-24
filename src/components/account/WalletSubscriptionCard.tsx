@@ -9,16 +9,25 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 export default function WalletSubscriptionCard({ amountCents }: { amountCents: number }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Round 36 #5 — Custom modal au lieu de window.confirm() jarring.
+  // Particulièrement important côté customer (vs admin) : UX matter.
+  const { confirm, dialog } = useConfirmDialog();
 
-  function handleCancel() {
-    if (!window.confirm(`Annuler l'auto-renew mensuel de ${(amountCents / 100).toFixed(2)} $ ?\n\nTu profites du dernier mois déjà payé, puis plus de prélèvements automatiques.`)) {
-      return;
-    }
+  async function handleCancel() {
+    const ok = await confirm({
+      title: `Annuler l'auto-renew mensuel de ${(amountCents / 100).toFixed(2)} $ ?`,
+      body: 'Tu profites du dernier mois déjà payé, puis plus de prélèvements automatiques.',
+      confirmLabel: 'Annuler l\'abonnement',
+      cancelLabel: 'Garder actif',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       try {
@@ -76,6 +85,7 @@ export default function WalletSubscriptionCard({ amountCents }: { amountCents: n
           {error}
         </span>
       )}
+      {dialog}
     </section>
   );
 }
