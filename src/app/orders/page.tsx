@@ -129,9 +129,32 @@ export default async function OrdersPage({
               )}
             </p>
           </div>
-          <Link href={'/order/start' as Route} className="page-action" style={pageAction}>
-            + Nouvelle commande
-          </Link>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Round 28 #2 — CSV self-serve export (audit comptable perso) */}
+            {orders.length > 0 && (
+              <a
+                href="/api/account/orders/export"
+                download
+                title="Télécharger toutes tes commandes en CSV (Excel-friendly, audit comptable perso)"
+                style={{
+                  padding: '8px 14px',
+                  background: 'transparent',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--r-pill)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  fontFamily: 'var(--font-mono)',
+                }}
+              >
+                ⬇ CSV
+              </a>
+            )}
+            <Link href={'/order/start' as Route} className="page-action" style={pageAction}>
+              + Nouvelle commande
+            </Link>
+          </div>
         </div>
 
         {orders.length === 0 ? (
