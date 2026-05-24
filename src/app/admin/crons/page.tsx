@@ -45,6 +45,7 @@ const CRONS: ReadonlyArray<{ name: string; expectedIntervalMs: number; label: st
   { name: 'webhook-deadletter-alert', expectedIntervalMs: 2 * 3600 * 1000,     label: 'toutes les 2 h' },
   { name: 'stripe-clock-skew',        expectedIntervalMs: 6 * 3600 * 1000,     label: 'toutes les 6 h' },
   { name: 'sinalite-latency',         expectedIntervalMs: 15 * 60 * 1000,      label: 'toutes les 15 min' },
+  { name: 'purge-old-events',         expectedIntervalMs: 30 * 24 * 3600 * 1000, label: 'mensuel 1er 9h UTC' },
 ];
 const KNOWN_CRONS = CRONS.map((c) => c.name);
 type CronName = string;
