@@ -240,23 +240,42 @@ export default function DesignSystemPage() {
                 <div>
                   <p className="comp-name">Input / Field</p>
                   <div className="field-stack">
+                    {/* Round 36 #1 — Avant : patrick@plio.ca + H2X hardcodés
+                        leakaient PII du dev sur une page live publique.
+                        Remplacés par placeholders génériques + defaultValue
+                        (pas value, sinon React warn controlled input). */}
                     <div>
                       <div className="field">
-                        <label>Email</label>
-                        <input type="email" value="patrick@plio.ca" />
+                        <label htmlFor="ds-email-demo">Email</label>
+                        <input
+                          id="ds-email-demo"
+                          type="email"
+                          defaultValue="nom@exemple.ca"
+                          readOnly
+                        />
                       </div>
                     </div>
                     <div>
                       <div className="field">
-                        <label>Téléphone</label>
-                        <input type="tel" placeholder="(514) 555-0123" />
+                        <label htmlFor="ds-phone-demo">Téléphone</label>
+                        <input
+                          id="ds-phone-demo"
+                          type="tel"
+                          placeholder="(514) 555-0123"
+                          readOnly
+                        />
                       </div>
                       <div className="field-helper">Format canadien (XXX) XXX-XXXX</div>
                     </div>
                     <div>
                       <div className="field field-error">
-                        <label>Code postal</label>
-                        <input type="text" value="H2X" />
+                        <label htmlFor="ds-postal-demo">Code postal</label>
+                        <input
+                          id="ds-postal-demo"
+                          type="text"
+                          defaultValue="A1A"
+                          readOnly
+                        />
                       </div>
                       <div className="field-helper error">Format invalide — attendu A1A 1A1</div>
                     </div>

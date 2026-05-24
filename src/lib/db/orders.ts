@@ -170,6 +170,86 @@ export async function markOrderPaid(paymentIntentId: string) {
   ]);
 }
 
+/**
+ * Round 36 #1 — variant atomique de markOrderPaid qui inclut le debit
+ * wallet dans la MÊME $transaction. Avant : 2 transactions séparées
+ * (markOrderPaid → recordWalletTx), si le process crashait entre les 2,
+ * l'order était PAID mais le wallet pas débité = customer paie Stripe ET
+ * garde son crédit (split-brain ledger).
+ *
+ * @param input.paymentIntentId - Stripe PI ID (lookup l'order)
+ * @param input.walletDebit - Si provided, debit le wallet user de N cents
+ *   dans la même transaction. Throws si overdraft (wallet < amount).
+ *
+ * @returns L'Order updated. Le caller peut continuer avec Sinalite submit
+ *   en sachant que le ledger est cohérent.
+ */
+export async function markOrderPaidWithWalletDebit(input: {
+  paymentIntentId: string;
+  walletDebit?: {
+    userId: string;
+    /** Positive cents à débiter (ex 1500 = -15 $) */
+    amountCents: number;
+    description: string;
+  };
+}) {
+  const order = await prisma.order.findUnique({ where: { paymentIntentId: input.paymentIntentId } });
+  if (!order) throw new OrderNotFoundError(input.paymentIntentId);
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Mark order paid + audit event
+    const updatedOrder = await tx.order.update({
+      where: { id: order.id },
+      data: { status: 'PAID', paidAt: new Date() },
+    });
+    await tx.orderEvent.create({
+      data: { orderId: order.id, kind: 'PAYMENT_SUCCEEDED' },
+    });
+
+    // 2. Wallet debit dans la MÊME transaction si applicable
+    if (input.walletDebit && input.walletDebit.amountCents > 0) {
+      const user = await tx.user.findUnique({
+        where: { id: input.walletDebit.userId },
+        select: { walletCents: true },
+      });
+      if (!user) {
+        throw new Error(`User ${input.walletDebit.userId} introuvable pour wallet debit`);
+      }
+
+      const newBalance = user.walletCents - input.walletDebit.amountCents;
+      if (newBalance < 0) {
+        // Hard fail — DB rollback automatique → order revient à PENDING.
+        // Le webhook Stripe retry et c'est OK, mais alerte admin nécessaire
+        // car le PI a déjà été créé sur la base d'un wallet suffisant.
+        throw new Error(
+          `Wallet overdraft refusé : user ${input.walletDebit.userId} a ${user.walletCents} cents, debit ${input.walletDebit.amountCents}. Order ${order.id} rollback à PENDING.`,
+        );
+      }
+
+      await tx.user.update({
+        where: { id: input.walletDebit.userId },
+        data: {
+          walletCents: newBalance,
+          walletLastActivityAt: new Date(),
+        },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          userId: input.walletDebit.userId,
+          kind: 'ORDER_SPEND',
+          amountCents: -input.walletDebit.amountCents,
+          balanceAfterCents: newBalance,
+          orderId: order.id,
+          description: input.walletDebit.description.slice(0, 500),
+        },
+      });
+    }
+
+    return updatedOrder;
+  });
+}
+
 export async function markOrderSubmitted(input: {
   orderId: string;
   sinaliteOrderId: number;

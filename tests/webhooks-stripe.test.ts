@@ -40,6 +40,8 @@ vi.mock('@/lib/db/orders', () => {
   }
   return {
     markOrderPaid: vi.fn(async () => undefined),
+    // Round 36 #1 — nouveau helper atomic combinant mark-paid + wallet debit
+    markOrderPaidWithWalletDebit: vi.fn(async () => ({ id: 'o_mock', status: 'PAID' })),
     markOrderSubmitted: vi.fn(async () => undefined),
     markOrderFailed: vi.fn(async () => undefined),
     markRefundIssued: vi.fn(async () => undefined),
@@ -188,7 +190,11 @@ describe('A. payment_intent.succeeded — happy path', () => {
         payload: expect.any(String),
       }),
     );
-    expect(orders.markOrderPaid).toHaveBeenCalledWith('pi_happy');
+    // Round 36 #1 — la production code utilise maintenant markOrderPaidWithWalletDebit
+    // (qui combine mark-paid + wallet debit dans 1 tx atomique).
+    expect(orders.markOrderPaidWithWalletDebit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentIntentId: 'pi_happy' }),
+    );
     expect(sinalite.createOrder).toHaveBeenCalledTimes(1);
     expect(orders.markOrderSubmitted).toHaveBeenCalledWith({
       orderId: order.id,
