@@ -1,0 +1,30 @@
+name: Admin weekly digest email
+
+# Tape /api/cron/admin-weekly-digest mercredi 9h UTC.
+# Compute KPIs 7j + week-over-week + top 3 customers + envoie aux
+# adresses ADMIN_EMAILS. Companion à cron-daily-summary (quotidien).
+#
+# Security: pas d'untrusted input (no github.event.* used). Only the
+# pinned CRON_SECRET via env per safe pattern.
+
+on:
+  schedule:
+    - cron: '0 9 * * 3'
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/cron/admin-weekly-digest
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://plio.ca/api/cron/admin-weekly-digest
