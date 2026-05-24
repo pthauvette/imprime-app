@@ -69,6 +69,8 @@ const baseUser = {
   walletCents: 5000,
   walletAutoRenewStripeSubId: 'sub_x',
   walletAutoRenewAmountCents: 10000,
+  // Round 28 #5
+  walletAutoRenewPausedAt: null,
   // Round 18 #5 tax-exempt
   taxExempt: false,
   taxExemptCertId: null,
@@ -208,6 +210,8 @@ describe('GET /api/account/data-export', () => {
     expect(parsed.user).toHaveProperty('walletCents', 5000);
     expect(parsed.user).toHaveProperty('walletAutoRenewStripeSubId', 'sub_x');
     expect(parsed.user).toHaveProperty('walletAutoRenewAmountCents', 10000);
+    // Round 28 #5
+    expect(parsed.user).toHaveProperty('walletAutoRenewPausedAt');
     // Tax-exempt (Round 18 #5)
     expect(parsed.user).toHaveProperty('taxExempt');
     expect(parsed.user).toHaveProperty('taxExemptCertId');

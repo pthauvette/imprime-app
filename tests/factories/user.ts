@@ -43,6 +43,8 @@ export const DEFAULT_TEST_USER: User = {
   walletExpiryWarningAt: null,
   walletAutoRenewStripeSubId: null,
   walletAutoRenewAmountCents: null,
+  // Round 28 #5 — pause sans cancel (NULL = active)
+  walletAutoRenewPausedAt: null,
   loyaltyTier: 'BRONZE',
   loyaltyTierComputedAt: null,
   taxExempt: false,
