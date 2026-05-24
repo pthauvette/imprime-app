@@ -19,7 +19,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 type BulkAction =
   | { action: 'set-role'; userIds: string[]; role: 'USER' | 'ADMIN' }
   | { action: 'opt-out-emails'; userIds: string[] }
-  | { action: 'opt-in-emails'; userIds: string[] };
+  | { action: 'opt-in-emails'; userIds: string[] }
+  | { action: 'send-email'; userIds: string[]; subject: string; body: string };
 
 export default function UserBulkBar() {
   const router = useRouter();
@@ -28,6 +29,8 @@ export default function UserBulkBar() {
   const [busy, startTransition] = useTransition();
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Round 27 #2 — email composer modal
+  const [emailModal, setEmailModal] = useState<{ subject: string; body: string } | null>(null);
 
   useEffect(() => {
     function refreshSelection() {
@@ -158,6 +161,16 @@ export default function UserBulkBar() {
           >
             ✕ Opt-out emails
           </button>
+          {/* Round 27 #2 — open email composer modal */}
+          <button
+            type="button"
+            disabled={busy || selectedIds.size > 50}
+            onClick={() => setEmailModal({ subject: '', body: '' })}
+            style={ghostBtnStyle}
+            title={selectedIds.size > 50 ? 'Max 50 destinataires par envoi' : 'Envoyer un email personnalisé aux utilisateurs sélectionnés'}
+          >
+            ✉ Envoyer message
+          </button>
           <button
             type="button"
             onClick={clearSelection}
@@ -199,6 +212,127 @@ export default function UserBulkBar() {
       {error && (
         <span style={{ fontSize: 12, color: 'var(--danger)' }}>✗ {error}</span>
       )}
+
+      {/* Round 27 #2 — Email composer modal */}
+      {emailModal && (
+        <EmailComposerModal
+          recipientCount={selectedIds.size}
+          subject={emailModal.subject}
+          body={emailModal.body}
+          busy={busy}
+          onChange={(next) => setEmailModal(next)}
+          onCancel={() => setEmailModal(null)}
+          onSend={() => {
+            const payload = emailModal;
+            startTransition(async () => {
+              setError(null);
+              setResult(null);
+              try {
+                const res = await fetch('/api/admin/users/bulk', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'send-email',
+                    userIds: Array.from(selectedIds),
+                    subject: payload.subject,
+                    body: payload.body,
+                  }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  setError(data.error ?? `HTTP ${res.status}`);
+                  return;
+                }
+                setResult(`${data.affected ?? 0} email(s) envoyé(s)`);
+                setEmailModal(null);
+                clearSelection();
+                router.refresh();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'Erreur réseau');
+              }
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EmailComposerModal({
+  recipientCount, subject, body, busy, onChange, onCancel, onSend,
+}: {
+  recipientCount: number;
+  subject: string;
+  body: string;
+  busy: boolean;
+  onChange: (next: { subject: string; body: string }) => void;
+  onCancel: () => void;
+  onSend: () => void;
+}) {
+  const canSend = subject.trim().length >= 3 && body.trim().length >= 10 && !busy;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Composer un email"
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 100, padding: 24, color: 'var(--text-primary)',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div style={{
+        background: 'var(--bg-surface)', borderRadius: 'var(--r-xl)', padding: 24,
+        maxWidth: 560, width: '100%', boxShadow: 'var(--shadow-xl)',
+      }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, margin: '0 0 4px' }}>
+          Email aux {recipientCount} utilisateur{recipientCount > 1 ? 's' : ''} sélectionné{recipientCount > 1 ? 's' : ''}
+        </h2>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>
+          Filtre opt-out emailMarketing appliqué automatiquement (CASL).
+        </p>
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+            Objet
+          </span>
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => onChange({ subject: e.target.value.slice(0, 150), body })}
+            placeholder="Promotion juin — 10 % sur cartes 14pt"
+            maxLength={150}
+            style={{ width: '100%', padding: 10, fontSize: 14, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', marginTop: 4, fontFamily: 'inherit' }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: 16 }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+            Message · {body.length}/5000
+          </span>
+          <textarea
+            value={body}
+            onChange={(e) => onChange({ subject, body: e.target.value.slice(0, 5000) })}
+            placeholder="Bonjour,&#10;&#10;On lance une promo..."
+            rows={8}
+            maxLength={5000}
+            style={{ width: '100%', padding: 10, fontSize: 13, lineHeight: 1.5, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', marginTop: 4, fontFamily: 'inherit', resize: 'vertical' }}
+          />
+        </label>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button
+            type="button" onClick={onCancel} disabled={busy}
+            style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button" onClick={onSend} disabled={!canSend}
+            style={{ padding: '8px 16px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: canSend ? 'pointer' : 'not-allowed', opacity: canSend ? 1 : 0.5, fontFamily: 'inherit' }}
+          >
+            {busy ? 'Envoi…' : `Envoyer (${recipientCount})`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
