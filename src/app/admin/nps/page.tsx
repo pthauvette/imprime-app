@@ -126,10 +126,12 @@ export default async function AdminNpsPage() {
               borderRadius: 'var(--r-lg)',
               padding: 20,
               display: 'grid',
-              gridTemplateColumns: 'repeat(11, 1fr)',
+              // Round 30 #4 — min 28px + overflow-x pour rester tap-friendly mobile
+              gridTemplateColumns: 'repeat(11, minmax(28px, 1fr))',
               gap: 4,
               alignItems: 'end',
               minHeight: 180,
+              overflowX: 'auto',
             }}
           >
             {histogram.map((count, score) => {

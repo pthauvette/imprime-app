@@ -77,8 +77,9 @@ export default async function ReferralsPage() {
           </div>
         </header>
 
-        {/* Stats du programme */}
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
+        {/* Stats du programme — Round 30 #4 : auto-fit pour que les 3 cards
+            ne se squeezent pas sous 360px (1 col stack mobile, 3 col desktop). */}
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
           <Stat label="Crédit disponible" value={formatCurrency(balance)} sub="appliqué auto au prochain checkout" highlight={balance > 0} />
           <Stat label="Total gagné" value={formatCurrency(totalEarned)} sub={`${rewards.filter((r) => r.status === 'CREDITED').length} parrainage${rewards.filter((r) => r.status === 'CREDITED').length > 1 ? 's' : ''}`} />
           <Stat label="En attente" value={String(rewards.filter((r) => r.status === 'PENDING').length)} sub="commande pas encore payée" />

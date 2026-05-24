@@ -375,7 +375,8 @@ export default async function AdminUserDetailPage({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              // Round 30 #4 — auto-fit pour reflow mobile (3 cols → 1 col sous ~600px)
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
               gap: 16,
               borderLeft: '1px solid var(--border-subtle)',
               paddingLeft: 24,
@@ -502,7 +503,8 @@ export default async function AdminUserDetailPage({
                   </span>
                 </h2>
               </div>
-              <div style={{ padding: 22, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              {/* Round 30 #4 — auto-fit pour reflow mobile */}
+              <div style={{ padding: 22, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
                 <Mini label="Crédit disponible" value={`${formatCurrency((user.referralCreditCents ?? 0) / 100)}`} highlight={(user.referralCreditCents ?? 0) > 0} />
                 <Mini label="Parrainages réussis" value={String(user.referralsEarned?.filter((r) => r.status === 'CREDITED').length ?? 0)} />
                 <Mini label="Parrainé par" value={user.referredByCode ?? '—'} mono />
