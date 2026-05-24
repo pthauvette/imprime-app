@@ -26,6 +26,33 @@ import { prisma } from '@/lib/db';
 import { sendEmail, type EmailTemplate } from './render';
 import { logEmail } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
+import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
+
+/**
+ * Round 28 #4 — Templates marketing qui ont droit au RFC 8058 header.
+ * NE PAS inclure les transactional (orders, magic-link, etc.) — ces
+ * emails sont attendus et ne doivent JAMAIS proposer un unsubscribe global
+ * (le user veut les confirmations de paiement même s'il a unsubscribé
+ * de la newsletter).
+ */
+const MARKETING_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
+  'admin-custom-message',
+  'reengagement-follow-up',
+  'reengagement-winback',
+  'reseller-monthly-stats',
+]);
+
+/** Round 28 #4 — Derive l'unsubscribe URL pour un recipient.
+ *  Idempotent + déterministe via HMAC, donc safe à re-derive en retry. */
+function oneClickUnsubscribeUrl(to: string, template: EmailTemplate): string | undefined {
+  if (!MARKETING_TEMPLATES.has(template)) return undefined;
+  const email = to.toLowerCase().trim();
+  const token = newsletterUnsubscribeToken(email);
+  const params = new URLSearchParams({ email, token });
+  return `${APP_URL}/api/newsletter/unsubscribe?${params.toString()}`;
+}
 
 export interface QueueEmailInput {
   to: string;
@@ -40,6 +67,9 @@ export interface QueueEmailInput {
   /** Si set, processDelivery génère la facture PDF de cet order à la
    *  volée et l'attache à l'email. Idempotent → safe au retry. */
   attachOrderId?: string;
+  /** Round 28 #4 — Marketing email → RFC 8058 one-click unsubscribe.
+   *  Passé tel quel à sendEmail() qui ajoute les headers SMTP. */
+  listUnsubscribeUrl?: string;
 }
 
 const BACKOFF_MINUTES = [5, 15]; // 1er retry +5min, 2e +15min
@@ -92,6 +122,9 @@ export async function queueEmail(input: QueueEmailInput): Promise<{
         subject: input.subject,
         replyTo: input.replyTo,
         attachments,
+        // Round 28 #4 — explicit override OR auto-derive from template
+        listUnsubscribeUrl: input.listUnsubscribeUrl
+          ?? oneClickUnsubscribeUrl(input.to, input.template),
       });
       return { sent: true, id: 'no-queue-fallback' };
     } catch {
@@ -151,6 +184,9 @@ export async function processDelivery(deliveryId: string): Promise<{
       // Quand le client mail charge l'image, on incrémente openCount +
       // set openedAt (1ère ouverture seulement).
       deliveryId,
+      // Round 28 #4 — auto-derive on retry path (rebuilds from template +
+      // to via HMAC token, déterministe et stateless)
+      listUnsubscribeUrl: oneClickUnsubscribeUrl(delivery.to, delivery.template as EmailTemplate),
     });
     await prisma.emailDelivery.update({
       where: { id: deliveryId },
