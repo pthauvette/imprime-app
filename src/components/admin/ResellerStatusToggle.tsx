@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 // Round 33 — ajout PLATINUM tier (10 % off, > 20 000 $ /365j)
 type Status = 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' | 'PLATINUM';
@@ -47,6 +48,8 @@ export default function ResellerStatusToggle({ userId, initialStatus }: Props) {
   const [status, setStatus] = useState<Status>(initialStatus);
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Round 36 #5 — Custom modal au lieu de window.confirm() jarring.
+  const { confirm, dialog } = useConfirmDialog();
 
   async function applyStatus(next: Status) {
     if (next === status) return;
@@ -55,14 +58,36 @@ export default function ResellerStatusToggle({ userId, initialStatus }: Props) {
     const isSensitive =
       next === 'VERIFIED' || next === 'PLATINUM' || status === 'VERIFIED' || status === 'PLATINUM';
     if (isSensitive) {
-      const msg = next === 'PLATINUM'
-        ? `Promouvoir ce user au statut PLATINUM ?\n\nEffet : 10 % discount auto + badge priority. Normalement attribué auto par le cron mensuel quand le user atteint 20 000 $/365j.`
+      const { title, body, isDanger } = next === 'PLATINUM'
+        ? {
+            title: 'Promouvoir ce user au statut PLATINUM ?',
+            body: 'Effet : 10 % discount auto + badge priority. Normalement attribué auto par le cron mensuel quand le user atteint 20 000 $/365j.',
+            isDanger: false,
+          }
         : next === 'VERIFIED'
-          ? `Valider ce user comme reseller vérifié ?\n\nEffet : 5 % discount auto au prochain checkout. Action visible dans /admin/audit.`
+          ? {
+              title: 'Valider ce user comme reseller vérifié ?',
+              body: 'Effet : 5 % discount auto au prochain checkout. Action visible dans /admin/audit.',
+              isDanger: false,
+            }
           : status === 'PLATINUM'
-            ? `Révoquer le statut PLATINUM ?\n\nEffet : retour au tier choisi (VERIFIED garde le 5%, NONE perd tout). Action visible dans /admin/audit.`
-            : `Révoquer le statut VERIFIED de ce user ?\n\nEffet : plus de perks au prochain checkout. Le user peut être re-détecté AUTO si > 5 orders/365j (mais pas VERIFIED).`;
-      if (!window.confirm(msg)) return;
+            ? {
+                title: 'Révoquer le statut PLATINUM ?',
+                body: 'Effet : retour au tier choisi (VERIFIED garde le 5 %, NONE perd tout). Action visible dans /admin/audit.',
+                isDanger: true,
+              }
+            : {
+                title: 'Révoquer le statut VERIFIED de ce user ?',
+                body: 'Effet : plus de perks au prochain checkout. Le user peut être re-détecté AUTO si > 5 orders/365j (mais pas VERIFIED).',
+                isDanger: true,
+              };
+      const ok = await confirm({
+        title,
+        body,
+        confirmLabel: isDanger ? 'Révoquer' : 'Confirmer',
+        danger: isDanger,
+      });
+      if (!ok) return;
     }
 
     setError(null);
@@ -120,6 +145,7 @@ export default function ResellerStatusToggle({ userId, initialStatus }: Props) {
       {error && (
         <span role="alert" style={{ fontSize: 11, color: 'var(--danger)' }}>{error}</span>
       )}
+      {dialog}
     </div>
   );
 }
