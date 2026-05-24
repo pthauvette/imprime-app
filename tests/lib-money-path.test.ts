@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeTax, provinceName } from '@/lib/taxes';
 import { applyShippingPerks } from '@/lib/customers/perks';
-import { computeResellerDiscount, describeResellerDiscount, RESELLER_DISCOUNT_PCT } from '@/lib/reseller/perks';
+import { computeResellerDiscount, describeResellerDiscount, RESELLER_DISCOUNT_PCT, PLATINUM_DISCOUNT_PCT, PLATINUM_REVENUE_THRESHOLD_CENTS, shouldBePlatinum } from '@/lib/reseller/perks';
 
 // ─── computeTax ──────────────────────────────────────────────────────────
 
@@ -163,10 +163,12 @@ describe('applyShippingPerks — GOLD free shipping (Round 13 #5)', () => {
     expect(r.goldFreeShipping).toBe(false);
   });
 
-  it('tier string custom (legacy) → pas de perk', () => {
+  it('PLATINUM reseller tier → pas de free shipping ici (perk loyalty, pas reseller)', () => {
+    // Round 33 — PLATINUM est un tier RESELLER (10% off), pas un tier
+    // LOYALTY. applyShippingPerks regarde loyaltyTier seulement (BRONZE/
+    // SILVER/GOLD). PLATINUM-reseller n'a pas de perk shipping ici, son
+    // perk c'est computeResellerDiscount.
     const r = applyShippingPerks({ tier: 'PLATINUM' as never, shippingPrice: 25 });
-    // Round 33 va ajouter PLATINUM perk — ce test fail volontairement après
-    // pour signaler la mise à jour requise.
     expect(r.goldFreeShipping).toBe(false);
   });
 });
@@ -214,12 +216,57 @@ describe('describeResellerDiscount — UI helper', () => {
     expect(d!.label).toBe('Reseller perks (-5 %)');
   });
 
-  it('non-VERIFIED → null (UI peut conditionnellement rendre)', () => {
+  it('non-VERIFIED/PLATINUM → null (UI peut conditionnellement rendre)', () => {
     expect(describeResellerDiscount(10000, 'AUTO_DETECTED')).toBeNull();
     expect(describeResellerDiscount(10000, 'NONE')).toBeNull();
   });
 
   it('VERIFIED mais subtotal 0 → null (pas d\'amount à afficher)', () => {
     expect(describeResellerDiscount(0, 'VERIFIED')).toBeNull();
+  });
+});
+
+// ─── PLATINUM tier (Round 33) ────────────────────────────────────────────
+
+describe('PLATINUM reseller tier — Round 33', () => {
+  it('PLATINUM_DISCOUNT_PCT = 10 (vs VERIFIED 5)', () => {
+    expect(PLATINUM_DISCOUNT_PCT).toBe(10);
+    expect(RESELLER_DISCOUNT_PCT).toBe(5);
+  });
+
+  it('PLATINUM_REVENUE_THRESHOLD_CENTS = 2 000 000 (20 000 $)', () => {
+    expect(PLATINUM_REVENUE_THRESHOLD_CENTS).toBe(2_000_000);
+  });
+
+  it('computeResellerDiscount PLATINUM sur 100 $ → 10 % = 1 000 cents', () => {
+    expect(computeResellerDiscount(10000, 'PLATINUM')).toBe(1000);
+  });
+
+  it('computeResellerDiscount PLATINUM sur 1 $ floor → 10 cents', () => {
+    expect(computeResellerDiscount(100, 'PLATINUM')).toBe(10);
+  });
+
+  it('describeResellerDiscount PLATINUM → label "PLATINUM perks (-10 %)"', () => {
+    const d = describeResellerDiscount(10000, 'PLATINUM');
+    expect(d).not.toBeNull();
+    expect(d!.amountCents).toBe(1000);
+    expect(d!.pct).toBe(10);
+    expect(d!.label).toBe('PLATINUM perks (-10 %)');
+  });
+
+  it('shouldBePlatinum — exactement 20 000 $ → true', () => {
+    expect(shouldBePlatinum(2_000_000)).toBe(true);
+  });
+
+  it('shouldBePlatinum — 19 999 $ → false', () => {
+    expect(shouldBePlatinum(1_999_900)).toBe(false);
+  });
+
+  it('shouldBePlatinum — 100 000 $ → true (way over)', () => {
+    expect(shouldBePlatinum(10_000_000)).toBe(true);
+  });
+
+  it('shouldBePlatinum — 0 → false', () => {
+    expect(shouldBePlatinum(0)).toBe(false);
   });
 });
