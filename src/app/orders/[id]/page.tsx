@@ -481,6 +481,28 @@ export default async function CustomerOrderDetailPage({
               ⬇ Télécharger la facture PDF
             </a>
 
+            {/* Round 27 #3 — ICS calendar export (livraison estimée) */}
+            {order.status !== 'CANCELLED' && order.status !== 'FAILED' && (
+              <a
+                href={`/api/orders/${order.id}/calendar.ics`}
+                title="Ajouter la livraison estimée à ton calendrier (Google, Apple, Outlook)"
+                style={{
+                  display: 'block',
+                  padding: '14px 18px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--r-md)',
+                  textAlign: 'center',
+                  fontSize: 14,
+                  color: 'var(--text-primary)',
+                  textDecoration: 'none',
+                  fontWeight: 500,
+                }}
+              >
+                📅 Ajouter au calendrier
+              </a>
+            )}
+
             {/* Round 19 #5 — Timeline PDF (vue customer, pas le reçu fiscal) */}
             <a
               href={`/api/orders/${order.id}/timeline.pdf`}
