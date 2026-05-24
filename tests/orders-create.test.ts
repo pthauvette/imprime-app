@@ -259,3 +259,73 @@ describe('/api/orders/create — referral credit (Round 11)', () => {
     expect(piArgs!.metadata?.referralCreditApplied).toBe('0');
   });
 });
+
+describe('/api/orders/create — breakdown shape (Round 30 #1)', () => {
+  it('Breakdown.total = Stripe amount (cents/100), pas subtotal+tax brut', async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: 'u_wallet', email: 'w@plio.ca', role: 'USER' },
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    } as never);
+    // User avec 30 $ wallet + 10 $ referral
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      loyaltyTier: 'BRONZE',
+      referralCreditCents: 1000,
+      walletCents: 3000,
+      taxExempt: false,
+      taxExemptCertId: null,
+      resellerStatus: 'NONE',
+    } as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    // Breakdown doit exposer walletCredit + referralCredit
+    expect(json.breakdown.walletCredit).toBeGreaterThan(0);
+    expect(json.breakdown.referralCredit).toBeGreaterThan(0);
+    // total = charge Stripe réelle (gross - wallet - referral)
+    const calls = stripeMock.paymentIntents.create.mock.calls as unknown as Array<[{ amount: number }]>;
+    const stripeAmount = calls[0]![0].amount; // cents
+    expect(json.breakdown.total).toBeCloseTo(stripeAmount / 100, 2);
+    // grossTotal > total quand credits appliqués
+    expect(json.breakdown.grossTotal).toBeGreaterThan(json.breakdown.total);
+  });
+
+  it('Reseller VERIFIED → resellerDiscount > 0 + label dans breakdown', async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: 'u_reseller', email: 'r@plio.ca', role: 'USER' },
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      loyaltyTier: 'BRONZE',
+      referralCreditCents: 0,
+      walletCents: 0,
+      taxExempt: false,
+      taxExemptCertId: null,
+      resellerStatus: 'VERIFIED',
+    } as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    expect(json.breakdown.resellerDiscount).toBeGreaterThan(0);
+    expect(json.breakdown.resellerDiscountLabel).toMatch(/Reseller/);
+  });
+
+  it('Sans reseller / wallet / referral → fields à 0 (pas undefined)', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    expect(json.breakdown.walletCredit).toBe(0);
+    expect(json.breakdown.referralCredit).toBe(0);
+    expect(json.breakdown.resellerDiscount).toBe(0);
+    expect(json.breakdown.resellerDiscountLabel).toBeNull();
+  });
+});

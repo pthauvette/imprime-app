@@ -52,15 +52,25 @@ interface ShipState {
 
 interface Breakdown {
   subtotal: number;
-  /** Montant remisé (toujours présent, 0 si pas de promo). */
+  /** Montant remisé via code promo (toujours présent, 0 si pas de promo). */
   discount: number;
   /** Code promo appliqué, ou null. */
   promoCode: string | null;
+  /** Round 30 #1 — Reseller VERIFIED discount (5 %), 0 si non-reseller. */
+  resellerDiscount?: number;
+  resellerDiscountLabel?: string | null;
   shipping: number;
   /** Prix de livraison original avant perks (cf. perks.goldFreeShipping). Optionnel. */
   originalShipping?: number;
   tax: number;
   taxLines: { code: string; label: string; rate: number; amount: number }[];
+  /** Round 30 #1 — Crédit wallet appliqué (déjà déduit du total Stripe). */
+  walletCredit?: number;
+  /** Round 30 #1 — Crédit referral appliqué (déjà déduit du total Stripe). */
+  referralCredit?: number;
+  /** Round 30 #1 — Total brut avant wallet/referral. */
+  grossTotal?: number;
+  /** Total réel débité par Stripe (= grossTotal − wallet − referral). */
   total: number;
   currency: string;
   /** Perks appliqués server-side (Round 13 #5). */
@@ -348,6 +358,14 @@ function ReviewPageInner() {
                   highlight="discount"
                 />
               )}
+              {/* Round 30 #1 — reseller VERIFIED 5 % discount, ligne visible */}
+              {breakdown.resellerDiscount && breakdown.resellerDiscount > 0 && (
+                <Total
+                  label={breakdown.resellerDiscountLabel ?? 'Reseller perks (-5 %)'}
+                  value={-breakdown.resellerDiscount}
+                  highlight="discount"
+                />
+              )}
               <Total label={`Livraison${ship ? ' (' + ship.method + ')' : ''}`} value={breakdown.shipping} />
               {breakdown.perks?.goldFreeShipping && (
                 <div style={{
@@ -377,6 +395,22 @@ function ReviewPageInner() {
               {breakdown.taxLines.map((t) => (
                 <Total key={t.code} label={t.label} value={t.amount} />
               ))}
+              {/* Round 30 #1 — wallet + referral credits visibles. Avant :
+                  Stripe débitait moins que le total affiché → confusion. */}
+              {breakdown.walletCredit && breakdown.walletCredit > 0 && (
+                <Total
+                  label="Crédit wallet"
+                  value={-breakdown.walletCredit}
+                  highlight="discount"
+                />
+              )}
+              {breakdown.referralCredit && breakdown.referralCredit > 0 && (
+                <Total
+                  label="Crédit parrainage"
+                  value={-breakdown.referralCredit}
+                  highlight="discount"
+                />
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 16, marginTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>Total à payer</span>
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, color: 'var(--accent-primary)', letterSpacing: '-0.03em' }}>

@@ -134,6 +134,16 @@ export const POST = withErrorHandler(async (req: Request) => {
     } else {
       const remote = await sinalite.getPrice(item.productId, item.optionIds);
       const remotePrice = parseFloat(remote.price);
+      // Round 30 #1 — guard NaN : si Sinalite renvoie un string non numérique
+      // ou price absent, parseFloat = NaN, et Math.abs(NaN - x) > 0.05 = false
+      // donc le check anti-tamper passe silencieusement → Stripe reçoit
+      // amount: NaN et throw une erreur opaque. Fail fast avec un 502 propre.
+      if (!Number.isFinite(remotePrice) || remotePrice <= 0) {
+        return NextResponse.json(
+          { error: 'Prix indisponible chez l\'imprimeur. Réessaie dans 1 min.', code: 'PRICE_FETCH_FAILED' },
+          { status: 502 },
+        );
+      }
       // Variant manquant de l'index → fallback Sinalite, mais on applique
       // quand même le markup admin pour rester cohérent avec le wizard.
       const multiplier = marginPct !== null ? 1 + marginPct / 100 : 1;
@@ -408,6 +418,14 @@ export const POST = withErrorHandler(async (req: Request) => {
     }
   }
 
+  // Round 30 #1 — describe reseller discount pour rendering propre côté UI
+  // (label "Reseller perks (-5 %)" + montant). null si pas VERIFIED.
+  const { describeResellerDiscount } = await import('@/lib/reseller/perks');
+  const resellerDescriptor = describeResellerDiscount(
+    Math.round(subtotal * 100),
+    userResellerStatus,
+  );
+
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
@@ -415,11 +433,27 @@ export const POST = withErrorHandler(async (req: Request) => {
       subtotal,
       discount: discountAmount,
       promoCode: promoRecord?.code ?? null,
+      // Round 30 #1 — reseller discount exposé dans la breakdown pour que
+      // /order/review puisse afficher la ligne "Reseller perks (-5 %)".
+      // Avant : silencieusement déduit côté Stripe sans affichage → resellers
+      // emailaient le support pour comprendre l'écart entre subtotal+tax+ship
+      // et leur charge réelle.
+      resellerDiscount: resellerDescriptor?.amountCents ? resellerDescriptor.amountCents / 100 : 0,
+      resellerDiscountLabel: resellerDescriptor?.label ?? null,
       shipping: effectiveShippingPrice,
       originalShipping: payload.shippingPrice,
       tax: tax.total,
       taxLines: tax.lines,
-      total: taxableSubtotal + tax.total,
+      // Round 30 #1 — wallet + referral credits exposés. Avant : le serveur
+      // déduisait dans `totalCents` (Stripe amount) mais le client voyait
+      // total = subtotal+tax+ship → le bouton "Confirmer 150 $" et Stripe
+      // débitait 80 $. Trust-breaking. Maintenant la ligne apparaît avec
+      // le crédit appliqué (négatif) et `total` = charge Stripe réelle.
+      walletCredit: walletCreditApplied / 100,
+      referralCredit: referralCreditApplied / 100,
+      // total = ce que Stripe va effectivement débiter (totalCents / 100).
+      total: totalCents / 100,
+      grossTotal: grossTotalCents / 100,
       currency: 'CAD',
       // Perks appliqués automatiquement côté serveur (Round 13 #5).
       // Le client peut s'en servir pour afficher un toast/badge "🥇 Livraison
