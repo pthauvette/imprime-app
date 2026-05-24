@@ -25,6 +25,8 @@ const STATIC_PUBLIC_ROUTES = [
   { path: '/reseller', priority: 0.6, changeFreq: 'monthly' as const },
   { path: '/quote', priority: 0.7, changeFreq: 'monthly' as const },
   { path: '/track', priority: 0.5, changeFreq: 'monthly' as const },
+  // Round 29 #3 — landing pour /compare?ids=... (vide = empty state CTA)
+  { path: '/compare', priority: 0.4, changeFreq: 'monthly' as const },
   { path: '/legal/terms', priority: 0.3, changeFreq: 'yearly' as const },
   { path: '/legal/privacy', priority: 0.3, changeFreq: 'yearly' as const },
   { path: '/legal/refund-policy', priority: 0.3, changeFreq: 'yearly' as const },
