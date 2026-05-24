@@ -288,7 +288,13 @@
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--r-lg);
-      overflow: hidden;
+      /* Round 30 #3 — avant `overflow: hidden`. Les tables internes
+         (.ord-table avec thead white-space: nowrap) débordaient horizontalement
+         et le panel les coupait → contenu invisible sur mobile. Maintenant
+         `overflow-x: auto` permet le scroll horizontal de la table tout en
+         gardant le border-radius (visible via la bordure du panel). */
+      overflow-x: auto;
+      overflow-y: hidden;
     }
     .adm-panel-header {
       display: flex;

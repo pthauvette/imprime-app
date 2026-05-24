@@ -171,6 +171,26 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .shell-header-left { display: flex; align-items: center; gap: 16px; }
 .shell-header-right { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+
+/* Round 30 #3 — Wizard header reflow mobile : avant le grid `1fr auto 1fr`
+   + .progress { width: 320px } forçait > 520px de largeur → horizontal
+   scroll garanti sur tous les téléphones. Maintenant single column, progress
+   occupe 100 % de la largeur, right-side cachée (sticky CMD+K et help
+   restent dans le pied de page accessible via /help). */
+@media (max-width: 700px) {
+  .shell-header {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    padding: 8px 16px;
+    row-gap: 4px;
+  }
+  .shell-header-right { display: none; }
+  .shell-header-left { font-size: 14px; gap: 8px; }
+  .progress-block { grid-column: 1; }
+  .progress { width: 100%; max-width: 100%; }
+  .wordmark { font-size: 18px; }
+  .breadcrumb { font-size: 12px; gap: 6px; }
+}
 .wordmark {
   font-family: var(--font-display);
   font-size: 24px;
