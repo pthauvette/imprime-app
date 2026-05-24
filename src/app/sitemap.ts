@@ -1,12 +1,14 @@
 import type { MetadataRoute } from 'next';
 import { ALL_TEMPLATES } from '@/lib/templates/registry';
 import { getAllPosts } from '@/lib/blog/posts';
+import { getTopProductIds, buildPairs } from '@/lib/seo/compare-pairs';
 
 /**
  * Sitemap dynamique servi à https://www.plio.ca/sitemap.xml
  *
  * Inclut les pages publiques + 1 entry par template (pour que Google index
- * /design/[slug]). Exclut les pages account-only (orders, admin, etc.).
+ * /design/[slug]) + Round 35 : paires /compare?ids=A,B top-10 produits
+ * (long-tail SEO). Exclut les pages account-only (orders, admin, etc.).
  */
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
@@ -34,7 +36,7 @@ const STATIC_PUBLIC_ROUTES = [
   { path: '/legal/refund-policy', priority: 0.3, changeFreq: 'yearly' as const },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_PUBLIC_ROUTES.map((r) => ({
@@ -60,5 +62,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...staticEntries, ...templateEntries, ...blogEntries];
+  // Round 35 — Long-tail SEO : générer /compare?ids=A,B pour toutes les
+  // paires des top-10 produits commandés sur les 90 derniers jours.
+  // Pour 10 produits → 45 URLs. Si DB échoue, retourne [] (graceful).
+  const topProductIds = await getTopProductIds();
+  const comparePairs = buildPairs(topProductIds);
+  const compareEntries: MetadataRoute.Sitemap = comparePairs.map(([a, b]) => ({
+    url: `${APP_URL}/compare?ids=${a},${b}`,
+    lastModified: now,
+    changeFrequency: 'monthly' as const,
+    priority: 0.4, // < templates (0.8) car page comparative dérivée
+  }));
+
+  return [...staticEntries, ...templateEntries, ...blogEntries, ...compareEntries];
 }
