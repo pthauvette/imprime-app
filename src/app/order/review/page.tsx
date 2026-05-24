@@ -138,7 +138,10 @@ function ReviewPageInner() {
   function handleAddAnother() {
     if (!currentItem) return;
     if (cart.isFull) {
-      alert(`Maximum ${cart.items.length} articles. Procède au paiement ou retire-en un.`);
+      // Round 30 #5 — Avant: alert() jarring. La panel inline cart.isFull
+      // (ligne ~333) affiche déjà le message + email contact. Le button
+      // qui call handleAddAnother est lui-même hidden quand cart.isFull,
+      // donc cette branche est défensive — silently no-op.
       return;
     }
     // Pour le snapshot product name/price on prend ce qu'on a — sera enrichi
