@@ -17,6 +17,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
 import CancelRequestButton from '@/components/account/CancelRequestButton';
+import ShippingEditButton from '@/components/account/ShippingEditButton';
 import NpsWidget from '@/components/account/NpsWidget';
 import OrderEventsTimeline from '@/components/account/OrderEventsTimeline';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
@@ -550,6 +551,21 @@ export default async function CustomerOrderDetailPage({
                 existingComment={existingNps?.comment ?? null}
               />
             )}
+
+            {/* Round 32 — self-serve modification d'adresse avant SUBMITTED */}
+            <ShippingEditButton
+              orderId={order.id}
+              status={order.status}
+              current={{
+                shipName: order.shipName,
+                shipLine1: order.shipLine1,
+                shipLine2: order.shipLine2,
+                shipCity: order.shipCity,
+                shipProvince: order.shipProvince,
+                shipPostalCode: order.shipPostalCode,
+                shipPhone: order.shipPhone,
+              }}
+            />
 
             <CancelRequestButton orderId={order.id} status={order.status} />
 
