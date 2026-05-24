@@ -17,6 +17,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendAbandonedCartEmail } from '@/lib/emails/send';
+import { recoveryClickToken } from '@/lib/recovery/click-token';
 import { sinalite } from '@/lib/sinalite/client';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
@@ -98,7 +99,11 @@ export async function GET(req: NextRequest) {
       }
 
       // Build resume URL → /order/review?productId=X&...resumeQuery
-      const resumeUrl = `${APP_URL}/order/review?productId=${cart.productId}&${cart.resumeQuery}`;
+      const directUrl = `/order/review?productId=${cart.productId}&${cart.resumeQuery}`;
+      // Round 27 #1 — wrap dans click-tracker pour mesurer le funnel
+      // sent → clicked → recovered. HMAC token = pas d'enumeration possible.
+      const token = recoveryClickToken(cart.id);
+      const resumeUrl = `${APP_URL}/api/recovery/click?cart=${cart.id}&t=${token}&to=${encodeURIComponent(directUrl)}`;
 
       // FirstName best-effort : look up User par email si existe
       let firstName = cart.email.split('@')[0];

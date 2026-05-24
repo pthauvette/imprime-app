@@ -69,6 +69,21 @@ export default async function AdminEmailsPage({
   }).catch(() => []);
   const openedMap = new Map(openedByTemplate.map((g) => [g.template, g._count._all]));
 
+  // Round 27 #1 — funnel abandoned-cart (sent → clicked → recovered) sur 30j.
+  // .catch fallback : si les colonnes ne sont pas migrées encore, on render
+  // le widget en off plutôt que crasher la page.
+  const cartFunnel = await Promise.all([
+    prisma.abandonedCart.count({ where: { emailSentAt: { gte: thirtyDaysAgo } } }),
+    prisma.abandonedCart.count({ where: { recoveryClickedAt: { gte: thirtyDaysAgo } } }),
+    prisma.order.count({
+      where: {
+        recoveredFromCartId: { not: null },
+        createdAt: { gte: thirtyDaysAgo },
+      },
+    }),
+  ]).then(([sent, clicked, recovered]) => ({ sent, clicked, recovered }))
+    .catch(() => ({ sent: 0, clicked: 0, recovered: 0 }));
+
   interface TplStat { template: string; sent: number; dead: number; opened: number; openRate: number }
   const tplStatsMap = new Map<string, TplStat>();
   for (const s of templateStats) {
@@ -115,6 +130,42 @@ export default async function AdminEmailsPage({
             </p>
           </div>
         </header>
+
+        {/* Round 27 #1 — Funnel recovery abandoned-cart (30j) */}
+        {cartFunnel.sent > 0 && (
+          <section
+            style={{
+              marginBottom: 24,
+              padding: 20,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--r-xl)',
+            }}
+          >
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, margin: '0 0 14px', letterSpacing: '-0.01em' }}>
+              🛒 Funnel recovery cart abandonné · 30 derniers jours
+            </h2>
+            <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', flexWrap: 'wrap' }}>
+              <FunnelStep label="Email envoyé" value={cartFunnel.sent} />
+              <FunnelArrow />
+              <FunnelStep
+                label="Cliqué"
+                value={cartFunnel.clicked}
+                rate={cartFunnel.sent > 0 ? (cartFunnel.clicked / cartFunnel.sent) * 100 : null}
+              />
+              <FunnelArrow />
+              <FunnelStep
+                label="Order placée"
+                value={cartFunnel.recovered}
+                rate={cartFunnel.sent > 0 ? (cartFunnel.recovered / cartFunnel.sent) * 100 : null}
+                positive
+              />
+            </div>
+            <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)' }}>
+              Click tracker /api/recovery/click set <code>AbandonedCart.recoveryClickedAt</code>. Recovered = orders avec <code>recoveredFromCartId</code> non-null (linked dans les 30j post-click).
+            </p>
+          </section>
+        )}
 
         {/* Round 21 #5 — Analytics par template (30j) */}
         {tplStatsList.length > 0 && (
@@ -258,3 +309,30 @@ const td: React.CSSProperties = {
   padding: '12px 16px',
   verticalAlign: 'top',
 };
+
+// Round 27 #1 — funnel components
+function FunnelStep({ label, value, rate, positive }: { label: string; value: number; rate?: number | null; positive?: boolean }) {
+  return (
+    <div style={{ minWidth: 110 }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em', color: positive ? 'var(--success, #16a34a)' : 'var(--text-primary)' }}>
+        {value}
+      </div>
+      {rate !== undefined && rate !== null && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+          {rate.toFixed(1)} % du sent
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FunnelArrow() {
+  return (
+    <div style={{ fontSize: 22, color: 'var(--text-muted)', alignSelf: 'center' }} aria-hidden>
+      →
+    </div>
+  );
+}

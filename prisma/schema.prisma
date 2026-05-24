@@ -267,6 +267,13 @@ model Order {
   /** Notes internes admin (free-text). Jamais affichées au customer. */
   adminNotes       String?
 
+  /** Round 27 #1 — Si cette Order a été placée suite à un click sur le
+   *  recovery email d'un AbandonedCart, on track le source cart ici.
+   *  SetNull pour pas orphaner la cart si on la delete. NULL = order
+   *  organique (pas de recovery email impliqué). */
+  recoveredFromCartId String?
+  recoveredFromCart   AbandonedCart? @relation("OrderRecoveredFromCart", fields: [recoveredFromCartId], references: [id], onDelete: SetNull)
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -281,6 +288,7 @@ model Order {
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([recoveredFromCartId])
 }
 
 // ─── ORDER EVENT ──────────────────────────────────────────────────────────
@@ -1127,6 +1135,14 @@ model AbandonedCart {
   /** Timestamp d'envoi du recovery email. NULL = pas encore envoyé.
    *  Set après envoi pour dédup. */
   emailSentAt DateTime?
+  /** Round 27 #1 — timestamp du premier click sur le link recovery dans
+   *  l'email. NULL = pas encore cliqué. Set par GET /api/recovery/click,
+   *  permet de calculer le funnel sent → clicked → recovered. */
+  recoveryClickedAt DateTime?
+
+  /** Round 27 #1 — Orders qui ont été créées suite à ce cart abandonné.
+   *  Back-relation pour le funnel "recovered" count. */
+  recoveredOrders Order[] @relation("OrderRecoveredFromCart")
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
