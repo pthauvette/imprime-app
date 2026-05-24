@@ -626,9 +626,31 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       grid-template-columns: 240px 1fr;
       min-height: 100vh;
     }
+    /* Round 30 #2 — Mobile fix : avant `display: none` sous 900px → user
+       stranded (pas de moyen d'atteindre /account, /wallet, /addresses…).
+       Maintenant : sidebar devient bande horizontale scrollable en haut.
+       Pas idéal esthétiquement mais 100 % usable et zéro JS. */
     @media (max-width: 900px) {
       .acct-shell { grid-template-columns: 1fr; }
-      .acct-nav { display: none; }
+      .acct-nav {
+        position: static;
+        height: auto;
+        padding: 12px 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+      }
+      .acct-nav-brand { margin-bottom: 8px; font-size: 18px; display: inline-block; }
+      .acct-nav-section { display: none; }
+      .acct-nav-list { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+      .acct-nav-link {
+        display: inline-flex;
+        padding: 8px 12px;
+        font-size: 13px;
+        border-radius: var(--r-md);
+      }
     }
 
     .acct-nav {
@@ -6674,9 +6696,31 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       grid-template-columns: 240px 1fr;
       min-height: 100vh;
     }
+    /* Round 30 #2 — Mobile fix : avant `display: none` sous 900px → user
+       stranded (pas de moyen d'atteindre /account, /wallet, /addresses…).
+       Maintenant : sidebar devient bande horizontale scrollable en haut.
+       Pas idéal esthétiquement mais 100 % usable et zéro JS. */
     @media (max-width: 900px) {
       .acct-shell { grid-template-columns: 1fr; }
-      .acct-nav { display: none; }
+      .acct-nav {
+        position: static;
+        height: auto;
+        padding: 12px 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+      }
+      .acct-nav-brand { margin-bottom: 8px; font-size: 18px; display: inline-block; }
+      .acct-nav-section { display: none; }
+      .acct-nav-list { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+      .acct-nav-link {
+        display: inline-flex;
+        padding: 8px 12px;
+        font-size: 13px;
+        border-radius: var(--r-md);
+      }
     }
 
     .acct-nav {
@@ -15788,9 +15832,31 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       grid-template-columns: 240px 1fr;
       min-height: 100vh;
     }
+    /* Round 30 #2 — Mobile fix : avant `display: none` sous 900px → user
+       stranded (pas de moyen d'atteindre /account, /wallet, /addresses…).
+       Maintenant : sidebar devient bande horizontale scrollable en haut.
+       Pas idéal esthétiquement mais 100 % usable et zéro JS. */
     @media (max-width: 900px) {
       .acct-shell { grid-template-columns: 1fr; }
-      .acct-nav { display: none; }
+      .acct-nav {
+        position: static;
+        height: auto;
+        padding: 12px 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+      }
+      .acct-nav-brand { margin-bottom: 8px; font-size: 18px; display: inline-block; }
+      .acct-nav-section { display: none; }
+      .acct-nav-list { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+      .acct-nav-link {
+        display: inline-flex;
+        padding: 8px 12px;
+        font-size: 13px;
+        border-radius: var(--r-md);
+      }
     }
 
     .acct-nav {
