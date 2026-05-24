@@ -27,7 +27,7 @@ import {
   SinaliteOrderDetail,
   type StoreCode,
 } from './types';
-import { withSinaliteCache } from './cache';
+import { withSinaliteCache, SINALITE_CATALOG_TTL_MS } from './cache';
 
 // ─── ENV ──────────────────────────────────────────────────────────────────
 
@@ -203,11 +203,12 @@ export const sinalite = {
    * catalogue connu plutôt qu'un 500 (le wizard reste utilisable).
    */
   async listProducts() {
-    return withSinaliteCache('/product', () =>
-      request('/product', {
-        method: 'GET',
-        schema: SinaliteProductList,
-      }),
+    // Round 36 #3 — TTL 10 min : catalog change rarement, évite 1 round-trip
+    // Sinalite par render /order/start. Fallback stale toujours actif si
+    // Sinalite down après expiration cache.
+    return withSinaliteCache('/product',
+      () => request('/product', { method: 'GET', schema: SinaliteProductList }),
+      { ttlMs: SINALITE_CATALOG_TTL_MS },
     );
   },
 
@@ -226,17 +227,21 @@ export const sinalite = {
    * sert stale → user peut configurer + payer même pendant un outage.
    */
   async getProductDetail(id: number) {
-    return withSinaliteCache(`/product/${id}/${this.storeCode}`, async () => {
-      const data = await request(`/product/${id}/${this.storeCode}`, {
-        method: 'GET',
-        schema: SinaliteProductDetail,
-      });
-      return {
-        options: data[0],
-        pricing: data[1],
-        metadata: data[2].map((m) => m.metadata),
-      };
-    });
+    // Round 36 #3 — TTL 10 min, même rationale que listProducts
+    return withSinaliteCache(`/product/${id}/${this.storeCode}`,
+      async () => {
+        const data = await request(`/product/${id}/${this.storeCode}`, {
+          method: 'GET',
+          schema: SinaliteProductDetail,
+        });
+        return {
+          options: data[0],
+          pricing: data[1],
+          metadata: data[2].map((m) => m.metadata),
+        };
+      },
+      { ttlMs: SINALITE_CATALOG_TTL_MS },
+    );
   },
 
   /**
