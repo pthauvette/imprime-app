@@ -1,0 +1,30 @@
+name: Stripe clock skew monitor
+
+# Tape /api/cron/stripe-clock-skew toutes les 6h.
+# Compare horloge serveur Plio à horloge Stripe via response Date header.
+# Si drift > 120s, ping Slack — avant que webhooks soient rejetés (tolerance 300s).
+#
+# Security: pas d'untrusted input (github.event.* not used). Only the pinned
+# CRON_SECRET (stable repo secret) via env per safe pattern.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/cron/stripe-clock-skew
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://plio.ca/api/cron/stripe-clock-skew
