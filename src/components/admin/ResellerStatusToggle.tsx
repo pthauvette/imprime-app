@@ -11,7 +11,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Status = 'NONE' | 'AUTO_DETECTED' | 'VERIFIED';
+// Round 33 — ajout PLATINUM tier (10 % off, > 20 000 $ /365j)
+type Status = 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' | 'PLATINUM';
 
 interface Props {
   userId: string;
@@ -31,8 +32,13 @@ const STATUS_META: Record<Status, { label: string; description: string; color: s
   },
   VERIFIED: {
     label: '✓ Vérifié',
-    description: 'Validé par admin — perks ACTIVES (5% discount auto)',
+    description: 'Validé par admin — perks ACTIVES (5 % discount auto)',
     color: '#1F3D2B',
+  },
+  PLATINUM: {
+    label: '◆ PLATINUM',
+    description: 'High-volume reseller (≥ 20 000 $ /365j) — 10 % discount + priority production',
+    color: '#4F4F50',
   },
 };
 
@@ -45,12 +51,17 @@ export default function ResellerStatusToggle({ userId, initialStatus }: Props) {
   async function applyStatus(next: Status) {
     if (next === status) return;
 
-    // Confirm if flipping to/from VERIFIED (revenue impact)
-    const isSensitive = next === 'VERIFIED' || status === 'VERIFIED';
+    // Confirm if flipping to/from VERIFIED or PLATINUM (revenue impact)
+    const isSensitive =
+      next === 'VERIFIED' || next === 'PLATINUM' || status === 'VERIFIED' || status === 'PLATINUM';
     if (isSensitive) {
-      const msg = next === 'VERIFIED'
-        ? `Valider ce user comme reseller vérifié ?\n\nEffet : 5 % discount auto au prochain checkout. Action visible dans /admin/audit.`
-        : `Révoquer le statut VERIFIED de ce user ?\n\nEffet : plus de perks au prochain checkout. Le user peut être re-détecté AUTO si > 5 orders/365j (mais pas VERIFIED).`;
+      const msg = next === 'PLATINUM'
+        ? `Promouvoir ce user au statut PLATINUM ?\n\nEffet : 10 % discount auto + badge priority. Normalement attribué auto par le cron mensuel quand le user atteint 20 000 $/365j.`
+        : next === 'VERIFIED'
+          ? `Valider ce user comme reseller vérifié ?\n\nEffet : 5 % discount auto au prochain checkout. Action visible dans /admin/audit.`
+          : status === 'PLATINUM'
+            ? `Révoquer le statut PLATINUM ?\n\nEffet : retour au tier choisi (VERIFIED garde le 5%, NONE perd tout). Action visible dans /admin/audit.`
+            : `Révoquer le statut VERIFIED de ce user ?\n\nEffet : plus de perks au prochain checkout. Le user peut être re-détecté AUTO si > 5 orders/365j (mais pas VERIFIED).`;
       if (!window.confirm(msg)) return;
     }
 
@@ -75,7 +86,7 @@ export default function ResellerStatusToggle({ userId, initialStatus }: Props) {
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {(['NONE', 'AUTO_DETECTED', 'VERIFIED'] as const).map((s) => {
+        {(['NONE', 'AUTO_DETECTED', 'VERIFIED', 'PLATINUM'] as const).map((s) => {
           const meta = STATUS_META[s];
           const active = status === s;
           return (

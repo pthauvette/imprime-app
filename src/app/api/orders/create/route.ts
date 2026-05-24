@@ -231,7 +231,8 @@ export const POST = withErrorHandler(async (req: Request) => {
   let userWalletCents = 0;
   let userTaxExempt = false;
   let userTaxExemptCertId: string | null = null;
-  let userResellerStatus: 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' = 'NONE';
+  // Round 33 — Ajout 'PLATINUM' au type union (10 % off vs 5 % VERIFIED).
+  let userResellerStatus: 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' | 'PLATINUM' = 'NONE';
   if (earlySession?.user?.id) {
     const userPrefs = await prisma.user.findUnique({
       where: { id: earlySession.user.id },

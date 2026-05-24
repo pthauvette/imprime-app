@@ -236,18 +236,25 @@ export default async function AdminUserDetailPage({
               <SegmentBadge segment={customerSegment} />
               {/* Loyalty tier — BRONZE / SILVER / GOLD, recompute mensuel */}
               <LoyaltyTierTag tier={(user.loyaltyTier as LoyaltyTier) ?? 'BRONZE'} />
-              {/* Round 21 #4 — Reseller badge si AUTO_DETECTED ou VERIFIED */}
+              {/* Round 21 #4 — Reseller badge. Round 33 — ajout PLATINUM tier. */}
               {user.resellerStatus !== 'NONE' && (
                 <span
                   title={
-                    user.resellerStatus === 'VERIFIED'
-                      ? 'Reseller officiellement vérifié par admin'
-                      : `Auto-détecté reseller (5+ orders/365j). Détecté le ${user.resellerDetectedAt ? new Date(user.resellerDetectedAt).toLocaleDateString('fr-CA') : '—'}`
+                    user.resellerStatus === 'PLATINUM'
+                      ? 'PLATINUM — reseller high-volume (≥ 20 000 $ /365 j). 10 % discount + priority production.'
+                      : user.resellerStatus === 'VERIFIED'
+                        ? 'Reseller officiellement vérifié par admin (5 % discount)'
+                        : `Auto-détecté reseller (5+ orders/365j). Détecté le ${user.resellerDetectedAt ? new Date(user.resellerDetectedAt).toLocaleDateString('fr-CA') : '—'}`
                   }
                   style={{
                     display: 'inline-block',
                     padding: '3px 10px',
-                    background: user.resellerStatus === 'VERIFIED' ? '#1F3D2B' : '#5B7A6A',
+                    background:
+                      user.resellerStatus === 'PLATINUM'
+                        ? 'linear-gradient(135deg, #4F4F50 0%, #8E8E8E 50%, #4F4F50 100%)'
+                        : user.resellerStatus === 'VERIFIED'
+                          ? '#1F3D2B'
+                          : '#5B7A6A',
                     color: '#fff',
                     borderRadius: 'var(--r-pill)',
                     fontSize: 11,
@@ -257,7 +264,11 @@ export default async function AdminUserDetailPage({
                     textTransform: 'uppercase',
                   }}
                 >
-                  {user.resellerStatus === 'VERIFIED' ? '✓ Reseller' : '~ Reseller (auto)'}
+                  {user.resellerStatus === 'PLATINUM'
+                    ? '◆ PLATINUM'
+                    : user.resellerStatus === 'VERIFIED'
+                      ? '✓ Reseller'
+                      : '~ Reseller (auto)'}
                 </span>
               )}
               {user.role === 'ADMIN' && (
@@ -809,7 +820,7 @@ export default async function AdminUserDetailPage({
               </div>
               <ResellerStatusToggle
                 userId={user.id}
-                initialStatus={(user.resellerStatus as 'NONE' | 'AUTO_DETECTED' | 'VERIFIED') ?? 'NONE'}
+                initialStatus={(user.resellerStatus as 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' | 'PLATINUM') ?? 'NONE'}
               />
             </div>
 

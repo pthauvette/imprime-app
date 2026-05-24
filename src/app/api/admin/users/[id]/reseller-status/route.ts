@@ -27,7 +27,9 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 
 const BodySchema = z.object({
-  status: z.enum(['NONE', 'AUTO_DETECTED', 'VERIFIED']),
+  // Round 33 — PLATINUM tier accepté (admin peut forcer, sinon promotion auto
+  // via cron reseller-detection quand revenue 365j ≥ 20 000 $).
+  status: z.enum(['NONE', 'AUTO_DETECTED', 'VERIFIED', 'PLATINUM']),
 });
 
 export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
