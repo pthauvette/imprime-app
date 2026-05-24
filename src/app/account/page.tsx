@@ -18,6 +18,7 @@ import Sidebar from '@/components/account/Sidebar';
 import ProductionStatusWidget from '@/components/account/ProductionStatusWidget';
 import MonthlySpendChart from '@/components/account/MonthlySpendChart';
 import NpsAutoPrompt from '@/components/account/NpsAutoPrompt';
+import LoyaltyTierProgress from '@/components/account/LoyaltyTierProgress';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   type LoyaltyTier,
@@ -210,6 +211,22 @@ export default async function AccountDashboardPage() {
             ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED'].includes(o.status)
           )}
         />
+
+        {/* Round 27 #5 — Loyalty tier progress widget */}
+        {(() => {
+          const tierState = nextTierProgress({
+            revenueLast365dCents: ltv365Agg._sum.amountCents ?? 0,
+          });
+          return (
+            <LoyaltyTierProgress
+              current={tierState.current}
+              next={tierState.next}
+              needsCents={tierState.needsCents}
+              progressPct={tierState.progressPct}
+              revenueLast365dCents={ltv365Agg._sum.amountCents ?? 0}
+            />
+          );
+        })()}
 
         {/* Round 23 #4 — Monthly spend chart (6 derniers mois) */}
         <MonthlySpendChart orders={last6mOrders} />
