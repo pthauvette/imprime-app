@@ -194,8 +194,9 @@ describe('L. Idempotence via fingerprint', () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(
       { ...baseOrder, user: baseUser } as never,
     );
-    // Timestamp récent (-10min) — la route rejette > 1h dans le passé.
-    const ts = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    // Round 36 #2 — MAX_TIMESTAMP_AGE_MS shrunk from 1h to 5min. Test
+    // utilisait -10min ce qui dépasse maintenant. Use -2 min (inside window).
+    const ts = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     await POST(makeReq(validPayload({ orderId: 7, status: 'IN_PRODUCTION', timestamp: ts })));
     expect(orders.recordWebhookEvent).toHaveBeenCalledWith(
       expect.objectContaining({
