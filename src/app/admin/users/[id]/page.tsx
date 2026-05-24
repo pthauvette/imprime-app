@@ -120,6 +120,24 @@ export default async function AdminUserDetailPage({
     orderBy: { createdAt: 'desc' },
   }).catch(() => null);
 
+  // Round 28 #1 — Admin audit timeline pour ce customer.
+  // Toutes les actions admin avec targetType=USER ET targetId=this.user,
+  // OU avec targetType=ORDER ET targetId IN this.user.orders.
+  // Catch fallback : empty list si schema drift.
+  const adminAuditEvents = await prisma.adminAuditEvent.findMany({
+    where: {
+      OR: [
+        { targetType: 'USER', targetId: user.id },
+        ...(user.orders.length > 0
+          ? [{ targetType: 'ORDER', targetId: { in: user.orders.map((o) => o.id) } }]
+          : []),
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+    select: { id: true, kind: true, adminEmail: true, targetType: true, targetId: true, data: true, createdAt: true },
+  }).catch(() => []);
+
   // ─── Events timeline (most recent across user's orders) ────────────────
   const orderIds = user.orders.map((o) => o.id);
   const events = orderIds.length > 0
@@ -831,6 +849,61 @@ export default async function AdminUserDetailPage({
                 </div>
               )}
             </div>
+
+            {/* Round 28 #1 — Admin audit timeline (actions sur ce customer) */}
+            {adminAuditEvents.length > 0 && (
+              <div className="ud-card">
+                <div className="ud-card-head">
+                  <div className="ud-card-label">Audit admin · {adminAuditEvents.length} action{adminAuditEvents.length > 1 ? 's' : ''}</div>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 320, overflowY: 'auto' }}>
+                  {adminAuditEvents.map((e) => {
+                    let context = '';
+                    if (e.data) {
+                      try {
+                        const parsed = JSON.parse(e.data) as Record<string, unknown>;
+                        if (parsed.action) context = String(parsed.action);
+                      } catch {/* swallow */}
+                    }
+                    return (
+                      <li
+                        key={e.id}
+                        style={{
+                          padding: '8px 0',
+                          borderTop: '1px solid var(--border-subtle)',
+                          fontSize: 12,
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto',
+                          gap: 8,
+                          alignItems: 'baseline',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-primary)', fontWeight: 600 }}>
+                            {e.kind.replace(/^ADMIN_/, '')}
+                            {context && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> · {context}</span>}
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>
+                            par {e.adminEmail}
+                            {e.targetType === 'ORDER' && e.targetId && (
+                              <>
+                                {' · '}
+                                <Link href={`/admin/orders/${e.targetId}` as Route} style={{ color: 'var(--accent-primary)' }}>
+                                  Order #{e.targetId.slice(-6).toUpperCase()}
+                                </Link>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          {formatDateTime(e.createdAt.toISOString())}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
 
           </aside>
         </div>
