@@ -47,6 +47,7 @@ const CRONS: ReadonlyArray<{ name: string; expectedIntervalMs: number; label: st
   { name: 'sinalite-latency',         expectedIntervalMs: 15 * 60 * 1000,      label: 'toutes les 15 min' },
   { name: 'purge-old-events',         expectedIntervalMs: 30 * 24 * 3600 * 1000, label: 'mensuel 1er 9h UTC' },
   { name: 'admin-weekly-digest',      expectedIntervalMs: 7 * 24 * 3600 * 1000,  label: 'mercredi 9h UTC' },
+  { name: 'order-sla-alerts',         expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 10h UTC' },
 ];
 const KNOWN_CRONS = CRONS.map((c) => c.name);
 type CronName = string;
