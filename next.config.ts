@@ -58,10 +58,70 @@ for (const key of SERVER_ENV_KEYS) {
   if (val !== undefined) env[key] = val;
 }
 
+/**
+ * Round 36 #2 — Security response headers.
+ *
+ * Avant : pas de headers de sécurité explicites (Amplify peut set HSTS auto
+ * mais aucune CSP/X-Frame-Options/Referrer-Policy). L'absence de CSP rend
+ * le blast radius d'un XSS infinement plus grand ; l'absence de
+ * X-Frame-Options expose /admin, /wallet, /payments au clickjacking.
+ *
+ * Stratégie :
+ *   - X-Frame-Options DENY (pas iframe-able du tout, conservative)
+ *   - Referrer-Policy strict-origin-when-cross-origin (default sain)
+ *   - Permissions-Policy : refuse camera/mic/geo par défaut
+ *   - HSTS : 2 ans + preload (override Amplify default si présent)
+ *   - X-Content-Type-Options nosniff (block MIME sniffing)
+ *   - CSP : Report-Only pour démarrer (collect violations, durcir progressivement)
+ *     car le projet utilise du inline-style CSS partout + img Stripe + Sentry
+ *
+ * À l'avenir, basculer Content-Security-Policy (sans -Report-Only) une fois
+ * que les violations report sont à zéro pendant 2 semaines en prod.
+ */
+const SECURITY_HEADERS = [
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+  },
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload',
+  },
+  // CSP en Report-Only pour démarrer — collect les violations sans casser
+  // les pages live (inline styles partout, Stripe Elements iframe, etc.).
+  // Quand stable, on flip à "Content-Security-Policy" hard-enforce.
+  {
+    key: 'Content-Security-Policy-Report-Only',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.sentry.io",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://api.stripe.com https://*.sentry.io https://*.upstash.io",
+      "frame-src https://js.stripe.com https://hooks.stripe.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https://checkout.stripe.com",
+    ].join('; '),
+  },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
   env,
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: SECURITY_HEADERS,
+      },
+    ];
+  },
 };
 
 // Wrap avec Sentry uniquement si auth token est configuré (sinon noop).

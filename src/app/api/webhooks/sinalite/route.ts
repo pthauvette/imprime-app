@@ -34,12 +34,18 @@ const WEBHOOK_SECRET = process.env.SINALITE_WEBHOOK_SECRET;
 
 /**
  * Max age d'un webhook Sinalite (en ms) accepté pour mitigation replay-attack.
- * 1h couvre les retries normaux + le délai max acceptable. Si un attaquant
- * capture un payload signé valide, il a 1h pour le rejouer — au-delà on
- * rejette même si signature ok. Combiné avec l'idempotence (fingerprint),
- * couvre les 2 vecteurs : same-content replay + stale-content replay.
+ *
+ * Round 36 #2 — Réduit de 1h à 5 min (aligné avec Stripe tolerance).
+ * 1h donnait à un attaquant une fenêtre énorme pour rejouer un payload
+ * capturé (ex : via proxy de logging compromis, ou backup leaké). 5 min
+ * couvre les retries Sinalite normaux (<10s typique, max 1-2 min en pire
+ * cas) + clock skew. Si un retry Sinalite arrive après 5 min, il est rare
+ * et un manual replay admin reste possible.
+ *
+ * Combiné avec l'idempotence (fingerprint), couvre les 2 vecteurs :
+ * same-content replay (idempotence) + stale-content replay (timestamp window).
  */
-const MAX_TIMESTAMP_AGE_MS = 60 * 60 * 1000;
+const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000;
 /** Clock-skew tolérée dans le futur (Sinalite envoie sur l'horloge serveur). */
 const MAX_TIMESTAMP_FUTURE_MS = 5 * 60 * 1000;
 
