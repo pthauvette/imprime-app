@@ -408,10 +408,15 @@ export default async function AdminOrderDetailPage({
               <KV k="PaymentIntent" v={order.paymentIntentId.slice(0, 24) + '…'} mono />
               <KV k="Montant" v={`${formatCurrency(order.amountCents / 100)} ${order.currency}`} />
               {order.paidAt && <KV k="Payé le" v={formatDate(order.paidAt.toISOString())} />}
+              {/* Round 30 #5 — avant /test/ hardcoded → 404 en prod live mode.
+                  Now branch sur STRIPE_SECRET_KEY prefix. Stripe résoud le
+                  bon mode automatiquement quand l'admin est logué, mais
+                  laisser /test/ pour le dev pour qu'on reste sur le test
+                  dashboard correspondant à la sandbox. + noreferrer ajouté. */}
               <a
-                href={`https://dashboard.stripe.com/test/payments/${order.paymentIntentId}`}
+                href={`https://dashboard.stripe.com${process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_') ? '/test' : ''}/payments/${order.paymentIntentId}`}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent-primary)', marginTop: 8, display: 'inline-block', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}
               >
                 Voir sur Stripe ↗

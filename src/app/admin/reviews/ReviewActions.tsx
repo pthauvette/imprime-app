@@ -6,9 +6,13 @@ import { useRouter } from 'next/navigation';
 export default function ReviewActions({ id, status, isFeatured }: { id: string; status: string; isFeatured: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  // Round 30 #5 — Avant: alert() pour les erreurs. Maintenant: inline error
+  // banner cohérent avec OrderActions.tsx, dismissible, FR.
+  const [error, setError] = useState<string | null>(null);
 
   async function call(action: 'approve' | 'reject' | 'feature', body: Record<string, unknown> = {}) {
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch(`/api/admin/reviews/${id}`, {
         method: 'PATCH',
@@ -17,16 +21,36 @@ export default function ReviewActions({ id, status, isFeatured }: { id: string; 
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error ?? `HTTP ${res.status}`);
+        setError(data.error ?? `Erreur HTTP ${res.status}`);
+        return;
       }
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur réseau');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {error && (
+        <div
+          role="alert"
+          style={{
+            width: '100%',
+            padding: '6px 10px',
+            background: 'var(--danger-soft)',
+            border: '1px solid var(--danger)',
+            color: 'var(--danger)',
+            fontSize: 11,
+            borderRadius: 'var(--r-sm)',
+            marginBottom: 4,
+          }}
+        >
+          {error}
+        </div>
+      )}
       {status === 'PENDING' && (
         <>
           <button

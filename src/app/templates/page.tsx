@@ -13,8 +13,22 @@ import type { AppTemplate } from '@/lib/templates/types';
 
 export const metadata = { title: 'Templates — Plio' };
 
-export default function TemplatesPage() {
+interface PageProps {
+  searchParams: Promise<{ type?: string }>;
+}
+
+export default async function TemplatesPage({ searchParams }: PageProps) {
   const productTypes = listProductTypes();
+  const sp = await searchParams;
+  const activeType = sp.type ?? null;
+
+  // Round 30 #5 — Avant les filter chips étaient des <div> inertes (le
+  // premier marqué "active" mais aucun onClick) → cliquer ne faisait
+  // rien. Maintenant : Links avec ?type=X, filtrage côté serveur. Reste
+  // Server Component (zéro JS), back/forward browser fonctionne, SEO OK.
+  const filtered = activeType
+    ? ALL_TEMPLATES.filter((t) => t.productType === activeType)
+    : ALL_TEMPLATES;
 
   return (
     <div className="acct-shell">
@@ -29,25 +43,45 @@ export default function TemplatesPage() {
         </p>
 
         <div className="tpl-filters" style={{ marginTop: 32 }}>
-          <div className="tpl-filter active">Tous ({ALL_TEMPLATES.length})</div>
+          <Link
+            href={'/templates' as Route}
+            className={`tpl-filter${activeType === null ? ' active' : ''}`}
+            style={{ textDecoration: 'none' }}
+          >
+            Tous ({ALL_TEMPLATES.length})
+          </Link>
           {productTypes.map((pt) => (
-            <div key={pt.type} className="tpl-filter">
+            <Link
+              key={pt.type}
+              href={`/templates?type=${encodeURIComponent(pt.type)}` as Route}
+              className={`tpl-filter${activeType === pt.type ? ' active' : ''}`}
+              style={{ textDecoration: 'none' }}
+            >
               {pt.label} ({pt.count})
-            </div>
+            </Link>
           ))}
         </div>
 
         <div className="section-header" style={{ marginTop: 32 }}>
-          <h2 className="section-header-title">Tous les templates</h2>
+          <h2 className="section-header-title">
+            {activeType
+              ? productTypes.find((p) => p.type === activeType)?.label ?? 'Templates'
+              : 'Tous les templates'}
+          </h2>
           <span className="section-header-meta">
-            {ALL_TEMPLATES.length} templates · gratuits
+            {filtered.length} template{filtered.length > 1 ? 's' : ''} · gratuit{filtered.length > 1 ? 's' : ''}
           </span>
         </div>
 
         <div className="tpl-grid">
-          {ALL_TEMPLATES.map((t) => (
+          {filtered.map((t) => (
             <TemplateCard key={t.slug} template={t} />
           ))}
+          {filtered.length === 0 && (
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, gridColumn: '1 / -1', padding: '32px 0' }}>
+              Aucun template dans cette catégorie pour le moment. <Link href={'/templates' as Route} style={{ color: 'var(--accent-primary)' }}>Voir tous les templates</Link> ou <Link href={'/quote' as Route} style={{ color: 'var(--accent-primary)' }}>demande un devis</Link>.
+            </p>
+          )}
         </div>
 
         <div className="tpl-legend">

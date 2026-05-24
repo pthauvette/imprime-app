@@ -337,18 +337,23 @@ function StockGrid({ options, selectedId, onPick }: PickerProps) {
 }
 
 function Pills({ options, selectedId, onPick }: PickerProps) {
+  // Round 30 #5 — Avant <div role="tab" onClick>. Le footer wizard
+  // disait "Tab pour naviguer · ↵ Entrée pour continuer" mais ce composant
+  // n'était pas focusable et Enter ne marchait pas. Maintenant <button>
+  // type="button" → focus, Space, Enter free, conserve l'ARIA role="tab".
   return (
     <div className="finish-pills" role="tablist">
       {options.map((opt) => (
-        <div
+        <button
           key={opt.id}
+          type="button"
           className={`finish-pill${selectedId === opt.id ? ' active' : ''}`}
           role="tab"
           aria-selected={selectedId === opt.id}
           onClick={() => onPick(opt.id)}
         >
           {opt.name}
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -360,9 +365,15 @@ function BinarySwitch({ options, selectedId, onPick }: PickerProps) {
   const isOn = selectedId === yesOpt.id;
   return (
     <div className="extras-card" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', padding: '8px 0', boxShadow: 'var(--shadow-xs)' }}>
-      <div
+      {/* Round 30 #5 — Avant <div onClick> → pas keyboard. Maintenant
+          <button type="button"> + role="switch" + aria-checked, focusable,
+          Space/Enter pour toggle. */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isOn}
         className={`extra-row${isOn ? ' on' : ''}`}
-        style={{ display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 16, alignItems: 'center', padding: '16px 24px', cursor: 'pointer' }}
+        style={{ display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 16, alignItems: 'center', padding: '16px 24px', cursor: 'pointer', width: '100%', border: 'none', background: 'transparent', textAlign: 'left', font: 'inherit', color: 'inherit' }}
         onClick={() => onPick(isOn ? noOpt.id : yesOpt.id)}
       >
         <div className="extra-switch" />
@@ -371,7 +382,7 @@ function BinarySwitch({ options, selectedId, onPick }: PickerProps) {
           <div className="extra-desc">Activer / désactiver cette option.</div>
         </div>
         <span className="extra-delta">{isOn ? 'Activé' : 'Désactivé'}</span>
-      </div>
+      </button>
     </div>
   );
 }
