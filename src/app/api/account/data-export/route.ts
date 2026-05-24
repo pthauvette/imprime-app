@@ -70,6 +70,8 @@ export const GET = withErrorHandler(async (req: Request) => {
         walletCents: true,
         walletAutoRenewStripeSubId: true,
         walletAutoRenewAmountCents: true,
+        // Round 28 #5 — pause timestamp
+        walletAutoRenewPausedAt: true,
         // Round 18 #5 — tax-exempt B2B
         taxExempt: true,
         taxExemptCertId: true,

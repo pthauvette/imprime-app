@@ -83,6 +83,11 @@ model User {
   walletAutoRenewStripeSubId String?
   /** Cents par mois (matche un tier de WALLET_TIERS). */
   walletAutoRenewAmountCents Int?
+  /** Round 28 #5 — timestamp de pause (Stripe subscription.update pause_collection).
+   *  NULL = active. Set = paused. Resume = clear ce field + reprendre billing.
+   *  Pause préserve l'abonnement (vs cancel) — l'user peut resume sans
+   *  re-saisir card. Use cases : congé sabbatique, slow season pour reseller. */
+  walletAutoRenewPausedAt    DateTime?
 
   // Round 18 #5 — Tax-exempt B2B (resellers + registered cas spéciaux).
   // taxExempt=true → checkout calcule TPS/TVQ=0. taxExemptCertId stocke
