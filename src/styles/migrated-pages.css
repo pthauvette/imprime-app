@@ -14,9 +14,41 @@
       grid-template-columns: 260px 1fr;
       min-height: 100vh;
     }
+    /* Round 30 #2 — Mobile fix : avant `.adm-nav { display: none }` sous
+       1024px → admin stranded sur la page courante. Maintenant : sidebar
+       devient bande horizontale scrollable. Avec 30+ sections, le user
+       devra scroll latéralement, mais c'est usable contre rien avant. */
     @media (max-width: 1024px) {
       .adm-shell { grid-template-columns: 1fr; }
-      .adm-nav { display: none; }
+      .adm-nav {
+        position: static;
+        height: auto;
+        padding: 8px 12px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
+      }
+      .adm-nav-brand { padding: 0 8px 0 0; flex-shrink: 0; }
+      .adm-nav-brand-tag { display: none; }
+      .adm-nav-section { display: none; }
+      .adm-nav-list {
+        display: inline-flex;
+        gap: 2px;
+        flex-wrap: nowrap;
+      }
+      .adm-nav-link {
+        display: inline-flex;
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: var(--r-sm);
+        white-space: nowrap;
+      }
+      .adm-nav-user { display: none; }
     }
 
     .adm-nav {
@@ -4184,7 +4216,32 @@
       transition: all var(--dur-base) var(--ease-spring);
     }
     .mkt-nav-cta:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-    @media (max-width: 700px) { .mkt-nav-links a:not(:last-child) { display: none; } }
+    /* Round 30 #2 — Mobile nav fix : avant `display:none` cachait TOUS les
+       links sauf le CTA sous 700px sans hamburger → user pouvait pas
+       atteindre /sign-in, /blog, etc. Maintenant on reflow en 2 rangs :
+       brand top, links wrap dessous (font réduit, gap compact). Pure CSS,
+       zéro JS, fonctionne sur les 15+ pages qui inline `.mkt-nav` sans
+       devoir éditer chaque page. */
+    @media (max-width: 700px) {
+      .mkt-nav {
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        row-gap: 8px;
+      }
+      .mkt-nav-links {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 6px 14px;
+        font-size: 13px;
+      }
+      .mkt-nav-link { font-size: 13px; }
+      .mkt-nav-cta {
+        margin-left: auto;
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+    }
 
     /* Page eyebrow */
     .page-eyebrow {
