@@ -365,6 +365,32 @@ export const POST = withErrorHandler(async (req: Request) => {
     itemsSnapshot,
   });
 
+  // Round 27 #1 — best-effort link au AbandonedCart si le user a cliqué
+  // sur un recovery email récemment (30j) pour ce email + product. Attribue
+  // l'order au cart source pour le funnel sent → clicked → recovered.
+  // Fail-soft : pas critique pour la commande.
+  void (async () => {
+    try {
+      const recentlyClickedCart = await prisma.abandonedCart.findFirst({
+        where: {
+          email: payload.contact.email.toLowerCase(),
+          productId: payload.items[0]?.productId,
+          recoveryClickedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        },
+        orderBy: { recoveryClickedAt: 'desc' },
+        select: { id: true },
+      });
+      if (recentlyClickedCart) {
+        await prisma.order.update({
+          where: { id: newOrder.id },
+          data: { recoveredFromCartId: recentlyClickedCart.id },
+        });
+      }
+    } catch {
+      // Silent — analytics nice-to-have, ne doit pas bloquer ni alerter
+    }
+  })();
+
   // Phase 5b : best-effort link au DesignDraft si le user vient de l'éditeur.
   // Ne fail PAS la commande si le link ne marche pas (designId invalide,
   // déjà lié à un autre order, etc.) — c'est de l'analytics, pas critique.

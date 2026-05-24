@@ -209,7 +209,12 @@ describe('GET /api/cron/abandoned-cart', () => {
     const args = vi.mocked(sendAbandonedCartEmail).mock.calls[0][0];
     expect(args.firstName).toBe('Sophie');
     expect(args.productName).toBe('Cartes 14pt UV');
-    expect(args.resumeUrl).toContain('/order/review?productId=7&options=12,34');
+    // Round 27 #1 — resumeUrl est maintenant wrappé dans /api/recovery/click
+    // pour mesurer le funnel. Le vrai destination est URL-encoded dans ?to=.
+    expect(args.resumeUrl).toContain('/api/recovery/click?cart=');
+    expect(args.resumeUrl).toContain('&t=');
+    expect(args.resumeUrl).toContain('to=');
+    expect(decodeURIComponent(args.resumeUrl)).toContain('/order/review?productId=7&options=12,34');
 
     // emailSentAt set après envoi
     expect(prisma.abandonedCart.update).toHaveBeenCalledTimes(1);
