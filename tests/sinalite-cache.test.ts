@@ -160,3 +160,68 @@ describe('readCache / writeCache primitives', () => {
     expect(r).toBeNull();
   });
 });
+
+// Round 36 #3 — TTL fast-path tests
+describe('withSinaliteCache — TTL fast-path (Round 36 #3)', () => {
+  it('cache hit dans TTL → retourne cached, SKIP le fetcher (perf win)', async () => {
+    const recentlyCached = new Date(Date.now() - 2 * 60 * 1000); // 2 min ago
+    vi.mocked(prisma.sinaliteCacheEntry.findUnique).mockResolvedValueOnce({
+      payload: JSON.stringify({ products: ['cached_recent'] }),
+      updatedAt: recentlyCached,
+    } as never);
+
+    const fetcher = vi.fn(async () => ({ products: ['fresh'] }));
+    const result = await withSinaliteCache('/product', fetcher, { ttlMs: 10 * 60 * 1000 });
+
+    expect(result).toEqual({ products: ['cached_recent'] });
+    expect(fetcher).not.toHaveBeenCalled(); // KEY assertion : skip live fetch
+  });
+
+  it('cache hit hors TTL → fetch fresh + ignore stale', async () => {
+    const oldCached = new Date(Date.now() - 30 * 60 * 1000); // 30 min ago
+    vi.mocked(prisma.sinaliteCacheEntry.findUnique).mockResolvedValueOnce({
+      payload: JSON.stringify({ products: ['stale'] }),
+      updatedAt: oldCached,
+    } as never);
+
+    const fetcher = vi.fn(async () => ({ products: ['fresh'] }));
+    const result = await withSinaliteCache('/product', fetcher, { ttlMs: 10 * 60 * 1000 });
+
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(result).toEqual({ products: ['fresh'] });
+  });
+
+  it('cache miss avec TTL → fetch fresh normalement', async () => {
+    vi.mocked(prisma.sinaliteCacheEntry.findUnique).mockResolvedValueOnce(null);
+    const fetcher = vi.fn(async () => ({ products: ['fresh'] }));
+    const result = await withSinaliteCache('/product', fetcher, { ttlMs: 10 * 60 * 1000 });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(result).toEqual({ products: ['fresh'] });
+  });
+
+  it('sans ttlMs (legacy) → comportement inchangé (toujours fetch)', async () => {
+    // PAS de mock findUnique : sans ttlMs, le code ne devrait pas appeler
+    // findUnique en fast-path. Si on en ajoutait un avec mockResolvedValueOnce,
+    // il fuiterait au test suivant (vi.clearAllMocks ne flush pas la queue).
+    const fetcher = vi.fn(async () => ({ fresh: true }));
+    const result = await withSinaliteCache('/k', fetcher);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(result).toEqual({ fresh: true });
+    // Vérif clé : findUnique pas appelé du tout en legacy mode
+    expect(prisma.sinaliteCacheEntry.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('TTL fast-path + fetcher fail → cache hit prend précédence (pas d\'appel fetcher du tout)', async () => {
+    const recentlyCached = new Date(Date.now() - 1 * 60 * 1000);
+    vi.mocked(prisma.sinaliteCacheEntry.findUnique).mockResolvedValueOnce({
+      payload: JSON.stringify({ from: 'cache' }),
+      updatedAt: recentlyCached,
+    } as never);
+
+    // Fetcher throws — should never be called
+    const fetcher = vi.fn(async () => { throw new Error('Sinalite down'); });
+    const result = await withSinaliteCache('/k', fetcher, { ttlMs: 5 * 60 * 1000 });
+    expect(result).toEqual({ from: 'cache' });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});

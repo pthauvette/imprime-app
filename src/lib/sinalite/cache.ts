@@ -37,7 +37,23 @@ const ALERT_THROTTLE_MS = 60 * 1000;
 export interface WithCacheOptions {
   /** Si true, ne write pas en cache même si fetcher succeed. Pour mutations. */
   readOnly?: boolean;
+  /**
+   * Round 36 #3 — TTL en ms. Si le cache row a été écrit dans la fenêtre,
+   * on retourne le cached value directement SANS appeler Sinalite.
+   * Évite 1 round-trip Sinalite par catalog request quand le data n'a
+   * pas changé. Si absent (legacy), fetch toujours fresh + fallback stale
+   * uniquement si fetcher throw.
+   */
+  ttlMs?: number;
 }
+
+/**
+ * Round 36 #3 — TTL default pour les catalog reads Sinalite.
+ * Catalog change rarement (prix update mensuel, options structurelles rares).
+ * 10 min = compromis sain : élimine 99 % des hits live + reste raisonnablement
+ * frais pour les wizard users.
+ */
+export const SINALITE_CATALOG_TTL_MS = 10 * 60 * 1000;
 
 /**
  * Wrap un fetcher Sinalite avec lecture/écriture cache + fallback stale.
@@ -52,6 +68,19 @@ export async function withSinaliteCache<T>(
   fetcher: () => Promise<T>,
   options: WithCacheOptions = {},
 ): Promise<T> {
+  // Round 36 #3 — Fast-path TTL : si le cache est "frais" (< ttlMs),
+  // retourne directement sans appeler Sinalite. Évite le round-trip
+  // sur les catalog reads (listProducts, getProductDetail, etc.).
+  if (options.ttlMs) {
+    const cached = await readCache<T>(key);
+    if (cached !== null) {
+      const ageMs = Date.now() - cached.updatedAt.getTime();
+      if (ageMs < options.ttlMs) {
+        return cached.payload;
+      }
+    }
+  }
+
   try {
     const fresh = await fetcher();
     // Write-through : persist au cache pour le prochain outage
