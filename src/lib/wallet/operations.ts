@@ -99,6 +99,11 @@ export async function recordWalletTx(opts: RecordOpts): Promise<{ balanceAfterCe
 /**
  * Process un topup complet : record le TOPUP + le TOPUP_BONUS si tier.
  * 2 rows dans le ledger (audit clair : "voici ton vrai paiement, voici le bonus").
+ *
+ * Round 37 #1 — Maintenant atomique : les 2 inserts vivent dans la MÊME
+ * prisma.$transaction. Avant : si TOPUP commit puis TOPUP_BONUS fail (DB blip,
+ * connection close), le user payait pour le bonus tier mais ne le recevait
+ * pas (ledger split-brain → support ticket des semaines plus tard).
  */
 export async function processWalletTopup(opts: {
   userId: string;
@@ -107,36 +112,69 @@ export async function processWalletTopup(opts: {
   bonusCents: number;
   tierLabel: string | null;
 }): Promise<{ totalCreditCents: number; balanceAfterCents: number }> {
-  // 1. Le vrai topup
-  await recordWalletTx({
-    userId: opts.userId,
-    kind: 'TOPUP',
-    amountCents: opts.amountCents,
-    paymentIntentId: opts.paymentIntentId,
-    description: `Topup Stripe ${(opts.amountCents / 100).toFixed(2)} $`,
-  });
-
-  // 2. Le bonus séparé pour audit clair
-  let final;
-  if (opts.bonusCents > 0 && opts.tierLabel) {
-    final = await recordWalletTx({
-      userId: opts.userId,
-      kind: 'TOPUP_BONUS',
-      amountCents: opts.bonusCents,
-      paymentIntentId: opts.paymentIntentId,
-      description: `Bonus tier "${opts.tierLabel}" : +${(opts.bonusCents / 100).toFixed(2)} $`,
-    });
-  } else {
-    // Pas de bonus → on récupère juste le balance courant
-    const u = await prisma.user.findUnique({
+  return prisma.$transaction(async (tx) => {
+    // Lookup balance courant 1 fois
+    const userBefore = await tx.user.findUnique({
       where: { id: opts.userId },
       select: { walletCents: true },
     });
-    final = { balanceAfterCents: u?.walletCents ?? 0, txId: '' };
-  }
+    if (!userBefore) {
+      throw new Error(`User ${opts.userId} introuvable pour wallet topup`);
+    }
 
-  return {
-    totalCreditCents: opts.amountCents + opts.bonusCents,
-    balanceAfterCents: final.balanceAfterCents,
-  };
+    // 1. TOPUP : credit principal
+    const balanceAfterTopup = userBefore.walletCents + opts.amountCents;
+    await tx.user.update({
+      where: { id: opts.userId },
+      data: {
+        walletCents: balanceAfterTopup,
+        walletLastActivityAt: new Date(),
+      },
+    });
+    await tx.walletTransaction.create({
+      data: {
+        userId: opts.userId,
+        kind: 'TOPUP',
+        amountCents: opts.amountCents,
+        balanceAfterCents: balanceAfterTopup,
+        paymentIntentId: opts.paymentIntentId,
+        description: `Topup Stripe ${(opts.amountCents / 100).toFixed(2)} $`.slice(0, 500),
+      },
+    });
+
+    let finalBalance = balanceAfterTopup;
+
+    // 2. TOPUP_BONUS si applicable, dans la même tx
+    if (opts.bonusCents > 0 && opts.tierLabel) {
+      const balanceAfterBonus = balanceAfterTopup + opts.bonusCents;
+      await tx.user.update({
+        where: { id: opts.userId },
+        data: { walletCents: balanceAfterBonus },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          userId: opts.userId,
+          kind: 'TOPUP_BONUS',
+          amountCents: opts.bonusCents,
+          balanceAfterCents: balanceAfterBonus,
+          paymentIntentId: opts.paymentIntentId,
+          description: `Bonus tier "${opts.tierLabel}" : +${(opts.bonusCents / 100).toFixed(2)} $`.slice(0, 500),
+        },
+      });
+      finalBalance = balanceAfterBonus;
+    }
+
+    log.info({
+      userId: opts.userId,
+      topupCents: opts.amountCents,
+      bonusCents: opts.bonusCents,
+      tierLabel: opts.tierLabel,
+      balanceAfter: finalBalance,
+    }, 'wallet topup processed atomically');
+
+    return {
+      totalCreditCents: opts.amountCents + opts.bonusCents,
+      balanceAfterCents: finalBalance,
+    };
+  });
 }

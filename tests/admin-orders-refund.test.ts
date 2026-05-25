@@ -28,6 +28,16 @@ vi.mock('@/lib/db', () => ({
   prisma: { order: { findUnique: vi.fn() } },
 }));
 
+// Round 37 #1 — Mock wallet/operations.recordWalletTx pour vérifier
+// que le wallet est restauré sur full refund.
+vi.mock('@/lib/wallet/operations', () => ({
+  recordWalletTx: vi.fn(async () => ({ balanceAfterCents: 0, txId: 'wtx_test' })),
+}));
+
+vi.mock('@/lib/alerting/slack', () => ({
+  sendCriticalAlert: vi.fn(async () => true),
+}));
+
 vi.mock('@/lib/db/orders', () => ({
   markRefundIssued: vi.fn(async () => undefined),
   markOrderFailed: vi.fn(async () => undefined),
@@ -48,7 +58,9 @@ vi.mock('@/lib/api-helpers', async () => {
 
 vi.mock('@/lib/logger', () => {
   const noop = () => undefined;
-  return { log: { info: noop, warn: noop, error: noop, fatal: noop, debug: noop } };
+  const stub = { info: noop, warn: noop, error: noop, fatal: noop, debug: noop };
+  // Round 37 #1 — la route catch+log via logStripe.error si wallet restore fail
+  return { log: stub, logStripe: stub, logEmail: stub, logSinalite: stub };
 });
 
 // Stripe mock via vi.hoisted. Annotate vi.fn arg/return types pour que
@@ -70,11 +82,15 @@ import { prisma } from '@/lib/db';
 import { markRefundIssued, markOrderFailed } from '@/lib/db/orders';
 import { sendRefundIssuedEmail } from '@/lib/emails/send';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
+import { recordWalletTx } from '@/lib/wallet/operations';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 const ORDER_BASE = {
   id: 'o_test',
+  userId: 'u_owner',
   status: 'PAID',
-  amountCents: 10000, // 100 $
+  amountCents: 8000, // $80 facturé Stripe
+  walletCreditAppliedCents: 2000, // $20 wallet déjà débité — Round 37 #1
   paymentIntentId: 'pi_123',
   currency: 'cad',
   user: { id: 'u_owner', email: 'customer@plio.ca', firstName: 'Customer' },
@@ -130,7 +146,7 @@ describe('POST /api/admin/orders/[id]/refund (Round 36 #4)', () => {
   it('400 si refund amount > order total', async () => {
     const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
     const res = await POST(
-      makeReq({ amountCents: 20000 }), // > order 10000
+      makeReq({ amountCents: 9000 }), // > order 8000
       { params: Promise.resolve({ id: 'o_test' }) },
     );
     expect(res.status).toBe(400);
@@ -173,6 +189,81 @@ describe('POST /api/admin/orders/[id]/refund (Round 36 #4)', () => {
     expect(args.amount).toBe(3000);
   });
 
+  // ─── Round 37 #1 — Wallet credit restore tests ───────────────────────────
+
+  it('Round 37 #1 — full refund + walletApplied > 0 → recordWalletTx REFUND avec amountCents positif', async () => {
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(
+      makeReq({}), // pas d'amountCents = full refund
+      { params: Promise.resolve({ id: 'o_test' }) },
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.walletRestoredCents).toBe(2000); // $20 restauré
+
+    expect(recordWalletTx).toHaveBeenCalledOnce();
+    const args = vi.mocked(recordWalletTx).mock.calls[0]![0];
+    expect(args.kind).toBe('REFUND');
+    expect(args.amountCents).toBe(2000); // POSITIF (credit back)
+    expect(args.userId).toBe('u_owner');
+    expect(args.orderId).toBe('o_test');
+    expect(args.adminId).toBe('u_admin');
+  });
+
+  it('Round 37 #1 — partial refund → wallet NON touché (admin must reconcile manually)', async () => {
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(
+      makeReq({ amountCents: 3000 }), // partial $30 of $80
+      { params: Promise.resolve({ id: 'o_test' }) },
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.walletRestoredCents).toBe(0);
+    expect(recordWalletTx).not.toHaveBeenCalled();
+  });
+
+  it('Round 37 #1 — full refund SANS wallet appliqué → pas de recordWalletTx', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      ...ORDER_BASE,
+      walletCreditAppliedCents: 0,
+    } as never);
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    await POST(makeReq({}), { params: Promise.resolve({ id: 'o_test' }) });
+    expect(recordWalletTx).not.toHaveBeenCalled();
+  });
+
+  it('Round 37 #1 — wallet restore fail → Stripe refund OK preservé + Slack alert + non-fatal', async () => {
+    vi.mocked(recordWalletTx).mockRejectedValueOnce(new Error('DB down'));
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(makeReq({}), { params: Promise.resolve({ id: 'o_test' }) });
+    // Pas un 500 : Stripe refund a réussi, wallet est failure non-fatal
+    expect(res.status).toBe(200);
+    expect(stripeMock.refunds.create).toHaveBeenCalledOnce();
+    expect(sendCriticalAlert).toHaveBeenCalledOnce();
+    const alertArgs = vi.mocked(sendCriticalAlert).mock.calls[0]![0];
+    expect(alertArgs.title).toMatch(/Wallet restore/i);
+    expect(alertArgs.severity).toBe('critical');
+  });
+
+  it('Round 37 #1 — audit log inclut walletRestoredCents + walletCreditAppliedCents', async () => {
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    await POST(makeReq({}), { params: Promise.resolve({ id: 'o_test' }) });
+    expect(recordAdminAudit).toHaveBeenCalledOnce();
+    const args = vi.mocked(recordAdminAudit).mock.calls[0]![0];
+    expect(args.data?.walletRestoredCents).toBe(2000);
+    expect(args.data?.walletCreditAppliedCents).toBe(2000);
+  });
+
+  it('Round 37 #1 — amountCents exact = order.amountCents traité comme full refund', async () => {
+    // Si admin tape exactement le total Stripe, ça compte comme full → wallet restore
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    await POST(
+      makeReq({ amountCents: 8000 }), // exactement order.amountCents
+      { params: Promise.resolve({ id: 'o_test' }) },
+    );
+    expect(recordWalletTx).toHaveBeenCalledOnce();
+  });
+
   it('200 + markRefundIssued appelé avec refund.id', async () => {
     const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
     await POST(makeReq({}), { params: Promise.resolve({ id: 'o_test' }) });
@@ -203,7 +294,7 @@ describe('POST /api/admin/orders/[id]/refund (Round 36 #4)', () => {
     expect(sendRefundIssuedEmail).toHaveBeenCalledOnce();
     const args = vi.mocked(sendRefundIssuedEmail).mock.calls[0]![0];
     expect(args.user).toEqual(ORDER_BASE.user);
-    expect(args.refundAmountCents).toBe(10000);
+    expect(args.refundAmountCents).toBe(8000); // = order.amountCents
   });
 
   it('200 + audit log ADMIN_MANUAL_REFUND avec details', async () => {

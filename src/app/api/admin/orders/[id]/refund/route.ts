@@ -86,6 +86,58 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     });
   }
 
+  // Round 37 #1 — Restaurer le crédit wallet appliqué si full refund.
+  //
+  // Avant ce fix : si customer avait payé order $100 = $80 Stripe + $20 wallet,
+  // le refund ne retournait que les $80 Stripe. Le $20 wallet était PERDU
+  // (real money bug — customer paie $100, reçoit $80 → -$20 silent).
+  //
+  // Comportement maintenant :
+  //   - Full refund (pas d'amountCents passé) → Stripe full + wallet restore full
+  //   - Partial refund (amountCents < order.amountCents) → Stripe partial,
+  //     wallet NON touché (admin doit faire ajustement séparé si besoin)
+  //
+  // Rationale du choix partial : un admin qui refund partiellement décide
+  // d'un montant fixe en $. Splitter proportionnellement Stripe/wallet est
+  // ambigu (qu'est-ce qui est "le" refund ?). Simple + prédictible :
+  // partial = Stripe only, full = restore tout.
+  let walletRestoredCents = 0;
+  const isFullRefund = !body.amountCents || body.amountCents >= order.amountCents;
+  if (isFullRefund && order.walletCreditAppliedCents > 0) {
+    try {
+      const { recordWalletTx } = await import('@/lib/wallet/operations');
+      await recordWalletTx({
+        userId: order.userId,
+        kind: 'REFUND',
+        amountCents: order.walletCreditAppliedCents, // POSITIVE — credit back
+        orderId: order.id,
+        adminId: guard.userId,
+        description: `Refund order #${order.id.slice(-6)} — wallet credit restored`,
+      });
+      walletRestoredCents = order.walletCreditAppliedCents;
+    } catch (err) {
+      // Non-fatal : Stripe refund a déjà succeed, l'order audit le note.
+      // Admin doit reconcilier manuellement le wallet (via Slack alert).
+      const { logStripe } = await import('@/lib/logger');
+      logStripe.error(
+        { err, orderId: order.id, walletAppliedCents: order.walletCreditAppliedCents },
+        'wallet restore on refund failed (non-fatal — manual reconcile needed)',
+      );
+      const { sendCriticalAlert } = await import('@/lib/alerting/slack');
+      void sendCriticalAlert({
+        severity: 'critical',
+        title: 'Wallet restore on refund FAILED',
+        body: `Stripe refund OK mais wallet credit non restauré. Ajuste manuellement /admin/users/${order.userId}.`,
+        context: {
+          orderId: order.id,
+          refundId: refund.id,
+          walletAppliedCents: order.walletCreditAppliedCents,
+          error: err instanceof Error ? err.message : 'unknown',
+        },
+      });
+    }
+  }
+
   // Best-effort email
   await sendRefundIssuedEmail({
     order,
@@ -105,6 +157,8 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       refundAmountCents: refundAmount,
       orderTotalCents: order.amountCents,
       partial: refundAmount < order.amountCents,
+      walletRestoredCents,
+      walletCreditAppliedCents: order.walletCreditAppliedCents,
       reason: body.reason ?? null,
       cancelled: body.cancelOrder ?? false,
       customerEmail: order.user.email,
@@ -115,6 +169,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     ok: true,
     refundId: refund.id,
     amountCents: refundAmount,
+    walletRestoredCents,
     cancelled: body.cancelOrder ?? false,
   });
 });
