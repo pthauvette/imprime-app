@@ -464,7 +464,7 @@ export async function getOrderById(id: string) {
 // est best-effort : si la row n'existe pas (race), on no-op silencieusement
 // plutôt que de masquer l'erreur métier du handler.
 
-export type WebhookSource = 'STRIPE' | 'SINALITE';
+export type WebhookSource = 'STRIPE' | 'SINALITE' | 'SES';
 
 export async function recordWebhookEvent(input: {
   source: WebhookSource;

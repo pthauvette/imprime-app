@@ -21,9 +21,14 @@ vi.mock('@/lib/db', () => ({
       // Round 17 #3 : updateMany pour claim atomique.
       updateMany: vi.fn(async () => ({ count: 1 })),
       findMany: vi.fn(async () => []),
+      count: vi.fn(async () => 0),
     },
     order: {
       findUnique: vi.fn(),
+    },
+    // Round 39 #4 : suppression check au début de queueEmail.
+    emailSuppression: {
+      findUnique: vi.fn(async () => null),
     },
   },
 }));
