@@ -106,7 +106,9 @@ export default function UserBulkBar() {
       aria-label="Actions bulk utilisateurs"
       style={{
         position: 'fixed',
-        bottom: 24,
+        // Round 40 #4 — iOS Safari bottom URL bar overlaps fixed:bottom elements.
+        // env(safe-area-inset-bottom) = 0 on non-notched devices, 34px on iPhone X+.
+        bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         left: '50%',
         transform: 'translateX(-50%)',
         background: 'var(--text-primary)',
