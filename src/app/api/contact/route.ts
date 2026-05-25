@@ -102,8 +102,10 @@ export const POST = withErrorHandler(async (req: Request) => {
     `─────────\n` +
     `Tu peux répondre direct à cet email — le Reply-To est ${body.email}.`;
 
-  // Envoie à tous les ADMIN_EMAILS en parallèle
-  const sends = await Promise.all(
+  // Round 37 #4 — Promise.allSettled au lieu de Promise.all : 1 admin
+  // email fail (typo, SES suppressed) ne doit pas casser tout le batch
+  // ni le customer's contact submission.
+  const sendsRaw = await Promise.allSettled(
     ADMIN_EMAILS.map(async (to) => {
       const r = await sendAdminCustomMessageEmail({
         to,
@@ -120,6 +122,9 @@ export const POST = withErrorHandler(async (req: Request) => {
       });
       return { to, sent: r.sent };
     }),
+  );
+  const sends = sendsRaw.map((s, i) =>
+    s.status === 'fulfilled' ? s.value : { to: ADMIN_EMAILS[i]!, sent: false },
   );
 
   // Audit log pour traçabilité + détection abus

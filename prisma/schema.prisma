@@ -66,7 +66,10 @@ model User {
   // Déduit AVANT le referralCreditCents au checkout (FIFO du plus
   // restrictif au plus flexible).
   walletCents                Int       @default(0)
-  walletTransactions         WalletTransaction[]
+  walletTransactions         WalletTransaction[] @relation("WalletTransactionUser")
+  // Round 37 #4 — Inverse pour adminId → User (ADMIN_ADJUSTMENT, REFUND
+  // par admin). SetNull si admin supprimé (PIPEDA) pour préserver le ledger.
+  walletAdminActions         WalletTransaction[] @relation("WalletTransactionAdmin")
 
   // Round 19 #3 — Rolling expiration : si le wallet n'a aucune activité
   // (topup OU spend) depuis 12 mois → expire. lastActivityAt est bumpé à
@@ -290,10 +293,21 @@ model Order {
   emailDeliveriesAttached EmailDelivery[] @relation("OrderEmailAttachments")
   referralReward   ReferralReward?  @relation("OrderReferralReward")
   contactMessages  ContactMessage[] @relation("OrderContactMessages")
+  /** Round 37 #4 — Inverse pour WalletTransaction.orderId (ORDER_SPEND, REFUND).
+   *  SetNull si Order purgé → preserve le ledger row pour audit. */
+  walletTransactions WalletTransaction[]
 
   @@index([userId, createdAt])
   @@index([status])
+  /** Round 37 #4 — admin-weekly-digest + reseller-detection font des queries
+   *  WHERE status IN (...) AND paidAt >= cutoff. Le single-index status seul
+   *  est inutile pour le range scan paidAt. Composite réduit drastiquement
+   *  le coût à mesure que Order grossit. */
+  @@index([status, paidAt])
   @@index([recoveredFromCartId])
+  /** Round 37 #4 — promoCodeId pas indexé : /admin/promo-codes/[id] loop
+   *  prisma.order.findMany({where:{promoCodeId}}) → scan séquentiel à scale. */
+  @@index([promoCodeId])
 }
 
 // ─── ORDER EVENT ──────────────────────────────────────────────────────────
@@ -1274,7 +1288,7 @@ model SinaliteCacheEntry {
 model WalletTransaction {
   id            String   @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation("WalletTransactionUser", fields: [userId], references: [id], onDelete: Cascade)
   /** TOPUP | TOPUP_BONUS | ORDER_SPEND | REFUND | ADMIN_ADJUSTMENT | EXPIRY */
   kind          String
   /** Signed cents : + pour credit, - pour debit. */
@@ -1283,10 +1297,16 @@ model WalletTransaction {
   balanceAfterCents Int
   /** Stripe PaymentIntent ID (pour TOPUP). NULL pour autres kinds. */
   paymentIntentId String?
-  /** OrderId si lié à un order (ORDER_SPEND, REFUND). */
+  /** OrderId si lié à un order (ORDER_SPEND, REFUND).
+   *  Round 37 #4 — Ajout FK + SetNull. Avant : String? sans relation
+   *  → orphans possibles (orderId pointait vers Order supprimé sans contrainte).
+   *  SetNull preserve le ledger row si l'order rare cas où Order est purge. */
   orderId       String?
-  /** AdminId si ADMIN_ADJUSTMENT. */
+  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  /** AdminId si ADMIN_ADJUSTMENT, REFUND par admin.
+   *  Round 37 #4 — Ajout FK + SetNull (admin peut être supprimé via PIPEDA). */
   adminId       String?
+  adminUser     User?    @relation("WalletTransactionAdmin", fields: [adminId], references: [id], onDelete: SetNull)
   /** Description libre (ex: "Topup $500 → +25$ bonus", "Refund order #SIN-1234"). */
   description   String
 
@@ -1295,6 +1315,10 @@ model WalletTransaction {
   @@index([userId, createdAt])
   @@index([kind, createdAt])
   @@index([paymentIntentId])
+  /** Round 37 #4 — Index sur FK orderId pour /admin/orders/[id] wallet tab + reconcile queries. */
+  @@index([orderId])
+  /** Round 37 #4 — Index sur FK adminId pour "actions de cet admin" queries. */
+  @@index([adminId])
 }
 
 // ─── WEBHOOK REPLAY HISTORY ───────────────────────────────────────────────
