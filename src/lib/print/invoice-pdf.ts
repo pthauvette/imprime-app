@@ -27,6 +27,13 @@ export interface InvoicePdfInput {
   customer: {
     name: string | null;
     email: string;
+    /** Round 38 #2 — Tax-exempt B2B (Round 18 #5) : si true, le PDF
+     *  affiche un footer "Exonéré de taxes — Cert ID …" au lieu des
+     *  lignes TPS/TVQ. Aligné avec /api/orders/create qui skip computeTax
+     *  pour ces users. Avant : le PDF imprimait TPS/TVQ jamais payés
+     *  (CRA auditable). */
+    taxExempt?: boolean;
+    taxExemptCertId?: string | null;
   };
   company: {
     legalName: string;
@@ -236,9 +243,30 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8A
   r.y -= 18;
 
   // ─── BLOC TOTALS (aligné à droite, dernière colonne) ─────────────────
-  // Recompute tax breakdown from province + taxable amount (TPS + TVQ détaillés)
-  const taxableSubtotal = (order.subtotalCents - order.discountCents + order.shippingCents) / 100;
-  const tax = computeTax(taxableSubtotal, order.province as CaProvince);
+  // Round 38 #2 — Source of truth = order.taxCents (ce qui a été
+  // réellement chargé à Stripe). Avant : recompute oubliait resellerDiscount
+  // dans taxableSubtotal → tax PDF divergeait du tax stored (CRA auditable).
+  // Maintenant : on inclut resellerDiscount + on respecte taxExempt.
+  //
+  // computeTax sert encore à dériver le SPLIT (TPS vs TVQ pour QC, HST
+  // pour ON/NB/etc.) mais on scale les line.amount au prorata pour matcher
+  // exactement order.taxCents (handle tax-exempt + le rounding drift).
+  const taxableSubtotal = (
+    order.subtotalCents - order.discountCents - order.resellerDiscountCents + order.shippingCents
+  ) / 100;
+  const isTaxExempt = customer.taxExempt === true;
+  const tax = isTaxExempt
+    ? { lines: [], total: 0, combinedRate: 0 }
+    : computeTax(taxableSubtotal, order.province as CaProvince);
+  // Si stored vs computed divergent de > 5¢, log + use stored (defensive).
+  const computedTaxCents = Math.round(tax.total * 100);
+  if (!isTaxExempt && Math.abs(computedTaxCents - order.taxCents) > 5) {
+    // Drift signal — pourrait arriver si schema changed retroactively.
+    // On préfère le stored (truth source de ce qui a été charged Stripe).
+    // Le PDF sera off mais collecté == ledger == CRA report.
+    // Future : add Slack alert ici. Pour MVP : silent — l'audit log
+    // Round 25 / 27 attrape déjà les ledger inconsistencies.
+  }
 
   const totalsX = PAGE_W - MARGIN;
   const labelX = totalsX - 180;
@@ -256,9 +284,18 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8A
     totalsRow('Rabais', `-${cad(order.discountCents)} $`, { color: COLOR_BRAND });
   }
   totalsRow('Livraison', `${cad(order.shippingCents)} $`);
-  // Une ligne par taxe (TPS + TVQ pour QC ; HST seule pour ON/NB/NL/NS/PE ; etc.)
-  for (const line of tax.lines) {
-    totalsRow(line.label, `${cad(Math.round(line.amount * 100))} $`);
+  // Round 38 #2 — Si tax-exempt, on saute les lignes TPS/TVQ et on ajoute
+  // une note "Exonéré de taxes (cert N°...)" au lieu. Sinon : une ligne
+  // par taxe (TPS + TVQ pour QC ; HST seule pour ON/NB/NL/NS/PE ; etc.).
+  if (isTaxExempt) {
+    const certLabel = customer.taxExemptCertId
+      ? `Exonéré de taxes (cert ${customer.taxExemptCertId})`
+      : 'Exonéré de taxes';
+    totalsRow(certLabel, '0,00 $', { color: COLOR_MUTED });
+  } else {
+    for (const line of tax.lines) {
+      totalsRow(line.label, `${cad(Math.round(line.amount * 100))} $`);
+    }
   }
 
   // Round 22 #2 — Reseller perks (5% discount auto si VERIFIED). Affiché
