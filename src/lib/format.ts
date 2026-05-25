@@ -36,6 +36,19 @@ export function formatCurrency(amount: number, locale: Locale = 'fr-CA'): string
   return cadFormatters[locale].format(amount);
 }
 
+/**
+ * Round 37 #5 — formatCents : variant accept cents (Int) au lieu de dollars.
+ * Avant ce helper : 48+ sites faisaient `${(cents/100).toFixed(2)} $` inline,
+ * bypassant formatCurrency → incohérence locale ("," vs "." selon le navigateur).
+ *
+ * Usage :
+ *   formatCents(1234)       // "12,34 $" (fr-CA)
+ *   formatCents(1234, 'en-CA') // "$12.34"
+ */
+export function formatCents(cents: number, locale: Locale = 'fr-CA'): string {
+  return cadFormatters[locale].format(cents / 100);
+}
+
 export function formatNumber(n: number, locale: Locale = 'fr-CA'): string {
   return numberFormatters[locale].format(n);
 }
