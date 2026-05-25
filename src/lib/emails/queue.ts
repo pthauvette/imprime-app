@@ -37,8 +37,24 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
  * (le user veut les confirmations de paiement même s'il a unsubscribé
  * de la newsletter).
  */
+/**
+ * Round 37 #3 — `admin-custom-message` retiré du set marketing.
+ *
+ * Avant : ce template était dans MARKETING_TEMPLATES → recevait l'unsub
+ * header. Mais il est used pour à la fois :
+ *   - Marketing : admin broadcast, admin reply to customer 1:1
+ *   - Transactional : wallet expiry warning, weekly digest, contact
+ *     ack, quote reply, samples ack, reseller-apply
+ *
+ * Conséquence : user qui clique "unsubscribe" sur un wallet expiry
+ * warning (transactional !) perdait TOUTES les futures wallet expiry
+ * warnings → silent loss de feature critique.
+ *
+ * Maintenant : default = pas d'unsub header. Les callers vraiment
+ * marketing doivent passer `marketingUnsubscribe: true` dans
+ * QueueEmailInput pour opt-in explicitement.
+ */
 const MARKETING_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
-  'admin-custom-message',
   'reengagement-follow-up',
   'reengagement-winback',
   'reseller-monthly-stats',
@@ -74,6 +90,50 @@ export interface QueueEmailInput {
 
 const BACKOFF_MINUTES = [5, 15]; // 1er retry +5min, 2e +15min
 
+/**
+ * Round 37 #3 — Cap email frequency par user pour CASL compliance.
+ *
+ * Sans cap, un user pourrait recevoir 5+ emails/jour facilement (cart
+ * recovery + NPS + reseller stats + broadcast + weekly digest + ...).
+ * CASL au Canada interdit le spam — fines jusqu'à $10M/offence.
+ *
+ * Stratégie : check rolling 24h, max DAILY_EMAIL_CAP par email address.
+ * Si dépassé, skip avec status='SKIPPED_THROTTLED' (audit trail).
+ * Les transactional templates (order-confirmation, magic-link, payment-failed,
+ * refund-issued) bypassent le cap — ce sont des emails attendus.
+ */
+const DAILY_EMAIL_CAP = 5;
+const THROTTLE_WINDOW_MS = 24 * 3600 * 1000;
+
+const THROTTLE_EXEMPT_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
+  'order-confirmation',
+  'order-shipped',
+  'order-delivered',
+  'order-cancelled',
+  'payment-failed',
+  'refund-issued',
+  'magic-link',
+  'welcome',
+]);
+
+/**
+ * Returns true si l'user a dépassé sa quote daily (et l'email doit être skipped).
+ * Exempte les templates transactional listés.
+ */
+async function isUserThrottled(to: string, template: EmailTemplate): Promise<boolean> {
+  if (THROTTLE_EXEMPT_TEMPLATES.has(template)) return false;
+  const since = new Date(Date.now() - THROTTLE_WINDOW_MS);
+  const recent = await prisma.emailDelivery.count({
+    where: {
+      to: to.toLowerCase(),
+      createdAt: { gte: since },
+      // Compte seulement les SENT ou en cours — les SKIPPED ne consomment pas
+      status: { in: ['SENT', 'PENDING', 'PROCESSING', 'FAILED'] },
+    },
+  });
+  return recent >= DAILY_EMAIL_CAP;
+}
+
 function nextRetryAt(attempts: number): Date | null {
   // attempts 1 = next +5min, attempts 2 = next +15min, attempts 3 = DEAD
   const minutesIdx = attempts - 1;
@@ -93,7 +153,24 @@ function nextRetryAt(attempts: number): Date | null {
 export async function queueEmail(input: QueueEmailInput): Promise<{
   sent: boolean;
   id: string;
+  skipped?: 'throttled';
 }> {
+  // Round 37 #3 — Throttle check : skip si user dépasse DAILY_EMAIL_CAP
+  // dans les 24h rolling. Templates transactional exemptés.
+  // Best-effort : si la query throttle fail (DB), on log et on continue
+  // (mieux envoyer 6 emails que zéro si DB blip).
+  try {
+    if (await isUserThrottled(input.to, input.template)) {
+      logEmail.warn(
+        { to: input.to, template: input.template, label: input.label },
+        'email throttled (user has hit daily cap)',
+      );
+      return { sent: false, id: 'throttled', skipped: 'throttled' };
+    }
+  } catch (err) {
+    logEmail.warn({ err, to: input.to }, 'throttle check failed, continuing send');
+  }
+
   // 1. Create EmailDelivery row PENDING
   let delivery;
   try {
