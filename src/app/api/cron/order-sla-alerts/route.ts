@@ -31,6 +31,9 @@ export const dynamic = 'force-dynamic';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const SLA_HOURS = 48;
+/** Round 39 #5 — Re-alert window. Un order alerté il y a < 7j est skipped.
+ *  Après 7j sans résolution, on re-alerté (escalation pour les chroniques). */
+const REALERT_AFTER_DAYS = 7;
 
 export async function GET(req: NextRequest) {
   if (!CRON_SECRET) {
@@ -57,6 +60,7 @@ export async function GET(req: NextRequest) {
   const recipients = adminEmailsRaw.split(',').map((s) => s.trim()).filter(Boolean);
 
   const cutoff = new Date(Date.now() - SLA_HOURS * 3600 * 1000);
+  const realertCutoff = new Date(Date.now() - REALERT_AFTER_DAYS * 24 * 3600 * 1000);
 
   try {
     // Stuck orders : PAID ou SUBMITTED depuis > 48h sans avancer
@@ -65,10 +69,18 @@ export async function GET(req: NextRequest) {
     // mais c'est cher — on approxime via paidAt + 48h (acceptable car
     // la fenêtre PAID → SUBMITTED est généralement < 1h, donc si
     // paidAt > 48h ago et toujours SUBMITTED, c'est suspect).
+    //
+    // Round 39 #5 — Dedup: on n'inclut QUE les orders pas encore alertées
+    // (slaAlertedAt IS NULL) OU alertées il y a plus de 7j (re-escalation).
+    // Sinon, un order stuck 5j = 5 emails identiques admin → fatigue.
     const stuckOrders = await prisma.order.findMany({
       where: {
         status: { in: ['PAID', 'SUBMITTED'] },
         paidAt: { lt: cutoff },
+        OR: [
+          { slaAlertedAt: null },
+          { slaAlertedAt: { lt: realertCutoff } },
+        ],
       },
       select: {
         id: true,
@@ -80,6 +92,7 @@ export async function GET(req: NextRequest) {
         shipCity: true,
         shipProvince: true,
         productSummary: true,
+        slaAlertedAt: true,
         user: { select: { email: true } },
       },
       orderBy: { paidAt: 'asc' },
@@ -103,8 +116,13 @@ export async function GET(req: NextRequest) {
         const orderShort = o.id.slice(-6).toUpperCase();
         const userEmail = o.user?.email ?? 'guest';
         const ship = `${o.shipName}, ${o.shipCity} ${o.shipProvince}`;
+        // Round 39 #5 — flag les re-alerts pour que l'admin distingue le
+        // chronique (déjà alerté) du nouveau (1ère alerte).
+        const realertBadge = o.slaAlertedAt
+          ? `<span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;font-size:11px;margin-left:6px">↻ re-alert</span>`
+          : '';
         return `<tr>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee"><a href="https://plio.ca/admin/orders/${o.id}">${orderShort}</a></td>
+          <td style="padding:6px 10px;border-bottom:1px solid #eee"><a href="https://plio.ca/admin/orders/${o.id}">${orderShort}</a>${realertBadge}</td>
           <td style="padding:6px 10px;border-bottom:1px solid #eee">${o.status}</td>
           <td style="padding:6px 10px;border-bottom:1px solid #eee;color:${ageHrs > 96 ? '#dc2626' : '#D97706'};font-weight:600">${ageHrs}h</td>
           <td style="padding:6px 10px;border-bottom:1px solid #eee">${amount} ${o.currency}</td>
@@ -162,13 +180,29 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Round 39 #5 — Bump slaAlertedAt SEULEMENT si au moins 1 admin a reçu
+    // l'email. Si tout fail, on garde slaAlertedAt à son ancienne valeur
+    // → prochain cron retentera. Sinon, on dedup pour les 7j prochaines.
+    let dedupBumped = 0;
+    if (sent > 0) {
+      const alertedAtNow = new Date();
+      const ids = stuckOrders.map((o) => o.id);
+      const bumpRes = await prisma.order.updateMany({
+        where: { id: { in: ids } },
+        data: { slaAlertedAt: alertedAtNow },
+      });
+      dedupBumped = bumpRes.count;
+    }
+
     const result = {
       ok: true,
       latencyMs: Date.now() - start,
       stuckCount: stuckOrders.length,
       recipients: recipients.length,
       sent,
+      dedupBumped,
       cutoffHours: SLA_HOURS,
+      realertAfterDays: REALERT_AFTER_DAYS,
     };
     log.info(result, 'cron/order-sla-alerts ran');
     void pingCronHealthcheck('order-sla-alerts', 'success', { stuck: stuckOrders.length, sent });

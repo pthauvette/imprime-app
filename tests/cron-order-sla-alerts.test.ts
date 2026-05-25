@@ -14,7 +14,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/db', () => ({
   prisma: {
-    order: { findMany: vi.fn() },
+    order: {
+      findMany: vi.fn(),
+      // Round 39 #5 : bump slaAlertedAt après send réussi
+      updateMany: vi.fn(async () => ({ count: 0 })),
+    },
   },
 }));
 
@@ -48,6 +52,7 @@ beforeEach(() => {
     ADMIN_EMAILS: 'a1@plio.ca, a2@plio.ca',
   };
   vi.mocked(prisma.order.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 0 } as never);
   vi.mocked(sendAdminCustomMessageEmail).mockResolvedValue({ sent: true, id: 'em' } as never);
 });
 
@@ -68,7 +73,7 @@ describe('GET /api/cron/order-sla-alerts (Round 34)', () => {
     expect(sendAdminCustomMessageEmail).not.toHaveBeenCalled();
   });
 
-  it('where clause : status IN [PAID, SUBMITTED] + paidAt < cutoff(-48h)', async () => {
+  it('where clause : status IN [PAID, SUBMITTED] + paidAt < cutoff(-48h) + dedup OR', async () => {
     const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
     await GET(makeReq('Bearer test_secret') as never);
     const args = vi.mocked(prisma.order.findMany).mock.calls[0]![0];
@@ -79,6 +84,77 @@ describe('GET /api/cron/order-sla-alerts (Round 34)', () => {
     expect(paidAtLt).toBeInstanceOf(Date);
     const expectedCutoffMs = Date.now() - 48 * 3600 * 1000;
     expect(Math.abs(paidAtLt!.getTime() - expectedCutoffMs)).toBeLessThan(60_000);
+    // Round 39 #5 — dedup : OR [slaAlertedAt null, slaAlertedAt < now-7d]
+    const orClause = (args?.where as { OR?: unknown[] } | undefined)?.OR;
+    expect(orClause).toHaveLength(2);
+    expect(orClause).toEqual(
+      expect.arrayContaining([
+        { slaAlertedAt: null },
+        expect.objectContaining({ slaAlertedAt: expect.objectContaining({ lt: expect.any(Date) }) }),
+      ]),
+    );
+  });
+
+  it('Round 39 #5 : bump slaAlertedAt sur les orders alertés après send réussi', async () => {
+    const oldDate = new Date(Date.now() - 60 * 3600 * 1000);
+    vi.mocked(prisma.order.findMany).mockResolvedValue([
+      {
+        id: 'o_a', status: 'PAID', paidAt: oldDate, amountCents: 100, currency: 'cad',
+        shipName: 'A', shipCity: 'M', shipProvince: 'QC', productSummary: 'P',
+        slaAlertedAt: null, user: { email: 'u@plio.ca' },
+      },
+      {
+        id: 'o_b', status: 'PAID', paidAt: oldDate, amountCents: 200, currency: 'cad',
+        shipName: 'B', shipCity: 'M', shipProvince: 'QC', productSummary: 'P',
+        slaAlertedAt: null, user: { email: 'u@plio.ca' },
+      },
+    ] as never);
+    vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 2 } as never);
+
+    const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
+    const res = await GET(makeReq('Bearer test_secret') as never);
+    const json = await res.json();
+    expect(json.dedupBumped).toBe(2);
+    expect(prisma.order.updateMany).toHaveBeenCalledTimes(1);
+    const args = vi.mocked(prisma.order.updateMany).mock.calls[0]![0];
+    expect(args?.where).toEqual({ id: { in: ['o_a', 'o_b'] } });
+    expect((args?.data as { slaAlertedAt: Date }).slaAlertedAt).toBeInstanceOf(Date);
+  });
+
+  it('Round 39 #5 : NE bump PAS slaAlertedAt si tout les sends fail (retry next cron)', async () => {
+    const oldDate = new Date(Date.now() - 60 * 3600 * 1000);
+    vi.mocked(prisma.order.findMany).mockResolvedValue([
+      {
+        id: 'o_x', status: 'PAID', paidAt: oldDate, amountCents: 100, currency: 'cad',
+        shipName: 'X', shipCity: 'M', shipProvince: 'QC', productSummary: 'P',
+        slaAlertedAt: null, user: { email: 'u@plio.ca' },
+      },
+    ] as never);
+    vi.mocked(sendAdminCustomMessageEmail).mockRejectedValue(new Error('SES bounce'));
+
+    const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
+    const res = await GET(makeReq('Bearer test_secret') as never);
+    const json = await res.json();
+    expect(json.sent).toBe(0);
+    expect(json.dedupBumped).toBe(0);
+    expect(prisma.order.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('Round 39 #5 : flag "re-alert" dans le body pour les chroniques (slaAlertedAt set)', async () => {
+    const oldDate = new Date(Date.now() - 60 * 3600 * 1000);
+    const previouslyAlerted = new Date(Date.now() - 8 * 24 * 3600 * 1000);
+    vi.mocked(prisma.order.findMany).mockResolvedValue([
+      {
+        id: 'o_chronic', status: 'PAID', paidAt: oldDate, amountCents: 100, currency: 'cad',
+        shipName: 'X', shipCity: 'M', shipProvince: 'QC', productSummary: 'P',
+        slaAlertedAt: previouslyAlerted, user: { email: 'u@plio.ca' },
+      },
+    ] as never);
+
+    const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
+    await GET(makeReq('Bearer test_secret') as never);
+    const firstCall = vi.mocked(sendAdminCustomMessageEmail).mock.calls[0]![0];
+    expect(firstCall.vars.BODY_HTML).toMatch(/re-alert/i);
   });
 
   it('200 + zéro stuck → skip email + ping healthcheck OK', async () => {

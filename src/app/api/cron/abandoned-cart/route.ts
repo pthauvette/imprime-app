@@ -65,13 +65,32 @@ export async function GET(req: NextRequest) {
     });
 
     for (const cart of candidates) {
-      // Skip si lastStep=review (95 % conversion)
+      // Round 39 #5 — Atomic claim AVANT le travail (skip si déjà claimé
+      // par un autre cron run concurrent ou pas concurrent mais re-tried).
+      // Sans ce claim, 2 instances cron concurrentes pouvaient findMany
+      // les mêmes carts (entre le findMany et l'update) → double email
+      // au customer (spam + abus CASL). updateMany retourne le count des
+      // rows updated. count === 0 = quelqu'un d'autre a claimé → skip.
+      const claim = await prisma.abandonedCart.updateMany({
+        where: { id: cart.id, emailSentAt: null },
+        data: { emailSentAt: new Date() },
+      });
+      if (claim.count === 0) {
+        // Race perdue — un autre cron run vient juste de claim ce cart.
+        // PAS un échec, juste un no-op sain.
+        log.info({ cartId: cart.id }, 'abandoned-cart: claim lost (concurrent cron run)');
+        continue;
+      }
+
+      // Skip si lastStep=review (95 % conversion).
+      // Note: on a déjà claimé (emailSentAt set), donc on ne re-checke plus
+      // ce cart aux prochains runs. C'est OK — review = ne pas envoyer.
       if (cart.lastStep === 'review') {
         skippedReview++;
         continue;
       }
       // Skip si une Order existe pour cet email après updatedAt = user a
-      // fini autrement.
+      // fini autrement. emailSentAt déjà set par le claim atomique.
       const subsequentOrder = await prisma.order.findFirst({
         where: {
           user: { email: cart.email },
@@ -81,11 +100,6 @@ export async function GET(req: NextRequest) {
       });
       if (subsequentOrder) {
         skippedConverted++;
-        // Marque emailSentAt quand même pour ne plus re-checker
-        await prisma.abandonedCart.update({
-          where: { id: cart.id },
-          data: { emailSentAt: new Date() },
-        });
         continue;
       }
 
@@ -128,15 +142,29 @@ export async function GET(req: NextRequest) {
         });
         if (result.sent) {
           sent++;
+          // emailSentAt déjà set par le claim atomique — rien à update.
+        } else {
+          // Round 39 #5 — Send fail : reset le claim pour que le prochain
+          // run cron retente. Trade-off : tiny race possible si un autre
+          // cron run est déjà in-flight, mais cron hourly + send fail rare
+          // → préfère 1 retry possible que 1 silent loss définitif.
           await prisma.abandonedCart.update({
             where: { id: cart.id },
-            data: { emailSentAt: new Date() },
+            data: { emailSentAt: null },
           });
-        } else {
           failed++;
         }
       } catch (err) {
         log.error({ err, cartId: cart.id }, 'abandoned-cart email send failed');
+        // Même reset on exception (timeout SES, etc.) pour permettre retry.
+        await prisma.abandonedCart.update({
+          where: { id: cart.id },
+          data: { emailSentAt: null },
+        }).catch(() => {
+          // Si la reset elle-même fail, log et passe — cart sera
+          // claim-stuck mais c'est mieux que double email.
+          log.error({ cartId: cart.id }, 'abandoned-cart: claim reset also failed');
+        });
         failed++;
       }
     }

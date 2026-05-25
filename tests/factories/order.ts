@@ -54,6 +54,8 @@ export const DEFAULT_TEST_ORDER: Order = {
   shippingNote: null,
   // Round 27 #1 — abandoned-cart recovery FK (default null = organic order)
   recoveredFromCartId: null,
+  // Round 39 #5 — Dedup pour order-sla-alerts cron (default null = pas alerté)
+  slaAlertedAt: null,
   createdAt: new Date('2026-01-01T11:00:00.000Z'),
   updatedAt: new Date('2026-01-01T12:00:00.000Z'),
 };
