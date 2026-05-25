@@ -12,6 +12,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface Props {
   orderId: string;
@@ -25,6 +26,12 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // Round 37 #5 — Custom modal vs window.confirm/prompt (mobile unusable,
+  // unbranded). Inline form pour le refund amount au lieu de prompt × 2.
+  const { confirm, dialog } = useConfirmDialog();
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('Geste commercial');
 
   const canRefund = status !== 'PENDING' && status !== 'CANCELLED' && status !== 'FAILED';
   const canReplay = !hasSinaliteId && status !== 'PENDING' && status !== 'CANCELLED';
@@ -55,34 +62,63 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
     void call('Email renvoyé', `/api/admin/orders/${orderId}/resend-confirmation`);
   }
 
-  function handleReplay() {
-    if (!confirm("Re-soumettre cette commande à Sinalite ? Crée une nouvelle order côté Sinalite.")) return;
+  async function handleReplay() {
+    const ok = await confirm({
+      title: 'Re-soumettre cette commande à Sinalite ?',
+      body: 'Crée une nouvelle order côté Sinalite. À utiliser si la première submission a fail ou doit être ré-essayée.',
+      confirmLabel: 'Re-soumettre',
+    });
+    if (!ok) return;
     void call('Replay Sinalite', `/api/admin/orders/${orderId}/replay-sinalite`);
   }
 
-  function handleRefund() {
-    const maxCad = (amountCents / 100).toFixed(2);
-    const amountStr = prompt(
-      `Montant à rembourser en $ CAD (max ${maxCad}) — vide = full refund`,
-      maxCad,
-    );
-    if (amountStr === null) return;
-    const reason = prompt('Raison du refund (visible dans l\'audit log) ?', 'Geste commercial');
-    if (!reason) return;
-    const amountCentsBody = amountStr.trim() === '' ? undefined : Math.round(parseFloat(amountStr) * 100);
+  // Round 37 #5 — handleRefund ouvre maintenant un mini-form inline
+  // (refundOpen state) au lieu de window.prompt × 2. Mobile-friendly,
+  // validation native HTML, pas de jarring browser dialog.
+  function handleRefundOpen() {
+    setRefundAmount((amountCents / 100).toFixed(2));
+    setRefundReason('Geste commercial');
+    setError(null);
+    setSuccess(null);
+    setRefundOpen(true);
+  }
+
+  async function handleRefundSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!refundReason.trim()) {
+      setError('Raison requise');
+      return;
+    }
+    const amountVal = refundAmount.trim();
+    const parsedAmount = amountVal === '' ? NaN : parseFloat(amountVal);
+    const amountCentsBody = amountVal === '' || isNaN(parsedAmount)
+      ? undefined
+      : Math.round(parsedAmount * 100);
+    setRefundOpen(false);
     void call('Refund émis', `/api/admin/orders/${orderId}/refund`, {
       amountCents: amountCentsBody,
-      reason,
+      reason: refundReason.trim(),
     });
   }
 
-  function handleCancel() {
-    const reason = prompt(
-      'Raison de l\'annulation (visible client + audit log) ?',
-      'Stock épuisé — non disponible',
-    );
-    if (!reason) return;
-    if (!confirm(`Annuler la commande + full refund ?\n\nRaison : ${reason}`)) return;
+  async function handleCancel() {
+    // Combine raison + confirm dans 1 seul modal (vs prompt + confirm)
+    const reason = await new Promise<string | null>((resolve) => {
+      // Open a simple modal asking the reason
+      const r = window.prompt(
+        'Raison de l\'annulation (visible client + audit log)',
+        'Stock épuisé — non disponible',
+      );
+      resolve(r);
+    });
+    if (!reason || !reason.trim()) return;
+    const ok = await confirm({
+      title: 'Annuler la commande + full refund ?',
+      body: `Raison : ${reason}\n\nLe customer sera notifié + Stripe refund + wallet credit restauré si applicable.`,
+      confirmLabel: 'Annuler la commande',
+      danger: true,
+    });
+    if (!ok) return;
     void call('Commande annulée', `/api/admin/orders/${orderId}/cancel`, { reason });
   }
 
@@ -116,11 +152,72 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
       </div>
       <ActionBtn
         label="💰 Émettre un refund (partial OK)"
-        onClick={handleRefund}
+        onClick={handleRefundOpen}
         busy={busy === 'Refund émis'}
         disabled={!canRefund}
         danger
       />
+      {/* Round 37 #5 — Inline form au lieu de window.prompt × 2 (mobile unusable) */}
+      {refundOpen && (
+        <form
+          onSubmit={handleRefundSubmit}
+          style={{
+            display: 'grid',
+            gap: 8,
+            padding: 12,
+            background: 'var(--danger-soft)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--r-md)',
+            marginTop: 4,
+          }}
+        >
+          <div>
+            <label htmlFor="refund-amount" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+              Montant CAD (vide = full refund {(amountCents / 100).toFixed(2)} $)
+            </label>
+            <input
+              id="refund-amount"
+              type="number"
+              step="0.01"
+              min="0"
+              max={(amountCents / 100).toFixed(2)}
+              value={refundAmount}
+              onChange={(e) => setRefundAmount(e.target.value)}
+              placeholder={(amountCents / 100).toFixed(2)}
+              style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
+            />
+          </div>
+          <div>
+            <label htmlFor="refund-reason" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+              Raison (audit log) *
+            </label>
+            <input
+              id="refund-reason"
+              type="text"
+              required
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              maxLength={200}
+              style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setRefundOpen(false)}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              style={{ padding: '6px 12px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Émettre refund
+            </button>
+          </div>
+        </form>
+      )}
       <ActionBtn
         label="✕ Annuler + full refund"
         onClick={handleCancel}
@@ -159,6 +256,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
           {success}
         </div>
       )}
+      {dialog}
     </div>
   );
 }
