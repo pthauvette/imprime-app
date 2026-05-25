@@ -32,6 +32,9 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('Geste commercial');
+  // Round 40 #5 — Cancel reason inline form (était window.prompt).
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('Stock épuisé — non disponible');
 
   const canRefund = status !== 'PENDING' && status !== 'CANCELLED' && status !== 'FAILED';
   const canReplay = !hasSinaliteId && status !== 'PENDING' && status !== 'CANCELLED';
@@ -101,17 +104,25 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
     });
   }
 
-  async function handleCancel() {
-    // Combine raison + confirm dans 1 seul modal (vs prompt + confirm)
-    const reason = await new Promise<string | null>((resolve) => {
-      // Open a simple modal asking the reason
-      const r = window.prompt(
-        'Raison de l\'annulation (visible client + audit log)',
-        'Stock épuisé — non disponible',
-      );
-      resolve(r);
-    });
-    if (!reason || !reason.trim()) return;
+  // Round 40 #5 — Cancel reason via inline form (matches refund pattern).
+  // Avant : window.prompt mobile-unusable (truncated text, ~25 char visible,
+  // no multiline, no styled keyboard). L'audit l'avait flaggé P1 mobile.
+  function handleCancelOpen() {
+    setCancelReason('Stock épuisé — non disponible');
+    setError(null);
+    setSuccess(null);
+    setCancelOpen(true);
+  }
+
+  async function handleCancelSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setError('Raison requise');
+      return;
+    }
+    setCancelOpen(false);
+    // Garde la confirm modal pour le double-check destructif (mobile-OK).
     const ok = await confirm({
       title: 'Annuler la commande + full refund ?',
       body: `Raison : ${reason}\n\nLe customer sera notifié + Stripe refund + wallet credit restauré si applicable.`,
@@ -220,11 +231,64 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
       )}
       <ActionBtn
         label="✕ Annuler + full refund"
-        onClick={handleCancel}
+        onClick={handleCancelOpen}
         busy={busy === 'Commande annulée'}
         disabled={!canCancel}
         danger
       />
+      {/* Round 40 #5 — Inline cancel-reason form (was window.prompt mobile-unusable) */}
+      {cancelOpen && (
+        <form
+          onSubmit={handleCancelSubmit}
+          style={{
+            display: 'grid',
+            gap: 8,
+            padding: 12,
+            background: 'var(--danger-soft)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--r-md)',
+            marginTop: 4,
+          }}
+        >
+          <div>
+            <label htmlFor="cancel-reason" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+              Raison de l&apos;annulation (visible client + audit log) *
+            </label>
+            <textarea
+              id="cancel-reason"
+              required
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--r-sm)',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setCancelOpen(false)}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
+            >
+              Garder
+            </button>
+            <button
+              type="submit"
+              style={{ padding: '6px 12px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Continuer
+            </button>
+          </div>
+        </form>
+      )}
 
       {error && (
         <div
