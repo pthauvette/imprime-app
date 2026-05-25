@@ -13,6 +13,8 @@ import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import ConfigureClient from '@/components/wizard/ConfigureClient';
 import type { SinaliteOption } from '@/lib/sinalite/types';
 import JsonLd, { breadcrumbSchema, productSchema } from '@/components/seo/JsonLd';
+import { logSinalite } from '@/lib/logger';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 export const metadata = { title: "Configure ta commande" };
 export const dynamic = 'force-dynamic';
@@ -40,8 +42,34 @@ export default async function ConfigurePage({
       sinalite.getProductDetail(productId),
       getEnrichedVariantIndex(productId),
     ]);
-  } catch {
-    notFound();
+  } catch (err) {
+    // Round 37 #2 — Avant : `catch { notFound() }` silencieux masquait
+    // les vrais errors (timeout Sinalite, auth fail) en "Page not found".
+    // Customer abandonnait, admin n'avait aucune visibilité.
+    //
+    // Maintenant : on log + alert Slack (throttled par les helpers downstream)
+    // puis re-throw. error.tsx render proper "service temporairement
+    // indisponible" et customer comprend que ce n'est pas une URL invalide.
+    //
+    // Edge case : si le productId est vraiment invalide (404 Sinalite legit
+    // pour ce specific ID), le err.statusCode === 404 — on retombe à
+    // notFound() dans ce cas-là uniquement.
+    const isNotFound = err instanceof Error &&
+      'statusCode' in err && (err as { statusCode?: number }).statusCode === 404;
+    if (isNotFound) {
+      notFound();
+    }
+    logSinalite.error(
+      { err, productId },
+      'sinalite fetch failed on /order/configure — render error.tsx',
+    );
+    void sendCriticalAlert({
+      severity: 'warning',
+      title: 'Sinalite fetch failed on /order/configure',
+      body: `Product ${productId} fetch failed. Customer redirected to error page. Investigue.`,
+      context: { productId, error: err instanceof Error ? err.message : 'unknown' },
+    });
+    throw err; // → error.tsx (Next.js boundary)
   }
 
   // Serialize variant index Map → Record for client serialization. Prix

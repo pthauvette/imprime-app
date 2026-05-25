@@ -15,6 +15,8 @@ import { sinalite } from '@/lib/sinalite/client';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import QuantityClient from '@/components/wizard/QuantityClient';
 import type { SinaliteOption } from '@/lib/sinalite/types';
+import { logSinalite } from '@/lib/logger';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 export const metadata = { title: "Combien d'unités ?" };
 export const dynamic = 'force-dynamic';
@@ -46,8 +48,27 @@ export default async function QuantityPage({
       sinalite.getProductDetail(productId),
       getEnrichedVariantIndex(productId),
     ]);
-  } catch {
-    notFound();
+  } catch (err) {
+    // Round 37 #2 — Avant : silent notFound() masquait les Sinalite errors
+    // (timeout, auth fail). Customer abandonnait, admin invisible.
+    // Maintenant : 404 réel pour productId invalide, error.tsx + Slack
+    // pour les vrais errors.
+    const isNotFound = err instanceof Error &&
+      'statusCode' in err && (err as { statusCode?: number }).statusCode === 404;
+    if (isNotFound) {
+      notFound();
+    }
+    logSinalite.error(
+      { err, productId },
+      'sinalite fetch failed on /order/quantity — render error.tsx',
+    );
+    void sendCriticalAlert({
+      severity: 'warning',
+      title: 'Sinalite fetch failed on /order/quantity',
+      body: `Product ${productId} fetch failed. Customer redirected to error page.`,
+      context: { productId, error: err instanceof Error ? err.message : 'unknown' },
+    });
+    throw err;
   }
   const variantIndexMap = enrichedIndex.index;
   const hiddenOptionIds = enrichedIndex.hiddenOptionIds;

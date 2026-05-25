@@ -92,6 +92,10 @@ async function getToken(): Promise<string> {
       grant_type: 'client_credentials',
     }),
     cache: 'no-store',
+    // Round 37 #2 — Sans timeout, si l'endpoint Auth0 hang, tous les
+    // requests Sinalite (qui appellent getToken d'abord) hangent aussi.
+    // 10s couvre les pires latences observées + buffer.
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) {
@@ -158,6 +162,13 @@ async function request<T>(
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
     },
     cache: 'no-store',
+    // Round 37 #2 — Sans timeout, si Sinalite hang (rare mais arrivé en
+    // prod), le request handler Next.js hang aussi → Lambda timeout 60s
+    // par défaut → customer voit spinner → cart abandonné. 15s couvre
+    // largement les pires queries (order/new avec gros payload).
+    // Si l'init.signal est déjà set par le caller, on respecte (signal de
+    // priorité). Sinon on impose le default.
+    signal: init.signal ?? AbortSignal.timeout(15_000),
   });
 
   if (!res.ok) {
