@@ -28,6 +28,10 @@ export default function FavoriteActions({ id, name, folder, tags, existingFolder
   const [editing, setEditing] = useState(false);
   const [folderInput, setFolderInput] = useState(folder ?? '');
   const [tagsInput, setTagsInput] = useState(tags ?? '');
+  // Round 41 #2 — Inline rename form (était window.prompt). Customer-facing,
+  // donc mobile-critique. iOS prompt tronqué + no autofocus = friction.
+  const [renaming, setRenaming] = useState(false);
+  const [renameInput, setRenameInput] = useState(name);
 
   async function use() {
     setError(null);
@@ -43,16 +47,27 @@ export default function FavoriteActions({ id, name, folder, tags, existingFolder
     });
   }
 
-  async function rename() {
-    const next = window.prompt('Nouveau nom :', name);
-    if (!next || next.trim() === name) return;
+  function openRename() {
+    setRenameInput(name);
     setError(null);
+    setRenaming(true);
+  }
+
+  async function submitRename(e: React.FormEvent) {
+    e.preventDefault();
+    const next = renameInput.trim();
+    if (!next || next === name) {
+      setRenaming(false);
+      return;
+    }
+    setError(null);
+    setRenaming(false);
     startTransition(async () => {
       try {
         const res = await fetch(`/api/saved-configs/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: next.trim() }),
+          body: JSON.stringify({ name: next }),
         });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
@@ -144,6 +159,37 @@ export default function FavoriteActions({ id, name, folder, tags, existingFolder
     );
   }
 
+  // Round 41 #2 — Rename mode (était window.prompt mobile-unusable).
+  if (renaming) {
+    return (
+      <form onSubmit={submitRename} style={{ display: 'grid', gap: 8, minWidth: 240 }}>
+        <label htmlFor={`favorite-rename-${id}`} style={{ fontSize: 11, fontWeight: 600 }}>
+          Nouveau nom
+        </label>
+        <input
+          id={`favorite-rename-${id}`}
+          type="text"
+          value={renameInput}
+          onChange={(e) => setRenameInput(e.target.value)}
+          maxLength={100}
+          autoFocus
+          required
+          style={{ padding: '8px 10px', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 13, background: 'var(--bg-canvas)', color: 'var(--text-primary)' }}
+          disabled={busy}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={busy} style={{ flex: 1 }}>
+            {busy ? '…' : 'Renommer'}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRenaming(false)} disabled={busy}>
+            Annuler
+          </button>
+        </div>
+        {error && <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>}
+      </form>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       <button type="button" className="btn btn-primary btn-sm" onClick={use} disabled={busy} style={{ opacity: busy ? 0.5 : 1 }}>
@@ -152,7 +198,7 @@ export default function FavoriteActions({ id, name, folder, tags, existingFolder
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)} disabled={busy} title="Organiser (dossier + tags)">
         📁
       </button>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={rename} disabled={busy} title="Renommer">
+      <button type="button" className="btn btn-ghost btn-sm" onClick={openRename} disabled={busy} title="Renommer">
         Renommer
       </button>
       <button type="button" className="btn btn-ghost btn-sm" onClick={remove} disabled={busy} title="Supprimer" style={{ color: 'var(--danger)' }}>
