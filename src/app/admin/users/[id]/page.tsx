@@ -20,19 +20,11 @@ import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { classifyCustomer, rfmSummary } from '@/lib/customers/segment';
 import { TIER_LABELS, type LoyaltyTier } from '@/lib/customers/loyalty';
+// Round 38 #1 — Source canonique (Round 37 #5 extract). Avant : local
+// utilisait "Production" au lieu de "En production" — divergence corrigée.
+import { STATUS_LABELS } from '@/lib/orders/status-labels';
 
 export const dynamic = 'force-dynamic';
-
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING: 'En attente',
-  PAID: 'Payée',
-  SUBMITTED: 'Soumise',
-  IN_PRODUCTION: 'Production',
-  SHIPPED: 'Expédiée',
-  DELIVERED: 'Livrée',
-  CANCELLED: 'Annulée',
-  FAILED: 'Échec',
-};
 
 const STATUS_CLASS: Record<OrderStatus, string> = {
   PENDING: 'submitted',

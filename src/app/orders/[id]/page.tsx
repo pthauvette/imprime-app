@@ -25,6 +25,8 @@ import { recordAdminAudit } from '@/lib/db/admin-audit';
 import type { OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
+// Round 38 #1 — Source canonique (Round 37 #5 extract)
+import { STATUS_LABELS } from '@/lib/orders/status-labels';
 import {
   buildOrderTimeline,
   computeOrderEta,
@@ -39,16 +41,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `Commande ${id.slice(-6).toUpperCase()} — Plio` };
 }
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING: 'En attente',
-  PAID: 'Payée',
-  SUBMITTED: 'Soumise',
-  IN_PRODUCTION: 'En production',
-  SHIPPED: 'Expédiée',
-  DELIVERED: 'Livrée',
-  CANCELLED: 'Annulée',
-  FAILED: 'Échec',
-};
 
 const STATUS_CLASS: Record<OrderStatus, string> = {
   PENDING: 'status-new',

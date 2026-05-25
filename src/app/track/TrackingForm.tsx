@@ -17,6 +17,8 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
+// Round 38 #1 — Source canonique (Round 37 #5 extract)
+import { statusLabel } from '@/lib/orders/status-labels';
 
 interface TimelineStep {
   label: string;
@@ -41,17 +43,6 @@ interface OrderResult {
   tracking: TrackingInfo | null;
   eta: { day: string; relative: string } | null;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'En attente',
-  PAID: 'Payée',
-  SUBMITTED: 'Soumise à la presse',
-  IN_PRODUCTION: 'En production',
-  SHIPPED: 'Expédiée',
-  DELIVERED: 'Livrée',
-  CANCELLED: 'Annulée',
-  FAILED: 'Échec',
-};
 
 export default function TrackingForm() {
   const searchParams = useSearchParams();
@@ -222,7 +213,7 @@ export default function TrackingForm() {
 }
 
 function TrackResult({ order }: { order: OrderResult }) {
-  const statusLabel = STATUS_LABELS[order.status] ?? order.status;
+  const statusLabelText = statusLabel(order.status);
 
   return (
     <div
@@ -277,7 +268,7 @@ function TrackResult({ order }: { order: OrderResult }) {
             letterSpacing: '0.02em',
           }}
         >
-          {statusLabel}
+          {statusLabelText}
         </span>
       </div>
 

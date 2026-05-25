@@ -13,6 +13,7 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import { auth } from '@/auth';
+import { statusLabel } from '@/lib/orders/status-labels';
 import { prisma } from '@/lib/db';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -20,15 +21,10 @@ export const metadata = { title: 'Paiements — Plio' };
 
 export const dynamic = 'force-dynamic';
 
-const STATUS_LABELS: Record<string, string> = {
-  PAID: 'Payée',
-  SUBMITTED: 'Envoyée',
-  IN_PRODUCTION: 'En production',
-  SHIPPED: 'Expédiée',
-  DELIVERED: 'Livrée',
-  CANCELLED: 'Annulée',
-  FAILED: 'Échouée',
-};
+// Round 38 #1 — Migré vers la source canonique (Round 37 #5 extract).
+// Avant : local dupliquait avec divergence ("Envoyée" vs "Soumise" pour
+// SUBMITTED, "Échouée" vs "Échec" pour FAILED). Tous les UI Plio
+// affichent désormais le même libellé pour le même status.
 
 export default async function PaymentsPage() {
   const session = await auth();
@@ -106,7 +102,7 @@ export default async function PaymentsPage() {
                         {p.productSummary ? ` — ${p.productSummary}` : ''}
                       </div>
                       <div className="tx-meta">
-                        {STATUS_LABELS[p.status] ?? p.status}
+                        {statusLabel(p.status)}
                       </div>
                     </div>
                     <div className="tx-date">

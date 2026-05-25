@@ -19,6 +19,8 @@ import SendCustomMessageButton from '@/components/admin/SendCustomMessageButton'
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
+// Round 38 #1 — Source canonique (Round 37 #5 extract)
+import { STATUS_LABELS } from '@/lib/orders/status-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,16 +29,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `Admin — Commande ${id.slice(-6).toUpperCase()}` };
 }
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING: 'En attente paiement',
-  PAID: 'Payée',
-  SUBMITTED: 'Soumise',
-  IN_PRODUCTION: 'En production',
-  SHIPPED: 'Expédiée',
-  DELIVERED: 'Livrée',
-  CANCELLED: 'Annulée',
-  FAILED: 'Échec',
-};
+// Note Round 38 #1 — STATUS_LABELS now imported above. L'ancien
+// "En attente paiement" est devenu "En attente" (canonical).
 
 const STATUS_CLASS: Record<OrderStatus, string> = {
   PENDING: 'submitted',
