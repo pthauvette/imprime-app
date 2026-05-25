@@ -184,7 +184,8 @@ function ShippingPageInner() {
       </header>
 
       <main className="step-layout">
-        <div className="step-content" style={{ padding: '56px 80px', maxWidth: 880 }}>
+        {/* Round 40 #2 — padding via .step-content CSS so mobile @media wins */}
+        <div className="step-content" style={{ maxWidth: 880 }}>
           <div className="step-eyebrow">Étape 06</div>
           <h1 className="step-question">On l'envoie <em>où ?</em></h1>
           <p className="step-lede">
@@ -192,12 +193,13 @@ function ShippingPageInner() {
           </p>
 
           <Section roman="I." title="Contact">
+            {/* Round 40 #2 — auto-fit columns stack to 1-col under 400px (was forced 2-col) */}
             <div style={{ display: 'grid', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                 <Field label="Prénom" value={firstName} onChange={setFirstName} />
                 <Field label="Nom" value={lastName} onChange={setLastName} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                 <Field label="Email" value={email} onChange={setEmail} type="email" />
                 <Field label="Téléphone" value={phone} onChange={setPhone} type="tel" />
               </div>

@@ -209,15 +209,10 @@ export default async function AdminTemplateEditorPage({
           </div>
         </div>
 
-        {/* ─── 3-col layout : Champs / Aperçu / Métadonnées ──────── */}
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '280px 1fr 320px',
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
+        {/* ─── 3-col layout : Champs / Aperçu / Métadonnées ─────────
+             Round 40 #2 — layout via .admin-3col-template-editor (migrated-pages.css);
+             collapses to 1-col at < 1100px (was 600px+ horizontal scroll on mobile). */}
+        <section className="admin-3col-template-editor" style={{ marginBottom: 24 }}>
           {/* LEFT : Champs */}
           <aside className="adm-panel" style={{ alignSelf: 'start' }}>
             <header className="adm-panel-header">

@@ -101,7 +101,8 @@ export default async function AdminOrderDetailPage({
         <div className="od-header" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
           <div className="od-header-left">
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
-              <span className="od-id-big" style={{ fontFamily: 'var(--font-display)', fontSize: 48, letterSpacing: '-0.02em', fontWeight: 400 }}>
+              {/* Round 40 #2 — fontSize moved to .od-id-big in migrated-pages.css (clamp 28-48) */}
+              <span className="od-id-big" style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', fontWeight: 400 }}>
                 {displayId}
               </span>
               <span className={`od-status-pill ord-status ${STATUS_CLASS[status]}`}>
@@ -117,7 +118,9 @@ export default async function AdminOrderDetailPage({
           </div>
         </div>
 
-        <div className="od-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, alignItems: 'start' }}>
+        {/* Round 40 #2 — layout via .od-grid CSS (globals.css line 6935+ has
+            @media max-width:1100px → 1-col); inline before was beating that. */}
+        <div className="od-grid">
 
           {/* ─── Left column ─── */}
           <div style={{ display: 'grid', gap: 24 }}>

@@ -235,7 +235,9 @@ export default function BroadcastComposer() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+    /* Round 40 #2 — layout via .admin-composer-preview-grid (migrated-pages.css);
+       collapses to 1-col at < 900px so each panel gets full width on mobile. */
+    <div className="admin-composer-preview-grid" style={{ alignItems: 'start' }}>
       <form
         onSubmit={handleSend}
         style={{
