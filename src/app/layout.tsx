@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import '@/styles/globals.css';
+// Round 40 #1 — migrated-pages.css contient les fixes mobile/responsive
+// ajoutés depuis Round 30 (mkt-nav reflow, .adm-main padding, .ord-pills wrap,
+// .od-grid mobile collapse, etc.). Avant ce import il était orphan : 196 KB
+// de CSS qui ne ship pas en prod. CSS cascade : importé APRÈS globals.css
+// donc ses règles override les duplicates (later imports win same-specificity ties).
+// Un test (tests/css-imports.test.ts) garde cet import présent.
+import '@/styles/migrated-pages.css';
 import JsonLd, { organizationSchema, websiteSchema, localBusinessSchema } from '@/components/seo/JsonLd';
 import { LocaleProvider } from '@/components/i18n/LocaleProvider';
 import { getServerLocale } from '@/lib/i18n/locale';
