@@ -3,13 +3,15 @@ name: Daily summary email
 # Envoie le récap quotidien aux ADMIN_EMAILS via /api/cron/daily-summary.
 # Mêmes secret (CRON_SECRET) et workflow pattern que cron-cleanup.yml.
 #
-# Schedule : 11h00 UTC = 7h00 heure de Montréal (UTC-4 en été, -5 en hiver
-# donc 6h en hiver). Acceptable pour un récap "du matin".
+# Round 38 #5 — Shift de 11h UTC vers 13h UTC = 9h EDT été / 8h EST hiver.
+# Avant : 7h ET en été, 6h ET en hiver — souvent avant que l'admin
+# soit éveillé/à son ordinateur, le récap se perdait dans la pile.
+# Maintenant : 8-9h ET année-ronde, fenêtre "1ère consultation du matin".
 # Bouton "Run workflow" dispo pour test manuel ou re-send.
 
 on:
   schedule:
-    - cron: '0 11 * * *'
+    - cron: '0 13 * * *'
   workflow_dispatch:
 
 jobs:

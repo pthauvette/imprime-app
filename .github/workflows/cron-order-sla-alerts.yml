@@ -6,7 +6,9 @@ name: Order SLA alerts
 
 on:
   schedule:
-    - cron: '0 10 * * *'
+    # Round 38 #5 — Shift de 10h UTC vers 13h UTC = 9h EDT / 8h EST.
+    # Aligné avec daily-summary + weekly-digest pour batch de 1ère lecture.
+    - cron: '0 13 * * *'
   workflow_dispatch:
 
 jobs:

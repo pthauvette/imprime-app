@@ -9,7 +9,9 @@ name: Admin weekly digest email
 
 on:
   schedule:
-    - cron: '0 9 * * 3'
+    # Round 38 #5 — Shift de 9h UTC vers 13h UTC = 9h EDT / 8h EST mercredi.
+    # Aligné avec daily-summary (admin "fenêtre du matin" 1ère lecture).
+    - cron: '0 13 * * 3'
   workflow_dispatch:
 
 jobs:

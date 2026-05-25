@@ -19,6 +19,21 @@ const ENV = process.env.NODE_ENV ?? 'development';
 const SAMPLE_RATE = ENV === 'production' ? 0.1 : 1.0;
 
 export async function register() {
+  // Round 38 #5 — Fail-fast en prod si critical env vars manquent.
+  // Charge dynamiquement pour ne pas pénaliser le runtime Edge.
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    try {
+      const { assertProductionEnvReady } = await import('@/lib/env');
+      assertProductionEnvReady();
+    } catch (err) {
+      // En prod : throw → Vercel marque deploy failed (visible immédiatement)
+      // En dev : déjà warn dans parseEnv()
+      // eslint-disable-next-line no-console
+      console.error('[boot] env validation failed:', err instanceof Error ? err.message : err);
+      if (process.env.NODE_ENV === 'production') throw err;
+    }
+  }
+
   if (!DSN) {
     console.log('[sentry] DSN not set, skipping (set SENTRY_DSN to enable)');
     return;

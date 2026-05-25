@@ -33,7 +33,7 @@ export const dynamic = 'force-dynamic';
  */
 const CRONS: ReadonlyArray<{ name: string; expectedIntervalMs: number; label: string }> = [
   { name: 'cleanup',                  expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 3h UTC' },
-  { name: 'daily-summary',            expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 11h UTC' },
+  { name: 'daily-summary',            expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 13h UTC (9h EDT/8h EST)' },
   { name: 'email-retry',              expectedIntervalMs: 5 * 60 * 1000,       label: 'toutes les 5 min' },
   { name: 're-engagement',            expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 8h UTC' },
   { name: 'abandoned-cart',           expectedIntervalMs: 6 * 3600 * 1000,     label: 'toutes les 6 h' },
@@ -46,8 +46,8 @@ const CRONS: ReadonlyArray<{ name: string; expectedIntervalMs: number; label: st
   { name: 'stripe-clock-skew',        expectedIntervalMs: 6 * 3600 * 1000,     label: 'toutes les 6 h' },
   { name: 'sinalite-latency',         expectedIntervalMs: 15 * 60 * 1000,      label: 'toutes les 15 min' },
   { name: 'purge-old-events',         expectedIntervalMs: 30 * 24 * 3600 * 1000, label: 'mensuel 1er 9h UTC' },
-  { name: 'admin-weekly-digest',      expectedIntervalMs: 7 * 24 * 3600 * 1000,  label: 'mercredi 9h UTC' },
-  { name: 'order-sla-alerts',         expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 10h UTC' },
+  { name: 'admin-weekly-digest',      expectedIntervalMs: 7 * 24 * 3600 * 1000,  label: 'mercredi 13h UTC (9h EDT/8h EST)' },
+  { name: 'order-sla-alerts',         expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 13h UTC (9h EDT/8h EST)' },
 ];
 const KNOWN_CRONS = CRONS.map((c) => c.name);
 type CronName = string;
