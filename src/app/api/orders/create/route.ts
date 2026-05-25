@@ -296,6 +296,22 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   // Phase 4: create PaymentIntent — automatic capture, full sinalitePayload
   // persisted in our DB (not Stripe metadata — too big for the 500-char limit).
+  //
+  // Round 38 #3 — idempotencyKey derived from request body hash. Si le
+  // client double-clic ou retry après un timeout réseau, Stripe retourne
+  // le même PI au lieu d'en créer 2 (= 2 charges potentielles). Hash
+  // inclut email + items + expectedSubtotal pour que retries identiques
+  // soient dédupés mais retries-avec-changement (typo fix) crée un new PI.
+  const { createHash } = await import('node:crypto');
+  const idempotencyKey = `oc_${createHash('sha256')
+    .update(JSON.stringify({
+      email: payload.contact.email.toLowerCase(),
+      items: payload.items,
+      expectedSubtotal: payload.expectedSubtotal,
+      shippingMethod: payload.shippingMethod,
+    }))
+    .digest('hex')
+    .slice(0, 48)}`;
   const paymentIntent = await stripe.paymentIntents.create({
     amount: totalCents,
     currency: 'cad',
@@ -313,7 +329,7 @@ export const POST = withErrorHandler(async (req: Request) => {
       referralCreditApplied: String(referralCreditApplied),
       ...(goldFreeShippingApplied && { goldFreeShipping: 'true' }),
     },
-  });
+  }, { idempotencyKey });
 
   // Phase 5: persist a PENDING Order row. The Stripe webhook will look it up
   // by paymentIntentId, mark PAID, then submit to Sinalite.

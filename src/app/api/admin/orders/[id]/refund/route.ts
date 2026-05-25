@@ -58,6 +58,20 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   }
 
   // Stripe refund — partial if amountCents is set, full otherwise
+  //
+  // Round 38 #3 — idempotencyKey : double-click admin = 2 refunds =
+  // customer over-refunded. Hash inclut orderId + amount + adminUserId
+  // → même admin qui retry exactement = même refund. Admin différent
+  // ou amount différent = new refund (intentionnel).
+  const { createHash } = await import('node:crypto');
+  const refundIdemKey = `re_${createHash('sha256')
+    .update(JSON.stringify({
+      orderId: order.id,
+      amountCents: body.amountCents ?? 'full',
+      adminUserId: guard.userId,
+    }))
+    .digest('hex')
+    .slice(0, 48)}`;
   let refund: Stripe.Refund;
   try {
     refund = await stripe.refunds.create({
@@ -69,7 +83,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
         adminUserId: guard.userId,
         reason: body.reason ?? 'Admin manual refund',
       },
-    });
+    }, { idempotencyKey: refundIdemKey });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Stripe refund failed' },
