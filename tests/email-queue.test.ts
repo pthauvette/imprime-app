@@ -21,6 +21,9 @@ vi.mock('@/lib/db', () => ({
       // (PENDING/FAILED → PROCESSING) dans processDelivery.
       updateMany: vi.fn(async () => ({ count: 1 })),
       findMany: vi.fn(async () => []),
+      // Round 37 #3 : count utilisé par throttle check (isUserThrottled).
+      // Default 0 = pas throttled, autorise les tests existants.
+      count: vi.fn(async () => 0),
     },
   },
 }));

@@ -91,14 +91,28 @@ describe('queueEmail → sendEmail listUnsubscribeUrl auto-derive (Round 28 #4)'
   });
 
   it('email lowercased dans le URL param (case-insensitive matching)', async () => {
+    // Round 37 #3 — Test utilise reseller-monthly-stats (encore marketing).
+    // admin-custom-message a été retiré du MARKETING_TEMPLATES set car
+    // utilisé pour transactional (wallet expiry warning, weekly digest)
+    // → ne devrait plus auto-derive l'unsub.
     await queueEmail({
       to: 'MixedCase@Plio.CA',
-      template: 'admin-custom-message',
+      template: 'reseller-monthly-stats',
       vars: {},
     });
 
     const call = vi.mocked(render.sendEmail).mock.calls[0]![0];
     expect(call.listUnsubscribeUrl).toContain('email=mixedcase%40plio.ca');
+  });
+
+  it('Round 37 #3 — admin-custom-message NE auto-derive PAS l\'unsub (used pour transactional)', async () => {
+    await queueEmail({
+      to: 'user@plio.ca',
+      template: 'admin-custom-message',
+      vars: {},
+    });
+    const call = vi.mocked(render.sendEmail).mock.calls[0]![0];
+    expect(call.listUnsubscribeUrl).toBeUndefined();
   });
 
   it('explicit override > auto-derive', async () => {
