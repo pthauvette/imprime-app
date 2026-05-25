@@ -1,0 +1,27 @@
+name: PIPEDA SLA alerts
+
+# Tape /api/cron/pipeda-sla-alerts quotidien 13h UTC (= 8-9h ET).
+# Scan DeleteAccountRequest PENDING >=25j -> warn admin / >=30j -> CRITICAL.
+# Security: pas d'untrusted input. CRON_SECRET via env per safe pattern.
+
+on:
+  schedule:
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/cron/pipeda-sla-alerts
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://plio.ca/api/cron/pipeda-sla-alerts
