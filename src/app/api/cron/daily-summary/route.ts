@@ -200,12 +200,17 @@ export async function GET(req: NextRequest) {
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
   };
 
-  // Send to each admin email, parallel. Capture success/fail per recipient.
-  const sends = await Promise.all(
+  // Round 37 #4 — Promise.allSettled : 1 admin email fail (typo, SES
+  // suppressed) ne doit pas casser le batch daily-summary entier.
+  // Avant : 1 throw → toute la cron fail → admins n'ont aucun digest.
+  const sendsRaw = await Promise.allSettled(
     ADMIN_EMAILS.map(async (to) => {
       const r = await sendAdminDailySummaryEmail({ to, vars });
       return { to, sent: r.sent };
     }),
+  );
+  const sends = sendsRaw.map((s, i) =>
+    s.status === 'fulfilled' ? s.value : { to: ADMIN_EMAILS[i]!, sent: false },
   );
 
   const result = {

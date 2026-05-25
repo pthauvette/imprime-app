@@ -121,8 +121,9 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     `Si la production n'a pas commencé côté Sinalite : annule via /admin/orders/${order.id} → bouton "Annuler".\n` +
     `Si la production a commencé : vérifie avec Sinalite si annulation possible avant de rembourser.`;
 
-  // Envoie à tous les admins en parallèle
-  const sends = await Promise.all(
+  // Round 37 #4 — Promise.allSettled : 1 admin email fail (typo, SES
+  // suppressed) ne doit pas casser la cancel-request submission du customer.
+  const sendsRaw = await Promise.allSettled(
     ADMIN_EMAILS.map(async (to) => {
       const r = await sendAdminCustomMessageEmail({
         to,
@@ -139,6 +140,9 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       });
       return { to, sent: r.sent };
     }),
+  );
+  const sends = sendsRaw.map((s, i) =>
+    s.status === 'fulfilled' ? s.value : { to: ADMIN_EMAILS[i]!, sent: false },
   );
 
   // Audit log
