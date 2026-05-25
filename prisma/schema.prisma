@@ -297,6 +297,13 @@ model Order {
    *  SetNull si Order purgé → preserve le ledger row pour audit. */
   walletTransactions WalletTransaction[]
 
+  /** Round 39 #5 — Dedup pour order-sla-alerts cron. Set à `now` quand un
+   *  admin reçoit l'email SLA pour cette order. Null = pas encore alerté
+   *  (nouveau dans la pool stuck). Re-alerté après 7j (escalation) — la
+   *  query du cron filtre `slaAlertedAt IS NULL OR slaAlertedAt < now-7d`.
+   *  Évite que 1 order PAID-stuck-5-jours = 5 emails identiques admin. */
+  slaAlertedAt     DateTime?
+
   @@index([userId, createdAt])
   @@index([status])
   /** Round 37 #4 — admin-weekly-digest + reseller-detection font des queries
@@ -308,6 +315,8 @@ model Order {
   /** Round 37 #4 — promoCodeId pas indexé : /admin/promo-codes/[id] loop
    *  prisma.order.findMany({where:{promoCodeId}}) → scan séquentiel à scale. */
   @@index([promoCodeId])
+  /** Round 39 #5 — order-sla-alerts cron filter. */
+  @@index([slaAlertedAt])
 }
 
 // ─── ORDER EVENT ──────────────────────────────────────────────────────────

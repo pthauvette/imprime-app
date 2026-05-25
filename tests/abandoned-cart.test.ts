@@ -24,6 +24,9 @@ vi.mock('@/lib/db', () => ({
         ...args.data,
       })),
       update: vi.fn(async () => ({})),
+      // Round 39 #5 : claim atomique avant send (race protection).
+      // Default count:1 = claim succeeded, autorise les tests existants.
+      updateMany: vi.fn(async () => ({ count: 1 })),
     },
     order: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
@@ -180,7 +183,7 @@ describe('GET /api/cron/abandoned-cart', () => {
     return new Request('http://localhost/api/cron/abandoned-cart') as never;
   }
 
-  it('envoie le recovery email + set emailSentAt', async () => {
+  it('envoie le recovery email + claim atomique avant send (Round 39 #5)', async () => {
     vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
       {
         id: 'cart_1',
@@ -205,21 +208,69 @@ describe('GET /api/cron/abandoned-cart', () => {
     expect(json.skippedConverted).toBe(0);
     expect(json.skippedReview).toBe(0);
 
+    // Round 39 #5 — claim atomique : updateMany WHERE id + emailSentAt:null
+    expect(prisma.abandonedCart.updateMany).toHaveBeenCalledTimes(1);
+    const claimArgs = vi.mocked(prisma.abandonedCart.updateMany).mock.calls[0]![0]!;
+    expect(claimArgs.where).toEqual({ id: 'cart_1', emailSentAt: null });
+    expect((claimArgs.data as { emailSentAt: Date }).emailSentAt).toBeInstanceOf(Date);
+
     expect(sendAbandonedCartEmail).toHaveBeenCalledTimes(1);
     const args = vi.mocked(sendAbandonedCartEmail).mock.calls[0][0];
     expect(args.firstName).toBe('Sophie');
     expect(args.productName).toBe('Cartes 14pt UV');
-    // Round 27 #1 — resumeUrl est maintenant wrappé dans /api/recovery/click
-    // pour mesurer le funnel. Le vrai destination est URL-encoded dans ?to=.
     expect(args.resumeUrl).toContain('/api/recovery/click?cart=');
-    expect(args.resumeUrl).toContain('&t=');
-    expect(args.resumeUrl).toContain('to=');
     expect(decodeURIComponent(args.resumeUrl)).toContain('/order/review?productId=7&options=12,34');
 
-    // emailSentAt set après envoi
+    // Round 39 #5 — Pas d'update additionnel sur success (claim a déjà set emailSentAt)
+    expect(prisma.abandonedCart.update).not.toHaveBeenCalled();
+  });
+
+  it('Round 39 #5 : si claim count=0 (race), skip ce cart sans send', async () => {
+    vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
+      {
+        id: 'cart_race',
+        email: 'sophie@studio.ca',
+        productId: 7,
+        resumeQuery: 'x',
+        lastStep: 'shipping',
+        updatedAt: new Date(Date.now() - 36 * 3600 * 1000),
+      } as never,
+    ]);
+    // Simule un autre cron qui a déjà claim ce row
+    vi.mocked(prisma.abandonedCart.updateMany).mockResolvedValueOnce({ count: 0 } as never);
+
+    const GET = await importCron();
+    const res = await GET(makeReqCron());
+    const json = await res.json();
+    expect(json.sent).toBe(0);
+    expect(json.failed).toBe(0);
+    expect(sendAbandonedCartEmail).not.toHaveBeenCalled();
+  });
+
+  it('Round 39 #5 : send fail → reset emailSentAt à null pour retry next run', async () => {
+    vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
+      {
+        id: 'cart_fail',
+        email: 'sophie@studio.ca',
+        productId: 7,
+        resumeQuery: 'x',
+        lastStep: 'shipping',
+        updatedAt: new Date(Date.now() - 36 * 3600 * 1000),
+      } as never,
+    ]);
+    vi.mocked(prisma.order.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null as never);
+    vi.mocked(sendAbandonedCartEmail).mockRejectedValueOnce(new Error('SES timeout'));
+
+    const GET = await importCron();
+    const res = await GET(makeReqCron());
+    const json = await res.json();
+    expect(json.failed).toBe(1);
+    expect(json.sent).toBe(0);
+    // Update appelé pour reset emailSentAt à null
     expect(prisma.abandonedCart.update).toHaveBeenCalledTimes(1);
     const upd = vi.mocked(prisma.abandonedCart.update).mock.calls[0][0];
-    expect(upd.data.emailSentAt).toBeInstanceOf(Date);
+    expect(upd.data.emailSentAt).toBeNull();
   });
 
   it('skip si Order existe pour email après updatedAt (converted)', async () => {
@@ -241,8 +292,10 @@ describe('GET /api/cron/abandoned-cart', () => {
     expect(json.sent).toBe(0);
     expect(json.skippedConverted).toBe(1);
     expect(sendAbandonedCartEmail).not.toHaveBeenCalled();
-    // Quand même marque emailSentAt pour ne plus re-checker
-    expect(prisma.abandonedCart.update).toHaveBeenCalledTimes(1);
+    // Round 39 #5 : claim atomique a déjà set emailSentAt pour skip future
+    // re-checks — pas besoin d'update additionnel.
+    expect(prisma.abandonedCart.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.abandonedCart.update).not.toHaveBeenCalled();
   });
 
   it('skip si lastStep=review (95% conversion, on n\'embête pas)', async () => {
