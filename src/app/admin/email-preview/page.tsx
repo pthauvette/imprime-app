@@ -131,14 +131,9 @@ export default async function EmailPreviewPage({
           </p>
         </header>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '380px 1fr',
-            gap: 32,
-            alignItems: 'start',
-          }}
-        >
+        {/* Round 40 #2 — layout via .admin-2col-with-preview (migrated-pages.css);
+            collapses to 1-col at < 900px instead of forcing 380px sidebar on mobile. */}
+        <div className="admin-2col-with-preview" style={{ alignItems: 'start' }}>
           {/* Form (left column) */}
           <div style={{ position: 'sticky', top: 24, display: 'grid', gap: 16 }}>
             <form method="GET" style={{ display: 'grid', gap: 12 }}>

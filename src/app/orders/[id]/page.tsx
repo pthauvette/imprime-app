@@ -127,7 +127,8 @@ export default async function CustomerOrderDetailPage({
       )}
       <Sidebar active="/orders" />
 
-      <main className="detail-main" style={{ padding: '40px 48px 80px', maxWidth: 1280 }}>
+      {/* Round 40 #2 — padding via .detail-main CSS so mobile @media wins */}
+      <main className="detail-main" style={{ maxWidth: 1280 }}>
         <Link
           href={'/orders' as Route}
           className="back-link"
@@ -148,13 +149,11 @@ export default async function CustomerOrderDetailPage({
           ← Toutes mes commandes
         </Link>
 
+        {/* Round 40 #2 — layout moved to .order-header-card class (see migrated-pages.css)
+            so the inline grid can't beat mobile @media. Was forcing '1fr auto' at all viewports. */}
         <div
           className="order-header-card"
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr auto',
-            gap: 32,
-            padding: 32,
             background: 'var(--bg-surface)',
             borderRadius: 'var(--r-xl)',
             border: '1px solid var(--border-subtle)',
@@ -200,13 +199,13 @@ export default async function CustomerOrderDetailPage({
           </div>
 
           {eta && (
+            /* Round 40 #2 — minWidth: 200 + parent's '1fr auto' grid was burst on 375px.
+               Now styled via .order-eta-box class; mobile collapses below header. */
             <div
+              className="order-eta-box"
               style={{
-                textAlign: 'right',
-                padding: '16px 24px',
                 background: 'var(--accent-soft)',
                 borderRadius: 'var(--r-lg)',
-                minWidth: 200,
               }}
             >
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent-primary)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -222,7 +221,9 @@ export default async function CustomerOrderDetailPage({
           )}
         </div>
 
-        <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, alignItems: 'start' }}>
+        {/* Round 40 #2 — layout via .detail-grid CSS; @media (max-width:900px)
+            in globals.css collapses to 1-col. Inline before was preventing that. */}
+        <div className="detail-grid">
 
           <div style={{ display: 'grid', gap: 24 }}>
 

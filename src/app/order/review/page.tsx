@@ -275,7 +275,8 @@ function ReviewPageInner() {
       </header>
 
       <main className="step-layout">
-        <div className="step-content" style={{ padding: '56px 64px', maxWidth: 800 }}>
+        {/* Round 40 #2 — padding via .step-content CSS so mobile @media wins */}
+        <div className="step-content" style={{ maxWidth: 800 }}>
           <div className="step-eyebrow">Étape 07</div>
           <h1 className="step-question">Dernière <em>vérification.</em></h1>
           <p className="step-lede">

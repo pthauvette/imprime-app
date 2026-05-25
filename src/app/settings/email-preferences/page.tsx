@@ -72,7 +72,8 @@ export default async function EmailPreferencesPage() {
     <div className="acct-shell">
       <Sidebar active="/settings" />
 
-      <main className="acct-main" style={{ padding: '56px 64px', maxWidth: 840 }}>
+      {/* Round 40 #2 — padding via .acct-main CSS so mobile @media (max-width:900px) wins */}
+      <main className="acct-main" style={{ maxWidth: 840 }}>
         <Link
           href={'/settings' as Route}
           style={{

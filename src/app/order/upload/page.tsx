@@ -121,7 +121,8 @@ function UploadPageInner() {
       </header>
 
       <main className="step-layout">
-        <div className="step-content" style={{ padding: '56px 80px', maxWidth: 1080 }}>
+        {/* Round 40 #2 — padding via .step-content CSS so mobile @media wins */}
+        <div className="step-content" style={{ maxWidth: 1080 }}>
           <div className="step-eyebrow">Étape 05</div>
           <h1 className="step-question">Téléverse ton <em>design.</em></h1>
           <p className="step-lede">
@@ -129,7 +130,8 @@ function UploadPageInner() {
             résolution et CMYK avant la production.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          {/* Round 40 #2 — auto-fit collapse to 1 col under 600px (vs forced 2-col before) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
             <Dropzone
               label="Recto"
               kind="front"

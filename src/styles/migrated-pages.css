@@ -5706,3 +5706,84 @@
     }
     .cta-btn-secondary:hover { border-color: var(--accent-primary); color: var(--accent-primary); transform: translateY(-2px); }
 
+    /* ─── Round 40 #2 — layout classes for inline-style replacements ───────────
+       Pages (orders/[id], admin/orders/[id], email-preview, template editor,
+       broadcast composer, wizard quantity) previously used inline
+       `style={{ gridTemplateColumns, padding, minWidth }}` that defeated CSS
+       @media rules. Layout moved here so breakpoints actually fire. */
+
+    /* /orders/[id] order header card */
+    .order-header-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 32px;
+      padding: 32px;
+    }
+    @media (max-width: 700px) {
+      .order-header-card {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 20px;
+      }
+    }
+    .order-eta-box {
+      text-align: right;
+      padding: 16px 24px;
+      min-width: 200px;
+    }
+    @media (max-width: 700px) {
+      .order-eta-box {
+        text-align: left;
+        min-width: 0;
+        padding: 14px 16px;
+      }
+    }
+
+    /* /order/quantity .qty-content (orphan in globals.css — no mobile rule
+       existed before, page was forced 128px horizontal padding on iPhone SE) */
+    @media (max-width: 700px) {
+      .qty-content { padding: 32px 16px; }
+      .big-numbers { grid-template-columns: 1fr; gap: 16px; padding: 16px; }
+      .big-number {
+        padding: 12px 16px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .big-number:last-child { border-bottom: 0; }
+    }
+
+    /* /admin/orders/[id] od-id-big (48px display number was overflowing on 375px) */
+    @media (max-width: 700px) {
+      .od-id-big { font-size: clamp(28px, 7vw, 48px); }
+    }
+
+    /* /admin/email-preview — 380px sidebar + iframe */
+    .admin-2col-with-preview {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .admin-2col-with-preview { grid-template-columns: 1fr; }
+    }
+
+    /* /admin/templates/[slug]/edit — 3-col fields/preview/meta */
+    .admin-3col-template-editor {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 20px;
+    }
+    @media (max-width: 1100px) {
+      .admin-3col-template-editor { grid-template-columns: 1fr; gap: 16px; }
+    }
+
+    /* /admin/broadcast composer/preview */
+    .admin-composer-preview-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .admin-composer-preview-grid { grid-template-columns: 1fr; }
+    }
+

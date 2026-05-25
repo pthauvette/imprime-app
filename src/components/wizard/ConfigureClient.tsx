@@ -120,7 +120,8 @@ export default function ConfigureClient({
       </header>
 
       <main className="step-layout">
-        <div className="step-content" style={{ padding: '56px 80px', maxWidth: 1080 }}>
+        {/* Round 40 #2 — padding via .step-content CSS so mobile @media wins */}
+        <div className="step-content" style={{ maxWidth: 1080 }}>
           <div className="step-eyebrow">Étape 03 — {product.name.trim()}</div>
           <h1 className="step-question">Configure ta <em>commande.</em></h1>
           <p className="step-lede">Le prix s'ajuste en temps réel à droite — change une option pour voir l'impact.</p>

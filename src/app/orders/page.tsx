@@ -112,7 +112,8 @@ export default async function OrdersPage({
       )}
       <Sidebar active="/orders" />
 
-      <main className="acct-main" style={{ padding: '56px 64px', maxWidth: 1280 }}>
+      {/* Round 40 #2 — padding via .acct-main CSS so mobile @media (max-width:900px) wins */}
+      <main className="acct-main" style={{ maxWidth: 1280 }}>
         <div className="page-header" style={pageHeader}>
           <div>
             <h1 className="page-title" style={pageTitle}>Mes commandes</h1>
