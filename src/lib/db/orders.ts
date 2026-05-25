@@ -159,15 +159,21 @@ export async function markOrderPaid(paymentIntentId: string) {
   const order = await prisma.order.findUnique({ where: { paymentIntentId } });
   if (!order) throw new OrderNotFoundError(paymentIntentId);
 
-  return prisma.$transaction([
-    prisma.order.update({
-      where: { id: order.id },
+  // Round 38 #4 — Optimistic guard : seulement PENDING → PAID. Si
+  // déjà PAID/SUBMITTED/etc (Stripe webhook replay), skip cleanly.
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: { id: order.id, status: 'PENDING' },
       data: { status: 'PAID', paidAt: new Date() },
-    }),
-    prisma.orderEvent.create({
+    });
+    if (result.count === 0) {
+      // Already past PENDING (replay or admin manual) — idempotent skip
+      return;
+    }
+    await tx.orderEvent.create({
       data: { orderId: order.id, kind: 'PAYMENT_SUCCEEDED' },
-    }),
-  ]);
+    });
+  });
 }
 
 /**
@@ -197,42 +203,54 @@ export async function markOrderPaidWithWalletDebit(input: {
   if (!order) throw new OrderNotFoundError(input.paymentIntentId);
 
   return prisma.$transaction(async (tx) => {
-    // 1. Mark order paid + audit event
-    const updatedOrder = await tx.order.update({
-      where: { id: order.id },
+    // Round 38 #4 — Optimistic guard PENDING → PAID. Si déjà past
+    // PENDING (Stripe webhook replay), skip cleanly (caller's 'already
+    // past PENDING' check est upstream, mais defensive layer ici).
+    const guard = await tx.order.updateMany({
+      where: { id: order.id, status: 'PENDING' },
       data: { status: 'PAID', paidAt: new Date() },
     });
+    if (guard.count === 0) {
+      // Already paid (replay) — return existing order, no event/wallet debit
+      const existing = await tx.order.findUnique({ where: { id: order.id } });
+      return existing!;
+    }
+    const updatedOrder = await tx.order.findUnique({ where: { id: order.id } });
     await tx.orderEvent.create({
       data: { orderId: order.id, kind: 'PAYMENT_SUCCEEDED' },
     });
 
     // 2. Wallet debit dans la MÊME transaction si applicable
     if (input.walletDebit && input.walletDebit.amountCents > 0) {
-      const user = await tx.user.findUnique({
-        where: { id: input.walletDebit.userId },
-        select: { walletCents: true },
+      // Round 38 #4 — atomic wallet decrement avec WHERE guard (cf.
+      // recordWalletTx Round 38 #3). Hard fail si overdraft → tx rollback.
+      const walletGuard = await tx.user.updateMany({
+        where: {
+          id: input.walletDebit.userId,
+          walletCents: { gte: input.walletDebit.amountCents },
+        },
+        data: {
+          walletCents: { decrement: input.walletDebit.amountCents },
+          walletLastActivityAt: new Date(),
+        },
       });
-      if (!user) {
-        throw new Error(`User ${input.walletDebit.userId} introuvable pour wallet debit`);
-      }
-
-      const newBalance = user.walletCents - input.walletDebit.amountCents;
-      if (newBalance < 0) {
-        // Hard fail — DB rollback automatique → order revient à PENDING.
-        // Le webhook Stripe retry et c'est OK, mais alerte admin nécessaire
-        // car le PI a déjà été créé sur la base d'un wallet suffisant.
+      if (walletGuard.count === 0) {
+        const user = await tx.user.findUnique({
+          where: { id: input.walletDebit.userId },
+          select: { walletCents: true },
+        });
+        if (!user) {
+          throw new Error(`User ${input.walletDebit.userId} introuvable pour wallet debit`);
+        }
         throw new Error(
           `Wallet overdraft refusé : user ${input.walletDebit.userId} a ${user.walletCents} cents, debit ${input.walletDebit.amountCents}. Order ${order.id} rollback à PENDING.`,
         );
       }
-
-      await tx.user.update({
+      const userAfter = await tx.user.findUnique({
         where: { id: input.walletDebit.userId },
-        data: {
-          walletCents: newBalance,
-          walletLastActivityAt: new Date(),
-        },
+        select: { walletCents: true },
       });
+      const newBalance = userAfter!.walletCents;
 
       await tx.walletTransaction.create({
         data: {
@@ -250,26 +268,65 @@ export async function markOrderPaidWithWalletDebit(input: {
   });
 }
 
+/**
+ * Round 38 #4 — Optimistic locking strategy pour Order.status transitions.
+ *
+ * Avant : `prisma.order.update({where:{id}, data:{status:'X'}})` écrasait
+ * sans WHERE-guard. Si 2 webhooks concurrents (Stripe payment + admin
+ * cancel manuel quasi-simultanés) → race condition silent : CANCELLED
+ * pouvait être re-flippé PAID, ou SHIPPED arriver AVANT IN_PRODUCTION
+ * (out-of-order webhook Sinalite) → UI customer voit le statut "regresser".
+ *
+ * Maintenant : chaque markOrder* utilise `updateMany` avec WHERE status
+ * IN (allowed-prior-states). Si count=0 → on log + skip silently OU
+ * throw selon le caller. Idempotency préservée pour webhooks replay.
+ */
+
+/** Status transitions valides (FSM). Out-of-order = rejected. */
+const ALLOWED_PRIOR_STATUSES: Record<string, OrderStatus[]> = {
+  PAID: ['PENDING'],
+  SUBMITTED: ['PAID'],
+  IN_PRODUCTION: ['SUBMITTED', 'IN_PRODUCTION'], // idempotent re-receive
+  SHIPPED: ['SUBMITTED', 'IN_PRODUCTION', 'SHIPPED'], // skip IN_PRODUCTION OK
+  DELIVERED: ['SHIPPED', 'DELIVERED'], // idempotent
+  CANCELLED: ['PENDING', 'PAID', 'SUBMITTED'], // pas après production lancée
+  FAILED: ['PENDING', 'PAID', 'SUBMITTED', 'IN_PRODUCTION'], // pas après SHIPPED
+};
+
 export async function markOrderSubmitted(input: {
   orderId: string;
   sinaliteOrderId: number;
 }) {
-  return prisma.$transaction([
-    prisma.order.update({
-      where: { id: input.orderId },
+  // Round 38 #4 — Optimistic guard : seulement si status courant = PAID
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: {
+        id: input.orderId,
+        status: { in: ALLOWED_PRIOR_STATUSES.SUBMITTED },
+      },
       data: {
         status: 'SUBMITTED',
         sinaliteOrderId: String(input.sinaliteOrderId),
       },
-    }),
-    prisma.orderEvent.create({
+    });
+    if (result.count === 0) {
+      // Soit l'order n'existe pas, soit déjà flippé hors PAID. Log + skip.
+      const current = await tx.order.findUnique({
+        where: { id: input.orderId },
+        select: { status: true },
+      });
+      throw new OrderStatusTransitionError(
+        `Cannot transition order ${input.orderId} to SUBMITTED (current: ${current?.status ?? 'NOT_FOUND'})`,
+      );
+    }
+    await tx.orderEvent.create({
       data: {
         orderId: input.orderId,
         kind: 'SINALITE_SUBMITTED',
         data: JSON.stringify({ sinaliteOrderId: input.sinaliteOrderId }),
       },
-    }),
-  ]);
+    });
+  });
 }
 
 export async function markOrderFailed(input: {
@@ -277,19 +334,42 @@ export async function markOrderFailed(input: {
   reason: string;
   data?: unknown;
 }) {
-  return prisma.$transaction([
-    prisma.order.update({
-      where: { id: input.orderId },
+  // Round 38 #4 — Optimistic guard : pas de fail après SHIPPED/DELIVERED
+  // (l'order est physiquement parti, ça n'a plus de sens de la marquer
+  // FAILED). Si déjà CANCELLED/FAILED, idempotent skip.
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: {
+        id: input.orderId,
+        status: { in: ALLOWED_PRIOR_STATUSES.FAILED },
+      },
       data: { status: 'FAILED', failureReason: input.reason.slice(0, 500) },
-    }),
-    prisma.orderEvent.create({
+    });
+    if (result.count === 0) {
+      const current = await tx.order.findUnique({
+        where: { id: input.orderId },
+        select: { status: true },
+      });
+      throw new OrderStatusTransitionError(
+        `Cannot transition order ${input.orderId} to FAILED (current: ${current?.status ?? 'NOT_FOUND'})`,
+      );
+    }
+    await tx.orderEvent.create({
       data: {
         orderId: input.orderId,
         kind: 'ERROR',
         data: input.data ? JSON.stringify(input.data).slice(0, 2000) : null,
       },
-    }),
-  ]);
+    });
+  });
+}
+
+/** Thrown by markOrder* helpers si la transition est invalide (audit Round 38 #4). */
+export class OrderStatusTransitionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OrderStatusTransitionError';
+  }
 }
 
 export async function markRefundIssued(input: {

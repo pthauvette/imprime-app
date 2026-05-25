@@ -17,9 +17,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Prisma mock : $transaction(fn) appelle fn(tx) ; tx a les mêmes méthodes
 // que prisma. On capture les appels sur tx pour vérifier l'ordre.
-const txOrder = { update: vi.fn(), findUnique: vi.fn() };
+// Round 38 #4 — Tests mis à jour pour le refactor optimistic locking :
+// `update` → `updateMany` (returns {count}) + re-fetch via findUnique.
+const txOrder = { update: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() };
 const txOrderEvent = { create: vi.fn() };
-const txUser = { findUnique: vi.fn(), update: vi.fn() };
+const txUser = { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() };
 const txWalletTransaction = { create: vi.fn() };
 
 const txMock = {
@@ -51,25 +53,36 @@ beforeEach(() => {
     userId: 'u_owner',
     paymentIntentId: 'pi_123',
   } as never);
+  // Round 38 #4 — updateMany return {count:1} by default (status guard
+  // passed). Tests of overdraft + replay use count:0 explicitly.
   txOrder.update.mockResolvedValue({ id: 'o_test', status: 'PAID' });
+  txOrder.updateMany.mockResolvedValue({ count: 1 });
+  txOrder.findUnique.mockResolvedValue({ id: 'o_test', status: 'PAID' });
   txOrderEvent.create.mockResolvedValue({});
   txUser.findUnique.mockResolvedValue({ walletCents: 5000 });
   txUser.update.mockResolvedValue({});
+  txUser.updateMany.mockResolvedValue({ count: 1 });
   txWalletTransaction.create.mockResolvedValue({ id: 'wtx_1' });
 });
 
-describe('markOrderPaidWithWalletDebit (Round 36 #1)', () => {
-  it('sans walletDebit → update Order + create OrderEvent dans 1 tx', async () => {
+describe('markOrderPaidWithWalletDebit (Round 36 #1 + Round 38 #4 optimistic locking)', () => {
+  it('sans walletDebit → updateMany Order (status guard) + create OrderEvent dans 1 tx', async () => {
     await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
 
     expect(prisma.$transaction).toHaveBeenCalledOnce();
-    expect(txOrder.update).toHaveBeenCalledOnce();
+    expect(txOrder.updateMany).toHaveBeenCalledOnce();
     expect(txOrderEvent.create).toHaveBeenCalledOnce();
-    expect(txUser.update).not.toHaveBeenCalled();
+    expect(txUser.updateMany).not.toHaveBeenCalled();
     expect(txWalletTransaction.create).not.toHaveBeenCalled();
+
+    // Round 38 #4 — guard WHERE status = 'PENDING'
+    const updateArgs = txOrder.updateMany.mock.calls[0]![0];
+    expect(updateArgs.where.status).toBe('PENDING');
   });
 
-  it('avec walletDebit → 4 ops dans la même tx (update order + event + user + walletTx)', async () => {
+  it('avec walletDebit → updateMany ×2 (order + user) + create event + walletTx', async () => {
+    txUser.findUnique.mockResolvedValue({ walletCents: 3500 }); // après le decrement de 1500
+
     await markOrderPaidWithWalletDebit({
       paymentIntentId: 'pi_123',
       walletDebit: {
@@ -79,21 +92,42 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1)', () => {
       },
     });
 
-    // 1 seul $transaction call, mais 4 opérations DB à l'intérieur
     expect(prisma.$transaction).toHaveBeenCalledOnce();
-    expect(txOrder.update).toHaveBeenCalledOnce();
+    expect(txOrder.updateMany).toHaveBeenCalledOnce();
     expect(txOrderEvent.create).toHaveBeenCalledOnce();
-    expect(txUser.update).toHaveBeenCalledOnce();
+    expect(txUser.updateMany).toHaveBeenCalledOnce();
     expect(txWalletTransaction.create).toHaveBeenCalledOnce();
 
-    // Verify wallet debit signed negative dans le ledger
+    // Round 38 #3 — wallet updateMany utilise WHERE walletCents >= amount
+    const walletUpdateArgs = txUser.updateMany.mock.calls[0]![0];
+    expect(walletUpdateArgs.where.walletCents).toEqual({ gte: 1500 });
+    expect(walletUpdateArgs.data.walletCents).toEqual({ decrement: 1500 });
+
+    // Verify wallet ledger row signed negative
     const walletTxArgs = txWalletTransaction.create.mock.calls[0]![0];
     expect(walletTxArgs.data.amountCents).toBe(-1500);
     expect(walletTxArgs.data.kind).toBe('ORDER_SPEND');
-    expect(walletTxArgs.data.balanceAfterCents).toBe(3500); // 5000 - 1500
+    expect(walletTxArgs.data.balanceAfterCents).toBe(3500); // post-decrement
   });
 
-  it('overdraft (wallet 100 < debit 500) → throw + aucun side effect avant le throw', async () => {
+  it('Round 38 #4 — replay (order déjà PAID) → updateMany count=0, idempotent skip', async () => {
+    // Status guard manqué = order déjà PAID (webhook replay)
+    txOrder.updateMany.mockResolvedValue({ count: 0 });
+    txOrder.findUnique.mockResolvedValue({ id: 'o_test', status: 'PAID' });
+
+    const result = await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
+
+    expect(result).toBeDefined();
+    // Aucun side effect : ni event ni wallet
+    expect(txOrderEvent.create).not.toHaveBeenCalled();
+    expect(txUser.updateMany).not.toHaveBeenCalled();
+    expect(txWalletTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it('overdraft (wallet 100 < debit 500) → throw + ledger non écrit', async () => {
+    // Order guard passes (count:1) mais wallet guard fail
+    txOrder.updateMany.mockResolvedValue({ count: 1 });
+    txUser.updateMany.mockResolvedValue({ count: 0 }); // guard fail
     txUser.findUnique.mockResolvedValue({ walletCents: 100 });
 
     await expect(
@@ -103,22 +137,17 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1)', () => {
       }),
     ).rejects.toThrow(/overdraft/i);
 
-    // Note: les txOrder.update + txOrderEvent.create ont été called PUIS le throw,
-    // mais comme on est dans $transaction, Postgres rollback tout. Le mock
-    // ne simule pas le rollback (c'est une responsabilité Prisma+DB), mais
-    // l'important est que le throw remonte et que le wallet n'est PAS écrit.
     expect(txWalletTransaction.create).not.toHaveBeenCalled();
-    expect(txUser.update).not.toHaveBeenCalled();
   });
 
-  it('amountCents = 0 → skip wallet flow (defensive, ne traite pas comme overdraft)', async () => {
+  it('amountCents = 0 → skip wallet flow (defensive)', async () => {
     await markOrderPaidWithWalletDebit({
       paymentIntentId: 'pi_123',
       walletDebit: { userId: 'u_owner', amountCents: 0, description: 'zero amount' },
     });
 
-    expect(txOrder.update).toHaveBeenCalledOnce();
-    expect(txUser.update).not.toHaveBeenCalled();
+    expect(txOrder.updateMany).toHaveBeenCalledOnce();
+    expect(txUser.updateMany).not.toHaveBeenCalled();
     expect(txWalletTransaction.create).not.toHaveBeenCalled();
   });
 
@@ -131,6 +160,8 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1)', () => {
   });
 
   it('User introuvable au moment du wallet debit → throw', async () => {
+    // Order guard passes, wallet updateMany count=0 + user lookup returns null
+    txUser.updateMany.mockResolvedValue({ count: 0 });
     txUser.findUnique.mockResolvedValue(null);
 
     await expect(
@@ -142,6 +173,8 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1)', () => {
   });
 
   it('description tronquée à 500 chars (DB-level enforce)', async () => {
+    txUser.findUnique.mockResolvedValue({ walletCents: 3000 });
+
     const longDesc = 'x'.repeat(600);
     await markOrderPaidWithWalletDebit({
       paymentIntentId: 'pi_123',
