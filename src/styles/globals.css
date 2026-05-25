@@ -1115,7 +1115,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     }
     .mkt-nav-cta:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
     @media (max-width: 700px) {
-      .mkt-nav-links a:not(:last-child) { display: none; }
+      /* Round 40 #1 — removed broken hide-all-but-CTA rule. Mobile nav reflow lives in migrated-pages.css (.mkt-nav { flex-wrap: wrap } + .mkt-nav-links { width: 100% }) */
     }
 
     /* Hero */
@@ -10251,7 +10251,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     }
     .mkt-nav-cta:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
     @media (max-width: 700px) {
-      .mkt-nav-links a:not(:last-child) { display: none; }
+      /* Round 40 #1 — removed broken hide-all-but-CTA rule. Mobile nav reflow lives in migrated-pages.css (.mkt-nav { flex-wrap: wrap } + .mkt-nav-links { width: 100% }) */
     }
 
     /* Hero */
@@ -23517,7 +23517,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       transition: all var(--dur-base) var(--ease-spring);
     }
     .mkt-nav-cta:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-    @media (max-width: 700px) { .mkt-nav-links a:not(:last-child) { display: none; } }
+    @media (max-width: 700px) { /* Round 40 #1 — removed broken hide-all-but-CTA rule. Mobile nav reflow lives in migrated-pages.css (.mkt-nav { flex-wrap: wrap } + .mkt-nav-links { width: 100% }) */ }
 
     /* Page eyebrow */
     .page-eyebrow {
