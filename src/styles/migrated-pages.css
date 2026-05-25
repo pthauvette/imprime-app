@@ -5853,3 +5853,60 @@
       }
     }
 
+    /* ─── Round 40 #4 — iOS zoom fix + tap targets a11y ────────────────────────
+       iOS Safari auto-zoom dès qu'un input a font-size < 16px et NE
+       zoom JAMAIS back out. Patrick tape une réponse dans MessageActions
+       (fontSize: 13) → tout l'admin reste à 1.4× zoom jusqu'à pinch-out
+       manuel. Apply 16px sur TOUS les inputs/textareas/selects à mobile.
+
+       Apple HIG : tap targets min 44×44 px. .ord-pill / .usr-pill /
+       checkboxes étaient 28-32px → mistaps fréquents. */
+    @media (max-width: 900px) {
+      /* Input zoom prevention — override les fontSize inline (13, 14)
+         qui sont partout. !important nécessaire vs JSX style="". */
+      input[type="text"],
+      input[type="email"],
+      input[type="search"],
+      input[type="number"],
+      input[type="url"],
+      input[type="tel"],
+      input[type="password"],
+      input[type="date"],
+      input[type="datetime-local"],
+      input:not([type]),
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+
+      /* Tap targets : Apple HIG 44×44 minimum */
+      .ord-pill,
+      .usr-pill,
+      .filter-pill,
+      .pill,
+      .reseller-pill,
+      .ord-pills > *,
+      .usr-pills > * {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+      }
+
+      /* Checkboxes : default browser size 13×13 — quasi impossible à tap.
+         On force 20×20 mini + wrap labels en 44px container. */
+      input[type="checkbox"],
+      input[type="radio"] {
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+      }
+      /* Labels qui contiennent un checkbox (pattern <label>X<input/></label>) */
+      label:has(input[type="checkbox"]),
+      label:has(input[type="radio"]) {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+      }
+    }
+
