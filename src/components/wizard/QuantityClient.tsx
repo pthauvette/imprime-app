@@ -337,17 +337,29 @@ function SaveConfigButton({
 }) {
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'duplicate'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Round 41 #2 — Inline name form (était window.prompt customer-facing mobile).
+  // Sur iPhone le prompt natif tronquait le default name (100 char) à ~25 chars
+  // visibles + pas d'autofocus + no styled keyboard. Friction haute pour une
+  // action discretionary → conversion vers saved-configs basse.
+  const [naming, setNaming] = useState(false);
+  const [nameInput, setNameInput] = useState('');
 
-  async function save() {
+  function openNameForm() {
     if (state !== 'idle' || disabled) return;
     setError(null);
-    setState('saving');
-    const defaultName = `${productName} · ${summary}`.slice(0, 100);
-    const name = window.prompt('Nom pour cette configuration :', defaultName);
+    setNameInput(`${productName} · ${summary}`.slice(0, 100));
+    setNaming(true);
+  }
+
+  async function submitName(e: React.FormEvent) {
+    e.preventDefault();
+    const name = nameInput.trim();
     if (!name) {
-      setState('idle');
+      setError('Nom requis');
       return;
     }
+    setNaming(false);
+    setState('saving');
     try {
       const res = await fetch('/api/saved-configs', {
         method: 'POST',
@@ -374,12 +386,44 @@ function SaveConfigButton({
     state === 'duplicate' ? '✓ Déjà sauvegardé' :
     '★ Sauvegarder';
 
+  if (naming) {
+    return (
+      <form onSubmit={submitName} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          placeholder="Nom pour cette configuration"
+          maxLength={100}
+          autoFocus
+          required
+          style={{
+            padding: '6px 10px',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--r-sm)',
+            fontSize: 13,
+            background: 'var(--bg-canvas)',
+            color: 'var(--text-primary)',
+            minWidth: 200,
+          }}
+        />
+        <button type="submit" className="btn btn-primary btn-sm">
+          ★ Sauver
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNaming(false)}>
+          Annuler
+        </button>
+        {error && <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>}
+      </form>
+    );
+  }
+
   return (
     <>
       <button
         type="button"
         className="btn btn-ghost btn-sm"
-        onClick={save}
+        onClick={openNameForm}
         disabled={disabled || state === 'saving'}
         title="Sauve cette configuration pour la retrouver d'un clic plus tard"
         style={{ opacity: disabled ? 0.4 : 1 }}

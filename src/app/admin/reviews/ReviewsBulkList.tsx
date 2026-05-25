@@ -52,6 +52,9 @@ export default function ReviewsBulkList({
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
+  // Round 41 #2 — Inline rejection form au lieu de window.prompt (mobile-unusable).
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const allIds = useMemo(() => reviews.map((r) => r.id), [reviews]);
   const allSelected = selected.size > 0 && selected.size === allIds.length;
@@ -94,10 +97,17 @@ export default function ReviewsBulkList({
     });
   }
 
-  async function bulkReject() {
-    const reason = window.prompt('Raison du rejet (optionnel, pour audit) ?');
-    if (reason === null) return;
-    await bulk('reject', { adminNote: reason || undefined });
+  function openRejectForm() {
+    setRejectReason('');
+    setError(null);
+    setRejectOpen(true);
+  }
+
+  async function submitRejectForm(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = rejectReason.trim();
+    setRejectOpen(false);
+    await bulk('reject', { adminNote: trimmed || undefined });
   }
 
   async function bulkFeature(on: boolean) {
@@ -216,6 +226,62 @@ export default function ReviewsBulkList({
         })}
       </div>
 
+      {/* Round 41 #2 — Inline rejection form (above bulk bar) */}
+      {rejectOpen && selected.size > 0 && (
+        <form
+          onSubmit={submitRejectForm}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--r-md)',
+            padding: 16,
+            boxShadow: 'var(--shadow-xl)',
+            display: 'grid',
+            gap: 10,
+            zIndex: 49,
+            width: 'min(420px, calc(100vw - 32px))',
+          }}
+        >
+          <label htmlFor="reviews-bulk-reject" style={{ fontSize: 12, fontWeight: 600 }}>
+            Raison du rejet (optionnel, pour audit)
+            <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, marginTop: 2 }}>
+              {selected.size} review{selected.size > 1 ? 's' : ''} sélectionnée{selected.size > 1 ? 's' : ''}
+            </span>
+          </label>
+          <textarea
+            id="reviews-bulk-reject"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Ex : Contenu inapproprié / spam"
+            rows={3}
+            maxLength={500}
+            autoFocus
+            style={{ width: '100%', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', resize: 'vertical' }}
+            disabled={busy}
+          />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setRejectOpen(false)}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              style={{ padding: '6px 12px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+            >
+              {busy ? '⏳ …' : `Rejeter ${selected.size}`}
+            </button>
+          </div>
+        </form>
+      )}
+
       {/* Sticky bulk action bar */}
       {selected.size > 0 && (
         <div
@@ -223,7 +289,8 @@ export default function ReviewsBulkList({
           aria-label="Actions bulk"
           style={{
             position: 'fixed',
-            bottom: 24,
+            // Round 40 #4 backfill — iOS safe-area for the bottom indicator
+            bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'var(--text-primary)',
@@ -257,7 +324,7 @@ export default function ReviewsBulkList({
             <button
               type="button"
               disabled={busy}
-              onClick={bulkReject}
+              onClick={openRejectForm}
               style={bulkBtnStyle('var(--danger)')}
             >
               ✗ Rejeter

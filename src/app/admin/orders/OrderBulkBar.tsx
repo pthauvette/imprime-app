@@ -24,6 +24,15 @@ export default function OrderBulkBar() {
   const [busy, startTransition] = useTransition();
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Round 41 #2 — Inline forms au lieu de window.prompt × 3 (mobile-unusable).
+  // 'note' = bulk note. 'ship' = tracking + carrier combinés (avant : 2 prompts
+  // chaînés affreux — maintenant 1 seul form avec les 2 champs).
+  const [openForm, setOpenForm] = useState<null | 'note' | 'ship'>(null);
+  const [noteText, setNoteText] = useState('');
+  const [trackingText, setTrackingText] = useState('');
+  const [carrierText, setCarrierText] = useState('UPS');
+  // shipPending : commande à exécuter une fois le ship form submitted.
+  const [shipPendingCount, setShipPendingCount] = useState(0);
 
   // Attach handlers aux checkboxes au mount + sur navigation (pagination
   // change le DOM). useEffect re-run sur route change via router.refresh.
@@ -61,18 +70,31 @@ export default function OrderBulkBar() {
     setSelectedIds(new Set());
   }
 
-  async function bulkNote() {
+  function openNoteForm() {
     if (selectedIds.size === 0) return;
-    const note = window.prompt(`Ajouter une note admin à ${selectedIds.size} commande${selectedIds.size > 1 ? 's' : ''} :`, '');
-    if (!note || !note.trim()) return;
+    setNoteText('');
     setError(null);
     setResult(null);
+    setOpenForm('note');
+  }
+
+  async function submitNoteForm(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = noteText.trim();
+    if (!trimmed) {
+      setError('Note requise');
+      return;
+    }
+    setOpenForm(null);
+    setError(null);
+    setResult(null);
+    const ids = Array.from(selectedIds);
     startTransition(async () => {
       try {
         const res = await fetch('/api/admin/orders/bulk', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'note', ids: Array.from(selectedIds), note: note.trim() }),
+          body: JSON.stringify({ action: 'note', ids, note: trimmed }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -121,16 +143,17 @@ export default function OrderBulkBar() {
     if (!confirm(`Marquer ${n} commande${n > 1 ? 's' : ''} comme ${label} ?\n\nNote : les orders déjà DELIVERED, CANCELLED ou FAILED seront ignorées (sécurité).`)) {
       return;
     }
-    // Pour SHIPPED, prompt optionnel tracking + carrier (peuvent skip)
-    let trackingNumber: string | undefined;
-    let carrier: string | undefined;
+    // Round 41 #2 — Pour SHIPPED, on ouvre un inline form combiné (tracking +
+    // carrier en 1 fois) au lieu de 2 prompts chaînés (l'ancien flow était
+    // catastrophique sur mobile : 2 modals natifs, no default carrier visible).
     if (status === 'SHIPPED') {
-      const t = window.prompt(`Tracking number commun (optionnel — vide = pas de tracking) :`, '');
-      if (t && t.trim()) {
-        trackingNumber = t.trim();
-        const c = window.prompt('Transporteur ? (UPS / Canada Post / FedEx / Purolator)', 'UPS');
-        if (c && c.trim()) carrier = c.trim();
-      }
+      setTrackingText('');
+      setCarrierText('UPS');
+      setShipPendingCount(n);
+      setError(null);
+      setResult(null);
+      setOpenForm('ship');
+      return;
     }
     setError(null);
     setResult(null);
@@ -143,8 +166,6 @@ export default function OrderBulkBar() {
             action: 'markStatus',
             ids: Array.from(selectedIds),
             status,
-            ...(trackingNumber ? { trackingNumber } : {}),
-            ...(carrier ? { carrier } : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -158,17 +179,187 @@ export default function OrderBulkBar() {
     });
   }
 
+  async function submitShipForm(e: React.FormEvent) {
+    e.preventDefault();
+    const tracking = trackingText.trim();
+    const carrier = carrierText.trim();
+    setOpenForm(null);
+    setError(null);
+    setResult(null);
+    const ids = Array.from(selectedIds);
+    startTransition(async () => {
+      try {
+        const res = await fetch('/api/admin/orders/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'markStatus',
+            ids,
+            status: 'SHIPPED',
+            // Tracking + carrier optional — only sent if both have value
+            ...(tracking ? { trackingNumber: tracking } : {}),
+            ...(tracking && carrier ? { carrier } : {}),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        setResult(`${data.count} commande${data.count > 1 ? 's' : ''} → EXPÉDIÉES.`);
+        clearSelection();
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur');
+      }
+    });
+  }
+
   if (selectedIds.size === 0 && !result && !error) return null;
 
   return (
-    <div
-      role="toolbar"
-      aria-label="Actions bulk commandes"
-      style={{
-        position: 'fixed',
-        // Round 40 #4 — iOS Safari bottom URL bar overlaps fixed:bottom elements.
-        // env(safe-area-inset-bottom) = 0 on non-notched devices, 34px on iPhone X+.
-        bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+    <>
+      {/* Round 41 #2 — Inline form pour bulkNote (was window.prompt) */}
+      {openForm === 'note' && (
+        <form
+          onSubmit={submitNoteForm}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--accent-primary)',
+            borderRadius: 'var(--r-md)',
+            padding: 16,
+            boxShadow: 'var(--shadow-xl)',
+            display: 'grid',
+            gap: 10,
+            zIndex: 49,
+            width: 'min(420px, calc(100vw - 32px))',
+          }}
+        >
+          <label htmlFor="orders-bulk-note" style={{ fontSize: 12, fontWeight: 600 }}>
+            Ajouter une note admin
+            <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, marginTop: 2 }}>
+              {selectedIds.size} commande{selectedIds.size > 1 ? 's' : ''} sélectionnée{selectedIds.size > 1 ? 's' : ''}
+            </span>
+          </label>
+          <textarea
+            id="orders-bulk-note"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Ex : Vérifié avec le client le 25, OK pour produire"
+            rows={3}
+            maxLength={1000}
+            autoFocus
+            style={{ width: '100%', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', resize: 'vertical' }}
+            disabled={busy}
+          />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setOpenForm(null)}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+            >
+              {busy ? '⏳ …' : `Ajouter à ${selectedIds.size}`}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Round 41 #2 — Inline form pour bulkShip (was 2 chained window.prompt).
+          Tracking + carrier combinés en 1 form. Les deux optionnels :
+          si tracking vide → ship sans tracking. */}
+      {openForm === 'ship' && (
+        <form
+          onSubmit={submitShipForm}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--accent-primary)',
+            borderRadius: 'var(--r-md)',
+            padding: 16,
+            boxShadow: 'var(--shadow-xl)',
+            display: 'grid',
+            gap: 10,
+            zIndex: 49,
+            width: 'min(420px, calc(100vw - 32px))',
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600 }}>
+            Marquer {shipPendingCount} commande{shipPendingCount > 1 ? 's' : ''} comme EXPÉDIÉES
+            <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, marginTop: 2 }}>
+              Tracking + transporteur optionnels — laisse vide si pas applicable
+            </span>
+          </div>
+          <div>
+            <label htmlFor="orders-bulk-tracking" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+              Tracking commun (optionnel)
+            </label>
+            <input
+              id="orders-bulk-tracking"
+              type="text"
+              value={trackingText}
+              onChange={(e) => setTrackingText(e.target.value)}
+              placeholder="Ex : 1Z999AA10123456784"
+              maxLength={100}
+              autoFocus
+              style={{ width: '100%', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
+              disabled={busy}
+            />
+          </div>
+          <div>
+            <label htmlFor="orders-bulk-carrier" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+              Transporteur
+            </label>
+            <select
+              id="orders-bulk-carrier"
+              value={carrierText}
+              onChange={(e) => setCarrierText(e.target.value)}
+              disabled={busy || !trackingText.trim()}
+              style={{ width: '100%', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', background: 'var(--bg-canvas)' }}
+            >
+              <option value="UPS">UPS</option>
+              <option value="Canada Post">Canada Post</option>
+              <option value="FedEx">FedEx</option>
+              <option value="Purolator">Purolator</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setOpenForm(null)}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+            >
+              {busy ? '⏳ …' : `Marquer ${shipPendingCount} expédiée${shipPendingCount > 1 ? 's' : ''}`}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div
+        role="toolbar"
+        aria-label="Actions bulk commandes"
+        style={{
+          position: 'fixed',
+          // Round 40 #4 — iOS Safari bottom URL bar overlaps fixed:bottom elements.
+          // env(safe-area-inset-bottom) = 0 on non-notched devices, 34px on iPhone X+.
+          bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         left: '50%',
         transform: 'translateX(-50%)',
         background: 'var(--text-primary)',
@@ -193,7 +384,7 @@ export default function OrderBulkBar() {
           <button
             type="button"
             disabled={busy}
-            onClick={bulkNote}
+            onClick={openNoteForm}
             style={{
               padding: '6px 14px',
               background: 'var(--accent-primary)',
@@ -236,7 +427,8 @@ export default function OrderBulkBar() {
       {error && (
         <span style={{ fontSize: 12, color: 'var(--danger)' }}>✗ {error}</span>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
