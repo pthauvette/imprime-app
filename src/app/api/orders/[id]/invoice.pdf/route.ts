@@ -39,7 +39,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { user: { select: { email: true, name: true } } },
+    // Round 38 #2 — Inclure taxExempt + taxExemptCertId pour que le PDF
+    // affiche "Exonéré de taxes" au lieu des TPS/TVQ jamais payés.
+    include: { user: { select: { email: true, name: true, taxExempt: true, taxExemptCertId: true } } },
   });
 
   if (!order) {
@@ -57,7 +59,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     pdfBytes = await generateInvoicePdf({
       order,
-      customer: { name: order.user.name, email: order.user.email },
+      customer: {
+        name: order.user.name,
+        email: order.user.email,
+        taxExempt: order.user.taxExempt,
+        taxExemptCertId: order.user.taxExemptCertId,
+      },
       company: COMPANY,
     });
   } catch (err) {

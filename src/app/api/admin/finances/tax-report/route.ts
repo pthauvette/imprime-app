@@ -76,6 +76,13 @@ export const GET = withErrorHandler(async (req: Request) => {
       paidAt: true,
       shipProvince: true,
       subtotalCents: true,
+      // Round 38 #2 — Inclure discount + resellerDiscount + shipping pour
+      // dériver le VRAI taxable subtotal (avant ce fix, on calculait sur
+      // subtotal seul → tax under-reportée de shipping × rate par order,
+      // CRA remittance mis-reportée).
+      discountCents: true,
+      resellerDiscountCents: true,
+      shippingCents: true,
       taxCents: true,
       amountCents: true,
     },
@@ -111,11 +118,34 @@ export const GET = withErrorHandler(async (req: Request) => {
   }> = [];
 
   for (const o of orders) {
-    const subtotal = o.subtotalCents / 100;
-    const breakdown = computeTax(subtotal, o.shipProvince as CaProvince);
+    // Round 38 #2 — Le VRAI taxable subtotal aligné avec /api/orders/create :
+    //   subtotal - discount - resellerDiscount + shipping
+    // computeTax sert ici à dériver le SPLIT (TPS vs TVQ, etc.) ; ensuite
+    // on scale au prorata du stored taxCents pour garantir que la CRA
+    // remittance == ce qui a été effectivement chargé Stripe (truth source).
+    const taxableSubtotal = (
+      o.subtotalCents - o.discountCents - o.resellerDiscountCents + o.shippingCents
+    ) / 100;
+    const breakdown = computeTax(taxableSubtotal, o.shipProvince as CaProvince);
+
+    // Source of truth = o.taxCents. Si stored matches computed (cas normal),
+    // on prend les split direct. Si stored = 0 (tax-exempt) → toutes lignes 0.
+    // Si drift, on scale au prorata pour préserver la somme exacte.
+    const computedTotalCents = Math.round(breakdown.total * 100);
+    const scale = computedTotalCents > 0 ? o.taxCents / computedTotalCents : 0;
     const taxByCode = { gst: 0, pst: 0, qst: 0, hst: 0 };
     for (const line of breakdown.lines) {
-      taxByCode[line.code] = Math.round(line.amount * 100);
+      taxByCode[line.code] = Math.round(line.amount * 100 * scale);
+    }
+    // Rounding drift correction : la somme des scaled cents peut différer
+    // de stored taxCents de 1¢ — on absorbe sur la plus grosse ligne.
+    const summedTax = taxByCode.gst + taxByCode.pst + taxByCode.qst + taxByCode.hst;
+    const drift = o.taxCents - summedTax;
+    if (drift !== 0 && breakdown.lines.length > 0) {
+      const biggestCode = breakdown.lines.reduce((max, l) =>
+        Math.round(l.amount * 100 * scale) > Math.round(max.amount * 100 * scale) ? l : max,
+      ).code;
+      taxByCode[biggestCode] += drift;
     }
     const totalTaxCents = taxByCode.gst + taxByCode.pst + taxByCode.qst + taxByCode.hst;
 

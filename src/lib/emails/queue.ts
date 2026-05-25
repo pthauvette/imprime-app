@@ -337,7 +337,9 @@ async function buildInvoiceAttachments(
     const { generateInvoicePdf } = await import('@/lib/print/invoice-pdf');
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { user: { select: { email: true, name: true } } },
+      // Round 38 #2 — Inclure taxExempt + taxExemptCertId pour respecter
+      // le statut tax-exempt B2B dans la facture émise.
+      include: { user: { select: { email: true, name: true, taxExempt: true, taxExemptCertId: true } } },
     });
     if (!order) {
       logEmail.warn({ orderId }, 'invoice attachment skipped : order not found');
@@ -353,7 +355,12 @@ async function buildInvoiceAttachments(
     };
     const bytes = await generateInvoicePdf({
       order,
-      customer: { name: order.user.name, email: order.user.email },
+      customer: {
+        name: order.user.name,
+        email: order.user.email,
+        taxExempt: order.user.taxExempt,
+        taxExemptCertId: order.user.taxExemptCertId,
+      },
       company,
     });
     const displayId = order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase();
