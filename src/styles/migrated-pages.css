@@ -5787,3 +5787,69 @@
       .admin-composer-preview-grid { grid-template-columns: 1fr; }
     }
 
+    /* ─── Round 40 #3 — Admin mobile : tables + padding + title ────────────────
+       Avant : 17 tables admin sans overflow-x wrapper bursted le viewport sur
+       375px → Patrick pouvait pas browser orders/users/finances depuis son tel.
+       .adm-main padding 32×48 = 96px horizontal → 235px de content sur 375px.
+
+       Fix global (1 rule, 17 tables fixées) : tables deviennent leur propre
+       scroll container, .adm-main padding réduit, .adm-page-title clamp,
+       décoratifs (.adm-pulse) hidden. */
+    @media (max-width: 900px) {
+      .adm-main {
+        padding: 16px 12px 60px !important;
+      }
+      .adm-page-title {
+        font-size: clamp(22px, 6vw, 40px) !important;
+      }
+      .adm-pulse {
+        display: none !important;
+      }
+      /* Filterbars : déjà flex-wrap mais petits pills < 44px tap targets — fixé en Round 40 #4 */
+      .ord-filterbar,
+      .usr-filterbar {
+        gap: 8px;
+      }
+      .ord-search,
+      .usr-search {
+        min-width: 0 !important; /* override desktop min-width: 280px qui burst le viewport */
+        width: 100%;
+      }
+    }
+
+    /* Tables : block + overflow-x permet horizontal scroll sur mobile sans
+       wrapper JSX. Le scroll est sur le <table> lui-même (display:block).
+       Layout des cellules préservé via display:inline-block sur les rows. */
+    @media (max-width: 768px) {
+      .adm-main table {
+        display: block;
+        overflow-x: auto;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+        /* iOS Safari : empêche le bounce vertical du scroll horizontal */
+        overscroll-behavior-x: contain;
+      }
+      /* Sticky first column pour les tables haute densité (orders/users/finances).
+         Le user voit toujours l'ID/email en scrollant horizontalement.
+         Background nécessaire pour ne pas voir les cells qui glissent dessous. */
+      .ord-table th:first-child,
+      .ord-table td:first-child,
+      .usr-table th:first-child,
+      .usr-table td:first-child {
+        position: sticky;
+        left: 0;
+        background: var(--bg-surface);
+        z-index: 1;
+      }
+      /* Audit log payload column : long URLs/JSON wrap correctement */
+      .adm-audit-payload,
+      .audit-row td {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      /* Admin panel padding réduit (compense la sticky col qui mange espace) */
+      .adm-panel {
+        padding: 14px !important;
+      }
+    }
+
