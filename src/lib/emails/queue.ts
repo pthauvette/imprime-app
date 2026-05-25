@@ -27,6 +27,7 @@ import { sendEmail, type EmailTemplate } from './render';
 import { logEmail } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
+import { isSuppressed } from './suppression';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
@@ -159,8 +160,26 @@ function nextRetryAt(attempts: number): Date | null {
 export async function queueEmail(input: QueueEmailInput): Promise<{
   sent: boolean;
   id: string;
-  skipped?: 'throttled';
+  skipped?: 'throttled' | 'suppressed';
 }> {
+  // Round 39 #4 — Suppression check : skip TOUS les emails (transactional
+  // inclus) si l'address est dans EmailSuppression (hard bounce / complaint).
+  // Continuer d'envoyer à un hard-bouncer dégrade notre Sender Score SES →
+  // tous les futurs emails (légitimes inclus) tombent en spam ou sont
+  // throttled. Best-effort : si la query suppress fail, on log et continue
+  // (mieux envoyer 1 email à risque que zéro pendant un blip DB).
+  try {
+    if (await isSuppressed(input.to)) {
+      logEmail.warn(
+        { to: input.to, template: input.template, label: input.label },
+        'email suppressed (hard bounce or complaint)',
+      );
+      return { sent: false, id: 'suppressed', skipped: 'suppressed' };
+    }
+  } catch (err) {
+    logEmail.warn({ err, to: input.to }, 'suppression check failed, continuing send');
+  }
+
   // Round 37 #3 — Throttle check : skip si user dépasse DAILY_EMAIL_CAP
   // dans les 24h rolling. Templates transactional exemptés.
   // Best-effort : si la query throttle fail (DB), on log et on continue

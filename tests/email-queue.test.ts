@@ -25,6 +25,11 @@ vi.mock('@/lib/db', () => ({
       // Default 0 = pas throttled, autorise les tests existants.
       count: vi.fn(async () => 0),
     },
+    // Round 39 #4 : suppression check au début de queueEmail. Default
+    // null = pas suppressed, autorise tous les tests existants.
+    emailSuppression: {
+      findUnique: vi.fn(async () => null),
+    },
   },
 }));
 
@@ -86,6 +91,18 @@ describe('queueEmail', () => {
     expect(r.id).toBe('no-queue-fallback');
     expect(r.sent).toBe(true);
     expect(sendEmail).toHaveBeenCalledOnce();
+  });
+
+  it('Round 39 #4 : skip TOTALEMENT si email est dans EmailSuppression', async () => {
+    vi.mocked(prisma.emailSuppression.findUnique).mockResolvedValueOnce({ id: 'sup1' } as never);
+    const r = await queueEmail({
+      to: 'gone@nowhere.ca', template: 'welcome', vars: { CUSTOMER_FIRST_NAME: 'T' },
+    });
+    expect(r.sent).toBe(false);
+    expect(r.skipped).toBe('suppressed');
+    // PAS d'INSERT dans EmailDelivery, PAS d'appel sendEmail
+    expect(prisma.emailDelivery.create).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });
 

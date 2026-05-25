@@ -443,7 +443,7 @@ model DesignDraft {
 
 model WebhookEvent {
   id          String   @id @default(cuid())
-  // STRIPE | SINALITE
+  // STRIPE | SINALITE | SES (Round 39 #4 SNS bounce/complaint)
   source      String
   // ID unique du webhook (evt_xxx pour Stripe, généré pour Sinalite)
   eventId     String
@@ -1377,4 +1377,46 @@ model WebhookReplay {
   latencyMs       Int?
 
   @@index([webhookEventId, replayedAt])
+}
+
+// ─── EMAIL SUPPRESSION (Round 39 #4) ──────────────────────────────────────
+// Source of truth : une row ici = ne plus JAMAIS envoyer d'email à cette
+// address, peu importe le template. Populé par :
+//   - /api/webhooks/ses (SNS notification SES hard bounce / complaint)
+//   - Futur : admin UI pour suppress manuel
+//
+// queueEmail() check `findUnique({where:{email}})` AVANT le throttle check
+// et AVANT le INSERT EmailDelivery — bail out cleanly avec status='SUPPRESSED'.
+//
+// Pourquoi ce table vs réutiliser User.emailMarketing=false :
+//   - emailMarketing ne couvre QUE le marketing → on continuerait d'envoyer
+//     les transactionnels à une address hard-bounced → SES degrade encore
+//     plus notre reputation Sender Score.
+//   - Beaucoup d'addresses qui bounce n'ont pas de User row (newsletter
+//     leads, sample requests, contact form senders). Cette table couvre
+//     tout l'univers des "from" SES.
+//
+// Reasons :
+//   HARD_BOUNCE  : bounce permanent (mailbox doesn't exist, domain gone)
+//   COMPLAINT    : user a cliqué "spam" dans son client mail
+//   MANUAL       : admin a suppress manuellement via UI
+
+model EmailSuppression {
+  id           String   @id @default(cuid())
+  /** Lowercased email — UNIQUE empêche les doublons sur SNS replay. */
+  email        String   @unique
+  /** HARD_BOUNCE | COMPLAINT | MANUAL */
+  reason       String
+  /** SES_BOUNCE | SES_COMPLAINT | ADMIN | USER_UNSUB */
+  source       String
+  /** Message-ID SES pour traçabilité + dedup (les notifications SNS peuvent
+   *  être livrées multiples fois — at-least-once delivery). */
+  sesMessageId String?
+  /** Free-form JSON pour bounceType/bounceSubType/complaintFeedbackType
+   *  (audit + investigation). */
+  details      String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([reason])
 }
