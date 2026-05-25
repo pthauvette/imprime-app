@@ -323,6 +323,9 @@ async function handlePaymentSucceeded(
     logStripe.error({ err, orderId: order.id, intentId: intent.id }, 'Sinalite createOrder FAILED');
 
     try {
+      // Round 38 #3 — idempotencyKey : si le webhook Stripe retry pour
+      // cette même intent.id (timeout réseau), on ne crée pas un 2ème
+      // refund. Le PI ID est unique par charge donc parfait pour dedupe.
       const refund = await stripe.refunds.create({
         payment_intent: intent.id,
         reason: 'requested_by_customer',
@@ -331,7 +334,7 @@ async function handlePaymentSucceeded(
           orderId: order.id,
           error: err instanceof Error ? err.message.slice(0, 500) : 'unknown',
         },
-      });
+      }, { idempotencyKey: `auto_refund_${intent.id}` });
       await markRefundIssued({ orderId: order.id, refundId: refund.id });
       await markOrderFailed({
         orderId: order.id,

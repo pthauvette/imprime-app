@@ -45,31 +45,63 @@ export async function recordWalletTx(opts: RecordOpts): Promise<{ balanceAfterCe
   }
 
   return prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
+    // Round 38 #3 — Atomic increment via Prisma operator + WHERE guard.
+    //
+    // Avant : findUnique + compute + update = 3 steps avec race (2 calls
+    // concurrents peuvent lire la même walletCents stale, écrire la même
+    // value → 1 tx perdue silencieusement, ledger overspend possible).
+    //
+    // Maintenant : pour les DEBITS, on utilise updateMany avec WHERE
+    // walletCents >= |amount|. Postgres garantit l'atomicité du
+    // INC-with-condition au niveau row-lock. Si count=0 → overdraft
+    // détecté atomic. Pour les CREDITS, straight increment (no guard
+    // needed, on n'overflow pas Int32 dans les cas réels).
+    const baseData = {
+      walletCents: { increment: opts.amountCents },
+      walletLastActivityAt: new Date(),
+      ...(opts.kind === 'EXPIRY' && { walletExpiryWarningAt: null }),
+    };
+
+    if (opts.amountCents < 0 && opts.kind !== 'ADMIN_ADJUSTMENT') {
+      // DEBIT path : atomic guard contre overdraft
+      const result = await tx.user.updateMany({
+        where: {
+          id: opts.userId,
+          walletCents: { gte: -opts.amountCents }, // -opts.amountCents = abs value
+        },
+        data: baseData,
+      });
+      if (result.count === 0) {
+        // Soit user introuvable, soit walletCents insuffisant. On distingue
+        // pour donner un message clair.
+        const exists = await tx.user.findUnique({
+          where: { id: opts.userId },
+          select: { walletCents: true },
+        });
+        if (!exists) throw new Error(`User ${opts.userId} introuvable`);
+        throw new Error(
+          `Wallet overdraft refusé : user ${opts.userId} a ${exists.walletCents} cents, tentative debit ${opts.amountCents} (atomic check)`,
+        );
+      }
+    } else {
+      // CREDIT path ou ADMIN_ADJUSTMENT (qui peut négative w/o guard)
+      const result = await tx.user.updateMany({
+        where: { id: opts.userId },
+        data: baseData,
+      });
+      if (result.count === 0) {
+        throw new Error(`User ${opts.userId} introuvable`);
+      }
+    }
+
+    // Re-fetch pour le balance snapshot (single SELECT, dans la même tx
+    // donc voit le résultat du update au-dessus).
+    const after = await tx.user.findUnique({
       where: { id: opts.userId },
       select: { walletCents: true },
     });
-    if (!user) throw new Error(`User ${opts.userId} introuvable`);
-
-    const newBalance = user.walletCents + opts.amountCents;
-    if (newBalance < 0 && opts.kind !== 'ADMIN_ADJUSTMENT') {
-      throw new Error(
-        `Wallet overdraft refusé : user ${opts.userId} a ${user.walletCents} cents, tentative debit ${opts.amountCents}`,
-      );
-    }
-
-    await tx.user.update({
-      where: { id: opts.userId },
-      data: {
-        walletCents: newBalance,
-        // Round 19 #3 — bump l'activity clock pour rolling expiration
-        // (12 mois inactif → expire via cron). Reset le warning aussi
-        // pour les EXPIRY (sinon on re-warn next cycle alors qu'on vient
-        // d'expirer).
-        walletLastActivityAt: new Date(),
-        ...(opts.kind === 'EXPIRY' && { walletExpiryWarningAt: null }),
-      },
-    });
+    if (!after) throw new Error(`User ${opts.userId} disparu pendant la tx`);
+    const newBalance = after.walletCents;
 
     const txRow = await tx.walletTransaction.create({
       data: {
@@ -90,7 +122,7 @@ export async function recordWalletTx(opts: RecordOpts): Promise<{ balanceAfterCe
       amountCents: opts.amountCents,
       newBalance,
       txId: txRow.id,
-    }, 'wallet tx recorded');
+    }, 'wallet tx recorded (atomic)');
 
     return { balanceAfterCents: newBalance, txId: txRow.id };
   });

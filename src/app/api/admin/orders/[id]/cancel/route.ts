@@ -51,8 +51,14 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   }
 
   // Refund full
+  // Round 38 #3 — idempotencyKey : double-cancel = double refund risk.
   let refund: Stripe.Refund | null = null;
   if (order.status !== 'PENDING') {
+    const { createHash } = await import('node:crypto');
+    const cancelIdemKey = `ca_${createHash('sha256')
+      .update(JSON.stringify({ orderId: order.id, adminUserId: guard.userId }))
+      .digest('hex')
+      .slice(0, 48)}`;
     try {
       refund = await stripe.refunds.create({
         payment_intent: order.paymentIntentId,
@@ -62,7 +68,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
           adminUserId: guard.userId,
           reason: body.reason,
         },
-      });
+      }, { idempotencyKey: cancelIdemKey });
       await markRefundIssued({ orderId: order.id, refundId: refund.id });
     } catch (err) {
       return NextResponse.json(

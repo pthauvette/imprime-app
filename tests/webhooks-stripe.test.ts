@@ -273,15 +273,23 @@ describe('D. Sinalite failure → auto-refund (CRITICAL)', () => {
 
     const res = await POST(makeStripeRequest());
 
-    expect(stripeInstance.refunds.create).toHaveBeenCalledWith({
-      payment_intent: 'pi_sinalite_fail',
-      reason: 'requested_by_customer',
-      metadata: {
-        reason: 'sinalite_creation_failed',
-        orderId: order.id,
-        error: 'Sinalite 500: internal',
+    // Round 38 #3 — Stripe refunds.create maintenant appelé avec 2 args :
+    // (body, { idempotencyKey }). Tests vérifie l'idempotency key inclut
+    // l'intent.id pour dedupe sur retry webhook.
+    expect(stripeInstance.refunds.create).toHaveBeenCalledWith(
+      {
+        payment_intent: 'pi_sinalite_fail',
+        reason: 'requested_by_customer',
+        metadata: {
+          reason: 'sinalite_creation_failed',
+          orderId: order.id,
+          error: 'Sinalite 500: internal',
+        },
       },
-    });
+      expect.objectContaining({
+        idempotencyKey: expect.stringContaining('pi_sinalite_fail'),
+      }),
+    );
     expect(orders.markRefundIssued).toHaveBeenCalledWith({
       orderId: order.id,
       refundId: 're_test123',
