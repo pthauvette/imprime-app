@@ -72,21 +72,86 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   const emailSnapshot = user.email;
 
   // 2. Transaction : delete relations + anonymize User + mark request PROCESSED
-  // Note : on garde Orders (LIR art. 230 retention 6 ans), ReferralReward
-  // (audit), AdminAuditEvent, ContactMessage, EmailDelivery, NewsletterSubscriber.
+  //
+  // Round 39 #1 — Extension PIPEDA : avant ce fix, on anonymisait juste le
+  // User row + delete les sessions/drafts. Mais Order.shipName/shipLine*/shipPhone,
+  // ContactMessage.email/name/message, SampleRequest.email/name/phone/ship*,
+  // AbandonedCart.email, NewsletterSubscriber.email RESTAIENT en clair → CAI
+  // Québec audit failure direct.
+  //
+  // Maintenant : on anonymise/delete les 5 tables PII supplémentaires. Le
+  // fait que les Orders SOIENT KEPT (LIR retention 6 ans) ne dispense pas
+  // de l'obligation PIPEDA de pseudonymiser les PII customer-identifiable.
+  // On conserve les amounts/dates/province (utiles pour fiscal/CRA report)
+  // mais on wipe nom/adresse/téléphone.
   const now = new Date();
   const anonymizedEmail = `deleted-${userId.slice(-8)}@anonymized.plio.local`;
+  const ANONYMIZED_TEXT = '[PIPEDA-DELETED]';
 
   await prisma.$transaction([
-    // Cascade-able auth tables (on ne peut pas hard-delete User à cause des
-    // Orders FK, mais on peut delete ses sessions/accounts/etc. directement).
+    // Cascade-able auth tables
     prisma.account.deleteMany({ where: { userId } }),
     prisma.session.deleteMany({ where: { userId } }),
     prisma.address.deleteMany({ where: { userId } }),
     prisma.draft.deleteMany({ where: { userId } }),
     prisma.designDraft.deleteMany({ where: { userId } }),
     prisma.savedConfig.deleteMany({ where: { userId } }),
-    // Anonymize User row
+
+    // Round 39 #1 — anonymize Order.ship* (kept rows pour LIR 6 ans
+    // mais shipping address customer-identifiable doit être wipée).
+    // shipProvince conservé pour CRA tax report. shippingMethod aussi
+    // (analytics non-PII).
+    prisma.order.updateMany({
+      where: { userId },
+      data: {
+        shipName: ANONYMIZED_TEXT,
+        shipLine1: ANONYMIZED_TEXT,
+        shipLine2: null,
+        shipCity: ANONYMIZED_TEXT,
+        shipPostalCode: 'A0A 0A0', // format valide mais sentinel
+        shipPhone: '+10000000000',
+      },
+    }),
+
+    // Round 39 #1 — ContactMessage : anonymize par user.email match.
+    // Garde le message/subject pour pattern detection futur (admin support
+    // analytics) mais wipe email + nom.
+    prisma.contactMessage.updateMany({
+      where: { email: emailSnapshot.toLowerCase() },
+      data: {
+        email: anonymizedEmail,
+        name: ANONYMIZED_TEXT,
+      },
+    }),
+
+    // Round 39 #1 — SampleRequest : anonymize email + name + phone + ship*.
+    // Pas de FK directe à User (matched par email), donc on key sur email.
+    prisma.sampleRequest.updateMany({
+      where: { email: emailSnapshot.toLowerCase() },
+      data: {
+        email: anonymizedEmail,
+        name: ANONYMIZED_TEXT,
+        phone: null,
+        shipLine1: ANONYMIZED_TEXT,
+        shipLine2: null,
+        shipCity: ANONYMIZED_TEXT,
+        shipPostalCode: 'A0A 0A0',
+      },
+    }),
+
+    // Round 39 #1 — AbandonedCart : DELETE direct (short-lived data,
+    // pas d'audit retention requise). Email matched.
+    prisma.abandonedCart.deleteMany({
+      where: { email: emailSnapshot.toLowerCase() },
+    }),
+
+    // Round 39 #1 — NewsletterSubscriber : DELETE direct + consentIp wipe.
+    // (Aurait pu être anonymize mais newsletter n'a aucune retention obligatoire.)
+    prisma.newsletterSubscriber.deleteMany({
+      where: { email: emailSnapshot.toLowerCase() },
+    }),
+
+    // Anonymize User row (inchangé)
     prisma.user.update({
       where: { id: userId },
       data: {
