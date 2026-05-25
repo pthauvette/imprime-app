@@ -129,38 +129,57 @@ export default function PrivacyPage() {
               </section>
       
               <section id="s3">
-                <h2><span className="h-num">Article 03</span>Partage avec des tiers</h2>
-                <p>Plio travaille avec un nombre volontairement restreint de sous-traitants techniques, chacun lié par un accord de traitement de données conforme à la Loi 25 et au RGPD. La liste exhaustive est la suivante :</p>
-      
+                <h2><span className="h-num">Article 03</span>Partage avec des tiers (sous-traitants)</h2>
+                <p>Plio travaille avec un nombre volontairement restreint de sous-traitants techniques, chacun lié par un accord de traitement de données conforme à la Loi 25 et au RGPD. La liste exhaustive ci-dessous reflète l&apos;infrastructure réelle en date du {new Date().toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>
+
                 <div className="third-party-grid">
                   <div className="tp-card">
-                    <div className="tp-name">Stripe</div>
+                    <div className="tp-name">Stripe (Irlande / USA)</div>
                     <div className="tp-role">Paiement</div>
-                    <div className="tp-desc">Traite la carte bancaire. Plio ne voit jamais le numéro complet — uniquement les 4 derniers chiffres et le type de carte.</div>
+                    <div className="tp-desc">Traite la carte bancaire. Plio ne voit jamais le numéro complet — uniquement les 4 derniers chiffres et le type de carte. Données stockées chez Stripe (PCI-DSS niveau 1).</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">AWS · Canada-Central</div>
-                    <div className="tp-role">Hébergement</div>
-                    <div className="tp-desc">Héberge nos serveurs et notre base de données. Localisation exclusive à Montréal (région ca-central-1).</div>
+                    <div className="tp-name">Vercel (USA) + Neon Postgres (USA)</div>
+                    <div className="tp-role">Hébergement application + base de données</div>
+                    <div className="tp-desc">Notre application web et la base de données principale sont hébergées chez Vercel et Neon (régions US East). Tes données transitent en TLS 1.3.</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">Resend</div>
-                    <div className="tp-role">Courriel transactionnel</div>
-                    <div className="tp-desc">Envoie les confirmations de commande et les notifications. Aucun usage marketing sans opt-in explicite.</div>
+                    <div className="tp-name">AWS S3 (Canada-Central)</div>
+                    <div className="tp-role">Stockage des fichiers print-ready</div>
+                    <div className="tp-desc">Tes PDFs / images uploadés résident exclusivement à Montréal (ca-central-1). Presigned URLs expirent en 7 jours.</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">UPS · FedEx</div>
+                    <div className="tp-name">AWS SES (USA)</div>
+                    <div className="tp-role">Courriel transactionnel + marketing</div>
+                    <div className="tp-desc">Envoie les confirmations de commande, magic links de connexion et (avec ton opt-in) les newsletters. Pas d&apos;usage marketing sans consentement explicite (CASL).</div>
+                  </div>
+                  <div className="tp-card">
+                    <div className="tp-name">Sinalite (USA)</div>
+                    <div className="tp-role">Partenaire d&apos;impression</div>
+                    <div className="tp-desc">Reçoit ton nom, adresse de livraison, téléphone et fichiers print-ready pour l&apos;impression et l&apos;expédition. Pas d&apos;autres données partagées.</div>
+                  </div>
+                  <div className="tp-card">
+                    <div className="tp-name">UPS / Postes Canada (Canada)</div>
                     <div className="tp-role">Transporteurs</div>
-                    <div className="tp-desc">Reçoivent ton nom et l'adresse pour la livraison. Pas d'autres données partagées.</div>
+                    <div className="tp-desc">Sinalite leur fournit ton nom et adresse pour la livraison. Numéro de suivi nous est retourné.</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">Plausible Analytics</div>
-                    <div className="tp-role">Analytique</div>
-                    <div className="tp-desc">Mesure d'audience sans cookies, conforme RGPD/Loi 25 par défaut. Hébergé en UE, données agrégées.</div>
+                    <div className="tp-name">Sentry (USA)</div>
+                    <div className="tp-role">Monitoring d&apos;erreurs serveur</div>
+                    <div className="tp-desc">Capture les stack traces quand un bug serveur survient. Cookies, headers d&apos;authentification et signatures webhook sont strippés avant transmission.</div>
+                  </div>
+                  <div className="tp-card">
+                    <div className="tp-name">Upstash Redis (USA / UE)</div>
+                    <div className="tp-role">Cache + rate limiting</div>
+                    <div className="tp-desc">Tient les compteurs de rate-limit (anti-bot) et de cache temporaire des prix. Aucune donnée personnelle stockée — uniquement des hash IP.</div>
                   </div>
                 </div>
-      
-                <p>Aucune donnée personnelle n'est revendue, louée ou cédée à des fins publicitaires. Aucun partenaire publicitaire (Meta, Google Ads, TikTok) n'a accès à tes informations.</p>
+
+                <p style={{ marginTop: 16 }}>
+                  <strong>Transferts hors-Canada :</strong> certains sous-traitants (Stripe, Vercel, Neon, AWS SES, Sinalite, Sentry, Upstash) traitent tes données aux États-Unis ou en Europe. Conformément à l&apos;article 17 de la Loi 25, nous avons évalué que ces transferts offrent une protection équivalente, et les accords de traitement (DPA) couvrent les obligations de confidentialité et de sécurité. Tu peux demander la liste détaillée des DPA via <a href="mailto:privacy@plio.ca">privacy@plio.ca</a>.
+                </p>
+
+                <p>Aucune donnée personnelle n&apos;est revendue, louée ou cédée à des fins publicitaires. Aucun partenaire publicitaire (Meta, Google Ads, TikTok) n&apos;a accès à tes informations. Aucun outil d&apos;analytique tiers (Google Analytics, Plausible, etc.) n&apos;est actuellement déployé.</p>
               </section>
       
               <section id="s4">
@@ -168,12 +187,13 @@ export default function PrivacyPage() {
                 <p>Plio applique une politique cookies minimaliste : aucun cookie tiers publicitaire, aucun pixel de tracking cross-site, aucun outil de fingerprinting comportemental.</p>
                 <p>Les cookies utilisés se limitent à ceux strictement nécessaires au fonctionnement du service :</p>
                 <ul>
-                  <li><strong>od_session</strong> — maintien de la session utilisateur (HTTPOnly, SameSite=Strict);</li>
-                  <li><strong>od_cart</strong> — sauvegarde du panier en cours pendant 7 jours;</li>
-                  <li><strong>od_csrf</strong> — protection contre les requêtes intersites falsifiées;</li>
-                  <li><strong>od_theme</strong> — mémorisation de ton choix clair/sombre.</li>
+                  <li><strong>authjs.session-token</strong> — maintien de la session utilisateur (HTTPOnly, SameSite=Lax, Secure en prod).</li>
+                  <li><strong>plio_lang</strong> — mémorisation de la langue choisie (fr/en).</li>
+                  <li><strong>plio_ref</strong> — capture du code de parrainage si tu arrives via un lien <em>?ref=CODE</em> (TTL 30 jours).</li>
+                  <li><strong>plio_pending_profile</strong> — workflow sign-up qui survit le round-trip magic-link (TTL 15 min).</li>
+                  <li><strong>plio_cookie_consent</strong> — mémorisation de tes préférences cookies (TTL 12 mois).</li>
                 </ul>
-                <p>L'outil de mesure d'audience (Plausible) n'utilise aucun cookie. Tu n'as donc rien à accepter ou à refuser à l'arrivée sur le site — ce qui explique l'absence de bannière intrusive.</p>
+                <p>Aucun outil de mesure d&apos;audience tiers (Google Analytics, Plausible, etc.) n&apos;est actuellement déployé. La bannière cookies, présente conformément à la Loi 25, te permet d&apos;accepter ou refuser les cookies analytiques avant qu&apos;ils ne soient activés (si un outil est ajouté dans le futur).</p>
               </section>
       
               <section id="s5">
