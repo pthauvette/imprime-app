@@ -103,6 +103,28 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   // partial = Stripe only, full = restore tout.
   let walletRestoredCents = 0;
   const isFullRefund = !body.amountCents || body.amountCents >= order.amountCents;
+
+  // Round 38 #1 — Garde-fou off-by-one : si admin tape 7999¢ sur order 8000¢
+  // (typo), isFullRefund=false → wallet NON restauré, customer perd ses crédits
+  // silencieusement. Alert Slack pour que l'admin soit visuellement notifié
+  // (cf. self-audit Round 37 — own bug introduit par Round 37 #1).
+  if (!isFullRefund && order.walletCreditAppliedCents > 0) {
+    const { sendCriticalAlert } = await import('@/lib/alerting/slack');
+    void sendCriticalAlert({
+      severity: 'warning',
+      title: 'Refund partial — wallet credit NON restauré',
+      body: `Admin a refund ${(refundAmount / 100).toFixed(2)} $ partiel sur order avec wallet credit ${(order.walletCreditAppliedCents / 100).toFixed(2)} $ appliqué. Le wallet reste débité côté customer. Vérifie si c'est intentionnel (full refund tape EXACT order.amountCents = ${(order.amountCents / 100).toFixed(2)} $).`,
+      context: {
+        orderId: order.id,
+        adminUserId: guard.userId,
+        partialAmountCents: refundAmount,
+        orderAmountCents: order.amountCents,
+        walletCreditAppliedCents: order.walletCreditAppliedCents,
+        diff: order.amountCents - refundAmount,
+      },
+    });
+  }
+
   if (isFullRefund && order.walletCreditAppliedCents > 0) {
     try {
       const { recordWalletTx } = await import('@/lib/wallet/operations');

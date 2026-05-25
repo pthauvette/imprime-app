@@ -18,22 +18,13 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import OrderBulkBar from './OrderBulkBar';
 import OrderSlaWidget from '@/components/admin/OrderSlaWidget';
 import SavedFiltersBar from '@/components/admin/SavedFiltersBar';
+// Round 38 #1 — Source canonique (Round 37 #5 extract)
+import { STATUS_LABELS } from '@/lib/orders/status-labels';
 
 export const metadata = { title: 'Admin — Commandes' };
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
-
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING: 'En attente',
-  PAID: 'Payée',
-  SUBMITTED: 'Soumise',
-  IN_PRODUCTION: 'En production',
-  SHIPPED: 'Expédiée',
-  DELIVERED: 'Livrée',
-  CANCELLED: 'Annulée',
-  FAILED: 'Échec',
-};
 
 const STATUS_CLASS: Record<OrderStatus, string> = {
   PENDING: 'submitted',

@@ -114,6 +114,12 @@ const THROTTLE_EXEMPT_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
   'refund-issued',
   'magic-link',
   'welcome',
+  // Round 38 #1 — admin-custom-message bypass throttle car used pour
+  // transactional (wallet expiry warning, weekly digest) ET admin replies
+  // 1:1 customer (quick-reply à un ticket). Si admin répond à un customer
+  // qui a déjà reçu 5 emails, sa réponse ne doit JAMAIS être droppée
+  // silencieusement. C'est un Round 37 #3 own bug (audit Round 37 self).
+  'admin-custom-message',
 ]);
 
 /**
