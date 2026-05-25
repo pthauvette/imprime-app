@@ -25,6 +25,10 @@ export default function MessageActions({ id, status, email, subject }: Props) {
   const [replying, setReplying] = useState(false);
   const [replyBody, setReplyBody] = useState('');
   const [replySubject, setReplySubject] = useState(`Re: ${subject}`);
+  // Round 41 #1 — Inline note form (était window.prompt mobile-unusable).
+  // Pattern aligné avec QuoteActions 'note' mode + le reply drawer ci-dessous.
+  const [notingOpen, setNotingOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
 
   async function patch(body: Record<string, unknown>) {
     setError(null);
@@ -46,10 +50,22 @@ export default function MessageActions({ id, status, email, subject }: Props) {
     });
   }
 
-  async function addNote() {
-    const note = window.prompt('Note interne admin :', '');
-    if (note === null) return;
-    await patch({ action: 'note', adminNotes: note.trim() });
+  // Round 41 #1 — Inline form au lieu de window.prompt (mobile : prompt iOS
+  // tronque le message ~25 chars, no multiline). Open/cancel + submit.
+  function openNoteForm() {
+    setNoteText('');
+    setError(null);
+    setNotingOpen(true);
+  }
+
+  async function submitNote() {
+    const trimmed = noteText.trim();
+    if (!trimmed) {
+      setError('Note requise');
+      return;
+    }
+    setNotingOpen(false);
+    await patch({ action: 'note', adminNotes: trimmed });
   }
 
   async function sendReply() {
@@ -84,11 +100,60 @@ export default function MessageActions({ id, status, email, subject }: Props) {
             🗄 Fermer
           </button>
         )}
-        <button onClick={addNote} disabled={busy} className="btn btn-ghost btn-sm">
-          + Note
+        <button onClick={openNoteForm} disabled={busy} className="btn btn-ghost btn-sm">
+          {notingOpen ? 'Annuler note' : '+ Note'}
         </button>
         {error && <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>}
       </div>
+
+      {/* Round 41 #1 — Note drawer inline (mirrors reply drawer style below) */}
+      {notingOpen && (
+        <div style={{
+          marginTop: 12,
+          padding: 16,
+          background: 'var(--bg-sunken)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--r-md)',
+          display: 'grid',
+          gap: 10,
+        }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            Note interne · visible uniquement en admin · pas envoyée au client
+          </div>
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Ex: Client rappelé le 25 — recontacter vendredi PM"
+            rows={3}
+            maxLength={2000}
+            autoFocus
+            style={{
+              padding: '10px 12px',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--r-sm)',
+              fontSize: 13,
+              font: 'inherit',
+              resize: 'vertical',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+            }}
+            disabled={busy}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {noteText.length} / 2000 chars
+            </span>
+            <button
+              type="button"
+              onClick={submitNote}
+              disabled={busy || noteText.trim().length === 0}
+              className="btn btn-primary btn-sm"
+            >
+              {busy ? 'Sauvegarde…' : 'Enregistrer →'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Reply drawer inline */}
       {replying && (
