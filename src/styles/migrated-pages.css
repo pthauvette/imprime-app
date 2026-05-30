@@ -5989,3 +5989,29 @@
       }
     }
 
+    /* ─── Round 42 #5 — Filter pills wrap + payments tx-row stack ──────────────
+       .filter-tabs (orders/order-start segmented filter) débordait à droite sur
+       375px sans affordance (overflow caché). flex-wrap rend tous les pills
+       visibles/tappables. */
+    @media (max-width: 640px) {
+      .filter-tabs {
+        flex-wrap: wrap;
+      }
+      /* /payments .tx-row : 4-col 'icon|info|date|amount' compressait .tx-info
+         (titre 'Commande #SIN-12345 — Cartes 16pt UV mat') à ~137px → 3 lignes.
+         grid-template-areas empile la date sous l'info ; icon + amount spannent
+         les 2 rangées. Les 4 enfants ont déjà .tx-icon/.tx-info/.tx-date/.tx-amount. */
+      .tx-row {
+        grid-template-columns: 40px 1fr auto;
+        grid-template-areas:
+          "icon info   amount"
+          "icon date   amount";
+        column-gap: 12px;
+        row-gap: 2px;
+      }
+      .tx-icon   { grid-area: icon; align-self: center; }
+      .tx-info   { grid-area: info; min-width: 0; }
+      .tx-date   { grid-area: date; min-width: 0; text-align: left; }
+      .tx-amount { grid-area: amount; align-self: center; }
+    }
+
