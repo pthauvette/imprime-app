@@ -129,7 +129,7 @@ export default function QuotePage() {
             id="form"
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 28,
+              fontSize: 'clamp(22px, 4.5vw, 28px)',
               fontWeight: 400,
               margin: '0 0 16px',
               textAlign: 'center',
