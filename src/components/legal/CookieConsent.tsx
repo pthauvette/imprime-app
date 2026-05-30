@@ -52,8 +52,11 @@ export default function CookieConsent() {
         right: 16,
         maxWidth: 720,
         margin: '0 auto',
+        // Round 43 #1 — bandeau inversé : fond + texte basculent ENSEMBLE
+        // (bg=text-primary, color=bg-surface) → fort contraste dans les 2
+        // thèmes. Avant : color #fff figé → invisible en dark (fond clair).
         background: 'var(--text-primary)',
-        color: '#fff',
+        color: 'var(--bg-surface)',
         padding: '16px 20px',
         borderRadius: 'var(--r-lg)',
         boxShadow: 'var(--shadow-xl)',
@@ -69,7 +72,7 @@ export default function CookieConsent() {
       <p style={{ margin: 0, flex: 1 }}>
         On utilise uniquement les cookies essentiels au fonctionnement du site (session,
         panier, langue). Pas de tracking publicitaire.{' '}
-        <a href="/legal/privacy" style={{ color: '#fff', textDecoration: 'underline' }}>
+        <a href="/legal/privacy" style={{ color: 'var(--bg-surface)', textDecoration: 'underline' }}>
           En savoir plus
         </a>.
       </p>
@@ -79,7 +82,9 @@ export default function CookieConsent() {
         style={{
           padding: '8px 16px',
           background: 'var(--accent-primary)',
-          color: '#fff',
+          // Round 43 #1 — text-on-accent bascule pour rester lisible sur le
+          // vert clair du dark mode (#fff donnait ~1.8:1 sur #6FAE89).
+          color: 'var(--text-on-accent)',
           border: 'none',
           borderRadius: 'var(--r-pill)',
           fontSize: 13,
