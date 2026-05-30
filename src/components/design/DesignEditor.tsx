@@ -132,9 +132,13 @@ export default function DesignEditor({ template }: { template: AppTemplate }) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', minHeight: '100vh' }}>
+    // Round 42 #2 — layout via .design-editor-grid so mobile (≤900px) collapses
+    // to 1-col with canvas first (order:-1), form below. The inline 420px grid
+    // was wider than a 375px viewport → canvas pushed off-screen.
+    <div className="design-editor-grid">
       {/* ─── LEFT : form ─── */}
       <aside
+        className="design-editor-controls"
         style={{
           background: 'var(--bg-surface)',
           borderRight: '1px solid var(--border-subtle)',
