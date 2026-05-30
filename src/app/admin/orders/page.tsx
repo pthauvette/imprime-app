@@ -20,22 +20,14 @@ import OrderSlaWidget from '@/components/admin/OrderSlaWidget';
 import SavedFiltersBar from '@/components/admin/SavedFiltersBar';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
+import { orderStatusTone } from '@/lib/orders/status-tone';
+import StatusPill from '@/components/ui/StatusPill';
 
 export const metadata = { title: 'Admin — Commandes' };
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
 
-const STATUS_CLASS: Record<OrderStatus, string> = {
-  PENDING: 'submitted',
-  PAID: 'paid',
-  SUBMITTED: 'submitted',
-  IN_PRODUCTION: 'production',
-  SHIPPED: 'shipped',
-  DELIVERED: 'delivered',
-  CANCELLED: 'failed',
-  FAILED: 'failed',
-};
 
 interface SP {
   status?: string;
