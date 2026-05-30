@@ -253,7 +253,6 @@ export default async function AccountDashboardPage() {
             ) : (
               <div style={{ display: 'grid', gap: 12 }}>
                 {recentOrders.map((o) => {
-                  const badge = STATUS_BADGES[o.status] ?? STATUS_BADGES.PENDING;
                   const displayId = o.sinaliteOrderId ? `#${o.sinaliteOrderId}` : `#${o.id.slice(-6).toUpperCase()}`;
                   return (
                     <Link

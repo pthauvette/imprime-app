@@ -316,9 +316,10 @@ export default async function AdminOrdersPage({
                       <td className="ord-qty">{order.itemsCount}</td>
                       <td className="ord-total">{formatCurrency(order.amountCents / 100)}</td>
                       <td>
-                        <span className={`ord-status ${STATUS_CLASS[status]}`}>
-                          {STATUS_LABELS[status]}
-                        </span>
+                        <StatusPill
+                          tone={orderStatusTone(status)}
+                          label={STATUS_LABELS[status]}
+                        />
                       </td>
                       <td>
                         <span className={order.sinaliteOrderId ? 'ord-sinid' : 'ord-sinid empty'}>
