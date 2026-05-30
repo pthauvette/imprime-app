@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { THEME_COOKIE, THEME_COOKIE_MAX_AGE, type Theme } from '@/lib/theme';
+import { THEME_COOKIE, THEME_COOKIE_MAX_AGE, type Theme } from '@/lib/theme-shared';
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('light');
