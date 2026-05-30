@@ -39,7 +39,16 @@ const envSchema = z.object({
   // SES SMTP — optional (dev log les magic links console)
   SES_SMTP_USER: z.string().optional(),
   SES_SMTP_PASS: z.string().optional(),
-  SES_FROM: z.string().email().optional(),
+  // Round 42b — accepte le format "Name <email>" (ex: Plio <bonjour@plio.ca>)
+  // que SES exige pour un display name, en plus d'un email pur. z.email()
+  // seul rejetait "Plio <bonjour@plio.ca>" → log d'erreur bruyant au boot.
+  SES_FROM: z
+    .string()
+    .refine(
+      (v) => /^[^<>]*<[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+>$/.test(v) || /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/.test(v),
+      { message: 'must be an email or "Name <email>"' },
+    )
+    .optional(),
 
   // S3 (uploads)
   S3_REGION: z.string().optional(),
