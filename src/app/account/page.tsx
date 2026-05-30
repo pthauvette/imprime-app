@@ -20,6 +20,9 @@ import MonthlySpendChart from '@/components/account/MonthlySpendChart';
 import NpsAutoPrompt from '@/components/account/NpsAutoPrompt';
 import LoyaltyTierProgress from '@/components/account/LoyaltyTierProgress';
 import { formatCurrency, formatDate } from '@/lib/format';
+import StatusPill from '@/components/ui/StatusPill';
+import { orderStatusTone } from '@/lib/orders/status-tone';
+import { statusLabel } from '@/lib/orders/status-labels';
 import {
   type LoyaltyTier,
   TIER_LABELS,
@@ -30,16 +33,8 @@ import {
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Mon compte · Plio' };
 
-const STATUS_BADGES: Record<string, { label: string; color: string }> = {
-  PENDING: { label: 'En attente', color: 'var(--text-muted)' },
-  PAID: { label: 'Payée', color: 'var(--accent-primary)' },
-  SUBMITTED: { label: 'Soumise', color: 'var(--accent-primary)' },
-  IN_PRODUCTION: { label: 'En production', color: 'var(--warning)' },
-  SHIPPED: { label: 'Expédiée', color: 'var(--info)' },
-  DELIVERED: { label: 'Livrée', color: 'var(--success)' },
-  CANCELLED: { label: 'Annulée', color: 'var(--danger)' },
-  FAILED: { label: 'Échec', color: 'var(--danger)' },
-};
+// Round 43 #2 — labels + tons centralisés (STATUS_LABELS + ORDER_STATUS_TONE),
+// rendu via <StatusPill variant="text">. Avant : record couleur local dupliqué.
 
 export default async function AccountDashboardPage() {
   const session = await auth();
@@ -258,7 +253,6 @@ export default async function AccountDashboardPage() {
             ) : (
               <div style={{ display: 'grid', gap: 12 }}>
                 {recentOrders.map((o) => {
-                  const badge = STATUS_BADGES[o.status] ?? STATUS_BADGES.PENDING;
                   const displayId = o.sinaliteOrderId ? `#${o.sinaliteOrderId}` : `#${o.id.slice(-6).toUpperCase()}`;
                   return (
                     <Link
@@ -286,7 +280,13 @@ export default async function AccountDashboardPage() {
                           {o.productSummary ?? `${o.itemsCount} article${o.itemsCount > 1 ? 's' : ''}`}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {formatDate(o.createdAt.toISOString())} · <span style={{ color: badge.color, fontWeight: 600 }}>{badge.label}</span>
+                          {formatDate(o.createdAt.toISOString())} ·{' '}
+                          <StatusPill
+                            variant="text"
+                            tone={orderStatusTone(o.status)}
+                            label={statusLabel(o.status)}
+                            style={{ fontSize: 12 }}
+                          />
                         </div>
                       </div>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>

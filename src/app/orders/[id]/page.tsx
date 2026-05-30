@@ -27,6 +27,8 @@ import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
+import { orderStatusTone } from '@/lib/orders/status-tone';
+import StatusPill from '@/components/ui/StatusPill';
 import {
   buildOrderTimeline,
   computeOrderEta,
@@ -41,17 +43,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `Commande ${id.slice(-6).toUpperCase()} — Plio` };
 }
 
-
-const STATUS_CLASS: Record<OrderStatus, string> = {
-  PENDING: 'status-new',
-  PAID: 'status-new',
-  SUBMITTED: 'status-new',
-  IN_PRODUCTION: 'status-production',
-  SHIPPED: 'status-shipped',
-  DELIVERED: 'status-delivered',
-  CANCELLED: 'status-cancelled',
-  FAILED: 'status-cancelled',
-};
 
 export default async function CustomerOrderDetailPage({
   params,
@@ -166,9 +157,12 @@ export default async function CustomerOrderDetailPage({
               <span className="order-id-big" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em', fontWeight: 600 }}>
                 {displayId}
               </span>
-              <span className={`order-status-big ${STATUS_CLASS[status]}`}>
-                {STATUS_LABELS[status]}
-              </span>
+              <StatusPill
+                tone={orderStatusTone(status)}
+                label={STATUS_LABELS[status]}
+                dot
+                style={{ padding: '6px 14px', fontSize: 12, letterSpacing: '0.06em' }}
+              />
               {order.paidAt && (
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>
                   ✓ Payée le {formatDate(order.paidAt.toISOString())}
