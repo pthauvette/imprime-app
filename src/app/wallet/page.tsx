@@ -136,7 +136,9 @@ export default async function WalletPage({
           style={{
             padding: 32,
             background: 'var(--accent-primary)',
-            color: '#fff',
+            // Round 43 #1 — text-on-accent : en dark, accent-primary devient
+            // vert CLAIR (#6FAE89) → texte blanc figé ≈ 1.8:1 illisible.
+            color: 'var(--text-on-accent)',
             borderRadius: 'var(--r-xl)',
             marginBottom: 24,
             display: 'grid',
@@ -169,7 +171,9 @@ export default async function WalletPage({
               href={'/account/referrals' as Route}
               style={{
                 padding: '12px 18px',
-                background: '#fff',
+                // Round 43 #1 — bg-surface bascule (blanc light / sombre dark)
+                // au lieu d'un #fff figé = île blanche aveuglante sur le hero.
+                background: 'var(--bg-surface)',
                 color: 'var(--accent-primary)',
                 borderRadius: 'var(--r-pill)',
                 textDecoration: 'none',

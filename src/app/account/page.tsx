@@ -34,9 +34,9 @@ const STATUS_BADGES: Record<string, { label: string; color: string }> = {
   PENDING: { label: 'En attente', color: 'var(--text-muted)' },
   PAID: { label: 'Payée', color: 'var(--accent-primary)' },
   SUBMITTED: { label: 'Soumise', color: 'var(--accent-primary)' },
-  IN_PRODUCTION: { label: 'En production', color: '#D97706' },
-  SHIPPED: { label: 'Expédiée', color: '#2563EB' },
-  DELIVERED: { label: 'Livrée', color: '#16A34A' },
+  IN_PRODUCTION: { label: 'En production', color: 'var(--warning)' },
+  SHIPPED: { label: 'Expédiée', color: 'var(--info)' },
+  DELIVERED: { label: 'Livrée', color: 'var(--success)' },
   CANCELLED: { label: 'Annulée', color: 'var(--danger)' },
   FAILED: { label: 'Échec', color: 'var(--danger)' },
 };
@@ -508,10 +508,11 @@ function LoyaltyCard({
   revenueLast365dCents: number;
 }) {
   const progress = nextTierProgress({ revenueLast365dCents });
+  // Round 43 #1 — tier tokens (dark-safe + unifiés avec /admin/users).
   const TIER_COLORS: Record<LoyaltyTier, string> = {
-    BRONZE: '#B45309',
-    SILVER: '#6B7280',
-    GOLD: '#D97706',
+    BRONZE: 'var(--tier-bronze)',
+    SILVER: 'var(--tier-silver)',
+    GOLD: 'var(--tier-gold)',
   };
   const TIER_EMOJI: Record<LoyaltyTier, string> = {
     BRONZE: '🥉',
