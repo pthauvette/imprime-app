@@ -5910,3 +5910,32 @@
       }
     }
 
+    /* ─── Round 42 #1 — Wallet transaction row mobile reflow ──────────────────
+       account/wallet/history row : grille 5-col inline (icon|main|amount|balance|
+       pdf) qui éclatait sur 375px (icon 28 + amount ~70 + balance ~90 + pdf ~52
+       + 4*16 gap = 304px fixes → main recevait largeur négative). Desktop garde
+       5-col ; mobile passe à grid-template-areas 3-col : l'icône span 2 rangées,
+       main + amount en haut, balance + pdf en bas. */
+    .wallet-tx-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto auto;
+      gap: 16px;
+      align-items: center;
+    }
+    @media (max-width: 640px) {
+      .wallet-tx-row {
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas:
+          "icon main    amount"
+          "icon balance pdf";
+        column-gap: 12px;
+        row-gap: 4px;
+        align-items: start;
+      }
+      .wallet-tx-icon    { grid-area: icon; align-self: center; }
+      .wallet-tx-main    { grid-area: main; min-width: 0; }
+      .wallet-tx-amount  { grid-area: amount; text-align: right; align-self: center; }
+      .wallet-tx-balance { grid-area: balance; align-self: center; }
+      .wallet-tx-pdf     { grid-area: pdf; justify-self: end; align-self: center; }
+    }
+
