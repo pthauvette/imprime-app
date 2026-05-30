@@ -251,7 +251,10 @@ export default function DesignEditor({ template }: { template: AppTemplate }) {
       </aside>
 
       {/* ─── RIGHT : preview ─── */}
+      {/* Round 42 #2 (forward-fix) — .design-editor-preview gets order:-1 on
+          mobile (canvas-first) via migrated-pages.css. */}
       <main
+        className="design-editor-preview"
         style={{
           background: 'var(--bg-canvas)',
           display: 'grid',

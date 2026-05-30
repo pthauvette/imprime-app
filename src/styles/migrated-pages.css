@@ -5961,8 +5961,6 @@
       .design-editor-preview {
         order: -1;
         min-height: 50vh;
-      }
-      .design-editor-canvas {
         padding: 24px !important;
       }
       .design-editor-controls {

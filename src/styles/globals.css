@@ -1159,8 +1159,9 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
     .hero h1 {
       font-family: var(--font-display);
-      font-size: clamp(56px, 8vw, 128px);
-      line-height: 0.92;
+      /* Round 42 #4 — MIN 56→38 : on 375px the 56px floor won (8vw=30px) → overflow. */
+      font-size: clamp(38px, 8vw, 128px);
+      line-height: 0.95;
       letter-spacing: -0.04em;
       margin: 0 0 24px;
       font-weight: 400;
@@ -10295,8 +10296,9 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
     .hero h1 {
       font-family: var(--font-display);
-      font-size: clamp(56px, 8vw, 128px);
-      line-height: 0.92;
+      /* Round 42 #4 — MIN 56→38 : on 375px the 56px floor won (8vw=30px) → overflow. */
+      font-size: clamp(38px, 8vw, 128px);
+      line-height: 0.95;
       letter-spacing: -0.04em;
       margin: 0 0 24px;
       font-weight: 400;
