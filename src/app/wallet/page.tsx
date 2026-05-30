@@ -239,7 +239,8 @@ export default async function WalletPage({
         )}
 
         {/* History grid : rewards earned + uses */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        {/* Round 42 #1 — auto-fit stacks to 1-col under ~520px (was forced 2-col → 155px panels) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
           <section>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, margin: '0 0 12px' }}>
               Récompenses gagnées

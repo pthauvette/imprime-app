@@ -139,18 +139,19 @@ export default async function WalletHistoryPage({
                 const meta = KIND_META[tx.kind as Exclude<KindFilter, 'all'>] ?? { label: tx.kind, icon: '·', color: 'var(--text-muted)' };
                 const isCredit = tx.amountCents > 0;
                 return (
+                  // Round 42 #1 — layout via .wallet-tx-row class (grid moved out of
+                  // inline style so the mobile @media in migrated-pages.css can win).
+                  // 5 children: icon / main / amount / balance / pdf.
                   <div
                     key={tx.id}
+                    className="wallet-tx-row"
                     style={{
                       padding: '14px 20px',
-                      display: 'grid',
-                      gridTemplateColumns: 'auto 1fr auto auto auto',
-                      gap: 16,
-                      alignItems: 'center',
                       borderBottom: '1px solid var(--border-subtle)',
                     }}
                   >
                     <span
+                      className="wallet-tx-icon"
                       style={{
                         fontSize: 18,
                         color: meta.color,
@@ -161,7 +162,7 @@ export default async function WalletHistoryPage({
                     >
                       {meta.icon}
                     </span>
-                    <div>
+                    <div className="wallet-tx-main" style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
                         {tx.description}
                       </div>
@@ -177,7 +178,7 @@ export default async function WalletHistoryPage({
                         )}
                       </div>
                     </div>
-                    <div style={{
+                    <div className="wallet-tx-amount" style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: 14,
                       fontWeight: 600,
@@ -186,7 +187,7 @@ export default async function WalletHistoryPage({
                     }}>
                       {isCredit ? '+' : ''}{formatCurrency(tx.amountCents / 100)}
                     </div>
-                    <div style={{
+                    <div className="wallet-tx-balance" style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: 11,
                       color: 'var(--text-muted)',
@@ -196,6 +197,7 @@ export default async function WalletHistoryPage({
                     </div>
                     {/* Round 24 #1 — PDF receipt download */}
                     <a
+                      className="wallet-tx-pdf"
                       href={`/api/wallet/transactions/${tx.id}/receipt.pdf`}
                       download
                       title="Télécharger reçu PDF (audit comptable)"
@@ -207,6 +209,7 @@ export default async function WalletHistoryPage({
                         padding: '4px 8px',
                         border: '1px solid var(--border-default)',
                         borderRadius: 'var(--r-sm)',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       📄 PDF
