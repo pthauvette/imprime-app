@@ -278,7 +278,7 @@ const pageHeader: React.CSSProperties = {
 
 const pageTitle: React.CSSProperties = {
   fontFamily: 'var(--font-display)',
-  fontSize: 'clamp(40px, 5vw, 64px)',
+  fontSize: 'clamp(28px, 6vw, 64px)',
   letterSpacing: '-0.025em',
   margin: 0,
   fontWeight: 400,
