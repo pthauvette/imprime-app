@@ -280,7 +280,7 @@ export default async function WalletPage({
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         {formatDate(r.createdAt.toISOString())} ·{' '}
-                        <span style={{ color: r.status === 'CREDITED' ? 'var(--success, #16a34a)' : r.status === 'PENDING' ? '#D97706' : 'var(--danger)' }}>
+                        <span style={{ color: r.status === 'CREDITED' ? 'var(--success, #16a34a)' : r.status === 'PENDING' ? 'var(--warning)' : 'var(--danger)' }}>
                           {r.status === 'CREDITED' ? 'crédité' : r.status === 'PENDING' ? 'en attente' : r.status.toLowerCase()}
                         </span>
                       </div>
@@ -376,7 +376,7 @@ function StatBox({
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>
         {label}
       </div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: accent === 'warning' ? '#D97706' : 'var(--text-primary)', fontWeight: 400, lineHeight: 1.1 }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: accent === 'warning' ? 'var(--warning)' : 'var(--text-primary)', fontWeight: 400, lineHeight: 1.1 }}>
         {value}
       </div>
       {hint && (
