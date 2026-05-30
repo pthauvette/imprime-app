@@ -5972,3 +5972,20 @@
       }
     }
 
+    /* ─── Round 42 #3 — Privacy data table horizontal scroll on mobile ─────────
+       .data-table-wrap (legal/privacy 4-col table : Donnée|Origine|Usage|
+       Conservation) avait overflow:hidden en base (pour clipper les coins
+       arrondis). Sur mobile ça COUPAIT la colonne Conservation au lieu de
+       scroller. On override overflow-x:auto (Y reste hidden via le shorthand
+       de base) + min-width sur la table pour forcer le dépassement → scroll
+       réel plutôt que compression. Desktop garde overflow:hidden. */
+    @media (max-width: 768px) {
+      .data-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .data-table {
+        min-width: 480px;
+      }
+    }
+
