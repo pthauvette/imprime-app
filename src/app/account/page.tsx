@@ -308,7 +308,7 @@ export default async function AccountDashboardPage() {
                   style={{
                     padding: '8px 14px',
                     background: 'var(--accent-primary)',
-                    color: '#fff',
+                    color: 'var(--text-on-accent)',
                     borderRadius: 'var(--r-pill)',
                     fontSize: 12,
                     fontWeight: 600,
@@ -331,7 +331,7 @@ export default async function AccountDashboardPage() {
                 display: 'block',
                 padding: 20,
                 background: 'var(--accent-primary)',
-                color: '#fff',
+                color: 'var(--text-on-accent)',
                 borderRadius: 'var(--r-lg)',
                 textDecoration: 'none',
               }}
@@ -439,7 +439,7 @@ function StatCard({
 }) {
   const valueColor =
     accent === 'success'
-      ? '#16A34A'
+      ? 'var(--success)'
       : highlight
         ? 'var(--accent-primary)'
         : 'var(--text-primary)';
@@ -480,7 +480,7 @@ function EmptyState() {
         style={{
           padding: '10px 18px',
           background: 'var(--accent-primary)',
-          color: '#fff',
+          color: 'var(--text-on-accent)',
           borderRadius: 'var(--r-pill)',
           fontSize: 13,
           fontWeight: 600,
