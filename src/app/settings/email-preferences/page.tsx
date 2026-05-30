@@ -94,7 +94,7 @@ export default async function EmailPreferencesPage() {
         <h1
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(40px, 5vw, 64px)',
+            fontSize: 'clamp(28px, 6vw, 64px)',
             letterSpacing: '-0.025em',
             margin: '0 0 8px',
             fontWeight: 400,
