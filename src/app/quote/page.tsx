@@ -70,7 +70,7 @@ export default function QuotePage() {
           <h2
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 32,
+              fontSize: 'clamp(24px, 5vw, 32px)',
               fontWeight: 400,
               margin: '0 0 24px',
               textAlign: 'center',
