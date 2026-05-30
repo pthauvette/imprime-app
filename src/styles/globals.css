@@ -36,6 +36,16 @@
   --info: #2D5BB2;
   --info-soft: #DCE4F5;
 
+  /* Loyalty tiers (Round 43 #1) — métalliques, light mode */
+  --tier-bronze: #92400E;
+  --tier-bronze-soft: #F5E7D8;
+  --tier-silver: #5A6470;
+  --tier-silver-soft: #ECEEF0;
+  --tier-gold: #B45309;
+  --tier-gold-soft: #FBF0D8;
+  --tier-platinum: #5B3D9E;
+  --tier-platinum-soft: #ECE6F8;
+
   /* Material swatches */
   --paper-warm: #F5F1E8;
   --paper-bright: #FFFFFF;
@@ -98,6 +108,15 @@
   --danger-soft: rgba(230, 110, 110, 0.14);
   --info: #6F95E0;
   --info-soft: rgba(111, 149, 224, 0.14);
+  /* Loyalty tiers (Round 43 #1) — éclaircis pour rester lisibles en dark */
+  --tier-bronze: #D9954D;
+  --tier-bronze-soft: rgba(217, 149, 77, 0.16);
+  --tier-silver: #A8B2BC;
+  --tier-silver-soft: rgba(168, 178, 188, 0.16);
+  --tier-gold: #E0A93D;
+  --tier-gold-soft: rgba(224, 169, 61, 0.16);
+  --tier-platinum: #A88FE0;
+  --tier-platinum-soft: rgba(168, 143, 224, 0.16);
 }
 
 /* Reset & base */
