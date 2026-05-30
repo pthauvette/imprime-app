@@ -178,7 +178,12 @@ export default function PricingPage() {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: `repeat(${row.pricesPerQty.length}, 1fr)`,
+                      // Round 42 #3 — minmax(90px,1fr) floor forces the grid to exceed
+                      // its container on narrow screens so overflowX:auto actually
+                      // scrolls, instead of crushing 4-5 columns into ~70px slivers.
+                      gridTemplateColumns: `repeat(${row.pricesPerQty.length}, minmax(90px, 1fr))`,
+                      overflowX: 'auto',
+                      WebkitOverflowScrolling: 'touch',
                     }}
                   >
                     {row.pricesPerQty.map((p, i) => {
