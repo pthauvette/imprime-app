@@ -1057,9 +1057,11 @@ function RfmStat({
 
 function LoyaltyTierTag({ tier }: { tier: LoyaltyTier }) {
   const palette: Record<LoyaltyTier, { bg: string; color: string; emoji: string }> = {
-    BRONZE: { bg: '#FEF3C7', color: '#92400E', emoji: '🥉' },
-    SILVER: { bg: '#F3F4F6', color: '#374151', emoji: '🥈' },
-    GOLD:   { bg: '#FEF3C7', color: '#B45309', emoji: '🥇' },
+    // Round 43 #1 — tier tokens (dark-safe + unifiés avec /account qui
+    // utilisait des hex DIFFÉRENTS pour les mêmes tiers).
+    BRONZE: { bg: 'var(--tier-bronze-soft)', color: 'var(--tier-bronze)', emoji: '🥉' },
+    SILVER: { bg: 'var(--tier-silver-soft)', color: 'var(--tier-silver)', emoji: '🥈' },
+    GOLD:   { bg: 'var(--tier-gold-soft)', color: 'var(--tier-gold)', emoji: '🥇' },
   };
   const { bg, color, emoji } = palette[tier];
   return (

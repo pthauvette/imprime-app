@@ -136,7 +136,9 @@ export default async function WalletPage({
           style={{
             padding: 32,
             background: 'var(--accent-primary)',
-            color: '#fff',
+            // Round 43 #1 — text-on-accent : en dark, accent-primary devient
+            // vert CLAIR (#6FAE89) → texte blanc figé ≈ 1.8:1 illisible.
+            color: 'var(--text-on-accent)',
             borderRadius: 'var(--r-xl)',
             marginBottom: 24,
             display: 'grid',
@@ -169,7 +171,9 @@ export default async function WalletPage({
               href={'/account/referrals' as Route}
               style={{
                 padding: '12px 18px',
-                background: '#fff',
+                // Round 43 #1 — bg-surface bascule (blanc light / sombre dark)
+                // au lieu d'un #fff figé = île blanche aveuglante sur le hero.
+                background: 'var(--bg-surface)',
                 color: 'var(--accent-primary)',
                 borderRadius: 'var(--r-pill)',
                 textDecoration: 'none',
@@ -276,7 +280,7 @@ export default async function WalletPage({
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         {formatDate(r.createdAt.toISOString())} ·{' '}
-                        <span style={{ color: r.status === 'CREDITED' ? 'var(--success, #16a34a)' : r.status === 'PENDING' ? '#D97706' : 'var(--danger)' }}>
+                        <span style={{ color: r.status === 'CREDITED' ? 'var(--success, #16a34a)' : r.status === 'PENDING' ? 'var(--warning)' : 'var(--danger)' }}>
                           {r.status === 'CREDITED' ? 'crédité' : r.status === 'PENDING' ? 'en attente' : r.status.toLowerCase()}
                         </span>
                       </div>
@@ -372,7 +376,7 @@ function StatBox({
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>
         {label}
       </div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: accent === 'warning' ? '#D97706' : 'var(--text-primary)', fontWeight: 400, lineHeight: 1.1 }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: accent === 'warning' ? 'var(--warning)' : 'var(--text-primary)', fontWeight: 400, lineHeight: 1.1 }}>
         {value}
       </div>
       {hint && (

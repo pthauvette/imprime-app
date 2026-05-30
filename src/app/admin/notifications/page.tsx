@@ -44,7 +44,9 @@ interface Notif {
 
 const PRIORITY_COLOR: Record<Priority, { bg: string; text: string; label: string }> = {
   critical: { bg: 'var(--danger-soft)', text: 'var(--danger)', label: 'Urgent' },
-  warning: { bg: '#fef3c7', text: '#92400e', label: 'À traiter' },
+  // Round 43 #1 — tokens (basculent en dark) au lieu de hex figés ; aligne
+  // sur critical/info juste au-dessus/dessous qui utilisent déjà var().
+  warning: { bg: 'var(--warning-soft)', text: 'var(--warning)', label: 'À traiter' },
   info: { bg: 'var(--bg-sunken)', text: 'var(--text-secondary)', label: 'Info' },
 };
 
@@ -241,7 +243,7 @@ export default async function AdminNotificationsPage() {
                   <>
                     <strong style={{ color: 'var(--danger)' }}>{counts.critical} urgent{counts.critical > 1 ? 's' : ''}</strong>
                     {' · '}
-                    <strong style={{ color: '#92400e' }}>{counts.warning} à traiter</strong>
+                    <strong style={{ color: 'var(--warning)' }}>{counts.warning} à traiter</strong>
                     {' · '}
                     {counts.info} info
                   </>

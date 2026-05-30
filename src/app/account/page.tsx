@@ -34,9 +34,9 @@ const STATUS_BADGES: Record<string, { label: string; color: string }> = {
   PENDING: { label: 'En attente', color: 'var(--text-muted)' },
   PAID: { label: 'Payée', color: 'var(--accent-primary)' },
   SUBMITTED: { label: 'Soumise', color: 'var(--accent-primary)' },
-  IN_PRODUCTION: { label: 'En production', color: '#D97706' },
-  SHIPPED: { label: 'Expédiée', color: '#2563EB' },
-  DELIVERED: { label: 'Livrée', color: '#16A34A' },
+  IN_PRODUCTION: { label: 'En production', color: 'var(--warning)' },
+  SHIPPED: { label: 'Expédiée', color: 'var(--info)' },
+  DELIVERED: { label: 'Livrée', color: 'var(--success)' },
   CANCELLED: { label: 'Annulée', color: 'var(--danger)' },
   FAILED: { label: 'Échec', color: 'var(--danger)' },
 };
@@ -308,7 +308,7 @@ export default async function AccountDashboardPage() {
                   style={{
                     padding: '8px 14px',
                     background: 'var(--accent-primary)',
-                    color: '#fff',
+                    color: 'var(--text-on-accent)',
                     borderRadius: 'var(--r-pill)',
                     fontSize: 12,
                     fontWeight: 600,
@@ -331,7 +331,7 @@ export default async function AccountDashboardPage() {
                 display: 'block',
                 padding: 20,
                 background: 'var(--accent-primary)',
-                color: '#fff',
+                color: 'var(--text-on-accent)',
                 borderRadius: 'var(--r-lg)',
                 textDecoration: 'none',
               }}
@@ -439,7 +439,7 @@ function StatCard({
 }) {
   const valueColor =
     accent === 'success'
-      ? '#16A34A'
+      ? 'var(--success)'
       : highlight
         ? 'var(--accent-primary)'
         : 'var(--text-primary)';
@@ -480,7 +480,7 @@ function EmptyState() {
         style={{
           padding: '10px 18px',
           background: 'var(--accent-primary)',
-          color: '#fff',
+          color: 'var(--text-on-accent)',
           borderRadius: 'var(--r-pill)',
           fontSize: 13,
           fontWeight: 600,
@@ -508,10 +508,11 @@ function LoyaltyCard({
   revenueLast365dCents: number;
 }) {
   const progress = nextTierProgress({ revenueLast365dCents });
+  // Round 43 #1 — tier tokens (dark-safe + unifiés avec /admin/users).
   const TIER_COLORS: Record<LoyaltyTier, string> = {
-    BRONZE: '#B45309',
-    SILVER: '#6B7280',
-    GOLD: '#D97706',
+    BRONZE: 'var(--tier-bronze)',
+    SILVER: 'var(--tier-silver)',
+    GOLD: 'var(--tier-gold)',
   };
   const TIER_EMOJI: Record<LoyaltyTier, string> = {
     BRONZE: '🥉',
