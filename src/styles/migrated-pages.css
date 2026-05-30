@@ -5939,3 +5939,36 @@
       .wallet-tx-pdf     { grid-area: pdf; justify-self: end; align-self: center; }
     }
 
+    /* ─── Round 42 #2 — DesignEditor mobile layout ────────────────────────────
+       /design/[slug] editor : grille '420px 1fr' inline → le form 420px est PLUS
+       LARGE que le viewport 375px → canvas/preview poussé hors-écran. Mobile :
+       stack 1-col, preview first (order:-1) pour voir le design, form en dessous.
+       Le wrapper preview perd son minHeight:100vh inline (déplacé ici) pour éviter
+       le double-100vh stack. */
+    .design-editor-grid {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      min-height: 100vh;
+    }
+    .design-editor-preview {
+      min-height: 100vh;
+    }
+    @media (max-width: 900px) {
+      .design-editor-grid {
+        grid-template-columns: 1fr;
+        min-height: 0;
+      }
+      .design-editor-preview {
+        order: -1;
+        min-height: 50vh;
+      }
+      .design-editor-canvas {
+        padding: 24px !important;
+      }
+      .design-editor-controls {
+        border-right: 0 !important;
+        border-top: 1px solid var(--border-subtle);
+        padding: 20px 16px !important;
+      }
+    }
+
