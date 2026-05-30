@@ -92,7 +92,7 @@ export default async function WalletPage({
 
       <main style={{ padding: '40px 48px 80px', maxWidth: 960 }}>
         <header style={{ marginBottom: 32 }}>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 400, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
             Portefeuille
           </h1>
           <p style={{ fontSize: 15, color: 'var(--text-muted)', margin: 0 }}>

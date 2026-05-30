@@ -70,7 +70,7 @@ export default function ResellerPage() {
           }}
         >
           <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Ce que tu obtiens</div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
             Quatre <em>avantages concrets.</em>
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
@@ -105,7 +105,7 @@ export default function ResellerPage() {
           }}
         >
           <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Comment ça marche</div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
             Trois étapes, <em>aucune friction.</em>
           </h2>
           <ol style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, padding: 0, listStyle: 'none', margin: 0 }}>
@@ -169,7 +169,7 @@ export default function ResellerPage() {
           }}
         >
           <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Postuler</div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 12px' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 12px' }}>
             Application reseller.
           </h2>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 24px' }}>
