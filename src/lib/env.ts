@@ -87,13 +87,18 @@ function parseEnv() {
       .map((i) => `  - ${i.path.join('.')}: ${i.message}`)
       .join('\n');
     const msg = `Env validation failed:\n${issues}`;
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(msg);
-    }
+    // Round 42b (incident prod 2026-05-30) — NE PLUS throw ici, même en prod.
+    // Avant : `throw` → ce module crashait au load → si importé au boot
+    // (instrumentation.ts), tout le serveur SSR tombait → 500 sur 100% du
+    // site pour UNE var manquante. C'est arrivé via un bug regex amplify.yml
+    // (false positive : les vars ÉTAIENT configurées). Désormais on log
+    // seulement et on retourne l'env loose : une var manquante casse la
+    // feature qui l'utilise (fail-soft), pas le site entier (fail-hard).
+    // assertProductionEnvReady() reste dispo pour un check explicite hors boot.
     // eslint-disable-next-line no-console
-    console.warn(`[env] ${msg}\nContinuing in non-prod with partial config.`);
-    // Return raw (typed-loose) — caller may break later but at least
-    // dev iteration doesn't require full env to render UI changes.
+    console.error(
+      `[env] ${msg}\nContinuing with partial config (features using missing vars will degrade).`,
+    );
     return process.env as unknown as z.infer<typeof envSchema>;
   }
   return result.data;

@@ -19,18 +19,29 @@ const ENV = process.env.NODE_ENV ?? 'development';
 const SAMPLE_RATE = ENV === 'production' ? 0.1 : 1.0;
 
 export async function register() {
-  // Round 38 #5 — Fail-fast en prod si critical env vars manquent.
-  // Charge dynamiquement pour ne pas pénaliser le runtime Edge.
+  // Round 38 #5 — Vérif des critical env vars au boot.
+  // Round 42b (incident prod 2026-05-30) — log-only, NE JAMAIS throw ici.
+  //
+  // Avant : `if (production) throw err` faisait crasher le hook
+  // d'instrumentation Next.js → "Failed to prepare server" → 500 sur 100%
+  // du site, pour UNE SEULE env var manquante. Un bug regex amplify.yml a
+  // vidé .env.production (les vars étaient pourtant bien configurées dans
+  // la console Amplify) et a mis tout plio.ca hors-ligne.
+  //
+  // Désormais : on log fort (visible Sentry + CloudWatch) mais on laisse le
+  // serveur démarrer. Une var manquante dégrade la feature qui l'utilise
+  // (chaque module fait déjà son propre check → 503 ciblé), jamais le site
+  // entier. Fail-soft au lieu de fail-hard total.
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     try {
       const { assertProductionEnvReady } = await import('@/lib/env');
       assertProductionEnvReady();
     } catch (err) {
-      // En prod : throw → Vercel marque deploy failed (visible immédiatement)
-      // En dev : déjà warn dans parseEnv()
       // eslint-disable-next-line no-console
-      console.error('[boot] env validation failed:', err instanceof Error ? err.message : err);
-      if (process.env.NODE_ENV === 'production') throw err;
+      console.error(
+        '[boot] env validation failed (server starts anyway; features needing the missing vars will 503):',
+        err instanceof Error ? err.message : err,
+      );
     }
   }
 
