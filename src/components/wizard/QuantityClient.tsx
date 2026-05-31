@@ -217,6 +217,22 @@ export default function QuantityClient({
           </div>
         </div>
 
+        {/* Round 45 #2 — transparence prix : le sous-total ci-dessus n'inclut
+            ni taxes ni livraison (elles dépendent de la province, saisie à
+            l'étape 6). On le DIT ici pour préparer l'utilisateur au lieu de le
+            surprendre au checkout — un calcul prématuré serait faux. */}
+        <p
+          style={{
+            margin: '4px 0 0',
+            fontSize: 12.5,
+            color: 'var(--text-muted)',
+            lineHeight: 1.5,
+          }}
+        >
+          + taxes et livraison, calculées une fois ton adresse saisie (étape 6).
+          Aucun paiement avant la confirmation finale.
+        </p>
+
         {prevQty && unitPrice && prevUnit && savingsPct && savingsPct > 0 && (
           <div className="qty-insight">
             <span className="qty-insight-icon">💡</span>
