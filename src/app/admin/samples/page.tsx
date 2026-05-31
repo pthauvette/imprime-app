@@ -44,27 +44,29 @@ export default async function AdminSamplesPage({
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
-      // Round 44 #3 — select explicite : 15 champs réellement lus par la
-      // carte, sur 29 colonnes. Évite de transférer 14 colonnes inutilisées
-      // dans la liste (shipName, shipCountry, requestIp/Ua, notes,
-      // internalNotes/2, reviewedAt/ByEmail, shippedAt, createdByEmail,
-      // userId, updatedAt). SampleRequest est la table la plus large du round.
+      // Round 44 #3 (corrigé) — select explicite des 16 champs réellement
+      // lus par la liste. SampleRequest a 18 colonnes ; on exclut juste
+      // requestIp + requestUa (jamais affichés). Gain modeste mais réel,
+      // et noms de colonnes alignés sur le schéma (selectedSamples,
+      // shipPostalCode, message, shippedAt) — la 1re version utilisait des
+      // noms inexistants (company/samplesJson/shipPostal) qui cassaient le build.
       select: {
         id: true,
         name: true,
         email: true,
-        company: true,
         phone: true,
-        samplesJson: true,
+        selectedSamples: true,
         shipLine1: true,
         shipLine2: true,
         shipCity: true,
         shipProvince: true,
-        shipPostal: true,
+        shipPostalCode: true,
+        message: true,
         status: true,
         trackingNumber: true,
         createdAt: true,
         adminNotes: true,
+        shippedAt: true,
       },
     }),
     prisma.sampleRequest.count({ where: { status: filter } }),
