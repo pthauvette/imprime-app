@@ -13,6 +13,7 @@ import { LocaleProvider } from '@/components/i18n/LocaleProvider';
 import { getServerLocale } from '@/lib/i18n/locale';
 import { getServerTheme } from '@/lib/theme';
 import CookieConsent from '@/components/legal/CookieConsent';
+import { fontVariables } from '@/lib/fonts';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
 const SITE_NAME = 'Plio';
@@ -98,15 +99,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const theme = await getServerTheme();
 
   return (
-    <html lang={htmlLang} data-theme={theme}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    // Round 44 #1 — fontVariables (next/font) expose --font-body/display/mono
+    // sur <html>. Le <link> bloquant vers Google Fonts est retiré : les woff2
+    // sont self-hostés + le CSS @font-face est injecté par next/font.
+    <html lang={htmlLang} data-theme={theme} className={fontVariables}>
       <body>
         {/* Structured data (schema.org) — Google Knowledge Panel, Rich
             Snippets, Sitelinks search box. Injected once dans root layout,

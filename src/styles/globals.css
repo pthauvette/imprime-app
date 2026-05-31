@@ -54,10 +54,11 @@
   --paper-bright: #FFFFFF;
   --paper-kraft: #C9B89A;
 
-  /* Type */
-  --font-display: "Instrument Serif", "Editorial New", Georgia, serif;
-  --font-body: "Inter", "Söhne", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Type — Round 44 #1 : --font-*-src fourni par next/font (self-host).
+     var() imbriqué = next/font si présent, sinon la stack littérale. */
+  --font-display: var(--font-display-src, "Instrument Serif"), "Editorial New", Georgia, serif;
+  --font-body: var(--font-body-src, "Inter"), "Söhne", system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono-src, "JetBrains Mono"), ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Shadows — always layered */
   --shadow-xs: 0 1px 2px rgba(20,28,22,.04), 0 0 1px rgba(20,28,22,.08);
@@ -9420,10 +9421,10 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       --paper-bright: #FFFFFF;
       --paper-kraft: #C9B89A;
 
-      /* Type */
-      --font-display: "Instrument Serif", "Editorial New", Georgia, serif;
-      --font-body: "Inter", "Söhne", system-ui, -apple-system, sans-serif;
-      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      /* Type — Round 44 #1 : aligné sur le :root principal (next/font src). */
+      --font-display: var(--font-display-src, "Instrument Serif"), "Editorial New", Georgia, serif;
+      --font-body: var(--font-body-src, "Inter"), "Söhne", system-ui, -apple-system, sans-serif;
+      --font-mono: var(--font-mono-src, "JetBrains Mono"), ui-monospace, "SF Mono", Menlo, monospace;
 
       /* Shadows */
       --shadow-xs: 0 1px 2px rgba(20,28,22,.04), 0 0 1px rgba(20,28,22,.08);
