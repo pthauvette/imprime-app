@@ -110,7 +110,10 @@ export default async function StatusPage() {
         style={{
           padding: 28,
           background: health ? STATUS_COLORS[health.status] : 'var(--bg-sunken)',
-          color: '#fff',
+          // Round 43 #3 — couleur conditionnée au fond. Avant : #fff figé →
+          // (1) invisible quand health=null (fond bg-sunken clair), (2) faible
+          // contraste en dark (success/warning/danger s'éclaircissent).
+          color: health ? 'var(--text-on-accent)' : 'var(--text-primary)',
           borderRadius: 'var(--r-xl)',
           marginBottom: 32,
           display: 'flex',
