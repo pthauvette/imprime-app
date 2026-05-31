@@ -105,12 +105,14 @@ export default async function LandingPage() {
           {/* Trust bar */}
           <div className="trust-bar">
             <span className="trust-label">★ Carriers</span>
+            {/* Round 45 #1 — « 4,9/5 » + « Trustpilot 12k+ avis » étaient
+                inventés (aucun compte Trustpilot). Retirés ; on garde les
+                transporteurs/processeur réels (vrais partenaires) + un fait. */}
             <div className="trust-logos">
               <span className="trust-logo">UPS</span>
               <span className="trust-logo">FedEx</span>
-              <span className="trust-logo">★★★★★ 4,9/5</span>
-              <span className="trust-logo">Trustpilot 12k+ avis</span>
-              <span className="trust-logo">Stripe</span>
+              <span className="trust-logo">Postes Canada</span>
+              <span className="trust-logo">Paiement Stripe sécurisé</span>
             </div>
           </div>
       
