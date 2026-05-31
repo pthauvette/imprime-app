@@ -44,6 +44,28 @@ export default async function AdminSamplesPage({
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
+      // Round 44 #3 — select explicite : 15 champs réellement lus par la
+      // carte, sur 29 colonnes. Évite de transférer 14 colonnes inutilisées
+      // dans la liste (shipName, shipCountry, requestIp/Ua, notes,
+      // internalNotes/2, reviewedAt/ByEmail, shippedAt, createdByEmail,
+      // userId, updatedAt). SampleRequest est la table la plus large du round.
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        company: true,
+        phone: true,
+        samplesJson: true,
+        shipLine1: true,
+        shipLine2: true,
+        shipCity: true,
+        shipProvince: true,
+        shipPostal: true,
+        status: true,
+        trackingNumber: true,
+        createdAt: true,
+        adminNotes: true,
+      },
     }),
     prisma.sampleRequest.count({ where: { status: filter } }),
     prisma.sampleRequest.groupBy({
