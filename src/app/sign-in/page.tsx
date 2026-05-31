@@ -52,18 +52,21 @@ export default async function SignInPage({
           </div>
         </div>
 
+        {/* Round 45 #1 — « 12k+ resellers actifs » et « 4,9 ★ Trustpilot »
+            étaient des chiffres inventés. Remplacés par des faits permanents
+            vrais ; « 2 min devis » reste (devis Sinalite réellement instantané). */}
         <div className="auth-side-stats">
           <div>
-            <div className="auth-side-stat-num">12k+</div>
-            <div className="auth-side-stat-label">resellers actifs</div>
+            <div className="auth-side-stat-num">🇨🇦</div>
+            <div className="auth-side-stat-label">Imprimé au Canada</div>
           </div>
           <div>
-            <div className="auth-side-stat-num">4,9</div>
-            <div className="auth-side-stat-label">★ Trustpilot</div>
+            <div className="auth-side-stat-num">0$</div>
+            <div className="auth-side-stat-label">avant paiement</div>
           </div>
           <div>
             <div className="auth-side-stat-num">2 min</div>
-            <div className="auth-side-stat-label">devis moyen</div>
+            <div className="auth-side-stat-label">devis instantané</div>
           </div>
         </div>
       </aside>

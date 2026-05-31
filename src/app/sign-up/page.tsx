@@ -77,10 +77,13 @@ export default async function SignUpPage() {
           </div>
         </div>
 
+        {/* Round 45 #1 — « 12k+ resellers » et « 4,9 ★ Trustpilot » étaient
+            inventés. Remplacés par des faits permanents ; « 2 min devis »
+            reste (devis Sinalite réellement instantané). */}
         <div className="side-footer">
-          <div className="side-footer-stat"><strong>12k+</strong>resellers</div>
-          <div className="side-footer-stat"><strong>4,9 ★</strong>Trustpilot</div>
-          <div className="side-footer-stat"><strong>2 min</strong>devis moyen</div>
+          <div className="side-footer-stat"><strong>🇨🇦</strong>Au Canada</div>
+          <div className="side-footer-stat"><strong>0$</strong>avant paiement</div>
+          <div className="side-footer-stat"><strong>2 min</strong>devis instantané</div>
         </div>
       </aside>
     </div>

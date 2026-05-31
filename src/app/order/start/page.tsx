@@ -20,6 +20,7 @@ import { buildReorderDeepLink } from '@/lib/orders/reorder';
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 import HeaderUserSlot from '@/components/account/HeaderUserSlot';
+import { getReviewStats } from '@/lib/reviews/stats';
 import * as Sentry from '@sentry/nextjs';
 
 export const metadata = { title: "Quoi imprimer ?" };
@@ -104,6 +105,9 @@ export default async function OrderStartPage({
 
   const totalProducts = visibleProducts.length;
 
+  // Round 45 #1 — stats avis réelles (APPROVED) pour le social proof vérifiable.
+  const reviewStats = await getReviewStats();
+
   // Fetch top-3 saved configs pour l'user connecté → widget "Reprendre"
   // au-dessus de la category grid. Pas d'auth = pas de widget (silencieux).
   const session = await auth();
@@ -167,9 +171,18 @@ export default async function OrderStartPage({
             Plus de {formatCurrency(totalProducts).replace(/[^\d\s]/g, '').trim()} produits actifs, devis instantané, livraison partout au Canada en 1 à 7 jours.
           </p>
 
+          {/* Round 45 #1 — social proof VÉRIFIABLE : faits permanents +
+              note réelle (avis APPROVED) seulement si seuil atteint. Avant :
+              « 47 commandes/h » et « 12k+ avis Trustpilot » étaient inventés. */}
           <div className="social-proof-row">
-            <span className="social-proof">47 commandes dans la dernière heure</span>
-            <span className="social-proof">4,9 sur 5 — 12k+ avis Trustpilot</span>
+            <span className="social-proof">Livraison partout au Canada · 1 à 7 jours</span>
+            {reviewStats.display ? (
+              <span className="social-proof">
+                {reviewStats.avgRating!.toLocaleString('fr-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sur 5 — {reviewStats.count} avis clients
+              </span>
+            ) : (
+              <span className="social-proof">Devis instantané, sans surprise</span>
+            )}
             <span className="social-proof">Prix wholesale, sans abonnement</span>
           </div>
 
