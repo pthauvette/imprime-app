@@ -36,26 +36,42 @@ export default async function AdminPromoCodeDetailPage({
   const { session } = await requireAdminPage();
   const { id } = await params;
 
-  const promo = await prisma.promoCode.findUnique({
-    where: { id },
-    include: {
-      orders: {
-        where: { status: { notIn: ['CANCELLED', 'FAILED'] } },
-        select: {
-          id: true,
-          sinaliteOrderId: true,
-          amountCents: true,
-          subtotalCents: true,
-          discountCents: true,
-          paidAt: true,
-          createdAt: true,
-          status: true,
-          user: { select: { id: true, email: true, name: true, firstName: true, lastName: true } },
+  // Round 44 #2 — promo, globalAovAgg et sidebarCounts sont mutuellement
+  // indépendants (aucun ne lit le résultat d'un autre ; globalAovAgg ne
+  // dépend que de `id`) → un seul Promise.all au lieu de 3 awaits sériels.
+  // Le notFound() sur promo reste juste après (guard inchangé).
+  const [promo, globalAovAgg, sidebarCountsBase] = await Promise.all([
+    prisma.promoCode.findUnique({
+      where: { id },
+      include: {
+        orders: {
+          where: { status: { notIn: ['CANCELLED', 'FAILED'] } },
+          select: {
+            id: true,
+            sinaliteOrderId: true,
+            amountCents: true,
+            subtotalCents: true,
+            discountCents: true,
+            paidAt: true,
+            createdAt: true,
+            status: true,
+            user: { select: { id: true, email: true, name: true, firstName: true, lastName: true } },
+          },
+          orderBy: { createdAt: 'desc' },
         },
-        orderBy: { createdAt: 'desc' },
       },
-    },
-  });
+    }),
+    // AOV comparaison : moyenne globale toutes orders (hors ce code).
+    prisma.order.aggregate({
+      where: {
+        status: { notIn: ['CANCELLED', 'FAILED'] },
+        promoCodeId: { not: id },
+      },
+      _avg: { amountCents: true },
+      _count: { _all: true },
+    }).catch(() => ({ _avg: { amountCents: 0 }, _count: { _all: 0 } })),
+    getAdminSidebarCounts(),
+  ]);
   if (!promo) notFound();
 
   // ─── Aggregates ─────────────────────────────────────────────────────────
@@ -68,15 +84,7 @@ export default async function AdminPromoCodeDetailPage({
     ? Math.round((usageCount / promo.maxUses) * 100)
     : null;
 
-  // AOV comparaison : moyenne globale toutes orders (hors ce code) vs avec ce code
-  const globalAovAgg = await prisma.order.aggregate({
-    where: {
-      status: { notIn: ['CANCELLED', 'FAILED'] },
-      promoCodeId: { not: id }, // exclu ce code
-    },
-    _avg: { amountCents: true },
-    _count: { _all: true },
-  }).catch(() => ({ _avg: { amountCents: 0 }, _count: { _all: 0 } }));
+  // globalAovAgg résolu ci-dessus en parallèle (Round 44 #2).
   const globalAov = Math.round(globalAovAgg._avg.amountCents ?? 0);
   const aovDelta = globalAov > 0
     ? Math.round(((avgOrderValue - globalAov) / globalAov) * 100)
@@ -121,7 +129,7 @@ export default async function AdminPromoCodeDetailPage({
         ? { label: 'Épuisé', color: 'var(--warning, #D97706)' }
         : { label: 'Actif', color: 'var(--success, #16A34A)' };
 
-  const sidebarCountsBase = await getAdminSidebarCounts();
+  // sidebarCountsBase résolu ci-dessus en parallèle (Round 44 #2).
 
   return (
     <div className="adm-shell">

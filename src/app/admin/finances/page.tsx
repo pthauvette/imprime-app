@@ -151,14 +151,26 @@ export default async function AdminFinancesPage({
     }).catch(() => []),
   ]);
 
-  // Round 23 #5 — Map userIds → resellerStatus, puis bucket par status
+  // Round 23 #5 — Map userIds → resellerStatus, puis bucket par status.
+  // Round 44 #2 — ces 2 user.findMany (resellerStatus + top customers) sont
+  // mutuellement indépendants (dérivent chacun d'un résultat déjà résolu du
+  // Promise.all précédent) → on les exécute en parallèle au lieu de séquentiel.
   const allRevenueUserIds = revenueByUserId.map((r) => r.userId);
-  const userStatusList = allRevenueUserIds.length > 0
-    ? await prisma.user.findMany({
-        where: { id: { in: allRevenueUserIds } },
-        select: { id: true, resellerStatus: true },
-      }).catch(() => [])
-    : [];
+  const userIds = topCustomers.map((c) => c.userId);
+  const [userStatusList, topCustomerUsers] = await Promise.all([
+    allRevenueUserIds.length > 0
+      ? prisma.user.findMany({
+          where: { id: { in: allRevenueUserIds } },
+          select: { id: true, resellerStatus: true },
+        }).catch(() => [])
+      : Promise.resolve([] as { id: string; resellerStatus: string }[]),
+    userIds.length > 0
+      ? prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, email: true, name: true, firstName: true, lastName: true },
+        })
+      : Promise.resolve([] as { id: string; email: string; name: string | null; firstName: string | null; lastName: string | null }[]),
+  ]);
   const statusByUserId = new Map(userStatusList.map((u) => [u.id, u.resellerStatus]));
   const resellerBreakdown: Record<'VERIFIED' | 'AUTO_DETECTED' | 'NONE', { revenueCents: number; orderCount: number; customerCount: number }> = {
     VERIFIED:      { revenueCents: 0, orderCount: 0, customerCount: 0 },
@@ -174,14 +186,7 @@ export default async function AdminFinancesPage({
   }
   const totalResellerRevenue = resellerBreakdown.VERIFIED.revenueCents + resellerBreakdown.AUTO_DETECTED.revenueCents + resellerBreakdown.NONE.revenueCents;
 
-  // ─── User lookup for top customers ─────────────────────────────────────
-  const userIds = topCustomers.map((c) => c.userId);
-  const topCustomerUsers = userIds.length > 0
-    ? await prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, email: true, name: true, firstName: true, lastName: true },
-      })
-    : [];
+  // ─── User lookup for top customers (résolu ci-dessus en parallèle) ──────
   const userById = new Map(topCustomerUsers.map((u) => [u.id, u]));
 
   // ─── Aggregates ────────────────────────────────────────────────────────
