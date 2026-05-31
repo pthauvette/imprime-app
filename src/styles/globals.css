@@ -12,7 +12,10 @@
   /* Text */
   --text-primary: #141C16;
   --text-secondary: #4A554D;
-  --text-muted: #7A8780;
+  /* Round 43 #3 — assombri #7A8780 → #626C64 pour WCAG AA (4.5:1).
+     Avant : 3.3–3.8:1 sur bg-sunken/surface/canvas (échec AA).
+     Après : 4.86–5.46:1 partout, reste visuellement "muted". */
+  --text-muted: #626C64;
   --text-on-accent: #FAFAF7;
 
   /* Borders */
@@ -91,7 +94,10 @@
   --bg-overlay: rgba(0, 0, 0, 0.64);
   --text-primary: #ECEFEC;
   --text-secondary: #A8B2AB;
-  --text-muted: #6F7A72;
+  /* Round 43 #3 — éclairci #6F7A72 → #8A958D pour WCAG AA (4.5:1).
+     Avant : 3.85–4.17:1 sur bg-surface/canvas (échec AA).
+     Après : 5.53–6.26:1 partout (en dark on éclaircit pour contraster). */
+  --text-muted: #8A958D;
   --text-on-accent: #0F1411;
   --border-subtle: rgba(236, 239, 236, 0.06);
   --border-default: rgba(236, 239, 236, 0.12);
@@ -9388,7 +9394,8 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
       --text-primary: #141C16;
       --text-secondary: #4A554D;
-      --text-muted: #7A8780;
+      /* Round 43 #3 — aligné sur le token app (#626C64, WCAG AA). */
+      --text-muted: #626C64;
       --text-on-accent: #FAFAF7;
 
       --border-subtle: rgba(20, 28, 22, 0.06);
@@ -9454,7 +9461,8 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
       --text-primary: #ECEFEC;
       --text-secondary: #A8B2AB;
-      --text-muted: #6F7A72;
+      /* Round 43 #3 — aligné sur le token app (#8A958D, WCAG AA). */
+      --text-muted: #8A958D;
       --text-on-accent: #0F1411;
 
       --border-subtle: rgba(236, 239, 236, 0.06);
