@@ -36,9 +36,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Active pnpm via Corepack (la version est pinned dans package.json)
+      # pnpm/action-setup exige une version explicite : pas de champ
+      # `packageManager` dans package.json, donc on l'épingle ici. Même
+      # valeur que e2e.yml / e2e-nightly.yml (10.33.2) pour rester aligné.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -60,10 +64,12 @@ jobs:
       - name: Unit tests (Vitest)
         run: pnpm vitest run
 
-      # Optional : compile build sanity. Désactivé par défaut car build
-      # complet est ~3 min et le typecheck attrape la plupart des bugs.
-      # Décommenter si on veut être paranoiac.
-      # - name: Build sanity
-      #   run: pnpm build
-      #   env:
-      #     NEXT_PUBLIC_APP_URL: https://plio.ca
+      # Build sanity : `next build` attrape des erreurs que tsc ne voit pas
+      # (frontières server/client, config de routes, Suspense manquant…).
+      # En dernier car ~3 min : tsc + vitest échouent vite si c'est cassé.
+      # env.ts ne throw pas (fix Round 42b) et instrumentation.ts catch
+      # assertProductionEnvReady → le build ne plante pas sur env manquant.
+      - name: Build sanity
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_APP_URL: https://www.plio.ca
