@@ -620,6 +620,35 @@ function PaymentForm({ total }: { total: number }) {
           </>
         )}
       </button>
+
+      {/* Round 45 #5 — réassurance au POINT exact de friction (sous le bouton
+          payer). Chaque ligne répond à une peur réelle au checkout et est
+          VRAIE : Stripe chiffre la carte (jamais sur nos serveurs), annulation
+          possible avant production (cf. politique de remboursement), support
+          humain réel. */}
+      <ul
+        aria-label="Garanties de paiement"
+        style={{
+          listStyle: 'none',
+          margin: '16px 0 0',
+          padding: 0,
+          display: 'grid',
+          gap: 8,
+          fontSize: 12.5,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.5,
+        }}
+      >
+        <li>🔒 Paiement chiffré par Stripe — ta carte ne transite jamais par nos serveurs.</li>
+        <li>↩ Annulation gratuite tant que la production n&apos;a pas démarré.</li>
+        <li>
+          ✉ Une question ?{' '}
+          <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>
+            bonjour@plio.ca
+          </a>{' '}
+          — on répond vite.
+        </li>
+      </ul>
     </div>
   );
 }
