@@ -252,7 +252,11 @@ describe('N. status=DELIVERED', () => {
       { ...baseOrder, user: baseUser } as never,
     );
 
-    const ts = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // -5min, fresh
+    // -2min : confortablement DANS la fenêtre de fraîcheur (MAX_TIMESTAMP_AGE_MS
+    // = 5min). -5min tombait pile sur la frontière `ageMs > MAX` → flaky : le
+    // test ne passait que si 0 ms ne s'écoulait entre ce Date.now() et celui du
+    // handler. 3min de marge éliminent la course à la milliseconde.
+    const ts = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const res = await POST(makeReq(validPayload({ status: 'DELIVERED', timestamp: ts })));
 
     expect(emails.sendOrderDeliveredEmail).toHaveBeenCalledWith({
