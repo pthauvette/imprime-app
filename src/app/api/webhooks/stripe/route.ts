@@ -25,10 +25,7 @@ import {
 } from '@/lib/db/orders';
 import { processStripeEvent } from '@/lib/webhooks/stripe-process';
 import { logStripe } from '@/lib/logger';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
+import { getStripe } from '@/lib/stripe/client';
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
 /**
@@ -59,7 +56,7 @@ export async function POST(req: Request) {
   try {
     // constructEvent throw avec message "Timestamp outside the tolerance zone"
     // si l'écart entre Stripe's timestamp et now() dépasse tolerance.
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       rawBody,
       sig,
       WEBHOOK_SECRET,

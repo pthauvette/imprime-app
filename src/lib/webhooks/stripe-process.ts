@@ -37,10 +37,7 @@ import {
 } from '@/lib/emails/send';
 import { logStripe } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
+import { getStripe } from '@/lib/stripe/client';
 
 /**
  * Process a Stripe event (post-signature, post-dedup). Caller handles
@@ -326,7 +323,7 @@ async function handlePaymentSucceeded(
       // Round 38 #3 — idempotencyKey : si le webhook Stripe retry pour
       // cette même intent.id (timeout réseau), on ne crée pas un 2ème
       // refund. Le PI ID est unique par charge donc parfait pour dedupe.
-      const refund = await stripe.refunds.create({
+      const refund = await getStripe().refunds.create({
         payment_intent: intent.id,
         reason: 'requested_by_customer',
         metadata: {

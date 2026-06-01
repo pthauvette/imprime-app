@@ -17,10 +17,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { markRefundIssued, markOrderFailed } from '@/lib/db/orders';
 import { sendRefundIssuedEmail } from '@/lib/emails/send';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
+import { getStripe } from '@/lib/stripe/client';
 
 const BodySchema = z.object({
   amountCents: z.number().int().positive().optional(),
@@ -74,7 +71,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     .slice(0, 48)}`;
   let refund: Stripe.Refund;
   try {
-    refund = await stripe.refunds.create({
+    refund = await getStripe().refunds.create({
       payment_intent: order.paymentIntentId,
       amount: body.amountCents,
       reason: 'requested_by_customer',
