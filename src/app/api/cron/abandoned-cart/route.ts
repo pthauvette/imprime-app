@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
   let sent = 0;
   let skippedConverted = 0;
   let skippedReview = 0;
+  let skippedUnsendable = 0;
   let failed = 0;
 
   try {
@@ -143,11 +144,23 @@ export async function GET(req: NextRequest) {
         if (result.sent) {
           sent++;
           // emailSentAt déjà set par le claim atomique — rien à update.
+        } else if (result.skipped) {
+          // Round 45 #4 — Email volontairement NON envoyé : suppression (hard
+          // bounce / plainte) ou throttle (cap CASL 5/jour). C'est une décision
+          // DÉLIBÉRÉE, pas un échec → on NE reset PAS emailSentAt. Reset ferait
+          // re-claim + re-skip ce cart à CHAQUE run horaire jusqu'à expiration
+          // (72h) : gaspillage, et un suppressed ne redeviendra jamais
+          // envoyable. Le cart reste claimé = traité.
+          skippedUnsendable++;
+          log.info(
+            { cartId: cart.id, reason: result.skipped },
+            'abandoned-cart: email skipped (deliberate, not retried)',
+          );
         } else {
-          // Round 39 #5 — Send fail : reset le claim pour que le prochain
-          // run cron retente. Trade-off : tiny race possible si un autre
-          // cron run est déjà in-flight, mais cron hourly + send fail rare
-          // → préfère 1 retry possible que 1 silent loss définitif.
+          // Round 39 #5 — Échec d'envoi RÉEL (SES) : reset le claim pour que le
+          // prochain run cron retente. Trade-off : tiny race possible si un
+          // autre cron run est déjà in-flight, mais cron hourly + send fail
+          // rare → préfère 1 retry possible que 1 silent loss définitif.
           await prisma.abandonedCart.update({
             where: { id: cart.id },
             data: { emailSentAt: null },
@@ -176,6 +189,7 @@ export async function GET(req: NextRequest) {
       sent,
       skippedConverted,
       skippedReview,
+      skippedUnsendable,
       failed,
     };
     log.info(result, 'cron/abandoned-cart ran');
@@ -184,7 +198,7 @@ export async function GET(req: NextRequest) {
       name: 'abandoned-cart',
       status: 'success',
       latencyMs: Date.now() - start,
-      data: { eligible: candidates.length, sent, skippedConverted, skippedReview, failed },
+      data: { eligible: candidates.length, sent, skippedConverted, skippedReview, skippedUnsendable, failed },
     });
     return NextResponse.json(result);
   } catch (err) {
