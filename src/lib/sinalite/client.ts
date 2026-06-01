@@ -29,27 +29,63 @@ import {
 } from './types';
 import { withSinaliteCache, SINALITE_CATALOG_TTL_MS } from './cache';
 
-// ─── ENV ──────────────────────────────────────────────────────────────────
+// ─── ENV (lazy) ─────────────────────────────────────────────────────────────
 
-const env = (() => {
-  const raw = {
+// Round 45 — résolution PARESSEUSE de l'env Sinalite.
+//
+// Avant : un IIFE faisait `schema.parse()` AU CHARGEMENT du module → throw si
+// les creds manquaient. Comme ce client est importé par de nombreuses routes
+// (webhooks stripe/sinalite, orders/create, crons, pages /order/*…), une seule
+// var manquante crashait TOUTES ces routes au boot/build au lieu de dégrader
+// la seule feature Sinalite. C'est la fragilité fail-hard corrigée après
+// l'incident prod R42b dans lib/env.ts + instrumentation.ts.
+//
+// Désormais : l'import ne touche jamais process.env. La validation se fait à la
+// 1re utilisation réelle (getToken/request/storeCode), mémoïsée ensuite. Une
+// config manquante lève un SinaliteError CLAIR au moment de l'appel — fail-soft
+// à l'import, fail-loud à l'usage.
+
+const envSchema = z.object({
+  SINALITE_CLIENT_ID: z.string().min(1),
+  SINALITE_CLIENT_SECRET: z.string().min(1),
+  SINALITE_API_BASE: z.string().url().default('https://api.sinaliteuppy.com'),
+  SINALITE_AUDIENCE: z.string().url().default('https://apiconnect.sinalite.com'),
+  SINALITE_AUTH_BASE: z.string().url().default('https://api.sinaliteuppy.com'),
+  SINALITE_STORE_CODE: z.enum(['en_ca', 'en_us']).default('en_ca'),
+});
+
+type SinaliteEnv = z.infer<typeof envSchema>;
+
+let cachedEnv: SinaliteEnv | null = null;
+
+/**
+ * Résout + valide l'env Sinalite à la 1re utilisation, puis mémoïse.
+ * Lève un SinaliteError clair (503) si une creds requise manque — au moment
+ * de l'appel, jamais au chargement du module (cf. note ENV ci-dessus).
+ */
+function getEnv(): SinaliteEnv {
+  if (cachedEnv) return cachedEnv;
+  const result = envSchema.safeParse({
     SINALITE_CLIENT_ID: process.env.SINALITE_CLIENT_ID,
     SINALITE_CLIENT_SECRET: process.env.SINALITE_CLIENT_SECRET,
     SINALITE_API_BASE: process.env.SINALITE_API_BASE,
     SINALITE_AUDIENCE: process.env.SINALITE_AUDIENCE,
     SINALITE_AUTH_BASE: process.env.SINALITE_AUTH_BASE,
     SINALITE_STORE_CODE: process.env.SINALITE_STORE_CODE,
-  };
-  const schema = z.object({
-    SINALITE_CLIENT_ID: z.string().min(1),
-    SINALITE_CLIENT_SECRET: z.string().min(1),
-    SINALITE_API_BASE: z.string().url().default('https://api.sinaliteuppy.com'),
-    SINALITE_AUDIENCE: z.string().url().default('https://apiconnect.sinalite.com'),
-    SINALITE_AUTH_BASE: z.string().url().default('https://api.sinaliteuppy.com'),
-    SINALITE_STORE_CODE: z.enum(['en_ca', 'en_us']).default('en_ca'),
   });
-  return schema.parse(raw);
-})();
+  if (!result.success) {
+    const missing = result.error.issues.map((i) => i.path.join('.')).join(', ');
+    throw new SinaliteError(
+      `Configuration Sinalite manquante ou invalide : ${missing}. ` +
+        `Vérifie les variables d'env SINALITE_* (console Amplify / .env).`,
+      503,
+      '<config>',
+      result.error.issues,
+    );
+  }
+  cachedEnv = result.data;
+  return cachedEnv;
+}
 
 // ─── ERRORS ───────────────────────────────────────────────────────────────
 
@@ -82,6 +118,7 @@ async function getToken(): Promise<string> {
     return cachedToken.token;
   }
 
+  const env = getEnv();
   const res = await fetch(`${env.SINALITE_AUTH_BASE}/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -152,6 +189,7 @@ async function request<T>(
   init: RequestInit & { schema: z.ZodType<T> },
 ): Promise<T> {
   const token = await getToken();
+  const env = getEnv();
   const url = `${env.SINALITE_API_BASE}${endpoint}`;
 
   const res = await fetch(url, {
@@ -206,7 +244,11 @@ async function request<T>(
 // ─── PUBLIC API ───────────────────────────────────────────────────────────
 
 export const sinalite = {
-  storeCode: env.SINALITE_STORE_CODE as StoreCode,
+  // Getter (pas une data-property) pour ne PAS résoudre l'env au chargement du
+  // module — sinon on re-throw à l'import, ce que tout ce refactor évite.
+  get storeCode(): StoreCode {
+    return getEnv().SINALITE_STORE_CODE as StoreCode;
+  },
 
   /**
    * GET /product → catalogue complet (~1200 produits).

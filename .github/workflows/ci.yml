@@ -73,18 +73,17 @@ jobs:
         run: pnpm build
         env:
           NEXT_PUBLIC_APP_URL: https://www.plio.ca
-          # Stubs build-only. Certains modules valident/instancient AU CHARGEMENT
-          # et throw si l'env manque, ce qui casse `next build` à la collecte de
-          # page data des routes qui les importent. Le build n'exécute aucune
-          # route (toutes dynamiques) ni n'appelle ces services — ces valeurs
-          # factices servent juste à laisser les modules se charger :
-          #   - lib/sinalite/client.ts : z.object().parse() des creds (throw).
-          #   - routes stripe : `new Stripe(STRIPE_SECRET_KEY!)` top-level (throw
-          #     si falsy). Les variantes wallet/health sont gardées par ternaire.
-          #   - DATABASE_URL / AUTH_SECRET : Prisma est lazy et NextAuth résout le
-          #     secret par requête, mais on les fournit par sécurité (filet).
-          SINALITE_CLIENT_ID: ci-build-stub
-          SINALITE_CLIENT_SECRET: ci-build-stub
+          # Stubs build-only. Les routes stripe instancient
+          # `new Stripe(STRIPE_SECRET_KEY!)` AU TOP-LEVEL (throw si falsy), ce qui
+          # casse `next build` à la collecte de page data. Le build n'exécute
+          # aucune route (toutes dynamiques) ni n'appelle Stripe — la valeur
+          # factice sert juste à laisser le module se charger. (Les variantes
+          # wallet/health sont gardées par ternaire.)
+          # DATABASE_URL / AUTH_SECRET : Prisma est lazy et NextAuth résout le
+          # secret par requête, mais on les fournit par sécurité (filet).
+          # NB : plus de stub SINALITE_* — lib/sinalite/client.ts résout son env
+          # de façon paresseuse (getEnv()) depuis Round 45, donc il ne throw
+          # plus au chargement.
           STRIPE_SECRET_KEY: sk_test_ci_build_stub
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_build_stub
           AUTH_SECRET: ci-build-stub-secret-min-32-chars-long-xxxx
