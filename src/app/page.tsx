@@ -289,11 +289,11 @@ export default async function LandingPage() {
             <div className="footer-col">
               <h4>Produits</h4>
               <ul>
-                <li><a href="/order/start">Cartes de visite</a></li>
-                <li><a href="/order/start">Flyers</a></li>
-                <li><a href="/order/start">Brochures</a></li>
-                <li><a href="/order/start">Bannières</a></li>
-                <li><a href="/order/start">Apparel</a></li>
+                <li><a href="/order/product?category=cartes-de-visite">Cartes de visite</a></li>
+                <li><a href="/order/product?category=flyers">Flyers</a></li>
+                <li><a href="/order/product?category=brochures">Brochures</a></li>
+                <li><a href="/order/product?category=bannieres">Bannières</a></li>
+                <li><a href="/order/product?category=etiquettes">Étiquettes &amp; stickers</a></li>
               </ul>
             </div>
             <div className="footer-col">

@@ -101,7 +101,9 @@ export default async function OrderStartPage({
 
   const families = groupProductsByFamily(visibleProducts)
     .filter((f) => f.productCount > 0)
-    .slice(0, 8);
+    // Round 45 #3 — cap défensif au-dessus du nombre de familles (8) pour ne
+    // jamais tronquer silencieusement si une 9e famille est ajoutée plus tard.
+    .slice(0, 9);
 
   const totalProducts = visibleProducts.length;
 
@@ -184,28 +186,6 @@ export default async function OrderStartPage({
               <span className="social-proof">Devis instantané, sans surprise</span>
             )}
             <span className="social-proof">Prix wholesale, sans abonnement</span>
-          </div>
-
-          <div className="search-block">
-            <label className="search">
-              <svg
-                className="search-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Cherche 'cartes de visite', 'flyers 8,5×11'…"
-                autoFocus
-                defaultValue=""
-              />
-              <span className="search-kbd">/</span>
-            </label>
           </div>
 
           {recentConfigs.length > 0 && (
