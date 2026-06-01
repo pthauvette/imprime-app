@@ -14,13 +14,10 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import Stripe from 'stripe';
 import CartClearOnMount from '@/components/cart/CartClearOnMount';
+import { getStripe } from '@/lib/stripe/client';
 
 export const metadata = { title: "C'est imprimé — Plio" };
 export const dynamic = 'force-dynamic';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
 
 export default async function ConfirmationPage({
   searchParams,
@@ -37,7 +34,7 @@ export default async function ConfirmationPage({
   let intent: Stripe.PaymentIntent | null = null;
   let fetchError: string | null = null;
   try {
-    intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    intent = await getStripe().paymentIntents.retrieve(paymentIntentId);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : 'Erreur Stripe';
   }
