@@ -403,6 +403,46 @@ describe('GET /api/cron/abandoned-cart', () => {
     expect(sendAbandonedCartEmail).not.toHaveBeenCalled();
   });
 
+  it('Round 46 : un panier qui throw (order.findFirst) n\'avorte PAS le run (200 isolé) + les autres carts continuent', async () => {
+    // Avant le fix : order.findFirst non gardé → throw propage au catch externe
+    // → HTTP 500 + toute la batch perdue (incident prod 2026-06-01 10:57).
+    // Après : erreur isolée par-panier (failed++ + continue), run reste 200.
+    vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
+      {
+        id: 'cart_bad',
+        email: 'bad@studio.ca',
+        productId: 7,
+        resumeQuery: 'x',
+        lastStep: 'shipping',
+        updatedAt: new Date(Date.now() - 36 * 3600 * 1000),
+      } as never,
+      {
+        id: 'cart_ok',
+        email: 'ok@studio.ca',
+        productId: 7,
+        resumeQuery: 'x',
+        lastStep: 'shipping',
+        updatedAt: new Date(Date.now() - 36 * 3600 * 1000),
+      } as never,
+    ]);
+    // cart_bad : order.findFirst throw (1er appel) ; cart_ok : null (2e appel)
+    vi.mocked(prisma.order.findFirst)
+      .mockRejectedValueOnce(new Error('DB blip'))
+      .mockResolvedValueOnce(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+
+    const GET = await importCron();
+    const res = await GET(makeReqCron());
+
+    expect(res.status).toBe(200); // PAS 500 — l'erreur d'un cart n'avorte plus le run
+    const json = await res.json();
+    expect(json.failed).toBe(1); // cart_bad isolé
+    expect(json.sent).toBe(1); // cart_ok traité malgré l'échec du précédent
+    expect(sendAbandonedCartEmail).toHaveBeenCalledTimes(1); // seulement cart_ok
+    // cart_bad : claim reset (best-effort) pour retry au prochain run
+    expect(prisma.abandonedCart.update).toHaveBeenCalled();
+  });
+
   it('401 si Bearer token wrong en prod-like setup', async () => {
     vi.stubEnv('CRON_SECRET', 'expected_secret');
     const GET = await importCron();
