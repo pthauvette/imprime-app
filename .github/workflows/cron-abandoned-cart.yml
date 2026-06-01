@@ -24,6 +24,10 @@ jobs:
             echo "::error::CRON_SECRET secret manquant. Ajoute-le dans Settings → Secrets → Actions."
             exit 1
           fi
+          # IMPORTANT : viser www.plio.ca, PAS l'apex plio.ca. L'apex fait une
+          # redirection (GoDaddy) qui écrase le path → 404, donc `curl --fail`
+          # échouait et la route n'était JAMAIS atteinte (le cron ne partait
+          # jamais en prod). www sert la route directement (Round 45 #4).
           curl --fail --silent --show-error \
             -H "Authorization: Bearer $CRON_SECRET" \
-            https://plio.ca/api/cron/abandoned-cart
+            https://www.plio.ca/api/cron/abandoned-cart

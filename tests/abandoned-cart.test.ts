@@ -273,6 +273,92 @@ describe('GET /api/cron/abandoned-cart', () => {
     expect(upd.data.emailSentAt).toBeNull();
   });
 
+  it('Round 45 #4 : email suppressed (hard bounce) → NE reset PAS emailSentAt', async () => {
+    vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
+      {
+        id: 'cart_supp',
+        email: 'bounce@studio.ca',
+        productId: 7,
+        resumeQuery: 'x',
+        lastStep: 'shipping',
+        updatedAt: new Date(Date.now() - 36 * 3600 * 1000),
+      } as never,
+    ]);
+    vi.mocked(prisma.order.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null as never);
+    // queueEmail skip un suppressed AVANT d'envoyer : { sent:false, skipped:'suppressed' }
+    vi.mocked(sendAbandonedCartEmail).mockResolvedValueOnce({
+      sent: false,
+      id: 'suppressed',
+      skipped: 'suppressed',
+    } as never);
+
+    const GET = await importCron();
+    const res = await GET(makeReqCron());
+    const json = await res.json();
+    expect(json.skippedUnsendable).toBe(1);
+    expect(json.failed).toBe(0);
+    expect(json.sent).toBe(0);
+    // Cart reste claimé (décision délibérée) — PAS de reset, sinon re-skip horaire à l'infini.
+    expect(prisma.abandonedCart.update).not.toHaveBeenCalled();
+  });
+
+  it('Round 45 #4 : email throttled (cap CASL) → NE reset PAS emailSentAt', async () => {
+    vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
+      {
+        id: 'cart_thr',
+        email: 'busy@studio.ca',
+        productId: 7,
+        resumeQuery: 'x',
+        lastStep: 'shipping',
+        updatedAt: new Date(Date.now() - 36 * 3600 * 1000),
+      } as never,
+    ]);
+    vi.mocked(prisma.order.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null as never);
+    vi.mocked(sendAbandonedCartEmail).mockResolvedValueOnce({
+      sent: false,
+      id: 'throttled',
+      skipped: 'throttled',
+    } as never);
+
+    const GET = await importCron();
+    const res = await GET(makeReqCron());
+    const json = await res.json();
+    expect(json.skippedUnsendable).toBe(1);
+    expect(json.failed).toBe(0);
+    expect(prisma.abandonedCart.update).not.toHaveBeenCalled();
+  });
+
+  it('Round 45 #4 : échec SES réel (sent:false sans skipped) → reset emailSentAt pour retry', async () => {
+    vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
+      {
+        id: 'cart_failreal',
+        email: 'sophie@studio.ca',
+        productId: 7,
+        resumeQuery: 'x',
+        lastStep: 'shipping',
+        updatedAt: new Date(Date.now() - 36 * 3600 * 1000),
+      } as never,
+    ]);
+    vi.mocked(prisma.order.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null as never);
+    // sent:false SANS skipped = vrai échec d'envoi → on garde le retry (R39 #5)
+    vi.mocked(sendAbandonedCartEmail).mockResolvedValueOnce({
+      sent: false,
+      id: 'del_x',
+    } as never);
+
+    const GET = await importCron();
+    const res = await GET(makeReqCron());
+    const json = await res.json();
+    expect(json.failed).toBe(1);
+    expect(json.skippedUnsendable).toBe(0);
+    expect(prisma.abandonedCart.update).toHaveBeenCalledTimes(1);
+    const upd = vi.mocked(prisma.abandonedCart.update).mock.calls[0][0];
+    expect(upd.data.emailSentAt).toBeNull();
+  });
+
   it('skip si Order existe pour email après updatedAt (converted)', async () => {
     vi.mocked(prisma.abandonedCart.findMany).mockResolvedValueOnce([
       {
