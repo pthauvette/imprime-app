@@ -60,6 +60,15 @@ const MARKETING_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
   'reengagement-winback',
   'reseller-monthly-stats',
 ]);
+// Round 45 #4 — NE PAS ajouter 'abandoned-cart' ici sans d'abord faire que le
+// cron honore le désabonnement. Ajouter un template ici émet un header one-click
+// List-Unsubscribe (RFC 8058) → on est ALORS obligé d'honorer le clic. Or le
+// cron abandoned-cart ne gate sur aucun opt-out (recovery = consentement
+// implicite, lien unsub seulement dans le body, ce qui suffit CASL). Volume
+// actuel sous le seuil Gmail/Yahoo (~5k/j). Pour reprendre proprement : gater le
+// cron sur User.emailMarketing=false OU NewsletterSubscriber.status=UNSUBSCRIBED
+// (users ET invités). NE PAS utiliser EmailSuppression (bloquerait le
+// transactionnel — cf. schema.prisma). Décision tracée (Round 45 #4 B1, différé).
 
 /** Round 28 #4 — Derive l'unsubscribe URL pour un recipient.
  *  Idempotent + déterministe via HMAC, donc safe à re-derive en retry. */
