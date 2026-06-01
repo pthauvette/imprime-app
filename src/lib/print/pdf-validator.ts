@@ -77,14 +77,17 @@ export interface ValidationOptions {
   maxPages?: number;
   /** Dimensions attendues. Si absent, on accepte 0.5"–30". */
   expected?: ExpectedDimensions;
-  /** Limite taille en bytes. Default 50 MB (aligne avec MAX_FILE_SIZE_BYTES). */
+  /** Limite taille en bytes. Default 150 MB — aligné avec MAX_FILE_SIZE_BYTES
+   *  côté S3 (storage/s3.ts). Avant : 50 MB, qui bloquait à tort des PDFs que
+   *  S3 acceptait (et qu'un PSD du même poids passait, lui, sans validation). */
   maxBytes?: number;
 }
 
 const DEFAULTS: Required<Omit<ValidationOptions, 'expected'>> = {
   minPages: 1,
   maxPages: 2,
-  maxBytes: 50 * 1024 * 1024,
+  // Round 45 #3 — relevé de 50→150 MB pour réaligner sur la limite S3 réelle.
+  maxBytes: 150 * 1024 * 1024,
 };
 
 const PT_PER_INCH = 72;
@@ -207,10 +210,15 @@ export async function validatePdf(
   } else {
     // Pas de dimensions attendues — on check juste que c'est dans une fourchette raisonnable
     if (wInches < 0.5 || hInches < 0.5) {
+      // Round 45 #3 — warning (override) au lieu de error (hard block). Un
+      // produit légitimement petit (mini-étiquette, sticker die-cut) ou une
+      // taille mal lue par pdf-lib ne doit pas bloquer l'upload : on alerte,
+      // l'utilisateur confirme s'il sait ce qu'il fait. Les vrais hard-blocks
+      // (illisible, chiffré, trop gros) restent en error.
       issues.push({
-        level: 'error',
+        level: 'warning',
         code: 'dimensions-too-small',
-        message: `Dimensions absurdes : ${wInches.toFixed(2)}" × ${hInches.toFixed(2)}". Vérifie l'export de ton fichier.`,
+        message: `Dimensions très petites : ${wInches.toFixed(2)}" × ${hInches.toFixed(2)}". Vérifie l'export de ton fichier — sauf si c'est intentionnel (petit format).`,
       });
     } else if (wInches > 30 || hInches > 30) {
       issues.push({

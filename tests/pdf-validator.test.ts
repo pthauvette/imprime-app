@@ -58,6 +58,15 @@ describe('validatePdf — file integrity', () => {
     expect(r.issues[0].message).toMatch(/Maximum/);
   });
 
+  it('default maxBytes = 150 MB (R45 #3) : un fichier de 60 MB n\'est PAS file-too-large', async () => {
+    // 60 MB > ancien défaut (50 MB), < nouveau défaut (150 MB, aligné S3).
+    // Garbage → finit en pdf-invalid, mais surtout JAMAIS rejeté pour la taille
+    // avec le défaut. Garde contre une régression vers 50 MB.
+    const big = new File([new Uint8Array(60 * 1024 * 1024)], 'big.pdf', { type: 'application/pdf' });
+    const r = await validatePdf(big); // pas d'options → défaut 150 MB
+    expect(r.issues.some((i) => i.code === 'file-too-large')).toBe(false);
+  });
+
   it('ERROR si bytes ne sont pas un PDF (random data)', async () => {
     const garbage = new Uint8Array(2000).fill(0x42);
     const file = new File([garbage], 'fake.pdf', { type: 'application/pdf' });
@@ -94,10 +103,12 @@ describe('validatePdf — page count', () => {
 });
 
 describe('validatePdf — dimensions (no expected)', () => {
-  it('ERROR si dimensions absurdes (< 0.5")', async () => {
+  it('WARNING (override) si dimensions très petites (< 0.5") — R45 #3', async () => {
+    // Round 45 #3 — était error (hard block) ; maintenant warning overridable
+    // (un petit format légitime ou une taille mal lue ne doit pas bloquer).
     const file = await makePdfFile({ pages: 1, widthInches: 0.1, heightInches: 0.1 });
     const r = await validatePdf(file);
-    expect(r.level).toBe('error');
+    expect(r.level).toBe('warning');
     expect(r.issues.some((i) => i.code === 'dimensions-too-small')).toBe(true);
   });
 
