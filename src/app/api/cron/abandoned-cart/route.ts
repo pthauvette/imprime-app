@@ -66,74 +66,75 @@ export async function GET(req: NextRequest) {
     });
 
     for (const cart of candidates) {
-      // Round 39 #5 — Atomic claim AVANT le travail (skip si déjà claimé
-      // par un autre cron run concurrent ou pas concurrent mais re-tried).
-      // Sans ce claim, 2 instances cron concurrentes pouvaient findMany
-      // les mêmes carts (entre le findMany et l'update) → double email
-      // au customer (spam + abus CASL). updateMany retourne le count des
-      // rows updated. count === 0 = quelqu'un d'autre a claimé → skip.
-      const claim = await prisma.abandonedCart.updateMany({
-        where: { id: cart.id, emailSentAt: null },
-        data: { emailSentAt: new Date() },
-      });
-      if (claim.count === 0) {
-        // Race perdue — un autre cron run vient juste de claim ce cart.
-        // PAS un échec, juste un no-op sain.
-        log.info({ cartId: cart.id }, 'abandoned-cart: claim lost (concurrent cron run)');
-        continue;
-      }
-
-      // Skip si lastStep=review (95 % conversion).
-      // Note: on a déjà claimé (emailSentAt set), donc on ne re-checke plus
-      // ce cart aux prochains runs. C'est OK — review = ne pas envoyer.
-      if (cart.lastStep === 'review') {
-        skippedReview++;
-        continue;
-      }
-      // Skip si une Order existe pour cet email après updatedAt = user a
-      // fini autrement. emailSentAt déjà set par le claim atomique.
-      const subsequentOrder = await prisma.order.findFirst({
-        where: {
-          user: { email: cart.email },
-          createdAt: { gte: cart.updatedAt },
-        },
-        select: { id: true },
-      });
-      if (subsequentOrder) {
-        skippedConverted++;
-        continue;
-      }
-
-      // Fetch product name pour le subject + body
-      let productName = 'Plio';
+      // Round 46 — Isolation par-panier. TOUT le traitement d'un cart est dans
+      // un seul try/catch : un throw sur N'IMPORTE quel panier (claim
+      // updateMany, order.findFirst, send…) ne doit PLUS propager jusqu'au
+      // catch externe → ça causait un HTTP 500 + TOUTE la batch perdue pour un
+      // seul cart fautif (incident prod 2026-06-01 10:57). Désormais : log avec
+      // le cartId (auto-diagnostic du prochain échec), reset du claim pour
+      // retry au prochain run, et on continue les autres carts.
       try {
-        const product = await sinalite.getProduct(cart.productId);
-        productName = product.name ?? productName;
-      } catch {
-        // Sinalite down ou produit invalide → fallback string
-      }
-
-      // Build resume URL → /order/review?productId=X&...resumeQuery
-      const directUrl = `/order/review?productId=${cart.productId}&${cart.resumeQuery}`;
-      // Round 27 #1 — wrap dans click-tracker pour mesurer le funnel
-      // sent → clicked → recovered. HMAC token = pas d'enumeration possible.
-      const token = recoveryClickToken(cart.id);
-      const resumeUrl = `${APP_URL}/api/recovery/click?cart=${cart.id}&t=${token}&to=${encodeURIComponent(directUrl)}`;
-
-      // FirstName best-effort : look up User par email si existe
-      let firstName = cart.email.split('@')[0];
-      try {
-        const user = await prisma.user.findUnique({
-          where: { email: cart.email },
-          select: { firstName: true, name: true },
+        // Round 39 #5 — Atomic claim AVANT le travail. Sans ce claim, 2 cron
+        // runs concurrents pouvaient findMany les mêmes carts → double email
+        // (spam + abus CASL). count === 0 = déjà claimé par un autre → skip.
+        const claim = await prisma.abandonedCart.updateMany({
+          where: { id: cart.id, emailSentAt: null },
+          data: { emailSentAt: new Date() },
         });
-        if (user?.firstName) firstName = user.firstName;
-        else if (user?.name) firstName = user.name.split(' ')[0];
-      } catch {
-        // ignore
-      }
+        if (claim.count === 0) {
+          log.info({ cartId: cart.id }, 'abandoned-cart: claim lost (concurrent cron run)');
+          continue;
+        }
 
-      try {
+        // Skip si lastStep=review (95 % conversion). emailSentAt déjà set par
+        // le claim → on ne re-checke plus ce cart. OK : review = ne pas envoyer.
+        if (cart.lastStep === 'review') {
+          skippedReview++;
+          continue;
+        }
+
+        // Skip si une Order existe pour cet email après updatedAt = user a fini
+        // autrement. emailSentAt déjà set par le claim atomique.
+        const subsequentOrder = await prisma.order.findFirst({
+          where: {
+            user: { email: cart.email },
+            createdAt: { gte: cart.updatedAt },
+          },
+          select: { id: true },
+        });
+        if (subsequentOrder) {
+          skippedConverted++;
+          continue;
+        }
+
+        // Fetch product name pour le subject + body
+        let productName = 'Plio';
+        try {
+          const product = await sinalite.getProduct(cart.productId);
+          productName = product.name ?? productName;
+        } catch {
+          // Sinalite down ou produit invalide → fallback string
+        }
+
+        // Build resume URL → /order/review?productId=X&...resumeQuery
+        // Round 27 #1 — wrap dans click-tracker (HMAC, pas d'enumeration).
+        const directUrl = `/order/review?productId=${cart.productId}&${cart.resumeQuery}`;
+        const token = recoveryClickToken(cart.id);
+        const resumeUrl = `${APP_URL}/api/recovery/click?cart=${cart.id}&t=${token}&to=${encodeURIComponent(directUrl)}`;
+
+        // FirstName best-effort : look up User par email si existe
+        let firstName = cart.email.split('@')[0];
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: cart.email },
+            select: { firstName: true, name: true },
+          });
+          if (user?.firstName) firstName = user.firstName;
+          else if (user?.name) firstName = user.name.split(' ')[0];
+        } catch {
+          // ignore
+        }
+
         const result = await sendAbandonedCartEmail({
           to: cart.email,
           firstName,
@@ -146,21 +147,17 @@ export async function GET(req: NextRequest) {
           // emailSentAt déjà set par le claim atomique — rien à update.
         } else if (result.skipped) {
           // Round 45 #4 — Email volontairement NON envoyé : suppression (hard
-          // bounce / plainte) ou throttle (cap CASL 5/jour). C'est une décision
-          // DÉLIBÉRÉE, pas un échec → on NE reset PAS emailSentAt. Reset ferait
-          // re-claim + re-skip ce cart à CHAQUE run horaire jusqu'à expiration
-          // (72h) : gaspillage, et un suppressed ne redeviendra jamais
-          // envoyable. Le cart reste claimé = traité.
+          // bounce / plainte) ou throttle (cap CASL 5/jour). Décision DÉLIBÉRÉE,
+          // pas un échec → on NE reset PAS emailSentAt (sinon re-claim + re-skip
+          // à chaque run horaire jusqu'à expiration 72h). Le cart reste traité.
           skippedUnsendable++;
           log.info(
             { cartId: cart.id, reason: result.skipped },
             'abandoned-cart: email skipped (deliberate, not retried)',
           );
         } else {
-          // Round 39 #5 — Échec d'envoi RÉEL (SES) : reset le claim pour que le
-          // prochain run cron retente. Trade-off : tiny race possible si un
-          // autre cron run est déjà in-flight, mais cron hourly + send fail
-          // rare → préfère 1 retry possible que 1 silent loss définitif.
+          // Échec d'envoi RÉEL (SES, sans skip) : reset le claim pour retry au
+          // prochain run. Préfère 1 retry possible qu'1 silent loss définitif.
           await prisma.abandonedCart.update({
             where: { id: cart.id },
             data: { emailSentAt: null },
@@ -168,14 +165,14 @@ export async function GET(req: NextRequest) {
           failed++;
         }
       } catch (err) {
-        log.error({ err, cartId: cart.id }, 'abandoned-cart email send failed');
-        // Même reset on exception (timeout SES, etc.) pour permettre retry.
+        // Erreur isolée sur CE panier (claim / order.findFirst / send / autre).
+        // On reset le claim (best-effort) pour permettre un retry, on log avec
+        // le cartId, et on continue le reste de la batch — JAMAIS de 500 global.
+        log.error({ err, cartId: cart.id }, 'abandoned-cart: cart processing failed (isolated, retry next run)');
         await prisma.abandonedCart.update({
           where: { id: cart.id },
           data: { emailSentAt: null },
         }).catch(() => {
-          // Si la reset elle-même fail, log et passe — cart sera
-          // claim-stuck mais c'est mieux que double email.
           log.error({ cartId: cart.id }, 'abandoned-cart: claim reset also failed');
         });
         failed++;
