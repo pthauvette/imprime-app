@@ -16,7 +16,6 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import Stripe from 'stripe';
 import { sinalite } from '@/lib/sinalite/client';
 import { CaProvince, CaPostalCode, ShipMethod, type SinaliteOrderRequest } from '@/lib/sinalite/types';
 import { computeTax } from '@/lib/taxes';
@@ -27,12 +26,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { applyShippingPerks } from '@/lib/customers/perks';
 import { normalizeCode, validatePromo } from '@/lib/promo/validate';
-
-// ─── STRIPE ───────────────────────────────────────────────────────────────
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
+import { getStripe } from '@/lib/stripe/client';
 
 // ─── PAYLOAD SCHEMA ───────────────────────────────────────────────────────
 
@@ -312,7 +306,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     }))
     .digest('hex')
     .slice(0, 48)}`;
-  const paymentIntent = await stripe.paymentIntents.create({
+  const paymentIntent = await getStripe().paymentIntents.create({
     amount: totalCents,
     currency: 'cad',
     capture_method: 'automatic',

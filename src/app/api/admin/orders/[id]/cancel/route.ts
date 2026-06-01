@@ -17,10 +17,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { markRefundIssued, markOrderFailed } from '@/lib/db/orders';
 import { sendOrderCancelledEmail } from '@/lib/emails/send';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
+import { getStripe } from '@/lib/stripe/client';
 
 const BodySchema = z.object({
   reason: z.string().min(1).max(500),
@@ -60,7 +57,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       .digest('hex')
       .slice(0, 48)}`;
     try {
-      refund = await stripe.refunds.create({
+      refund = await getStripe().refunds.create({
         payment_intent: order.paymentIntentId,
         reason: 'requested_by_customer',
         metadata: {
