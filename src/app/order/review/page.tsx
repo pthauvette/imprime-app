@@ -134,6 +134,16 @@ function ReviewPageInner() {
   // Promo code : code appliqué + status (ok/error/checking) + message FR
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
 
+  // Round 3 #5 — vrai nom + prix de l'item courant, pour enrichir le snapshot
+  // cart quand on « Ajoute un autre » (sinon « Produit #ID · 0 $ » → récap peu
+  // rassurant à l'écran de paiement). Best-effort : si pas encore résolu,
+  // handleAddAnother retombe sur le placeholder. Le nom vient du GET
+  // /api/products/[id] (product.name), le prix du POST (variante, en dollars).
+  const [currentSnapshot, setCurrentSnapshot] = useState<{
+    productName: string;
+    unitPriceCents: number;
+  } | null>(null);
+
   // Handler : sauve l'item courant dans le cart + navigate vers /order/start
   // pour que l'user puisse en ajouter un autre. Pas de double-add si l'user
   // refait le flow et arrive à /order/review avec ces mêmes params.
@@ -146,16 +156,16 @@ function ReviewPageInner() {
       // donc cette branche est défensive — silently no-op.
       return;
     }
-    // Pour le snapshot product name/price on prend ce qu'on a — sera enrichi
-    // par le backend de toute façon. Le cart sert surtout au lookup multi-item
-    // dans la soumission.
+    // Snapshot enrichi avec le vrai nom + prix (currentSnapshot, résolu ci-dessus)
+    // pour un récap multi-item rassurant. Fallback placeholder si pas encore
+    // résolu. Le prix reste de toute façon recalculé serveur-side au submit.
     cart.add({
       productId: currentItem.productId,
-      productName: `Produit #${currentItem.productId}`,
+      productName: currentSnapshot?.productName ?? `Produit #${currentItem.productId}`,
       optionIds: currentItem.optionIds,
       optionLabels: [],
       qty: 1, // qty réelle est encodée dans optionIds (Sinalite)
-      unitPriceCents: 0, // recalculé serveur-side au submit
+      unitPriceCents: currentSnapshot?.unitPriceCents ?? 0, // recalculé serveur-side au submit
       files: currentItem.files,
       ...(currentItem.designId ? { designId: currentItem.designId } : {}),
     });
@@ -177,6 +187,39 @@ function ReviewPageInner() {
     }
     return cartItems;
   }, [cart.items, currentItem]);
+
+  // Résout nom + prix réels de l'item courant (pour le snapshot cart). GET pour
+  // le nom, POST (avec optionIds) pour le prix de la variante. Best-effort.
+  useEffect(() => {
+    if (!currentItem) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [gRes, pRes] = await Promise.all([
+          fetch(`/api/products/${currentItem.productId}`),
+          fetch(`/api/products/${currentItem.productId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ optionIds: currentItem.optionIds }),
+          }),
+        ]);
+        const g = gRes.ok ? await gRes.json() : null;
+        const p = pRes.ok ? await pRes.json() : null;
+        if (cancelled) return;
+        const name = (g?.product?.name as string | undefined)?.trim();
+        const priceDollars = Number(p?.price);
+        setCurrentSnapshot({
+          productName: name || `Produit #${currentItem.productId}`,
+          unitPriceCents: Number.isFinite(priceDollars) ? Math.round(priceDollars * 100) : 0,
+        });
+      } catch {
+        // garde le fallback placeholder dans handleAddAnother
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentItem]);
 
   // Create PaymentIntent on mount
   useEffect(() => {
@@ -317,7 +360,7 @@ function ReviewPageInner() {
                 <div style={{ padding: '8px 0', borderBottom: cart.items.length > 0 ? '1px solid var(--border-subtle)' : 'none' }}>
                   <span style={{ fontSize: 13 }}>
                     <strong>{cart.items.length > 0 ? `Article ${cart.items.length + 1}` : 'Cet article'}</strong>{' '}
-                    · Produit #{currentItem.productId} · {currentItem.optionIds.length} options · {currentItem.files.length} fichier(s)
+                    · {currentSnapshot?.productName ?? `Produit #${currentItem.productId}`} · {currentItem.optionIds.length} options · {currentItem.files.length} fichier(s)
                   </span>
                 </div>
               )}
