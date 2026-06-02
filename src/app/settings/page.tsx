@@ -4,9 +4,12 @@
  * MVP : on affiche les infos (nom, email, téléphone) sans formulaire d'édition.
  * La page /settings/email-preferences existe déjà pour gérer les opt-ins email.
  *
+ * Suppression GDPR/Loi 25 : gérée par le flux dédié /settings/privacy
+ * (<DeleteAccountRequest> → POST /api/account/delete-request). Le bouton
+ * « Supprimer mon compte » de cette page y renvoie (pas de duplication).
+ *
  * Out of scope MVP :
  *   - Édition inline du profil (firstName/lastName/phone) — bouton désactivé
- *   - Suppression GDPR/Loi 25 — bouton désactivé avec tooltip
  *   - Gestion des sessions actives
  *   - 2FA / TOTP / FIDO2
  */
@@ -180,9 +183,13 @@ export default async function SettingsPage() {
                 Toutes tes données seront effacées sous 30 jours.
               </span>
             </div>
-            <button
-              disabled
-              title="GDPR/Loi 25 deletion à wirer"
+            {/* La suppression (Loi 25 / GDPR) est gérée par le flux dédié sous
+                /settings/privacy → <DeleteAccountRequest> → POST
+                /api/account/delete-request. On y renvoie au lieu de dupliquer le
+                formulaire ici (un seul point de vérité, et le flux a déjà la
+                confirmation + le délai de 30 j). */}
+            <Link
+              href={'/settings/privacy' as Route}
               style={{
                 padding: '8px 16px',
                 borderRadius: 'var(--r-md)',
@@ -191,12 +198,12 @@ export default async function SettingsPage() {
                 fontWeight: 600,
                 fontSize: 13,
                 border: 'none',
-                opacity: 0.5,
-                cursor: 'not-allowed',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
               }}
             >
               Supprimer mon compte
-            </button>
+            </Link>
           </div>
         </div>
       </main>
