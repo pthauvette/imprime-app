@@ -90,6 +90,7 @@ describe('POST /api/admin/orders/bulk markStatus', () => {
       status: 'SHIPPED',
       trackingNumber: '1Z999AA10123456784',
       carrier: 'UPS',
+      groupedShipment: true, // envoi groupé explicite (sinon refusé sur >1, cf. guard)
     }));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -165,6 +166,54 @@ describe('POST /api/admin/orders/bulk markStatus', () => {
     expect(parsed.status).toBe('SHIPPED');
     expect(parsed.trackingNumber).toBeUndefined();
     expect(parsed.carrier).toBeUndefined();
+  });
+
+  it('400 si tracking commun sur >1 commande éligible SANS groupedShipment (anti tracking cross-client)', async () => {
+    vi.mocked(auth).mockResolvedValue(adminSession() as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      id: 'admin_1', email: 'admin@plio.ca', name: 'Admin', role: 'ADMIN',
+    } as never);
+    vi.mocked(prisma.order.findMany).mockResolvedValueOnce([
+      { id: 'o1', status: 'PAID', sinaliteOrderId: null },
+      { id: 'o2', status: 'IN_PRODUCTION', sinaliteOrderId: null },
+    ] as never);
+
+    const POST = await importPost();
+    const res = await POST(makeReq({
+      action: 'markStatus',
+      ids: ['o1', 'o2'],
+      status: 'SHIPPED',
+      trackingNumber: '1Z999AA10123456784',
+    }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.code).toBe('BULK_TRACKING_MULTI');
+    // Aucune mutation : on a refusé avant updateMany/createMany
+    expect(prisma.order.updateMany).not.toHaveBeenCalled();
+    expect(prisma.orderEvent.createMany).not.toHaveBeenCalled();
+  });
+
+  it('200 : tracking sur 1 SEULE commande éligible ne requiert pas groupedShipment', async () => {
+    vi.mocked(auth).mockResolvedValue(adminSession() as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      id: 'admin_1', email: 'admin@plio.ca', name: 'Admin', role: 'ADMIN',
+    } as never);
+    vi.mocked(prisma.order.findMany).mockResolvedValueOnce([
+      { id: 'o1', status: 'PAID', sinaliteOrderId: null },
+    ] as never);
+
+    const POST = await importPost();
+    const res = await POST(makeReq({
+      action: 'markStatus',
+      ids: ['o1', 'o2-terminal'],
+      status: 'SHIPPED',
+      trackingNumber: '1Z999AA10123456784',
+      carrier: 'UPS',
+    }));
+    expect(res.status).toBe(200);
+    const eventCall = vi.mocked(prisma.orderEvent.createMany).mock.calls[0][0]!;
+    const eventData = eventCall.data as Array<{ data: string }>;
+    expect(JSON.parse(eventData[0].data).trackingNumber).toBe('1Z999AA10123456784');
   });
 
   it('400 si ids vide', async () => {
