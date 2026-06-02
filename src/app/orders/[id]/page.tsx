@@ -539,22 +539,29 @@ export default async function CustomerOrderDetailPage({
               />
             )}
 
-            {/* Round 32 — self-serve modification d'adresse avant SUBMITTED */}
-            <ShippingEditButton
-              orderId={order.id}
-              status={order.status}
-              current={{
-                shipName: order.shipName,
-                shipLine1: order.shipLine1,
-                shipLine2: order.shipLine2,
-                shipCity: order.shipCity,
-                shipProvince: order.shipProvince,
-                shipPostalCode: order.shipPostalCode,
-                shipPhone: order.shipPhone,
-              }}
-            />
+            {/* Round 32 — self-serve modification d'adresse avant SUBMITTED.
+                Round 9 #5 — masqués en view-as admin : ces boutons appellent des
+                API scopées sur la session (l'admin), pas sur le user cible → 404
+                garanti. Inutile (et trompeur) de les rendre en impersonation. */}
+            {!isImpersonating && (
+              <>
+                <ShippingEditButton
+                  orderId={order.id}
+                  status={order.status}
+                  current={{
+                    shipName: order.shipName,
+                    shipLine1: order.shipLine1,
+                    shipLine2: order.shipLine2,
+                    shipCity: order.shipCity,
+                    shipProvince: order.shipProvince,
+                    shipPostalCode: order.shipPostalCode,
+                    shipPhone: order.shipPhone,
+                  }}
+                />
 
-            <CancelRequestButton orderId={order.id} status={order.status} />
+                <CancelRequestButton orderId={order.id} status={order.status} />
+              </>
+            )}
 
             <div style={{ padding: 16, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               Une question ? On répond en moins de 4h ouvrables à{' '}
