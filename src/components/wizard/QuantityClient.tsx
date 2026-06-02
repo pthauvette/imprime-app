@@ -107,7 +107,12 @@ export default function QuantityClient({
   const nextOptions = [...baseWithoutTurnaround, ...(currentQty ? [currentQty.id] : []), ...(turnaroundId ? [turnaroundId] : [])];
   const designSuffix = designId ? `&designId=${designId}` : '';
   const nextHref = `/order/upload?productId=${product.id}&options=${nextOptions.join(',')}${designSuffix}` as Route;
-  const prevHref = `/order/configure?productId=${product.id}${designSuffix}` as Route;
+  // « Précédent » doit re-hydrater l'étape Configurer avec les options déjà
+  // choisies (format/papier/finition/délai) — sinon retour sur la sélection par
+  // défaut = perte du travail. configure lit ?options=ID1,ID2,… et re-coche via
+  // prefilledOptionIds. On renvoie baseOptionIds (la sélection telle qu'elle
+  // était en quittant Configurer ; la quantité, elle, se re-choisit ici).
+  const prevHref = `/order/configure?productId=${product.id}&options=${baseOptionIds.join(',')}${designSuffix}` as Route;
 
   // Snap percentage for slider fill width
   const snapPct = sortedQty.length > 1 ? (qtyIdx / (sortedQty.length - 1)) * 100 : 50;
