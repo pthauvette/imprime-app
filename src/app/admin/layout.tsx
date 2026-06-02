@@ -15,12 +15,16 @@
 
 import type { ReactNode } from 'react';
 import CommandPalette from '@/components/admin/CommandPalette';
+import AdminNavToggle from '@/components/admin/AdminNavToggle';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
+      {/* Montés UNE seule fois ici (plus dans AdminSidebar) : palette Cmd+K +
+          hamburger/drawer pour la nav <1024px (Round 4 #5). */}
       <CommandPalette />
+      <AdminNavToggle />
     </>
   );
 }

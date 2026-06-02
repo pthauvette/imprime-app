@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import type { Route } from 'next';
-import CommandPalette from './CommandPalette';
 
 /**
  * Sidebar admin — réutilisée par les 10 pages /admin/*.
@@ -202,11 +201,8 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
 
   return (
     <aside className="adm-nav">
-      {/* Command palette dispo partout via Cmd/Ctrl+K — Client Component
-          monté ici dans le Server Component sidebar pour pas avoir à modifier
-          chaque page admin. */}
-      <CommandPalette />
-
+      {/* CommandPalette (Cmd/Ctrl+K) est monté UNE seule fois dans
+          admin/layout.tsx — pas ici (sinon double overlay empilé). Round 4 #5. */}
       <div className="adm-nav-brand">
         <span className="adm-nav-brand-mark">Plio.</span>
         <span className="adm-nav-brand-tag">Admin</span>
