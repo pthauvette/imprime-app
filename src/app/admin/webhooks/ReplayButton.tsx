@@ -10,6 +10,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 export default function ReplayButton({
   id, hasPayload, source, eventType, replayCount,
@@ -21,6 +22,7 @@ export default function ReplayButton({
   replayCount: number;
 }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -39,8 +41,14 @@ export default function ReplayButton({
 
   async function replay() {
     if (busy) return;
-    const warning = `Re-déclencher ${source} · ${eventType} ?\n\nÇa va re-poster à Sinalite + ré-envoyer les emails associés (confirmation, shipped, etc.). N'utilise que si tu sais pourquoi tu replay (rate limit Sinalite, bug corrigé, etc.).${replayCount > 0 ? `\n\nDéjà rejoué ${replayCount} fois.` : ''}`;
-    if (!window.confirm(warning)) return;
+    const warning = `Ça va re-poster à Sinalite + ré-envoyer les emails associés (confirmation, shipped, etc.). N'utilise que si tu sais pourquoi tu replay (rate limit Sinalite, bug corrigé, etc.).${replayCount > 0 ? ` Déjà rejoué ${replayCount} fois.` : ''}`;
+    const proceed = await confirm({
+      title: `Re-déclencher ${source} · ${eventType} ?`,
+      body: warning,
+      confirmLabel: 'Replay',
+      danger: true,
+    });
+    if (!proceed) return;
 
     setError(null);
     setOk(false);
@@ -58,6 +66,8 @@ export default function ReplayButton({
   }
 
   return (
+    <>
+    {dialog}
     <button
       className="adm-wh-action"
       onClick={replay}
@@ -79,5 +89,6 @@ export default function ReplayButton({
         <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.7 }}>{replayCount}</span>
       )}
     </button>
+    </>
   );
 }

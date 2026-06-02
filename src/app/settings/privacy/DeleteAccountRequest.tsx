@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 /**
  * Bouton de demande de suppression de compte. POST /api/account/delete-request
@@ -10,6 +11,7 @@ import { useState, useTransition } from 'react';
  * commandes en cours, identité, etc.).
  */
 export default function DeleteAccountRequest() {
+  const { confirm, dialog } = useConfirmDialog();
   const [busy, startTransition] = useTransition();
   const [reason, setReason] = useState('');
   const [done, setDone] = useState(false);
@@ -17,12 +19,16 @@ export default function DeleteAccountRequest() {
 
   async function submit() {
     if (busy) return;
-    const confirmed = window.confirm(
-      'Confirme : demander la suppression définitive de ton compte Plio ?\n\n' +
-      'Cette demande sera traitée manuellement par l\'admin (typique 1-2 j ouvrables). ' +
-      'Tu recevras un email de confirmation quand ce sera fait.\n\n' +
-      'L\'historique des commandes facturées sera conservé (obligation fiscale 6 ans).',
-    );
+    // Round 9 #2 — modal stylé (action destructive customer).
+    const confirmed = await confirm({
+      title: 'Demander la suppression de ton compte ?',
+      body:
+        'Cette demande sera traitée manuellement par l\'admin (typiquement 1-2 j ouvrables) ; ' +
+        'tu recevras un email de confirmation. L\'historique des commandes facturées est conservé ' +
+        '(obligation fiscale 6 ans).',
+      confirmLabel: 'Demander la suppression',
+      danger: true,
+    });
     if (!confirmed) return;
 
     setError(null);
@@ -62,6 +68,7 @@ export default function DeleteAccountRequest() {
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
+      {dialog}
       <textarea
         value={reason}
         onChange={(e) => setReason(e.target.value)}

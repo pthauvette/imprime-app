@@ -11,12 +11,14 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface Props {
   eventIds: string[];
 }
 
 export default function BulkReplayActions({ eventIds }: Props) {
+  const { confirm, dialog } = useConfirmDialog();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, startTransition] = useTransition();
@@ -66,9 +68,13 @@ export default function BulkReplayActions({ eventIds }: Props) {
       setError('Max 50 events par batch — désélectionne ou fais 2 batches.');
       return;
     }
-    if (!window.confirm(`Replay ${selected.size} webhook event${selected.size > 1 ? 's' : ''} ? Cette action ré-exécute la business logic (orders update, emails) — irréversible.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Replay ${selected.size} webhook event${selected.size > 1 ? 's' : ''} ?`,
+      body: 'Cette action ré-exécute la business logic (orders update, emails) — irréversible.',
+      confirmLabel: 'Replay',
+      danger: true,
+    });
+    if (!ok) return;
 
     setError(null);
     setDoneMsg(null);
@@ -100,6 +106,8 @@ export default function BulkReplayActions({ eventIds }: Props) {
   if (selected.size === 0 && !doneMsg && !error) return null;
 
   return (
+    <>
+    {dialog}
     <div style={{
       position: 'sticky',
       bottom: 16,
@@ -160,5 +168,6 @@ export default function BulkReplayActions({ eventIds }: Props) {
         </>
       )}
     </div>
+    </>
   );
 }
