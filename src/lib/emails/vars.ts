@@ -185,9 +185,19 @@ export type RefundIssuedVars = {
  *
  *   sendEmail({ template: 'order-confirmation', vars: {...} as EmailVarsMap['order-confirmation'] })
  */
+/** Round 4 #2 — email envoyé quand une demande reseller est APPROUVÉE. */
+export type ResellerApprovedVars = {
+  CONTACT_FIRST_NAME: string;
+  COMPANY_NAME: string;
+  /** Où voir/profiter du statut (dashboard compte). */
+  RESELLER_URL: string;
+  ORDER_START_URL: string;
+};
+
 export type EmailVarsMap = {
   'magic-link': MagicLinkVars;
   'welcome': WelcomeVars;
+  'reseller-approved': ResellerApprovedVars;
   'order-confirmation': OrderConfirmationVars;
   'order-shipped': OrderShippedVars;
   'order-delivered': OrderDeliveredVars;

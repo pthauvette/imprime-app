@@ -45,6 +45,12 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     CATALOG_URL: `${APP_URL}/templates`,
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
   },
+  'reseller-approved': {
+    CONTACT_FIRST_NAME: 'Sophie',
+    COMPANY_NAME: 'Studio Beauchamp',
+    RESELLER_URL: `${APP_URL}/account`,
+    ORDER_START_URL: `${APP_URL}/order/start`,
+  },
   'order-confirmation': {
     CUSTOMER_FIRST_NAME: 'Sophie',
     CUSTOMER_NAME: 'Sophie Beauchamp',
@@ -190,6 +196,7 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
 export const ALL_TEMPLATES: EmailTemplate[] = [
   'magic-link',
   'welcome',
+  'reseller-approved',
   'order-confirmation',
   'order-shipped',
   'order-delivered',
