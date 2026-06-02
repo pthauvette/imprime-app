@@ -197,17 +197,18 @@ export default async function WalletPage({
 
         <WalletTopupForm hasActiveSubscription={!!user.walletAutoRenewStripeSubId} />
 
-        {/* Round 23 #1 — link vers historique complet */}
-        {user.walletCents > 0 && (
-          <div style={{ marginBottom: 24, textAlign: 'right' }}>
-            <Link
-              href={'/account/wallet/history' as Route}
-              style={{ fontSize: 12, color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}
-            >
-              Voir l&apos;historique complet des transactions →
-            </Link>
-          </div>
-        )}
+        {/* Round 23 #1 — link vers historique complet. Round 9 : plus de gate
+            sur walletCents>0 — un user avec de l'activité passée mais un solde à
+            0 doit pouvoir consulter son historique (il était caché). La page
+            d'historique gère elle-même le cas vide. */}
+        <div style={{ marginBottom: 24, textAlign: 'right' }}>
+          <Link
+            href={'/account/wallet/history' as Route}
+            style={{ fontSize: 12, color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}
+          >
+            Voir l&apos;historique complet des transactions →
+          </Link>
+        </div>
 
         {/* Stats */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>

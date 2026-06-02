@@ -53,7 +53,7 @@ export default async function AdminTemplateEditorPage({
   const template = getTemplateBySlug(slug);
   if (!template) notFound();
 
-  const [dbTemplate, usersCount, ordersCount, lastDesign] = await Promise.all([
+  const [dbTemplate, usersCount, ordersCount, lastDesign, orderedDesigns] = await Promise.all([
     prisma.template.findUnique({
       where: { slug },
       include: { _count: { select: { designs: true } } },
@@ -65,9 +65,14 @@ export default async function AdminTemplateEditorPage({
       orderBy: { createdAt: 'desc' },
       select: { createdAt: true },
     }),
+    // Round 9 — DesignDraft ↔ Order est maintenant câblé (orderId), donc la
+    // conversion « design → commande » est réelle : designs de ce template qui
+    // ont été transformés en commande.
+    prisma.designDraft.count({ where: { template: { slug }, orderId: { not: null } } }),
   ]);
 
   const designCount = dbTemplate?._count.designs ?? 0;
+  const conversionPct = designCount > 0 ? Math.round((orderedDesigns / designCount) * 100) : null;
   const firstPage = (template.pdfme.schemas[0] ?? []) as SchemaField[];
 
   return (
@@ -469,8 +474,8 @@ export default async function AdminTemplateEditorPage({
             />
             <UsageStat
               label="Conversion design → order"
-              value="—"
-              sub="TODO : wirer DesignDraft ↔ Order"
+              value={conversionPct !== null ? `${conversionPct} %` : '—'}
+              sub={designCount > 0 ? `${orderedDesigns}/${designCount} designs commandés` : 'aucun design'}
             />
           </div>
         </section>
