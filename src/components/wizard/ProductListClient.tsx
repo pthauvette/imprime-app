@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import type { EnrichedProduct } from '@/lib/products/overrides';
+import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 
 type SortKey = 'popular' | 'name-asc' | 'name-desc' | 'id-asc';
 type FilterKey = 'all' | 'bestseller' | 'premium' | 'eco' | 'specialty';
@@ -373,7 +374,7 @@ function ProductRow({
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 2" />
             </svg>
-            4-7 jours
+            {DELIVERY_WINDOW}
           </span>
           <span className="product-spec">📦 ID #{product.id}</span>
         </div>

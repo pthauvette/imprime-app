@@ -12,6 +12,7 @@ import { sinalite } from '@/lib/sinalite/client';
 import { applyProductOverrides } from '@/lib/products/overrides';
 import { findCategoryGroup } from '@/lib/catalogue';
 import JsonLd, { breadcrumbSchema, itemListSchema } from '@/components/seo/JsonLd';
+import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import ProductListClient from '@/components/wizard/ProductListClient';
 import HeaderUserSlot from '@/components/account/HeaderUserSlot';
 
@@ -98,7 +99,7 @@ export default async function ProductPickerPage({
           </h1>
           <p className="step-lede">
             {products.length} produit{products.length > 1 ? 's' : ''} disponible{products.length > 1 ? 's' : ''} dans cette famille.
-            Tous imprimés au Canada, livrés en 4-7 jours.
+            Tous imprimés au Canada, livrés en {DELIVERY_WINDOW}.
           </p>
 
           {products.length === 0 ? (

@@ -10,6 +10,7 @@ import OnboardingTour from '@/components/onboarding/OnboardingTour';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import { getServerLocale } from '@/lib/i18n/locale';
 import { translate } from '@/lib/i18n/messages';
+import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 
 export const metadata = { title: "Plio — Print wholesale au Canada" };
 
@@ -126,7 +127,7 @@ export default async function LandingPage() {
               <div className="how-card">
                 <div className="how-card-num">03</div>
                 <h3 className="how-card-title">Reçois</h3>
-                <p className="how-card-text">Paiement Stripe sécurisé. Production démarre dans l'heure. UPS ou FedEx te livre en 1 à 7 jours selon ta sélection.</p>
+                <p className="how-card-text">Paiement Stripe sécurisé. Production démarre dans l'heure. UPS ou FedEx te livre en {DELIVERY_WINDOW} selon ta sélection.</p>
                 <div className="how-card-time">Tracking par courriel</div>
               </div>
             </div>
@@ -215,7 +216,7 @@ export default async function LandingPage() {
               <div className="feature-card">
                 <div className="feature-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg></div>
                 <h3 className="feature-title">100 % au Canada</h3>
-                <p className="feature-text">Imprimé à Markham, ON. Livré partout au Canada en 1 à 7 jours. Pas de frontière, pas de tarif douanier.</p>
+                <p className="feature-text">Imprimé à Markham, ON. Livré partout au Canada en {DELIVERY_WINDOW}. Pas de frontière, pas de tarif douanier.</p>
               </div>
             </div>
           </section>
@@ -233,7 +234,7 @@ export default async function LandingPage() {
             <div className="faq-list" style={{ marginTop: "48px" } as React.CSSProperties}>
               <div className="faq-item open">
                 <div className="faq-q">Combien de temps prend la livraison ?<span className="faq-toggle">+</span></div>
-                <div className="faq-a">Standard 4-5 jours ouvrables (inclus), Express 2-3 jours (+12 $), Rush 1 jour (+28 $). Toutes les estimations sont calculées depuis Markham (ON) vers ton code postal au moment du devis.</div>
+                <div className="faq-a">Standard inclus — la plupart des commandes arrivent en {DELIVERY_WINDOW} ouvrables. Express et Rush accélèrent la production : le surcoût exact s'affiche au devis selon le produit. Toutes les estimations sont calculées depuis Markham (ON) vers ton code postal au moment du devis.</div>
               </div>
               <div className="faq-item">
                 <div className="faq-q">Y a-t-il un minimum de commande ?<span className="faq-toggle">+</span></div>
@@ -270,7 +271,7 @@ export default async function LandingPage() {
           <div className="footer-grid">
             <div className="footer-brand">
               <span className="footer-brand-mark">Plio.</span>
-              <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 1 à 7 jours. Imprimé à Markham (ON).</p>
+              <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en {DELIVERY_WINDOW}. Imprimé à Markham (ON).</p>
               <div style={{ marginTop: 24, maxWidth: 380 }}>
                 <NewsletterSignup source="landing-footer" />
               </div>
