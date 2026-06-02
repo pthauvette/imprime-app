@@ -5,7 +5,11 @@
  * Stats DB : pour chaque template, on lookup le Template row shadow (créé
  * lors du premier /api/designs/finalize) et on compte DesignDraft.
  *
- * "Brouillons" section : DesignDraft sans finalPdfUrl (en cours de design).
+ * "Brouillons" section : DesignDraft pas encore commandé (orderId null). NB :
+ * `finalPdfUrl` est TOUJOURS set par /api/designs/finalize (pas d'autosave),
+ * donc filtrer sur `finalPdfUrl: null` ne matchait jamais rien → section vide.
+ * Le vrai signal « brouillon pas commandé » = `orderId: null` (cf. commentaire
+ * du schéma DesignDraft.orderId, et le fix user-facing /drafts PR #208).
  */
 
 import Link from 'next/link';
@@ -29,9 +33,9 @@ export default async function AdminTemplatesPage() {
     prisma.template.findMany({
       include: { _count: { select: { designs: true } } },
     }),
-    prisma.designDraft.count({ where: { finalPdfUrl: null } }),
+    prisma.designDraft.count({ where: { orderId: null } }),
     prisma.designDraft.findMany({
-      where: { finalPdfUrl: null },
+      where: { orderId: null },
       orderBy: { updatedAt: 'desc' },
       take: 5,
       include: { user: { select: { email: true } } },
