@@ -106,7 +106,7 @@ export default async function ConfirmationPage({
         </div>
 
         <footer style={{ paddingTop: 24, borderTop: '1px solid var(--border-subtle)', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-          ★ HELLO@IMPRIME.CO · © IMPRIME 2026 🇨🇦
+          ★ bonjour@plio.ca · © Plio 2026 🇨🇦
         </footer>
       </main>
     </div>
@@ -114,10 +114,16 @@ export default async function ConfirmationPage({
 }
 
 function ManualConfirmation() {
+  // Pas de payment_intent dans l'URL = refresh/bookmark de la page de confirm,
+  // PAS un paiement en échec. Le panier n'existe plus → renvoyer vers
+  // /order/review afficherait « Données manquantes » (cul-de-sac). On pointe
+  // donc vers /order/start (démarrer une commande), pas vers le checkout.
   return (
     <ErrorState
-      message="Aucun PaymentIntent dans l'URL. Reviens à l'accueil pour démarrer une commande."
+      message="Il n'y a pas de commande à confirmer ici (lien expiré ou page rouverte). Tu peux démarrer une nouvelle commande quand tu veux."
       isInfo
+      ctaHref={'/order/start' as Route}
+      ctaLabel="Démarrer une commande"
     />
   );
 }
@@ -216,7 +222,19 @@ function PendingState({ status, intentId }: { status: string; intentId: string }
   );
 }
 
-function ErrorState({ message, isInfo = false }: { message: string; isInfo?: boolean }) {
+function ErrorState({
+  message,
+  isInfo = false,
+  ctaHref = '/order/review' as Route,
+  ctaLabel = 'Retour au checkout',
+}: {
+  message: string;
+  isInfo?: boolean;
+  /** Cible du CTA principal. Défaut /order/review (cas erreur Stripe : panier
+   *  encore là pour retry). ManualConfirmation l'override vers /order/start. */
+  ctaHref?: Route;
+  ctaLabel?: string;
+}) {
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 48, textAlign: 'center' }}>
       <div style={{ maxWidth: 480 }}>
@@ -226,8 +244,8 @@ function ErrorState({ message, isInfo = false }: { message: string; isInfo?: boo
         </h1>
         <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '0 0 32px' }}>{message}</p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href={'/order/review' as Route} className="btn btn-primary">
-            Retour au checkout
+          <Link href={ctaHref} className="btn btn-primary">
+            {ctaLabel}
           </Link>
           <Link href={'/' as Route} className="btn btn-ghost">
             Accueil
