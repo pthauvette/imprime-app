@@ -6,7 +6,8 @@
  * pas de network call. Pour le scale (>100 Q&A) on ferait full-text DB.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { faqSlug } from '@/lib/help/faq-slug';
 
 export interface FaqItem {
   category: string;
@@ -17,6 +18,21 @@ export interface FaqItem {
 export default function HelpSearch({ items }: { items: FaqItem[] }) {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Round 6 #3 — deep-link depuis /api/search (href=/help#<slug>). Au montage,
+  // si l'URL a un hash correspondant à un <details id=...>, on l'ouvre et on
+  // scrolle dessus. Sans ça, le lien search → réponse arrivait en haut de /help
+  // sans rien ouvrir. (Au montage, query='' → tous les items rendus → la cible
+  // existe.)
+  useEffect(() => {
+    const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+    if (!hash) return;
+    const el = document.getElementById(hash);
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -148,7 +164,9 @@ export default function HelpSearch({ items }: { items: FaqItem[] }) {
                 {list.map((item) => (
                   <details
                     key={item.q}
+                    id={faqSlug(item.q)}
                     style={{
+                      scrollMarginTop: 88,
                       padding: '14px 18px',
                       background: 'var(--bg-surface)',
                       border: '1px solid var(--border-subtle)',

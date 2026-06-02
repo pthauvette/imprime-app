@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server';
 import { FAQ_ITEMS } from '@/data/help-faq';
 import { getAllPosts } from '@/lib/blog/posts';
+import { faqSlug } from '@/lib/help/faq-slug';
 
 interface ResultItem {
   type: 'faq' | 'blog';
@@ -64,7 +65,7 @@ export async function GET(req: Request) {
     if (total > 0) {
       results.push({
         type: 'faq',
-        href: `/help#${slugify(item.q)}`,
+        href: `/help#${faqSlug(item.q)}`,
         primary: item.q,
         secondary: item.a.slice(0, 140),
         meta: item.category,
@@ -119,12 +120,3 @@ export async function GET(req: Request) {
   });
 }
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80);
-}
