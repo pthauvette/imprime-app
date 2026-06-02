@@ -9,10 +9,15 @@
 
 import { useT } from './LocaleProvider';
 import { LOCALE_COOKIE_NAME, LOCALE_COOKIE_MAX_AGE } from '@/lib/i18n/locale';
-import { ALL_LOCALES, type Locale } from '@/lib/i18n/messages';
+import { ALL_LOCALES, I18N_SWITCH_ENABLED, type Locale } from '@/lib/i18n/messages';
 
 export default function LangSwitch() {
   const { locale } = useT();
+
+  // Round 8 #1 — masqué tant que la couverture i18n est insuffisante (cf.
+  // I18N_SWITCH_ENABLED dans messages.ts). Un seul flag pour ré-exposer le
+  // switch une fois l'extraction EN faite.
+  if (!I18N_SWITCH_ENABLED) return null;
 
   function switchTo(next: Locale) {
     if (next === locale) return;
