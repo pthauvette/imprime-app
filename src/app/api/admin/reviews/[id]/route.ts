@@ -75,7 +75,7 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
   }
 
   void recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    kind: 'ADMIN_REVIEW_MODERATE', // Round 1 audit — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,
     targetType: 'ORDER', // existing enum, review attached to order

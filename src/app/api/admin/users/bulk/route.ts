@@ -129,7 +129,9 @@ export const POST = withErrorHandler(async (req: Request) => {
   }
 
   void recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    // Round 1 audit — kind dédié : set-role = élévation de privilège, à tracer
+    // distinctement des autres actions bulk (opt-in/out, message).
+    kind: body.action === 'set-role' ? 'ADMIN_USER_ROLE_CHANGE' : 'ADMIN_USER_BULK_ACTION',
     adminId: guard.userId,
     adminEmail: guard.user.email,
     targetType: 'USER',

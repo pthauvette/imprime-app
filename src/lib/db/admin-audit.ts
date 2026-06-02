@@ -31,7 +31,14 @@ export type AdminAuditKind =
   | 'ADMIN_BULK_STATUS_UPDATE'
   | 'ADMIN_DELETE_USER_PIPEDA'
   | 'ADMIN_TAX_EXEMPT_TOGGLE'
-  | 'ADMIN_RESELLER_STATUS_CHANGE';
+  | 'ADMIN_RESELLER_STATUS_CHANGE'
+  // Round 1 audit — kinds dédiés pour des actions sensibles qui logaient
+  // toutes 'ADMIN_TEMPLATE_EDIT' (indistinguables dans /admin/audit).
+  | 'ADMIN_USER_ROLE_CHANGE' // élévation/rétrogradation de privilège (USER↔ADMIN)
+  | 'ADMIN_USER_BULK_ACTION' // autres actions bulk users (opt-in/out emails, message)
+  | 'ADMIN_WEBHOOK_REPLAY' // rejeu d'un webhook (financier)
+  | 'ADMIN_REVIEW_MODERATE' // modération d'un avis (approve/reject/reply)
+  | 'ADMIN_RESELLER_DECISION'; // décision sur une demande reseller (approve/reject/archive)
 
 export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT' | 'EXPERIMENT';
 

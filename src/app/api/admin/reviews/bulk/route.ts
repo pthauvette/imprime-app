@@ -79,7 +79,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   }
 
   void recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT', // existing enum, on garde générique
+    kind: 'ADMIN_REVIEW_MODERATE', // Round 1 audit — cohérent avec la modération unitaire
     adminId: guard.userId,
     adminEmail: guard.user.email,
     targetType: 'ORDER',
