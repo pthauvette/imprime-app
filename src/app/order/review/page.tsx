@@ -188,6 +188,24 @@ function ReviewPageInner() {
     return cartItems;
   }, [cart.items, currentItem]);
 
+  // Round 9 #5 — clé de CONTENU stable. Le PaymentIntent doit se recréer dès que
+  // le contenu du panier change, pas seulement quand le NOMBRE d'items change
+  // (avant : dépendance sur allItems.length → une mutation à count égal — swap
+  // de produit, retrait d'un item qui décale currentItem — passait inaperçue, et
+  // le montant Stripe pouvait diverger du panier réel).
+  const allItemsKey = useMemo(
+    () =>
+      allItems
+        .map(
+          (it) =>
+            `${it.productId}|${it.optionIds.join(',')}|${(it.files ?? [])
+              .map((f) => f.url)
+              .join(',')}|${it.designId ?? ''}`,
+        )
+        .join('||'),
+    [allItems],
+  );
+
   // Résout nom + prix réels de l'item courant (pour le snapshot cart). GET pour
   // le nom, POST (avec optionIds) pour le prix de la variante. Best-effort.
   useEffect(() => {
@@ -293,7 +311,7 @@ function ReviewPageInner() {
     // allItems dep : si user remove un item du cart pendant qu'il est sur
     // la page, on re-create un PaymentIntent avec le nouveau total.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId, optionsParam, filesParam, ship, appliedPromo, designId, allItems.length]);
+  }, [productId, optionsParam, filesParam, ship, appliedPromo, designId, allItemsKey]);
 
   const stripe = getStripe();
   const prevHref = `/order/shipping?productId=${productId}&options=${optionsParam}&files=${filesParam}` as Route;
