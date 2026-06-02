@@ -29,7 +29,7 @@ export const dynamic = 'force-dynamic';
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ viewAsUserId?: string }>;
+  searchParams: Promise<{ viewAsUserId?: string; status?: string }>;
 }) {
   const session = await auth();
   // Middleware déjà rejette si non authentifié, mais on garde un fallback
@@ -51,7 +51,10 @@ export default async function OrdersPage({
   //
   // Audit : chaque view-as logue un AdminAuditEvent kind=ADMIN_VIEW_AS_USER
   // avec adminId + targetId pour traçabilité interne.
-  const { viewAsUserId } = await searchParams;
+  const { viewAsUserId, status: statusParam } = await searchParams;
+  // Filtre de statut (?status=). On valide contre la liste blanche : un param
+  // inconnu retombe sur « Tous » plutôt que d'afficher une liste vide trompeuse.
+  const activeStatus = isStatusFilter(statusParam) ? statusParam : undefined;
   const wantsImpersonate = !!viewAsUserId && viewAsUserId !== session.user.id;
   const isAdmin = session.user.role === 'ADMIN';
   const isImpersonating = wantsImpersonate && isAdmin;
@@ -103,7 +106,14 @@ export default async function OrdersPage({
   });
 
   const totalSpent = orders.reduce((sum, o) => sum + o.amountCents / 100, 0);
+  // Counts calculés sur l'ENSEMBLE (les badges des pills doivent montrer le
+  // total par statut, pas seulement le filtre courant).
   const counts = bucketStatus(orders);
+  // La liste affichée, elle, est filtrée par le statut actif (filtrage en
+  // mémoire sur ≤50 lignes déjà chargées — pas de requête DB supplémentaire).
+  const visibleOrders = activeStatus
+    ? orders.filter((o) => STATUS_GROUPS[activeStatus].includes(o.status))
+    : orders;
 
   return (
     <div className="acct-shell">
@@ -162,17 +172,47 @@ export default async function OrdersPage({
           <EmptyState />
         ) : (
           <>
-            <Toolbar counts={counts} />
-            <div className="order-list" style={{ display: 'grid', gap: 12 }}>
-              {orders.map((order) => (
-                <OrderRow key={order.id} order={order} />
-              ))}
-            </div>
+            <Toolbar
+              counts={counts}
+              active={activeStatus}
+              viewAsUserId={isImpersonating ? targetUserId : undefined}
+            />
+            {visibleOrders.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: 14, padding: '24px 0' }}>
+                Aucune commande dans ce filtre.{' '}
+                <Link href={'/orders' as Route} style={{ color: 'var(--accent-primary)' }}>
+                  Voir toutes les commandes
+                </Link>
+              </p>
+            ) : (
+              <div className="order-list" style={{ display: 'grid', gap: 12 }}>
+                {visibleOrders.map((order) => (
+                  <OrderRow key={order.id} order={order} />
+                ))}
+              </div>
+            )}
           </>
         )}
       </main>
     </div>
   );
+}
+
+// ─── Filtres de statut ────────────────────────────────────────────────────
+// Mapping pill → statuts DB regroupés. Une seule source de vérité, partagée
+// entre le filtrage de la liste et la définition des pills de la Toolbar.
+
+type StatusFilter = 'live' | 'shipped' | 'delivered' | 'cancelled';
+
+const STATUS_GROUPS: Record<StatusFilter, OrderStatus[]> = {
+  live: ['PAID', 'SUBMITTED', 'IN_PRODUCTION'],
+  shipped: ['SHIPPED'],
+  delivered: ['DELIVERED'],
+  cancelled: ['CANCELLED', 'FAILED'],
+};
+
+function isStatusFilter(s: string | undefined): s is StatusFilter {
+  return s === 'live' || s === 'shipped' || s === 'delivered' || s === 'cancelled';
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────
@@ -198,14 +238,33 @@ function bucketStatus(orders: OrderRowProps[]) {
   return counts;
 }
 
-function Toolbar({ counts }: { counts: ReturnType<typeof bucketStatus> }) {
-  const pills = [
-    { label: 'Tous', n: counts.total, active: true },
-    { label: 'En production', n: counts.live },
-    { label: 'Expédiées', n: counts.SHIPPED },
-    { label: 'Livrées', n: counts.DELIVERED },
-    { label: 'Annulées', n: counts.CANCELLED },
+function Toolbar({
+  counts,
+  active,
+  viewAsUserId,
+}: {
+  counts: ReturnType<typeof bucketStatus>;
+  active?: StatusFilter;
+  viewAsUserId?: string;
+}) {
+  const pills: { label: string; n: number; key?: StatusFilter }[] = [
+    { label: 'Tous', n: counts.total, key: undefined },
+    { label: 'En production', n: counts.live, key: 'live' },
+    { label: 'Expédiées', n: counts.SHIPPED, key: 'shipped' },
+    { label: 'Livrées', n: counts.DELIVERED, key: 'delivered' },
+    { label: 'Annulées', n: counts.CANCELLED, key: 'cancelled' },
   ];
+
+  // Construit /orders?status=…(&viewAsUserId=…) en préservant l'impersonation
+  // admin si elle est active (sinon cliquer un filtre sortirait du « view as »).
+  function hrefFor(key?: StatusFilter): Route {
+    const params = new URLSearchParams();
+    if (key) params.set('status', key);
+    if (viewAsUserId) params.set('viewAsUserId', viewAsUserId);
+    const qs = params.toString();
+    return (qs ? `/orders?${qs}` : '/orders') as Route;
+  }
+
   return (
     <div
       style={{
@@ -221,12 +280,21 @@ function Toolbar({ counts }: { counts: ReturnType<typeof bucketStatus> }) {
       }}
     >
       <div style={pillsWrap}>
-        {pills.map((p) => (
-          <div key={p.label} className={`filter-pill ${p.active ? 'active' : ''}`} style={pillStyle(p.active)}>
-            <span>{p.label}</span>
-            <span style={numStyle(p.active)}>{p.n}</span>
-          </div>
-        ))}
+        {pills.map((p) => {
+          const isActive = p.key === active; // les deux undefined → « Tous » actif
+          return (
+            <Link
+              key={p.label}
+              href={hrefFor(p.key)}
+              scroll={false}
+              className={`filter-pill ${isActive ? 'active' : ''}`}
+              style={{ ...pillStyle(isActive), textDecoration: 'none' }}
+            >
+              <span>{p.label}</span>
+              <span style={numStyle(isActive)}>{p.n}</span>
+            </Link>
+          );
+        })}
       </div>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
         📅 50 dernières commandes
