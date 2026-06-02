@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { auth } from '@/auth';
+import { safeInternalPath } from '@/lib/auth/safe-redirect';
 import SignInForm from '@/components/auth/SignInForm';
 
 export const metadata = { title: 'Connexion — Plio' };
@@ -20,7 +21,12 @@ export default async function SignInPage({
 }) {
   const session = await auth();
   const { callbackUrl } = await searchParams;
-  if (session?.user) redirect((callbackUrl ?? '/orders') as Route);
+  // SÉCURITÉ (Round 1 audit) : callbackUrl vient des searchParams (non fiable).
+  // Sans validation, /sign-in?callbackUrl=https://evil.com redirige un user déjà
+  // connecté HORS-SITE (open-redirect → phishing). On le sanitize en chemin
+  // interne (fallback /orders) avant le redirect ET avant de le passer au form.
+  const safeCallback = safeInternalPath(callbackUrl);
+  if (session?.user) redirect(safeCallback as Route);
 
   return (
     <div className="auth-shell">
@@ -81,7 +87,7 @@ export default async function SignInPage({
           </h1>
           <p>Connecte-toi pour reprendre où tu en étais.</p>
 
-          <SignInForm callbackUrl={callbackUrl} />
+          <SignInForm callbackUrl={safeCallback} />
         </div>
       </main>
     </div>
