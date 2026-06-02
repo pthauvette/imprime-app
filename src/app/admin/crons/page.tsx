@@ -17,10 +17,12 @@
 
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
+import type { CSSProperties } from 'react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
+import { findStuckCarts } from '@/lib/cron/stuck-carts';
 
 export const metadata = { title: 'Admin — Cron monitor' };
 export const dynamic = 'force-dynamic';
@@ -69,7 +71,7 @@ export default async function AdminCronsPage() {
 
   const cutoff7d = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 
-  const [lastRunByName, statsBy7d, recentRuns, lastFailByName, latencySampleByName] = await Promise.all([
+  const [lastRunByName, statsBy7d, recentRuns, lastFailByName, latencySampleByName, stuckCarts] = await Promise.all([
     // Dernier run par cron name
     Promise.all(
       KNOWN_CRONS.map((name) =>
@@ -111,6 +113,8 @@ export default async function AdminCronsPage() {
         }).then((rows) => [name, rows.map((r) => r.latencyMs)] as const),
       ),
     ),
+    // Round 46 — carts coincés (relance claimée mais jamais envoyée = silent loss)
+    findStuckCarts(),
   ]);
 
   const lastRunMap = new Map(lastRunByName);
@@ -131,6 +135,13 @@ export default async function AdminCronsPage() {
       cur.fail = s._count._all;
     }
   }
+
+  const stuckTh: CSSProperties = {
+    padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: 11,
+    letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600,
+  };
+  const stuckTd: CSSProperties = { padding: '10px 14px', color: 'var(--text-primary)' };
+  const recoverableCount = stuckCarts.filter((c) => c.recoverable).length;
 
   return (
     <div className="adm-shell">
@@ -189,6 +200,80 @@ export default async function AdminCronsPage() {
               />
             );
           })}
+        </section>
+
+        {/* Round 46 — Carts coincés : relance claimée (emailSentAt set) mais
+            JAMAIS envoyée (aucune EmailDelivery), hors review / converti /
+            supprimé = silent loss. Récupérables (<72h) : débloquer via
+            UPDATE "AbandonedCart" SET "emailSentAt"=NULL WHERE id='…' */}
+        <section style={{ marginBottom: 32 }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em',
+              textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, margin: '0 0 12px',
+            }}
+          >
+            Carts coincés — relance perdue ({stuckCarts.length})
+          </h2>
+          {stuckCarts.length === 0 ? (
+            <div
+              style={{
+                padding: 20, fontSize: 13, color: 'var(--text-secondary)',
+                background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)',
+              }}
+            >
+              ✓ Aucun cart coincé sur les 30 derniers jours.
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                Relances claimées mais jamais envoyées (hors review / converti / supprimé).{' '}
+                <strong>{recoverableCount} récupérable(s)</strong> (&lt;72&nbsp;h) — reset{' '}
+                <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>emailSentAt=NULL</code> pour les ré-éligibiliser.
+              </p>
+              <div
+                style={{
+                  background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--r-lg)', overflow: 'hidden',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead style={{ background: 'var(--bg-sunken)' }}>
+                    <tr style={{ textAlign: 'left' }}>
+                      <th style={stuckTh}>Email</th>
+                      <th style={stuckTh}>Étape</th>
+                      <th style={stuckTh}>Abandonné</th>
+                      <th style={stuckTh}>Claimé le</th>
+                      <th style={stuckTh}>État</th>
+                      <th style={stuckTh}>Cart ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stuckCarts.map((c) => (
+                      <tr key={c.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                        <td style={stuckTd}>{c.email}</td>
+                        <td style={stuckTd}>{c.lastStep}</td>
+                        <td style={stuckTd}>{Math.round(c.hoursSinceAbandon)}&nbsp;h</td>
+                        <td style={stuckTd}>{formatDateTime(c.emailSentAt)}</td>
+                        <td style={stuckTd}>
+                          <span
+                            style={{
+                              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999,
+                              background: c.recoverable ? 'var(--success-soft, #E7F5EC)' : 'var(--bg-sunken)',
+                              color: c.recoverable ? 'var(--success, #1F7A3D)' : 'var(--text-muted)',
+                            }}
+                          >
+                            {c.recoverable ? 'récupérable' : 'expiré'}
+                          </span>
+                        </td>
+                        <td style={{ ...stuckTd, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>{c.id}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </section>
 
         <section>
