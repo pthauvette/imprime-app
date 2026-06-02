@@ -4209,7 +4209,7 @@
     }
     @media (max-width: 700px) { .mkt-nav { padding: 16px 24px; } }
     .mkt-brand { font-family: var(--font-display); font-size: 28px; letter-spacing: -0.02em; color: var(--accent-primary); font-weight: 400; }
-    .mkt-nav-links { display: flex; align-items: center; gap: 32px; }
+    .mkt-nav-links { display: flex; align-items: center; gap: var(--mkt-nav-gap); }
     .mkt-nav-link { font-size: 14px; color: var(--text-secondary); transition: color var(--dur-fast) var(--ease-out); }
     .mkt-nav-link:hover { color: var(--text-primary); }
     .mkt-nav-link.active { color: var(--accent-primary); font-weight: 600; }

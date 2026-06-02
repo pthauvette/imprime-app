@@ -3,6 +3,10 @@
 ═══════════════════════════════════════════════════════════════════ */
 
 :root {
+  /* Round 9 #4 — gap nav marketing tokenisé. Avant : « 28px » (globals:1785),
+     « 32px » (globals plus bas + migrated-pages.css) — conflit latent (le 28px
+     resurgit si on retire un override). Source unique ici. */
+  --mkt-nav-gap: 32px;
   /* Surfaces */
   --bg-canvas: #FAFAF7;
   --bg-surface: #FFFFFF;
@@ -1782,7 +1786,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
 /* ─── pricing.html ─────────────────────────── */
     .mkt-brand { font-family: var(--font-display); font-size: 28px; letter-spacing: -0.02em; color: var(--accent-primary); }
-    .mkt-nav-links { display: flex; align-items: center; gap: 28px; }
+    .mkt-nav-links { display: flex; align-items: center; gap: var(--mkt-nav-gap); }
     .mkt-nav-link { font-size: 14px; color: var(--text-secondary); }
     .mkt-nav-link.active { color: var(--accent-primary); font-weight: 600; }
     .mkt-nav-cta { padding: 8px 16px; background: var(--accent-primary); color: var(--text-on-accent); border-radius: var(--r-pill); font-size: 14px; font-weight: 500; }
@@ -14445,7 +14449,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     }
     @media (max-width: 700px) { .mkt-nav { padding: 16px 24px; } }
     .mkt-brand { font-family: var(--font-display); font-size: 28px; letter-spacing: -0.02em; color: var(--accent-primary); font-weight: 400; }
-    .mkt-nav-links { display: flex; align-items: center; gap: 32px; }
+    .mkt-nav-links { display: flex; align-items: center; gap: var(--mkt-nav-gap); }
     .mkt-nav-link { font-size: 14px; color: var(--text-secondary); transition: color var(--dur-fast) var(--ease-out); }
     .mkt-nav-link:hover { color: var(--text-primary); }
     .mkt-nav-link.active { color: var(--accent-primary); font-weight: 600; }
