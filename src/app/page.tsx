@@ -232,30 +232,30 @@ export default async function LandingPage() {
             <div className="section-eyebrow">Questions fréquentes</div>
             <h2 className="section-title">Tout ce qu'il faut savoir, <em>avant de commander.</em></h2>
             <div className="faq-list" style={{ marginTop: "48px" } as React.CSSProperties}>
-              <div className="faq-item open">
-                <div className="faq-q">Combien de temps prend la livraison ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item" open>
+                <summary className="faq-q">Combien de temps prend la livraison ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Standard inclus — la plupart des commandes arrivent en {DELIVERY_WINDOW} ouvrables. Express et Rush accélèrent la production : le surcoût exact s'affiche au devis selon le produit. Toutes les estimations sont calculées depuis Markham (ON) vers ton code postal au moment du devis.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Y a-t-il un minimum de commande ?<span className="faq-toggle">+</span></div>
+              </details>
+              <details className="faq-item">
+                <summary className="faq-q">Y a-t-il un minimum de commande ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Non. Tu peux commander 100 cartes ou 10 000 — le prix s'ajuste automatiquement. Plus la quantité monte, plus le coût unitaire descend (voir notre slider en temps réel).</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Quels formats de fichier acceptez-vous ?<span className="faq-toggle">+</span></div>
+              </details>
+              <details className="faq-item">
+                <summary className="faq-q">Quels formats de fichier acceptez-vous ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">PDF, AI, PSD, JPG, PNG, TIFF. Recommandé : PDF 300 DPI en CMYK avec bleed de 0,125". Notre validateur automatique te dit immédiatement si quelque chose cloche.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Et si je n'ai pas de design ?<span className="faq-toggle">+</span></div>
+              </details>
+              <details className="faq-item">
+                <summary className="faq-q">Et si je n'ai pas de design ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Télécharge nos templates gratuits avec bleed et safe zone déjà configurés. Ou utilise notre éditeur en ligne avec templates, photos stock et génération de logo par IA.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Comment fonctionne le remboursement ?<span className="faq-toggle">+</span></div>
+              </details>
+              <details className="faq-item">
+                <summary className="faq-q">Comment fonctionne le remboursement ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Annulation possible jusqu'au moment où la production démarre (généralement sous 2h). Après production, remplacement gratuit si le fichier validé par notre prépresse n'est pas respecté.</div>
-              </div>
-              <div className="faq-item">
-                <div className="faq-q">Êtes-vous une vraie imprimerie ?<span className="faq-toggle">+</span></div>
+              </details>
+              <details className="faq-item">
+                <summary className="faq-q">Êtes-vous une vraie imprimerie ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Plio travaille avec une presse wholesale canadienne établie à Markham (ON). On gère ton expérience web, la prépresse et le service client — notre partenaire presse gère la production physique.</div>
-              </div>
+              </details>
             </div>
           </section>
       

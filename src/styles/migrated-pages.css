@@ -5652,6 +5652,15 @@
       display: none;
     }
     .faq-item.open .faq-a { display: block; }
+    /* Round 6 #2 — FAQ en <details> natifs (zéro JS). Avant : Server Components
+       sans JS → seul le 1er .faq-item.open montrait sa réponse, les autres
+       figées en display:none alors que le + suggérait une interaction. Règles
+       ADDITIVES (le variant div-based .faq-item.open reste intact). */
+    details.faq-item > summary.faq-q { list-style: none; cursor: pointer; }
+    details.faq-item > summary.faq-q::-webkit-details-marker { display: none; }
+    details.faq-item[open] { border-color: var(--accent-primary); background: var(--accent-soft); }
+    details.faq-item[open] .faq-toggle { transform: rotate(45deg); background: var(--accent-primary); color: var(--text-on-accent); }
+    details.faq-item[open] .faq-a { display: block; }
     .faq-a strong { color: var(--text-primary); font-weight: 600; }
 
     /* CTA */

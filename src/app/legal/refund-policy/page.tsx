@@ -120,45 +120,45 @@ export default function RefundPolicyPage() {
             </div>
       
             <div className="faq-list">
-              <div className="faq-item open">
-                <div className="faq-q">Quel est le délai pour réclamer ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item" open>
+                <summary className="faq-q">Quel est le délai pour réclamer ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Tu as <strong>48 heures à compter de la livraison</strong> pour signaler un défaut visuel (coupe, impression, papier). Au-delà, on considère le colis accepté. Pour une erreur de prepress flagrante, le délai est étendu à <strong>30 jours</strong> — on couvre l'erreur même si tu réalises sur le tard.</div>
-              </div>
+              </details>
       
-              <div className="faq-item">
-                <div className="faq-q">Que se passe-t-il si Postes Canada (ou UPS) perd mon colis ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item">
+                <summary className="faq-q">Que se passe-t-il si Postes Canada (ou UPS) perd mon colis ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Si le tracking n'a pas bougé depuis <strong>10 jours ouvrables</strong>, on ouvre une enquête avec le transporteur. Pendant ce temps, on lance la <strong>réimpression à nos frais</strong> sans attendre la conclusion — tu n'as pas à patienter sur le résultat de l'enquête. C'est nous qui gérons la réclamation transporteur.</div>
-              </div>
+              </details>
       
-              <div className="faq-item">
-                <div className="faq-q">Puis-je échanger contre un autre produit ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item">
+                <summary className="faq-q">Puis-je échanger contre un autre produit ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Pas directement, parce que chaque commande est imprimée sur mesure (pas de stock). Mais on peut <strong>rembourser ta commande initiale</strong> et te donner un <strong>crédit bonus de 10 %</strong> à appliquer sur ta nouvelle commande, à la condition que la réimpression ait un motif valide (erreur de prepress, défaut). Pas applicable aux changements d'avis post-production.</div>
-              </div>
+              </details>
       
-              <div className="faq-item">
-                <div className="faq-q">Comment ça se passe pour un reseller ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item">
+                <summary className="faq-q">Comment ça se passe pour un reseller ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Si ton client final trouve un défaut, le reseller (toi) ouvre le ticket avec nous. <strong>Le remboursement va sur la carte du reseller</strong>, jamais directement au client final — c'est à toi de gérer la relation commerciale en aval. Les délais et critères sont identiques aux commandes B2C.</div>
-              </div>
+              </details>
       
-              <div className="faq-item">
-                <div className="faq-q">Et si la couleur imprimée ne correspond pas à mon écran ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item">
+                <summary className="faq-q">Et si la couleur imprimée ne correspond pas à mon écran ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Ton écran utilise un profil RGB rétro-éclairé, la presse imprime en CMYK sur papier réflectif — il y aura toujours un écart, c'est de la physique. On garantit la conformité au <strong>BAT numérique CMYK</strong> que tu as validé, avec une tolérance industrielle de <strong>Delta-E ≤ 4</strong>. Au-delà, c'est un défaut couvert. Pour les commandes critiques (logo de marque, packaging), commande un <strong>tirage d'épreuve</strong> à 18 $ avant la grande série.</div>
-              </div>
+              </details>
       
-              <div className="faq-item">
-                <div className="faq-q">Qui paie le retour du colis défectueux ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item">
+                <summary className="faq-q">Qui paie le retour du colis défectueux ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">En général, <strong>tu n'as rien à retourner</strong>. Les photos suffisent pour les défauts visuels. Si on a besoin de récupérer le colis pour analyse (rare, ~3 % des cas), on t'envoie une étiquette UPS prépayée. Tu ne sors pas un cent de ta poche.</div>
-              </div>
+              </details>
       
-              <div className="faq-item">
-                <div className="faq-q">Mon fichier était mauvais mais le validateur n'a rien dit. Qui paie ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item">
+                <summary className="faq-q">Mon fichier était mauvais mais le validateur n'a rien dit. Qui paie ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Notre validateur couvre les erreurs <strong>techniquement détectables</strong> : bleed, résolution, mode couleur, fonts manquantes. Pour ces cas, si on a laissé passer, c'est <strong>de notre faute</strong> — réimpression gratuite. Par contre, le validateur ne juge pas le design (faute de frappe, mauvais numéro de téléphone, choix esthétique malheureux) — ces erreurs restent à ta charge.</div>
-              </div>
+              </details>
       
-              <div className="faq-item">
-                <div className="faq-q">Combien de fois puis-je faire réimprimer une commande ?<span className="faq-toggle">+</span></div>
+              <details className="faq-item">
+                <summary className="faq-q">Combien de fois puis-je faire réimprimer une commande ?<span className="faq-toggle">+</span></summary>
                 <div className="faq-a">Une réimpression couverte par garantie est <strong>illimitée tant que le défaut persiste</strong>. Si la première réimpression sort aussi mal, on relance — c'est notre problème, pas le tien. En pratique, ça arrive dans moins de 0,3 % des cas grâce au double contrôle qualité de notre presse.</div>
-              </div>
+              </details>
             </div>
           </section>
       
