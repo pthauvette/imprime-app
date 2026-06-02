@@ -14,6 +14,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { SUPPORT_SLA } from '@/lib/content/marketing';
 
 interface Props {
   /** Préfill du nom (si user connecté). */
@@ -156,7 +157,7 @@ export default function FloatingHelpButton({
                   Comment on peut <em>t&apos;aider ?</em>
                 </h2>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                  Question sur ta commande, un produit ou un fichier ? On répond généralement sous 2 h ouvrables.
+                  Question sur ta commande, un produit ou un fichier ? On répond en {SUPPORT_SLA}.
                 </p>
               </div>
               <button

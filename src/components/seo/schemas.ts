@@ -86,7 +86,8 @@ export const localBusinessSchema = {
   name: 'Plio',
   image: `${APP_URL}/opengraph-image`,
   url: APP_URL,
-  telephone: '+1-514-555-0144',
+  // Pas de `telephone` : pas de ligne publique. Exposer un placeholder 555 dans
+  // le JSON-LD (rich results) donnerait un faux numéro aux moteurs. Round 5 #4.
   email: 'bonjour@plio.ca',
   priceRange: '$',
   address: {

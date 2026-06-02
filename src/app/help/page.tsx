@@ -17,10 +17,11 @@ import type { Route } from 'next';
 import HelpSearch from './HelpSearch';
 import { FAQ_ITEMS, type FaqItem } from '@/data/help-faq';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import { SUPPORT_SLA } from '@/lib/content/marketing';
 
 export const metadata = {
   title: 'Centre d\'aide — Plio',
-  description: 'Réponses aux questions fréquentes : commande, fichiers PDF, livraison, paiement, retour, échantillons. Support FR/EN, réponse sous 2 h ouvrables.',
+  description: `Réponses aux questions fréquentes : commande, fichiers PDF, livraison, paiement, retour, échantillons. Support FR/EN, réponse en ${SUPPORT_SLA}.`,
 };
 
 export default function HelpPage() {
@@ -68,7 +69,7 @@ export default function HelpPage() {
           </h1>
           <p style={{ fontSize: 16, color: 'var(--text-secondary)', maxWidth: 620, margin: 0, lineHeight: 1.55 }}>
             Réponses aux questions les plus fréquentes. Si tu ne trouves pas ta réponse,
-            écris-nous à <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>bonjour@plio.ca</a> — réponse sous 2 h ouvrables.
+            écris-nous à <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>bonjour@plio.ca</a> — réponse en {SUPPORT_SLA}.
           </p>
         </header>
 
@@ -90,7 +91,7 @@ export default function HelpPage() {
             Toujours bloqué ?
           </h2>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-            On répond en moyenne sous 2 h ouvrables. Inclus avec ta commande, gratuit, illimité.
+            On répond en {SUPPORT_SLA}. Inclus avec ta commande, gratuit, illimité.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <a href="mailto:bonjour@plio.ca" className="btn btn-primary">

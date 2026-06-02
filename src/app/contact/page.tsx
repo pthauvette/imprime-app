@@ -4,6 +4,7 @@
 
 import ContactForm from './ContactForm';
 import MarketingFooter from '@/components/marketing/MarketingFooter';
+import { SUPPORT_SLA } from '@/lib/content/marketing';
 
 export const metadata = { title: "Parle-nous — Plio" };
 
@@ -15,7 +16,7 @@ export default function ContactPage() {
           <div className="mkt-nav-links">
             <a href="/order/start" className="mkt-nav-link">Produits</a>
             <a href="/about" className="mkt-nav-link">Notre histoire</a>
-            <a href="/contact" className="mkt-nav-link">Aide</a>
+            <a href="/help" className="mkt-nav-link">Aide</a>
             <a href="/contact" className="mkt-nav-link active">Contact</a>
             <a href="/order/start" className="mkt-nav-cta">Commander →</a>
           </div>
@@ -26,8 +27,8 @@ export default function ContactPage() {
           <section className="contact-hero">
             <div className="page-eyebrow">On répond vite · vraiment</div>
             <h1>Parle-nous. <em>On répond.</em></h1>
-            <p>Notre équipe est basée à Montréal et répond en français ou en anglais en moins de 4 heures ouvrables.</p>
-            <div className="response-badge">Temps de réponse moyen · 1 h 47 aujourd'hui</div>
+            <p>Notre équipe est basée à Montréal et répond en français ou en anglais en {SUPPORT_SLA}.</p>
+            <div className="response-badge">Réponse en {SUPPORT_SLA}</div>
           </section>
       
           {/* TWO COL */}
@@ -41,15 +42,13 @@ export default function ContactPage() {
                 <div className="info-card-eyebrow">★ Support client</div>
                 <h3>Pour les commandes en cours</h3>
                 <div className="row"><span className="ic">@</span><a href="mailto:bonjour@plio.ca">bonjour@plio.ca</a></div>
-                <div className="row"><span className="ic">💬</span>Chat en direct dans l'app</div>
-                <div className="hours">Lun–Ven · 9 h–18 h ET</div>
+                <div className="hours">Lun–Ven · 9 h–18 h ET · réponse en {SUPPORT_SLA}</div>
               </div>
       
               <div className="info-card">
                 <div className="info-card-eyebrow">★ Ventes &amp; partenariats</div>
                 <h3>Volumes, resellers, B2B</h3>
                 <div className="row"><span className="ic">@</span><a href="mailto:sales@plio.ca">sales@plio.ca</a></div>
-                <div className="row"><span className="ic">☎</span><a href="tel:+15145550144">+1 514 555 0144</a></div>
                 <div className="hours">Lun–Ven · 9 h–17 h ET</div>
               </div>
 
@@ -87,7 +86,7 @@ export default function ContactPage() {
                 <h2>Avant de nous écrire — <em>peut-être qu'on a déjà la réponse.</em></h2>
                 <p>Notre centre d'aide couvre 90 % des questions, avec des réponses claires sans jargon. Délais, fichiers, retours, paiements — tout est là.</p>
               </div>
-              <a href="/contact" className="faq-teaser-btn">Centre d'aide →</a>
+              <a href="/help" className="faq-teaser-btn">Centre d'aide →</a>
             </div>
           </section>
         </main>
