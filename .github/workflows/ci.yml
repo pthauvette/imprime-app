@@ -8,10 +8,12 @@ name: CI (typecheck + unit tests)
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'public/**'
+    # PAS de paths-ignore ici : le check "Typecheck + Vitest" est REQUIS par la
+    # branch protection. Si on ignore des paths, un PR ne touchant QUE ces paths
+    # (ex: docs/*.md, public/*) ne déclenche pas le workflow → le required check
+    # reste "pending" éternellement → merge BLOQUÉ (deadlock paths-ignore +
+    # required check). On laisse donc le gate tourner sur tous les PR. Un PR
+    # docs-only paie ~3 min de CI — acceptable vs un merge impossible.
   # On run aussi sur push main pour avoir l'état "main is green" visible
   # dans le badge GitHub. concurrency group cancel-in-progress évite les
   # builds doublons quand on push plusieurs commits rapprochés.
