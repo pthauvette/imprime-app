@@ -116,7 +116,15 @@ export default async function MagicLinkSentPage({
             {' '}— les magic links peuvent y tomber quand le domaine est récent.
           </p>
           <div className="ml-resend-row">
-            <Link href={'/sign-in' as Route} className="ml-resend-btn">Renvoyer un lien</Link>
+            {/* Round 6 #5 — propage l'email pour que /sign-in le pré-remplisse
+                (le bouton « Renvoyer » repartait vers un formulaire vierge → on
+                devait retaper son adresse). */}
+            <Link
+              href={(email && email.includes('@') ? `/sign-in?email=${encodeURIComponent(email)}` : '/sign-in') as Route}
+              className="ml-resend-btn"
+            >
+              Renvoyer un lien
+            </Link>
           </div>
         </div>
 

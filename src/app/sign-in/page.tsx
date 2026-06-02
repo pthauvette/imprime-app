@@ -35,11 +35,13 @@ function signInError(code: string | undefined): string | null {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string; email?: string }>;
 }) {
   const session = await auth();
-  const { callbackUrl, error } = await searchParams;
+  const { callbackUrl, error, email } = await searchParams;
   const errorMessage = signInError(error);
+  // Pré-remplit l'email si on revient du « Renvoyer un lien » (?email=).
+  const initialEmail = email && email.includes('@') ? email : undefined;
   // SÉCURITÉ (Round 1 audit) : callbackUrl vient des searchParams (non fiable).
   // Sans validation, /sign-in?callbackUrl=https://evil.com redirige un user déjà
   // connecté HORS-SITE (open-redirect → phishing). On le sanitize en chemin
@@ -124,7 +126,7 @@ export default async function SignInPage({
             </div>
           )}
 
-          <SignInForm callbackUrl={safeCallback} />
+          <SignInForm callbackUrl={safeCallback} initialEmail={initialEmail} />
         </div>
       </main>
     </div>
