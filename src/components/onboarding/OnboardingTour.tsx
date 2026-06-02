@@ -23,7 +23,8 @@
  * via le wizard, par exemple, ailleurs dans l'app).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -67,6 +68,9 @@ const STEPS: TourStep[] = [
 export default function OnboardingTour() {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Round 7 #1/#2 — piège le focus dans le modal + restaure au déclencheur.
+  useFocusTrap(dialogRef, visible);
 
   useEffect(() => {
     const has = document.cookie
@@ -95,6 +99,17 @@ export default function OnboardingTour() {
     setStep((s) => Math.max(0, s - 1));
   }
 
+  // Round 7 #2 — Escape ferme le tour (avant : fermable souris uniquement).
+  useEffect(() => {
+    if (!visible) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') persistAndClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
   if (!visible) return null;
 
   const current = STEPS[step];
@@ -102,6 +117,7 @@ export default function OnboardingTour() {
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-title"

@@ -12,6 +12,7 @@
 
 import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface ResultItem {
   type: 'order' | 'user' | 'message' | 'quote' | 'reseller' | 'broadcast';
@@ -39,6 +40,9 @@ export default function CommandPalette() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [loading, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Round 7 #1 — focus-trap + restore (Cmd+K ouvre ; Escape ferme déjà géré).
+  useFocusTrap(dialogRef, open);
 
   // Global Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -119,6 +123,7 @@ export default function CommandPalette() {
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="Recherche globale"

@@ -15,6 +15,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface Props {
   /** Préfill du nom (si user connecté). */
@@ -35,6 +36,8 @@ export default function FloatingHelpButton({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // Round 7 #1 — focus-trap + restore (le modal a déjà Escape ci-dessous).
+  useFocusTrap(dialogRef, open);
 
   // Lock body scroll when open + ESC to close
   useEffect(() => {

@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 import { signOut } from 'next-auth/react';
 import ThemeToggle from './ThemeToggle';
 import LangSwitch from '@/components/i18n/LangSwitch';
@@ -47,6 +48,10 @@ export default function UserMenu({ user }: UserMenuProps) {
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  // Round 7 #1 — piège le focus dans le popover (rendu en portail) et le
+  // restaure sur l'avatar à la fermeture.
+  useFocusTrap(panelRef, open);
 
   function toggle() {
     if (!open && btnRef.current) {
