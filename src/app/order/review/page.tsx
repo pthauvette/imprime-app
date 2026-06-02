@@ -46,6 +46,8 @@ interface ShipState {
   postalCode: string;
   method: string;
   price: number;
+  /** Round 1 audit — sig HMAC du devis de livraison (anti-tamper côté create). */
+  sig?: string;
   /** Round 26 #2 — instructions livraison (max 200 chars). Optional. */
   note?: string;
 }
@@ -216,6 +218,8 @@ function ReviewPageInner() {
             shippingAddress: { line1: ship.line1, line2: ship.line2, city: ship.city, province: ship.province, postalCode: ship.postalCode },
             shippingMethod: ship.method,
             shippingPrice: ship.price,
+            // Round 1 audit — sig du devis de livraison (vérifiée server-side)
+            ...(ship.sig ? { shippingQuoteSig: ship.sig } : {}),
             // Round 26 #2 — instructions livraison customer (optional)
             ...(ship.note ? { shippingNote: ship.note } : {}),
             expectedSubtotal,

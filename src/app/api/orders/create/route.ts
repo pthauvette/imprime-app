@@ -25,6 +25,8 @@ import { buildItemsSnapshot } from '@/lib/orders/items';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { applyShippingPerks } from '@/lib/customers/perks';
+import { verifyShippingQuoteToken } from '@/lib/shipping/quote-token';
+import { log } from '@/lib/logger';
 import { normalizeCode, validatePromo } from '@/lib/promo/validate';
 import { getStripe } from '@/lib/stripe/client';
 
@@ -74,6 +76,10 @@ const CreateOrderSchema = z.object({
 
   shippingMethod: ShipMethod,
   shippingPrice: z.number().nonnegative(),
+
+  /** Round 1 audit — sig HMAC du devis de livraison émis par /api/shipping/estimate.
+   *  Optional pour l'instant (rollout : on logge, on ne rejette pas encore). */
+  shippingQuoteSig: z.string().optional(),
 
   /** Round 26 #2 — instructions livraison customer (optionnel, max 200 chars).
    *  Forwardé à Sinalite + persisté sur Order.shippingNote. */
@@ -240,6 +246,40 @@ export const POST = withErrorHandler(async (req: Request) => {
     userTaxExemptCertId = userPrefs?.taxExemptCertId ?? null;
     userResellerStatus = (userPrefs?.resellerStatus as typeof userResellerStatus) ?? 'NONE';
   }
+  // Round 1 audit — anti-tamper sur shippingPrice via devis signé. Le subtotal
+  // est déjà recomputé/vérifié (PRICE_MISMATCH) ; le shipping ne l'était pas →
+  // un client pouvait sous-payer la livraison. On vérifie la sig HMAC émise par
+  // /api/shipping/estimate, qui lie prix+méthode+destination+produits.
+  // ROLLOUT : log-only pour l'instant (on ne peut pas tester le funnel E2E en
+  // local ; un bug de plomberie rejetterait TOUS les checkouts). Une fois les
+  // logs prod confirmant que le trafic légitime envoie une sig valide → flip
+  // vers un reject 409 ici (suivi).
+  if (payload.shippingPrice > 0) {
+    const sigValid = verifyShippingQuoteToken(
+      {
+        method: payload.shippingMethod,
+        price: payload.shippingPrice,
+        country: 'CA',
+        province: payload.shippingAddress.province,
+        postal: payload.shippingAddress.postalCode,
+        productIds: payload.items.map((i) => i.productId),
+      },
+      payload.shippingQuoteSig,
+    );
+    if (!sigValid) {
+      log.warn(
+        {
+          shippingMethod: payload.shippingMethod,
+          shippingPrice: payload.shippingPrice,
+          province: payload.shippingAddress.province,
+          hasSig: !!payload.shippingQuoteSig,
+          email: payload.contact.email,
+        },
+        'orders/create: devis de livraison non signé/invalide (log-only — futur reject)',
+      );
+    }
+  }
+
   const perks = applyShippingPerks({
     tier: userLoyaltyTier,
     shippingPrice: payload.shippingPrice,
