@@ -21,6 +21,10 @@ import { auth } from '@/auth';
 const BodySchema = z.object({
   templateSlug: z.string(),
   values: z.record(z.string(), z.string()),
+  // Présent quand on re-finalize un brouillon repris depuis /drafts. On met
+  // alors à jour CE draft (valeurs + PDF régénéré) au lieu d'en créer un
+  // nouveau — sinon « Continuer » puis « Commander » dupliquerait le brouillon.
+  draftId: z.string().optional(),
 });
 
 const GUEST_EMAIL = 'guest@plio.local';
@@ -48,15 +52,33 @@ export const POST = withErrorHandler(async (req: Request) => {
         update: {},
       });
 
-  // Persiste le DesignDraft
-  const draft = await prisma.designDraft.create({
-    data: {
-      userId: user.id,
-      templateId: await getOrCreateTemplateDbRow(template),
-      values: JSON.stringify(body.values),
-      finalPdfUrl: pdfDataUrl,
-    },
-  });
+  const templateId = await getOrCreateTemplateDbRow(template);
+
+  // Reprise d'un brouillon : on met à jour le draft existant SI il appartient
+  // à cet user et n'est pas déjà commandé (orderId null). updateMany filtre
+  // par userId → un draftId d'un autre user ne matche rien (pas de fuite, pas
+  // de mutation cross-user) et on retombe sur la création d'un nouveau draft.
+  let draft: { id: string } | null = null;
+  if (body.draftId) {
+    const updated = await prisma.designDraft.updateMany({
+      where: { id: body.draftId, userId: user.id, orderId: null },
+      data: { values: JSON.stringify(body.values), finalPdfUrl: pdfDataUrl, templateId },
+    });
+    if (updated.count === 1) draft = { id: body.draftId };
+  }
+
+  // Pas de draftId (ou draft non repris/non possédé) → nouveau DesignDraft.
+  if (!draft) {
+    draft = await prisma.designDraft.create({
+      data: {
+        userId: user.id,
+        templateId,
+        values: JSON.stringify(body.values),
+        finalPdfUrl: pdfDataUrl,
+      },
+      select: { id: true },
+    });
+  }
 
   return NextResponse.json({
     designId: draft.id,

@@ -22,7 +22,18 @@ interface Field {
   placeholder: string;
 }
 
-export default function DesignEditor({ template }: { template: AppTemplate }) {
+export default function DesignEditor({
+  template,
+  draftId,
+  initialValues,
+}: {
+  template: AppTemplate;
+  /** Présent quand on reprend un brouillon depuis /drafts. Renvoyé à finalize
+   *  pour mettre à jour CE draft au lieu d'en créer un nouveau. */
+  draftId?: string;
+  /** Valeurs sauvegardées du brouillon repris (sinon on part de sampleValues). */
+  initialValues?: Record<string, string>;
+}) {
   const router = useRouter();
 
   // Extract editable fields (skip readOnly like dividers/blocks)
@@ -42,7 +53,13 @@ export default function DesignEditor({ template }: { template: AppTemplate }) {
     return out;
   }, [template]);
 
-  const [values, setValues] = useState<Record<string, string>>(() => ({ ...template.sampleValues }));
+  // Brouillon repris → on part des valeurs sauvegardées (par-dessus les
+  // sampleValues, pour que tout champ absent du draft garde un placeholder
+  // sain). Sinon, design neuf → sampleValues seules.
+  const [values, setValues] = useState<Record<string, string>>(() => ({
+    ...template.sampleValues,
+    ...(initialValues ?? {}),
+  }));
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +130,7 @@ export default function DesignEditor({ template }: { template: AppTemplate }) {
       const res = await fetch('/api/designs/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateSlug: template.slug, values }),
+        body: JSON.stringify({ templateSlug: template.slug, values, draftId }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

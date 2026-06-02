@@ -2,8 +2,13 @@
  * /drafts — Server Component listant les DesignDraft non finalisés du user.
  *
  * Un DesignDraft est une instance customisée d'un Template — c'est ce qui sert
- * de "brouillon" pour le wizard `/design/[slug]`. Quand `finalPdfUrl` est null,
- * le user n'a pas encore committé son design (donc c'est un brouillon en cours).
+ * de "brouillon" pour le wizard `/design/[slug]`.
+ *
+ * Définition d'un brouillon REPRENABLE = design finalisé (a des `values` + un
+ * `finalPdfUrl`) mais pas encore transformé en commande → `orderId` null. (Le
+ * draft n'est persisté qu'au clic « Commander » via /api/designs/finalize ; il
+ * n'y a pas d'autosave en cours d'édition. Filtrer sur `finalPdfUrl: null` ne
+ * matchait donc JAMAIS rien → liste vide. On filtre sur `orderId: null`.)
  *
  * Auth requise : middleware redirige déjà mais on garde un fallback explicite.
  */
@@ -25,7 +30,7 @@ export default async function DraftsPage() {
   if (!session?.user) redirect('/sign-in?callbackUrl=/drafts' as Route);
 
   const drafts = await prisma.designDraft.findMany({
-    where: { userId: session.user.id, finalPdfUrl: null },
+    where: { userId: session.user.id, orderId: null },
     orderBy: { updatedAt: 'desc' },
     include: {
       template: { select: { slug: true, name: true, productType: true, variant: true } },
@@ -49,7 +54,7 @@ export default async function DraftsPage() {
                   <strong style={{ color: 'var(--text-primary)' }}>
                     {drafts.length} {drafts.length > 1 ? 'designs' : 'design'}
                   </strong>{' '}
-                  en cours · sauvegardés automatiquement à chaque modification
+                  en cours · finalisés mais pas encore commandés
                 </>
               )}
             </p>
@@ -63,8 +68,9 @@ export default async function DraftsPage() {
             <div className="draft-info-banner">
               <span className="draft-info-banner-icon">💾</span>
               <span>
-                Tes brouillons sont sauvegardés à chaque clic dans le wizard. Reprends
-                exactement où tu en étais — toutes tes options et fichiers sont conservés.
+                Chaque design que tu finalises est conservé ici tant que tu ne l'as
+                pas commandé. Clique « Continuer » pour rouvrir le wizard avec tes
+                valeurs et passer commande.
               </span>
             </div>
 
@@ -72,7 +78,7 @@ export default async function DraftsPage() {
               {drafts.map((draft) => (
                 <Link
                   key={draft.id}
-                  href={`/design/${draft.template.slug}` as Route}
+                  href={`/design/${draft.template.slug}?draftId=${draft.id}` as Route}
                   className="draft-card"
                 >
                   <div className="draft-thumb">
