@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 type BulkAction =
   | { action: 'set-role'; userIds: string[]; role: 'USER' | 'ADMIN' }
@@ -26,6 +27,7 @@ type BulkAction =
 export default function UserBulkBar() {
   const router = useRouter();
   const search = useSearchParams();
+  const { confirm, dialog } = useConfirmDialog();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, startTransition] = useTransition();
   const [result, setResult] = useState<string | null>(null);
@@ -68,7 +70,15 @@ export default function UserBulkBar() {
 
   async function runBulk(payload: BulkAction, confirmMsg: string) {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(confirmMsg)) return;
+    // Round 9 #2 — modal stylé au lieu de window.confirm (mobile-hostile). Les
+    // actions bulk users (dont promotion ADMIN) sont sensibles → danger.
+    const ok = await confirm({
+      title: 'Confirmer l’action groupée',
+      body: confirmMsg,
+      confirmLabel: 'Confirmer',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     setResult(null);
     startTransition(async () => {
@@ -102,6 +112,8 @@ export default function UserBulkBar() {
   }
 
   return (
+    <>
+    {dialog}
     <div
       role="toolbar"
       aria-label="Actions bulk utilisateurs"
@@ -258,6 +270,7 @@ export default function UserBulkBar() {
         />
       )}
     </div>
+    </>
   );
 }
 
