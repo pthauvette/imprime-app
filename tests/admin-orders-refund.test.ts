@@ -70,6 +70,11 @@ const stripeMock = vi.hoisted(() => ({
     create: vi.fn<(args: { payment_intent: string; amount?: number; reason?: string; metadata: Record<string, string> }) => Promise<{ id: string; status: string }>>(
       async () => ({ id: 're_test_123', status: 'succeeded' }),
     ),
+    // Round 4 #4 — déjà-remboursé dérivé de Stripe. Default : aucun refund
+    // antérieur (data vide) → restant = total.
+    list: vi.fn<(args: { payment_intent: string; limit?: number }) => Promise<{ data: Array<{ amount: number; status: string }> }>>(
+      async () => ({ data: [] }),
+    ),
   },
 }));
 vi.mock('stripe', () => {
@@ -114,6 +119,7 @@ beforeEach(() => {
   } as never);
   vi.mocked(prisma.order.findUnique).mockResolvedValue(ORDER_BASE as never);
   stripeMock.refunds.create.mockResolvedValue({ id: 're_test_123', status: 'succeeded' } as never);
+  stripeMock.refunds.list.mockResolvedValue({ data: [] } as never);
 });
 
 describe('POST /api/admin/orders/[id]/refund (Round 36 #4)', () => {
@@ -143,15 +149,81 @@ describe('POST /api/admin/orders/[id]/refund (Round 36 #4)', () => {
     expect(json.error).toMatch(/PENDING/);
   });
 
-  it('400 si refund amount > order total', async () => {
+  it('400 si refund amount > order total (aucun refund antérieur)', async () => {
     const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
     const res = await POST(
-      makeReq({ amountCents: 9000 }), // > order 8000
+      makeReq({ amountCents: 9000 }), // > order 8000, rien de déjà remboursé
       { params: Promise.resolve({ id: 'o_test' }) },
     );
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toMatch(/exceeds/i);
+    expect(json.code).toBe('REFUND_EXCEEDS_REMAINING');
+    expect(json.remainingCents).toBe(8000);
+    expect(stripeMock.refunds.create).not.toHaveBeenCalled();
+  });
+
+  // ─── Round 4 #4 — cumul des refunds partiels borné ───────────────────────
+
+  it('400 si le CUMUL dépasse le restant (3000 demandé alors que 6000 déjà remboursé sur 8000)', async () => {
+    stripeMock.refunds.list.mockResolvedValueOnce({
+      data: [{ amount: 6000, status: 'succeeded' }],
+    } as never);
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(
+      makeReq({ amountCents: 3000 }), // 6000 + 3000 = 9000 > 8000
+      { params: Promise.resolve({ id: 'o_test' }) },
+    );
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.code).toBe('REFUND_EXCEEDS_REMAINING');
+    expect(json.remainingCents).toBe(2000); // 8000 - 6000
+    expect(json.alreadyRefundedCents).toBe(6000);
+    expect(stripeMock.refunds.create).not.toHaveBeenCalled();
+  });
+
+  it('200 si le refund tient dans le restant (2000 sur restant 2000)', async () => {
+    stripeMock.refunds.list.mockResolvedValueOnce({
+      data: [{ amount: 6000, status: 'succeeded' }],
+    } as never);
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(
+      makeReq({ amountCents: 2000 }),
+      { params: Promise.resolve({ id: 'o_test' }) },
+    );
+    expect(res.status).toBe(200);
+    expect(stripeMock.refunds.create).toHaveBeenCalledOnce();
+  });
+
+  it('400 si déjà entièrement remboursé (full refund demandé)', async () => {
+    stripeMock.refunds.list.mockResolvedValueOnce({
+      data: [{ amount: 8000, status: 'succeeded' }],
+    } as never);
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(makeReq({}), { params: Promise.resolve({ id: 'o_test' }) });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.code).toBe('REFUND_NONE_REMAINING');
+    expect(stripeMock.refunds.create).not.toHaveBeenCalled();
+  });
+
+  it('ignore les refunds failed/canceled dans le cumul', async () => {
+    stripeMock.refunds.list.mockResolvedValueOnce({
+      data: [
+        { amount: 8000, status: 'failed' },
+        { amount: 8000, status: 'canceled' },
+      ],
+    } as never);
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(makeReq({ amountCents: 5000 }), { params: Promise.resolve({ id: 'o_test' }) });
+    expect(res.status).toBe(200); // restant = 8000 (les échoués ne comptent pas)
+    expect(stripeMock.refunds.create).toHaveBeenCalledOnce();
+  });
+
+  it('502 si refunds.list throw (impossible de vérifier le cumul)', async () => {
+    stripeMock.refunds.list.mockRejectedValueOnce(new Error('Stripe list down'));
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    const res = await POST(makeReq({ amountCents: 1000 }), { params: Promise.resolve({ id: 'o_test' }) });
+    expect(res.status).toBe(502);
     expect(stripeMock.refunds.create).not.toHaveBeenCalled();
   });
 
