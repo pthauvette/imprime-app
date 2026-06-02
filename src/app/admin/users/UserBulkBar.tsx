@@ -13,7 +13,8 @@
  *   - Export CSV (toujours visible, pas besoin de sélection)
  */
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 type BulkAction =
@@ -272,8 +273,21 @@ function EmailComposerModal({
   onSend: () => void;
 }) {
   const canSend = subject.trim().length >= 3 && body.trim().length >= 10 && !busy;
+  // Round 7 #1 — focus-trap : le modal est monté/démonté par le parent, donc
+  // active = true sur toute sa vie ; le restore se fait au démontage.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+  // Escape ferme le composer (parité avec le clic sur le backdrop).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !busy) onCancel();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [busy, onCancel]);
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="Composer un email"
