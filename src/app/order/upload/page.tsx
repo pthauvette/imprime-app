@@ -45,18 +45,59 @@ function UploadPageInner() {
   // /api/products/[id] qui retourne la category Sinalite. Fallback default
   // safe (cartes-de-visite) si le fetch fail ou si pas de productId.
   const [marginSpec, setMarginSpec] = useState<MarginSpec>(DEFAULT_MARGIN_SPEC);
+  // Auto-fill depuis l'éditeur de template : état de la VÉRIF du PDF (cf. effet
+  // ci-dessous). Tant que ce n'est pas confirmé 200+PDF, on ne marque PAS le
+  // recto « Validé ».
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
   // Auto-fill recto si l'utilisateur arrive depuis l'éditeur de template
+  // (?designId). AVANT, on posait le recto en aveugle → si /api/designs/[id]/pdf
+  // renvoyait 404/500 (draft introuvable, non possédé, finalPdfUrl manquant),
+  // canContinue passait true et on affichait « ✓ Validé » : l'user payait avec
+  // un recto cassé, détecté seulement en prépresse. Maintenant on VÉRIFIE que
+  // le PDF répond réellement (200 + Content-Type application/pdf) avant de poser
+  // le recto. On utilise GET (et non HEAD) : la route n'exporte que GET, et on
+  // ne veut pas dépendre de l'auto-HEAD de Next pour le chemin de paiement.
   useEffect(() => {
     if (!designId || recto !== null) return;
+    let cancelled = false;
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    setRecto({
-      url: `${origin}/api/designs/${designId}/pdf`,
-      name: 'design-template.pdf',
-      size: 0,
-      contentType: 'application/pdf',
-      isTemplate: true,
-    });
+    const url = `${origin}/api/designs/${designId}/pdf`;
+    setTemplateLoading(true);
+    setTemplateError(null);
+    fetch(url, { method: 'GET', credentials: 'include', cache: 'no-store' })
+      .then((res) => {
+        if (cancelled) return;
+        const isPdf = (res.headers.get('content-type') ?? '').includes('application/pdf');
+        if (!res.ok || !isPdf) {
+          setTemplateError(
+            res.status === 404 || res.status === 401
+              ? "Ton design n'a pas pu être chargé (lien expiré ou accès refusé). Téléverse ton fichier manuellement ci-dessous."
+              : `Ton design n'a pas pu être vérifié (erreur ${res.status}). Téléverse ton fichier manuellement ci-dessous.`,
+          );
+          return;
+        }
+        setRecto({
+          url,
+          name: 'design-template.pdf',
+          size: 0,
+          contentType: 'application/pdf',
+          isTemplate: true,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTemplateError(
+          "Ton design n'a pas pu être vérifié (problème réseau). Téléverse ton fichier manuellement ci-dessous.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setTemplateLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [designId, recto]);
 
   // Fetch product category pour choisir les insets visuels de l'overlay
@@ -129,6 +170,40 @@ function UploadPageInner() {
             PDF, AI, EPS, PSD, JPG, PNG ou TIFF (max 150 MB). On vérifie automatiquement bleed,
             résolution et CMYK avant la production.
           </p>
+
+          {designId && templateLoading && (
+            <div
+              role="status"
+              style={{
+                margin: '0 0 20px',
+                padding: '12px 16px',
+                background: 'var(--bg-canvas)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--r-md)',
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              ⏳ Vérification de ton design en cours…
+            </div>
+          )}
+          {designId && templateError && (
+            <div
+              role="alert"
+              style={{
+                margin: '0 0 20px',
+                padding: '12px 16px',
+                background: 'var(--danger-soft)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--r-md)',
+                fontSize: 13,
+                color: 'var(--danger)',
+                lineHeight: 1.5,
+              }}
+            >
+              ⚠️ {templateError}
+            </div>
+          )}
 
           {/* Round 40 #2 — auto-fit collapse to 1 col under 600px (vs forced 2-col before) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
