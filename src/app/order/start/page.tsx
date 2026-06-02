@@ -13,7 +13,7 @@ import { sinalite, SinaliteError } from '@/lib/sinalite/client';
 import { applyProductOverrides } from '@/lib/products/overrides';
 import { groupProductsByFamily } from '@/lib/catalogue';
 import CategoryIcon from '@/components/wizard/CategoryIcon';
-import { formatCurrency } from '@/lib/format';
+import { formatNumber } from '@/lib/format';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { buildReorderDeepLink } from '@/lib/orders/reorder';
@@ -170,7 +170,7 @@ export default async function OrderStartPage({
             <em>aujourd'hui ?</em>
           </h1>
           <p className="step-lede">
-            Plus de {formatCurrency(totalProducts).replace(/[^\d\s]/g, '').trim()} produits actifs, devis instantané, livraison partout au Canada en 1 à 7 jours.
+            Plus de {formatNumber(totalProducts)} produits actifs, devis instantané, livraison partout au Canada en 1 à 7 jours.
           </p>
 
           {/* Round 45 #1 — social proof VÉRIFIABLE : faits permanents +
