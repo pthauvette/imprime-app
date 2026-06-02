@@ -4,6 +4,9 @@ import type { Route } from 'next';
 type Item = {
   href: Route;
   label: string;
+  /** Badge optionnel. Round 2 audit — NE PAS hardcoder une valeur : elle
+   *  s'afficherait à tous les users (un compte neuf voyait « 12 commandes »).
+   *  À remplir avec un vrai compte Prisma par userId si on veut les badges. */
   count?: number;
 };
 
@@ -12,10 +15,10 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     title: 'Compte',
     items: [
       { href: '/account' as Route, label: '⌂ Tableau de bord' },
-      { href: '/orders', label: 'Mes commandes', count: 12 },
+      { href: '/orders', label: 'Mes commandes' },
       { href: '/account/favorites' as Route, label: '★ Configurations sauvées' },
-      { href: '/drafts' as Route, label: 'Brouillons', count: 3 },
-      { href: '/addresses' as Route, label: 'Adresses', count: 4 },
+      { href: '/drafts' as Route, label: 'Brouillons' },
+      { href: '/addresses' as Route, label: 'Adresses' },
       { href: '/wallet' as Route, label: 'Portefeuille' },
       { href: '/payments' as Route, label: 'Paiements' },
       { href: '/account/referrals' as Route, label: '🎁 Parrainage' },
@@ -26,7 +29,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
   {
     title: 'Outils',
     items: [
-      { href: '/order/new' as Route, label: '+ Nouvelle commande' },
+      { href: '/order/start' as Route, label: '+ Nouvelle commande' },
       { href: '/samples' as Route, label: 'Demander un échantillon' },
       { href: '/templates' as Route, label: 'Templates & guides' },
       { href: '/reseller' as Route, label: 'Devenir reseller' },
