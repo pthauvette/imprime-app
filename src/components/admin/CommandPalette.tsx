@@ -162,6 +162,14 @@ export default function CommandPalette() {
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Cherche email, nom, commande, sujet…"
+            // Round 7 #4 — pattern combobox : la sélection clavier ↑↓ devient
+            // audible (aria-activedescendant pointe l'option active).
+            role="combobox"
+            aria-expanded={results.length > 0}
+            aria-controls="cmdk-listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={results.length > 0 ? `cmdk-opt-${activeIdx}` : undefined}
+            aria-label="Recherche globale admin"
             style={{
               flex: 1,
               border: 'none',
@@ -187,7 +195,7 @@ export default function CommandPalette() {
           </kbd>
         </div>
 
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+        <div id="cmdk-listbox" role="listbox" aria-label="Résultats de recherche" style={{ maxHeight: 400, overflowY: 'auto' }}>
           {q.length < 2 ? (
             <div style={{ padding: 24, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
               Tape au moins 2 caractères. <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '2px 6px', border: '1px solid var(--border-default)', borderRadius: 3, background: 'var(--bg-sunken)' }}>↑↓</kbd> pour naviguer, <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '2px 6px', border: '1px solid var(--border-default)', borderRadius: 3, background: 'var(--bg-sunken)' }}>↵</kbd> pour ouvrir.
@@ -204,6 +212,9 @@ export default function CommandPalette() {
             results.map((r, i) => (
               <div
                 key={`${r.type}:${r.id}`}
+                id={`cmdk-opt-${i}`}
+                role="option"
+                aria-selected={i === activeIdx}
                 onClick={() => navigate(r)}
                 onMouseEnter={() => setActiveIdx(i)}
                 style={{
