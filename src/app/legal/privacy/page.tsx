@@ -191,9 +191,9 @@ export default function PrivacyPage() {
                   <li><strong>plio_lang</strong> — mémorisation de la langue choisie (fr/en).</li>
                   <li><strong>plio_ref</strong> — capture du code de parrainage si tu arrives via un lien <em>?ref=CODE</em> (TTL 30 jours).</li>
                   <li><strong>plio_pending_profile</strong> — workflow sign-up qui survit le round-trip magic-link (TTL 15 min).</li>
-                  <li><strong>plio_cookie_consent</strong> — mémorisation de tes préférences cookies (TTL 12 mois).</li>
+                  <li><strong>plio_consent</strong> — mémorisation du fait que tu as pris connaissance de l&apos;usage des cookies (TTL 12 mois).</li>
                 </ul>
-                <p>Aucun outil de mesure d&apos;audience tiers (Google Analytics, Plausible, etc.) n&apos;est actuellement déployé. La bannière cookies, présente conformément à la Loi 25, te permet d&apos;accepter ou refuser les cookies analytiques avant qu&apos;ils ne soient activés (si un outil est ajouté dans le futur).</p>
+                <p>Aucun outil de mesure d&apos;audience tiers (Google Analytics, Plausible, etc.) n&apos;est déployé : on n&apos;utilise que les cookies strictement nécessaires listés ci-dessus. La bannière cookies, présente conformément à la Loi 25, sert à confirmer que tu as pris connaissance de cet usage — il n&apos;y a pas de cookies analytiques à refuser pour le moment. Si un tel outil était ajouté à l&apos;avenir, ton consentement explicite serait demandé avant son activation.</p>
               </section>
       
               <section id="s5">
