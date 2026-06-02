@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 export default function ReviewActions({ id, status, isFeatured }: { id: string; status: string; isFeatured: boolean }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [busy, setBusy] = useState(false);
   // Round 30 #5 — Avant: alert() pour les erreurs. Maintenant: inline error
   // banner cohérent avec OrderActions.tsx, dismissible, FR.
@@ -34,6 +36,7 @@ export default function ReviewActions({ id, status, isFeatured }: { id: string; 
 
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {dialog}
       {error && (
         <div
           role="alert"
@@ -82,8 +85,8 @@ export default function ReviewActions({ id, status, isFeatured }: { id: string; 
             {isFeatured ? '★ Retirer featured' : '☆ Marquer featured'}
           </button>
           <button
-            onClick={() => {
-              if (confirm('Re-mettre cette review en attente de modération ?')) {
+            onClick={async () => {
+              if (await confirm({ title: 'Re-mettre cette review en modération ?', confirmLabel: 'Remodérer', danger: true })) {
                 void call('reject', { adminNote: 'Re-modération' });
               }
             }}

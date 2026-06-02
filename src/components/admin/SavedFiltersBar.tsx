@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface SavedFilter {
   id: string;
@@ -32,6 +33,7 @@ interface Props {
 
 export default function SavedFiltersBar({ scope, basePath, initialFilters = [] }: Props) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState<SavedFilter[]>(initialFilters);
   const [savingName, setSavingName] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function SavedFiltersBar({ scope, basePath, initialFilters = [] }
   }
 
   async function remove(id: string) {
-    if (!confirm('Supprimer ce filtre ?')) return;
+    if (!(await confirm({ title: 'Supprimer ce filtre ?', confirmLabel: 'Supprimer', danger: true }))) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/saved-filters/${id}`, { method: 'DELETE' });
@@ -94,6 +96,7 @@ export default function SavedFiltersBar({ scope, basePath, initialFilters = [] }
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12 }}>
+      {dialog}
       {filters.length > 0 && (
         <>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>

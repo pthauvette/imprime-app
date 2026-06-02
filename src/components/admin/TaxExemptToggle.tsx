@@ -9,6 +9,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface Props {
   userId: string;
@@ -18,6 +19,7 @@ interface Props {
 
 export default function TaxExemptToggle({ userId, initialExempt, initialCertId }: Props) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [exempt, setExempt] = useState(initialExempt);
   const [certId, setCertId] = useState(initialCertId ?? '');
   const [editing, setEditing] = useState(false);
@@ -95,6 +97,7 @@ export default function TaxExemptToggle({ userId, initialExempt, initialCertId }
   if (exempt) {
     return (
       <div style={{ padding: 14, background: 'var(--accent-soft)', border: '1px solid var(--accent-primary)', borderRadius: 'var(--r-md)' }}>
+        {dialog}
         <div style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600, marginBottom: 4 }}>
           ✓ Tax-exempt actif
         </div>
@@ -103,8 +106,8 @@ export default function TaxExemptToggle({ userId, initialExempt, initialCertId }
         </div>
         <button
           type="button"
-          onClick={() => {
-            if (window.confirm(`Désactiver le statut tax-exempt pour ce user ? Le certificat ${certId} sera nullifié.`)) {
+          onClick={async () => {
+            if (await confirm({ title: 'Désactiver le statut tax-exempt ?', body: `Le certificat ${certId} sera nullifié.`, confirmLabel: 'Désactiver', danger: true })) {
               toggle(false, '');
             }
           }}

@@ -11,11 +11,13 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 type FormMode = null | 'ship' | 'note';
 
 export default function SampleActions({ id, status }: { id: string; status: string }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [openForm, setOpenForm] = useState<FormMode>(null);
@@ -54,7 +56,7 @@ export default function SampleActions({ id, status }: { id: string; status: stri
   }
 
   async function cancel() {
-    if (!window.confirm('Annuler cette demande ? Le customer ne sera pas notifié automatiquement.')) return;
+    if (!(await confirm({ title: 'Annuler cette demande ?', body: 'Le customer ne sera pas notifié automatiquement.', confirmLabel: 'Annuler la demande', danger: true }))) return;
     await patch({ action: 'cancel' });
   }
 
@@ -99,6 +101,7 @@ export default function SampleActions({ id, status }: { id: string; status: stri
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
+      {dialog}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {status === 'PENDING' && (
           <>

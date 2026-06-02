@@ -2,14 +2,24 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 export default function EmailRetryButton({ id, status }: { id: string; status: string }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   async function handleRetry() {
-    if (status === 'DEAD' && !confirm('Cette commande est DEAD après 3 retries. Re-tenter ? Tu devrais vérifier que le problème (SES, email invalide, etc.) est réglé avant.')) {
+    if (
+      status === 'DEAD' &&
+      !(await confirm({
+        title: 'Re-tenter cet email DEAD ?',
+        body: 'Cette commande est DEAD après 3 retries. Vérifie que le problème (SES, email invalide, etc.) est réglé avant de re-tenter.',
+        confirmLabel: 'Re-tenter',
+        danger: true,
+      }))
+    ) {
       return;
     }
     setBusy(true);
@@ -28,6 +38,8 @@ export default function EmailRetryButton({ id, status }: { id: string; status: s
   }
 
   return (
+    <>
+    {dialog}
     <button
       onClick={handleRetry}
       disabled={busy}
@@ -49,5 +61,6 @@ export default function EmailRetryButton({ id, status }: { id: string; status: s
     >
       {busy ? '...' : feedback ?? 'Retry'}
     </button>
+    </>
   );
 }

@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface Props {
   experimentId: string;
@@ -18,6 +19,7 @@ interface Props {
 
 export default function ExperimentToggle({ experimentId, currentlyActive }: Props) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [optimistic, setOptimistic] = useState(currentlyActive);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -25,7 +27,7 @@ export default function ExperimentToggle({ experimentId, currentlyActive }: Prop
   async function toggle() {
     const next = !optimistic;
     // Confirm avant désactivation (risque de perdre le contexte des conversions)
-    if (optimistic && !confirm(`Désactiver "${experimentId}" ? Tous les visiteurs verront le control. À utiliser quand l'expérience est conclue.`)) {
+    if (optimistic && !(await confirm({ title: `Désactiver « ${experimentId} » ?`, body: 'Tous les visiteurs verront le control. À utiliser quand l’expérience est conclue.', confirmLabel: 'Désactiver', danger: true }))) {
       return;
     }
 
@@ -53,6 +55,7 @@ export default function ExperimentToggle({ experimentId, currentlyActive }: Prop
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+      {dialog}
       <button
         type="button"
         onClick={toggle}
