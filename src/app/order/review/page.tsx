@@ -502,7 +502,18 @@ function PaymentForm({ total }: { total: number }) {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(true);
 
-  const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/order/confirmation`;
+  // FIABILITÉ (Round 1 audit) : returnUrl dérivé de window.location.origin
+  // (composant client) et NON de process.env.NEXT_PUBLIC_APP_URL. Cette dernière
+  // est inlinée au BUILD : si elle manquait au build Amplify, returnUrl retombait
+  // sur http://localhost:3000 → Stripe redirigeait le client PAYÉ vers localhost
+  // (client perdu, cart non vidé, zéro confirmation, échec silencieux).
+  // window.location.origin est toujours l'origine réelle du visiteur.
+  // (Le fallback SSR relatif n'est jamais envoyé à Stripe : confirmPayment ne
+  // s'exécute que sur clic, côté client, où window existe.)
+  const returnUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/order/confirmation`
+      : '/order/confirmation';
 
   const handleSubmit = async () => {
     if (!stripe || !elements) return;
