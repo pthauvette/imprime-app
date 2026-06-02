@@ -11,6 +11,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 type Segment =
   | 'newsletter'
@@ -69,6 +70,7 @@ const LABEL_BY_KEY: Record<Segment, string> = Object.fromEntries(
 
 export default function BroadcastComposer() {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [segment, setSegment] = useState<Segment>('newsletter');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -196,7 +198,13 @@ export default function BroadcastComposer() {
       `Sujet : ${subj}\n` +
       (scheduledIso ? `Quand : ${new Date(scheduledIso).toLocaleString('fr-CA')}\n\n` : '\n') +
       `Cette action est irréversible (${sendMode === 'later' ? 'le broadcast sera processé par le cron à l\'heure indiquée' : 'les emails seront enqueued immédiatement'}).`;
-    if (!window.confirm(confirmMsg)) return;
+    const ok = await confirm({
+      title: sendMode === 'later' ? 'Programmer ce broadcast ?' : 'Envoyer ce broadcast ?',
+      body: confirmMsg,
+      confirmLabel: sendMode === 'later' ? 'Programmer' : 'Envoyer maintenant',
+      danger: true,
+    });
+    if (!ok) return;
 
     setError(null);
     setDone(null);
@@ -238,6 +246,7 @@ export default function BroadcastComposer() {
     /* Round 40 #2 — layout via .admin-composer-preview-grid (migrated-pages.css);
        collapses to 1-col at < 900px so each panel gets full width on mobile. */
     <div className="admin-composer-preview-grid" style={{ alignItems: 'start' }}>
+      {dialog}
       <form
         onSubmit={handleSend}
         style={{

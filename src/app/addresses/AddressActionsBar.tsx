@@ -12,6 +12,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressForm from './AddressForm';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface AddressData {
   id: string;
@@ -31,13 +32,24 @@ interface AddressData {
 
 export default function AddressActionsBar({ addresses }: { addresses: AddressData[] }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [editing, setEditing] = useState<AddressData | null>(null);
   const [creating, setCreating] = useState(false);
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   async function action(id: string, body: Record<string, unknown> | null, method: 'PATCH' | 'DELETE', label: string) {
-    if (!window.confirm(`${label} ?`)) return;
+    // Round 9 #2 — confirmation seulement pour le destructif (DELETE), via modal
+    // stylé. « Faire défaut » (PATCH set-default) est RÉVERSIBLE → plus de confirm.
+    if (method === 'DELETE') {
+      const ok = await confirm({
+        title: `${label} ?`,
+        body: 'Cette action est irréversible.',
+        confirmLabel: 'Supprimer',
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setError(null);
     startTransition(async () => {
       try {
@@ -57,6 +69,7 @@ export default function AddressActionsBar({ addresses }: { addresses: AddressDat
 
   return (
     <>
+      {dialog}
       <div
         style={{
           display: 'flex',
