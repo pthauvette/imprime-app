@@ -65,19 +65,10 @@ export default async function SettingsPage() {
         <div className="panel" style={{ marginBottom: 24 }}>
           <div className="panel-header">
             <h2 className="panel-title">Informations personnelles</h2>
-            <button
-              className="panel-action"
-              disabled
-              title="Édition à venir — bouton non actif pour MVP"
-              style={{
-                opacity: 0.5,
-                cursor: 'not-allowed',
-                background: 'transparent',
-                border: 'none',
-              }}
-            >
-              Modifier
-            </button>
+            {/* Round 9 — bouton « Modifier » disabled retiré : il n'y a pas
+                encore d'édition de profil, et un bouton désactivé sans
+                alternative est un faux signal. À réintroduire quand l'édition
+                inline existera. */}
           </div>
           <div
             style={{

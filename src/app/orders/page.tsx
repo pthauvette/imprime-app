@@ -5,8 +5,10 @@
  * wholesale globale — pas par utilisateur. Maintenant on lit notre DB qui
  * contient un snapshot par order (créé par le webhook Stripe).
  *
- * Auth.js n'étant pas encore branché, on liste TOUTES les commandes pour le
- * MVP. À filtrer par session.user.id quand l'auth sera en place.
+ * Auth branché : on liste les commandes de l'user connecté (session.user.id),
+ * via listOrdersForUser. Un ADMIN peut consulter celles d'un autre user en
+ * read-only via ?viewAsUserId= (cf. plus bas, audité). Le commentaire « liste
+ * TOUTES les commandes » d'avant était obsolète (Round 9).
  */
 
 import Link from 'next/link';

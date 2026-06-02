@@ -188,11 +188,9 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
         { key: 'experiments', href: '/admin/experiments' as Route, label: 'Expériences A/B', icon: ICONS.audit },
         { key: 'crons', href: '/admin/crons' as Route, label: 'Cron monitor', icon: ICONS.audit },
         { key: 'audit', href: '/admin/audit' as Route, label: 'Journal admin', icon: ICONS.audit },
-        // "Réglages" : pointait sur /admin (= dashboard) → dead link.
-        // Renvoie maintenant vers /admin/crons qui est la page admin
-        // "config tech" la plus proche. Si on fait une vraie page
-        // /admin/settings plus tard, on update ici.
-        { key: 'settings', href: '/admin/crons' as Route, label: 'Réglages', icon: ICONS.settings },
+        // Round 9 — l'entrée « Réglages » pointait sur /admin/crons, doublon
+        // trompeur de « Cron monitor » ci-dessus (même destination, label faux).
+        // Retirée. À réintroduire si une vraie page /admin/settings existe.
       ],
     },
   ];
