@@ -7,10 +7,9 @@ import TestimonialsSection from '@/components/marketing/TestimonialsSection';
 import ReviewsWidget from '@/components/marketing/ReviewsWidget';
 import LangSwitch from '@/components/i18n/LangSwitch';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
-import UserMenu from '@/components/account/UserMenu';
+import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import { getServerLocale } from '@/lib/i18n/locale';
 import { translate } from '@/lib/i18n/messages';
-import { auth } from '@/auth';
 
 export const metadata = { title: "Plio — Print wholesale au Canada" };
 
@@ -19,8 +18,12 @@ export default async function LandingPage() {
   // Le reste du contenu marketing reste en FR (migration incrémentale).
   const locale = await getServerLocale();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const session = await auth();
-  const sessionUser = session?.user;
+  // Round 46 — SÉCURITÉ : la session n'est PLUS résolue côté serveur ici.
+  // Rendre session.user.email dans le HTML SSR le faisait fuiter quand le
+  // runtime SSR Amplify resservait par intermittence un rendu connecté à une
+  // requête anonyme (fuite de PII + mismatch d'hydratation = pastille morte).
+  // La pastille est désormais résolue CÔTÉ CLIENT (ClientHeaderUserSlot, qui
+  // fetch /api/auth/session avec le cookie du vrai visiteur) → zéro PII en SSR.
 
   return (
     <>
@@ -36,24 +39,10 @@ export default async function LandingPage() {
             <a href="#products" className="mkt-nav-link">{t('nav.products')}</a>
             <a href="#how" className="mkt-nav-link">{t('nav.howItWorks')}</a>
             <a href="/blog" className="mkt-nav-link">{t('nav.blog')}</a>
-            {sessionUser ? (
-              <>
-                <a href="/order/start" className="mkt-nav-cta">{t('nav.startOrder')} →</a>
-                <UserMenu
-                  user={{
-                    name: sessionUser.name ?? null,
-                    email: sessionUser.email ?? '',
-                    image: sessionUser.image ?? null,
-                  }}
-                />
-              </>
-            ) : (
-              <>
-                <a href="/sign-in" className="mkt-nav-link">{t('nav.signIn')}</a>
-                <a href="/order/start" className="mkt-nav-cta">{t('nav.startOrder')} →</a>
-                <LangSwitch />
-              </>
-            )}
+            <a href="/order/start" className="mkt-nav-cta">{t('nav.startOrder')} →</a>
+            <LangSwitch />
+            {/* Pastille user résolue côté client (zéro PII en SSR — cf. note plus haut). */}
+            <ClientHeaderUserSlot signInLabel={t('nav.signIn')} />
           </div>
         </nav>
 
