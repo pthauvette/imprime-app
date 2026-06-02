@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sinalite } from '@/lib/sinalite/client';
 import { SinaliteShippingEstimateRequest } from '@/lib/sinalite/types';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
+import { shippingQuoteToken } from '@/lib/shipping/quote-token';
 
 /**
  * POST /api/shipping/estimate
@@ -10,12 +11,17 @@ import { withErrorHandler, parseBody } from '@/lib/api-helpers';
  * Retourne les méthodes UPS/FedEx avec prix et délai.
  *
  * Réponse normalisée (object au lieu du tuple Sinalite):
- *   { methods: [{ carrier, method, price, days, eta }] }
+ *   { methods: [{ carrier, method, price, days, eta, sig }] }
+ *
+ * Round 1 audit — chaque devis est SIGNÉ (sig HMAC liant méthode+prix+
+ * destination+produits). Le client porte la sig jusqu'à /api/orders/create
+ * qui la vérifie → anti-tamper sur shippingPrice sans re-appel Sinalite.
  */
 export const POST = withErrorHandler(async (req: Request) => {
   const payload = await parseBody(req, SinaliteShippingEstimateRequest);
   const result = await sinalite.estimateShipping(payload);
 
+  const productIds = payload.items.map((i) => i.productId);
   const today = new Date();
   const methods = result.body.map(([carrier, method, price, days]) => ({
     carrier,
@@ -23,6 +29,14 @@ export const POST = withErrorHandler(async (req: Request) => {
     price,
     days,
     eta: addBusinessDays(today, days).toISOString(),
+    sig: shippingQuoteToken({
+      method,
+      price,
+      country: payload.shippingInfo.ShipCountry,
+      province: payload.shippingInfo.ShipState,
+      postal: payload.shippingInfo.ShipZip,
+      productIds,
+    }),
   }));
 
   // Sort by price ascending — cheapest first

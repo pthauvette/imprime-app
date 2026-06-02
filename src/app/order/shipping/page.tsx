@@ -33,6 +33,8 @@ interface ShippingMethod {
   price: number;
   days: number;
   eta: string;
+  /** Round 1 audit — devis signé (HMAC) porté jusqu'au create pour anti-tamper. */
+  sig: string;
 }
 
 const POSTAL_REGEX = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
@@ -145,13 +147,15 @@ function ShippingPageInner() {
 
   const canContinue = contactValid && postalValid && selectedMethod && methods.length > 0;
   const selectedShippingPrice = methods.find((m) => m.method === selectedMethod)?.price ?? 0;
+  // Round 1 audit — sig du devis choisi, portée jusqu'au create (anti-tamper).
+  const selectedSig = methods.find((m) => m.method === selectedMethod)?.sig ?? '';
 
   const nextHref = canContinue
     ? `/order/review?productId=${productId}&options=${options}&files=${files}&ship=${encodeURIComponent(
         JSON.stringify({
           firstName, lastName, email, phone,
           line1, line2, city, province, postalCode,
-          method: selectedMethod, price: selectedShippingPrice,
+          method: selectedMethod, price: selectedShippingPrice, sig: selectedSig,
           // Round 26 #2 — instructions livraison (trim + slice safety)
           ...(shippingNote.trim() && { note: shippingNote.trim().slice(0, 200) }),
         }),
