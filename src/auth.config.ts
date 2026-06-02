@@ -17,6 +17,11 @@ export const authConfig = {
   pages: {
     signIn: '/sign-in',
     verifyRequest: '/sign-in/sent',
+    // Round 6 #1 — sans pages.error, un lien magique expiré/déjà utilisé
+    // (erreur la plus fréquente du flow) renvoyait vers la page d'erreur Auth.js
+    // par défaut (générique, hors design). On route les erreurs vers /sign-in
+    // qui lit ?error= et affiche une bannière mappée.
+    error: '/sign-in',
   },
   // Doit matcher auth.ts pour que le middleware lise le JWT cookie correctement.
   session: { strategy: 'jwt' },
