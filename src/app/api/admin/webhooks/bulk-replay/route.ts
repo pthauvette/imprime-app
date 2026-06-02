@@ -125,7 +125,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   const totalSucceeded = results.filter((r) => r.success).length;
 
   void recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    kind: 'ADMIN_WEBHOOK_REPLAY', // Round 1 audit — cohérent avec le replay unitaire
     adminId: guard.userId,
     adminEmail: guard.user.email,
     targetType: 'ORDER',
