@@ -9,6 +9,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import ResellerApplicationForm from './ResellerApplicationForm';
+import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 
 export const metadata = {
   title: 'Programme reseller — Plio',
@@ -201,7 +202,7 @@ const BENEFITS = [
   {
     icon: '🇨🇦',
     title: '100 % imprimé au Canada',
-    desc: 'Pas d\'outsource étranger. Tes clients reçoivent leur commande en 4-7 jours.',
+    desc: `Pas d'outsource étranger. Tes clients reçoivent leur commande en ${DELIVERY_WINDOW}.`,
   },
 ];
 

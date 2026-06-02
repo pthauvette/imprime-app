@@ -14,6 +14,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 
 export const metadata = {
   title: 'Tarifs — Plio',
@@ -128,7 +129,7 @@ export default function PricingPage() {
             {[
               { num: '01', title: 'Produit + options', desc: 'Le prix de base dépend du papier, format, finition. Tout est visible dans le wizard.' },
               { num: '02', title: 'Quantité dégressive', desc: 'Plus tu commandes, moins c\'est cher par unité. 1000 cartes coûtent ~0,12 $/u vs 0,52 $/u à 100.' },
-              { num: '03', title: 'Délai (rush ou standard)', desc: 'Standard 4-7 j inclus. Rush 24-48 h ajoute ~15-30 % selon le produit.' },
+              { num: '03', title: 'Délai (rush ou standard)', desc: `Standard inclus (livraison ${DELIVERY_WINDOW}). Express et Rush accélèrent la production — le surcoût exact s'affiche au devis selon le produit.` },
               { num: '04', title: 'Livraison + taxes', desc: 'UPS/Postes Canada calculés selon ta province. TPS/TVQ ajoutées au sous-total.' },
             ].map((step) => (
               <div key={step.num} style={{ padding: 22, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)' }}>

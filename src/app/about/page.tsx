@@ -10,10 +10,11 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import { DELIVERY_WINDOW, DELIVERY_DAYS } from '@/lib/content/marketing';
 
 export const metadata = {
   title: 'À propos de Plio — print wholesale au Canada',
-  description: 'Plio est une plateforme québécoise qui rend l\'impression wholesale aussi simple qu\'une commande Uber : devis instantané, prix transparent, livraison 4-7 jours.',
+  description: `Plio est une plateforme québécoise qui rend l'impression wholesale aussi simple qu'une commande Uber : devis instantané, prix transparent, livraison ${DELIVERY_WINDOW}.`,
 };
 
 export default function AboutPage() {
@@ -93,7 +94,7 @@ export default function AboutPage() {
                 <div className="stat-label">Imprimé au Canada — pas d&apos;outsource étranger</div>
               </div>
               <div className="stat">
-                <div className="stat-value">4-7<em> j</em></div>
+                <div className="stat-value">{DELIVERY_DAYS}<em> j</em></div>
                 <div className="stat-label">Livraison standard partout au Canada</div>
               </div>
               <div className="stat">
@@ -230,7 +231,7 @@ export default function AboutPage() {
         <div className="footer-grid">
           <div className="footer-brand">
             <span className="footer-brand-mark">Plio.</span>
-            <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en 4 à 7 jours.</p>
+            <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en {DELIVERY_WINDOW}.</p>
           </div>
           <div className="footer-col">
             <h4>Entreprise</h4>
