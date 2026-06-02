@@ -94,7 +94,11 @@ function ShippingPageInner() {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
 
   const postalValid = POSTAL_REGEX.test(postalCode);
-  const contactValid = firstName && lastName && email.includes('@') && phone;
+  // Round 7 #5 — `email.includes('@')` était trop laxe ('@' seul passait, on
+  // pouvait avancer vers le paiement avec un courriel invalide). Vrai check.
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const contactValid =
+    Boolean(firstName.trim() && lastName.trim() && phone.trim()) && emailValid;
 
   // Parse options for the API call
   const optionsByName = useMemo(() => {
@@ -204,7 +208,7 @@ function ShippingPageInner() {
                 <Field label="Nom" value={lastName} onChange={setLastName} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                <Field label="Email" value={email} onChange={setEmail} type="email" />
+                <Field label="Email" value={email} onChange={setEmail} type="email" invalid={email.trim().length > 0 && !emailValid} />
                 <Field label="Téléphone" value={phone} onChange={setPhone} type="tel" />
               </div>
             </div>
@@ -436,13 +440,17 @@ function Section({ roman, title, children }: { roman: string; title: string; chi
   );
 }
 
-function Field({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function Field({ label, value, onChange, type = 'text', invalid }: { label: string; value: string; onChange: (v: string) => void; type?: string; invalid?: boolean }) {
   return (
     <FieldWrapper label={label}>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        // Round 7 #5 — le <label> de FieldWrapper n'est pas associé à l'input
+        // (pas de htmlFor/id) → on donne un nom accessible + l'état de validité.
+        aria-label={label}
+        aria-invalid={invalid || undefined}
         style={{ width: '100%', border: 0, background: 'transparent', font: 'inherit', color: 'var(--text-primary)', outline: 'none' }}
       />
     </FieldWrapper>

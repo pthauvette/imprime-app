@@ -12,7 +12,7 @@
  * Clavier : ↓↑ pour navigate, Enter pour select, Esc pour close.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 interface FindItem {
   id: string;
@@ -51,6 +51,8 @@ export default function AddressAutocomplete({
   const [available, setAvailable] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
+  // Round 7 #5 — id stable (unique par instance) pour le pattern combobox.
+  const listboxId = useId();
   const [loading, setLoading] = useState(false);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,6 +130,13 @@ export default function AddressAutocomplete({
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Round 7 #5 — ré-ouverture clavier après Escape : ↓ rouvre la liste si on
+    // a déjà des résultats (avant, impossible de rouvrir sans retaper).
+    if (e.key === 'ArrowDown' && !open && items.length > 0) {
+      e.preventDefault();
+      setOpen(true);
+      return;
+    }
     if (!open || items.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -155,6 +164,14 @@ export default function AddressAutocomplete({
         placeholder={placeholder ?? '1234 rue Saint-Denis, Montréal'}
         autoComplete="off"
         spellCheck={false}
+        // Round 7 #5 — pattern combobox : la sélection ↑↓ devient audible.
+        role="combobox"
+        aria-expanded={open && items.length > 0}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          open && highlight >= 0 ? `${listboxId}-opt-${highlight}` : undefined
+        }
         style={
           inputStyle ?? {
             width: '100%',
@@ -183,6 +200,7 @@ export default function AddressAutocomplete({
       {open && items.length > 0 && (
         <div
           role="listbox"
+          id={listboxId}
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
@@ -202,6 +220,7 @@ export default function AddressAutocomplete({
             return (
               <button
                 key={item.id}
+                id={`${listboxId}-opt-${idx}`}
                 type="button"
                 role="option"
                 aria-selected={isHighlight}
