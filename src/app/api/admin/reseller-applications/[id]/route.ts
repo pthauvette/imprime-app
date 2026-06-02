@@ -10,6 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
@@ -36,11 +37,54 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
 
   const now = new Date();
   let updated;
+  let resellerUnlocked = false;
   if (body.action === 'approve') {
-    updated = await prisma.resellerApplication.update({
-      where: { id },
-      data: { status: 'APPROVED', decidedAt: now },
+    // Approuver = débloquer le pricing reseller. AVANT, on ne flippait que le
+    // statut de l'application : User.resellerStatus restait NONE (perks jamais
+    // débloqués) et le client n'était pas notifié. L'application n'a pas de
+    // userId → on lie par email (la dedup key). Si un compte existe, on le passe
+    // VERIFIED dans la MÊME transaction que l'application (atomique). Pas de
+    // downgrade si déjà VERIFIED/PLATINUM.
+    const user = await prisma.user.findFirst({
+      where: { email: existing.email },
+      select: { id: true, resellerStatus: true, resellerDetectedAt: true },
     });
+    const shouldUnlock =
+      !!user && user.resellerStatus !== 'VERIFIED' && user.resellerStatus !== 'PLATINUM';
+
+    const ops: Prisma.PrismaPromise<unknown>[] = [
+      prisma.resellerApplication.update({
+        where: { id },
+        data: { status: 'APPROVED', decidedAt: now },
+      }),
+    ];
+    if (shouldUnlock) {
+      ops.push(
+        prisma.user.update({
+          where: { id: user!.id },
+          data: {
+            resellerStatus: 'VERIFIED',
+            resellerDetectedAt: user!.resellerDetectedAt ?? now,
+          },
+        }),
+      );
+    }
+    const results = await prisma.$transaction(ops);
+    updated = results[0] as typeof existing;
+    resellerUnlocked = shouldUnlock;
+
+    // Email de décision (best-effort, HORS transaction — ne doit pas bloquer ni
+    // annuler l'approbation si SES est down).
+    try {
+      const { sendResellerApprovedEmail } = await import('@/lib/emails/send');
+      await sendResellerApprovedEmail({
+        to: existing.email,
+        contactName: existing.contactName,
+        companyName: existing.companyName,
+      });
+    } catch {
+      // best-effort : l'approbation reste valide même si l'email échoue
+    }
   } else if (body.action === 'reject') {
     updated = await prisma.resellerApplication.update({
       where: { id },
@@ -74,6 +118,7 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
       companyName: existing.companyName,
       previousStatus: existing.status,
       newStatus: updated.status,
+      ...(body.action === 'approve' ? { resellerUnlocked } : {}),
     },
   });
 

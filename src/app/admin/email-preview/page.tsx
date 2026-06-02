@@ -31,6 +31,7 @@ export const metadata = { title: 'Admin — Aperçu emails · Plio' };
 const TEMPLATE_LABELS: Record<EmailTemplate, string> = {
   'magic-link': 'Magic link (sign-in)',
   'welcome': 'Bienvenue (nouveau user)',
+  'reseller-approved': 'Reseller approuvé',
   'order-confirmation': 'Confirmation commande',
   'order-shipped': 'Expédition (SHIPPED)',
   'order-delivered': 'Livraison (DELIVERED)',

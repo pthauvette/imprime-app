@@ -16,6 +16,7 @@ import { logEmail } from '@/lib/logger';
 export type EmailTemplate =
   | 'magic-link'
   | 'welcome'
+  | 'reseller-approved'
   | 'order-confirmation'
   | 'order-shipped'
   | 'order-delivered'
@@ -66,6 +67,7 @@ export function renderEmail(
 export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string | number>) => string> = {
   'magic-link': () => 'Ton lien de connexion Plio',
   'welcome': () => 'Bienvenue chez Plio · 3 trucs avant ta première commande',
+  'reseller-approved': (v) => `C'est officiel — ${v.COMPANY_NAME ?? 'ton compte'} est reseller Plio ✓`,
   'order-confirmation': (v) => `C'est imprimé. Confirmation #${v.ORDER_ID ?? ''}`,
   'order-shipped': (v) => `Ta commande #${v.ORDER_ID ?? ''} est en route`,
   'order-delivered': (v) => `C'est arrivé. Merci #${v.ORDER_ID ?? ''}`,

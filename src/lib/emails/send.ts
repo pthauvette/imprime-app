@@ -30,6 +30,7 @@ import type {
   ReengagementWinbackVars,
   AbandonedCartVars,
   ResellerMonthlyStatsVars,
+  ResellerApprovedVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -160,6 +161,31 @@ function itemsHtmlBlock(order: Order): string {
  * Triggered par events.signIn() dans auth.ts avec garde "isNewUser" + DB
  * column welcomeEmailSentAt pour éviter les doublons.
  */
+/**
+ * Round 4 #2 — envoyé quand un admin APPROUVE une demande reseller. Notifie le
+ * contact (qu'il ait un compte ou non) que son pricing reseller est débloqué.
+ * Transactional (pas de List-Unsubscribe) : c'est une décision, pas du marketing.
+ */
+export async function sendResellerApprovedEmail(input: {
+  to: string;
+  contactName: string;
+  companyName: string;
+}) {
+  const contactFirst = input.contactName.trim().split(/\s+/)[0] || input.contactName;
+  const vars: ResellerApprovedVars = {
+    CONTACT_FIRST_NAME: contactFirst,
+    COMPANY_NAME: input.companyName,
+    RESELLER_URL: `${APP_URL}/account`,
+    ORDER_START_URL: `${APP_URL}/order/start`,
+  };
+  return queueEmail({
+    to: input.to,
+    template: 'reseller-approved',
+    vars: vars as unknown as Record<string, string | number>,
+    label: `reseller-approved:${input.to}`,
+  });
+}
+
 export async function sendWelcomeEmail(input: { user: User }) {
   const { user } = input;
   const vars: WelcomeVars = {
