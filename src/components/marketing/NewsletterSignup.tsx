@@ -65,6 +65,7 @@ export default function NewsletterSignup({ source = 'landing-footer' }: { source
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          aria-label="Ton adresse courriel pour l'infolettre"
           placeholder="ton@email.ca"
           autoComplete="email"
           style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 13, background: 'var(--bg-canvas)' }}

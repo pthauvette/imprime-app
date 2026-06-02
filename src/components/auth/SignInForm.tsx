@@ -73,6 +73,7 @@ export default function SignInForm({
 
       {error && (
         <div
+          role="alert"
           style={{
             padding: '12px 16px',
             background: 'var(--danger-soft)',

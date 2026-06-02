@@ -66,6 +66,7 @@ export default function SearchClient({ initialQuery }: { initialQuery: string })
         value={q}
         onChange={(e) => setQ(e.target.value)}
         autoFocus
+        aria-label="Rechercher dans l'aide, les produits et le blog"
         placeholder="Tape ta question ou un mot-clé…"
         style={{
           width: '100%',
