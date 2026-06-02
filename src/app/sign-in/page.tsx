@@ -14,13 +14,32 @@ import SignInForm from '@/components/auth/SignInForm';
 
 export const metadata = { title: 'Connexion — Plio' };
 
+/**
+ * Mappe les codes d'erreur Auth.js (?error=) en message FR. Le plus fréquent est
+ * `Verification` (lien magique expiré ou déjà utilisé — usage unique + TTL).
+ */
+function signInError(code: string | undefined): string | null {
+  if (!code) return null;
+  switch (code) {
+    case 'Verification':
+      return 'Ce lien de connexion a expiré ou a déjà été utilisé. Demande-en un nouveau ci-dessous — on te le renvoie en quelques secondes.';
+    case 'AccessDenied':
+      return "Accès refusé. Si tu penses que c'est une erreur, écris-nous à bonjour@plio.ca.";
+    case 'Configuration':
+      return "Un souci technique nous empêche de te connecter pour l'instant. Réessaie dans un moment.";
+    default:
+      return 'La connexion a échoué. Réessaie en demandant un nouveau lien ci-dessous.';
+  }
+}
+
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
   const session = await auth();
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, error } = await searchParams;
+  const errorMessage = signInError(error);
   // SÉCURITÉ (Round 1 audit) : callbackUrl vient des searchParams (non fiable).
   // Sans validation, /sign-in?callbackUrl=https://evil.com redirige un user déjà
   // connecté HORS-SITE (open-redirect → phishing). On le sanitize en chemin
@@ -86,6 +105,24 @@ export default async function SignInPage({
             Bon retour, <em>imprimeur.</em>
           </h1>
           <p>Connecte-toi pour reprendre où tu en étais.</p>
+
+          {errorMessage && (
+            <div
+              role="alert"
+              style={{
+                margin: '0 0 20px',
+                padding: '12px 14px',
+                background: 'var(--danger-soft, #fef2f2)',
+                border: '1px solid var(--danger, #dc2626)',
+                borderRadius: 'var(--r-md, 10px)',
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: 'var(--danger, #dc2626)',
+              }}
+            >
+              ⚠️ {errorMessage}
+            </div>
+          )}
 
           <SignInForm callbackUrl={safeCallback} />
         </div>
