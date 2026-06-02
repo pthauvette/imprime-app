@@ -17,9 +17,11 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 export default function OrderBulkBar() {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, startTransition] = useTransition();
   const [result, setResult] = useState<string | null>(null);
@@ -118,7 +120,11 @@ export default function OrderBulkBar() {
       setError('Max 50 commandes par bulk resend (limite SES).');
       return;
     }
-    if (!confirm(`Renvoyer l'email de confirmation à ${n} customer${n > 1 ? 's' : ''} ?\n\nNote : les orders PENDING ou FAILED seront ignorées.`)) {
+    if (!(await confirm({
+      title: `Renvoyer la confirmation à ${n} customer${n > 1 ? 's' : ''} ?`,
+      body: 'Les orders PENDING ou FAILED seront ignorées.',
+      confirmLabel: 'Renvoyer',
+    }))) {
       return;
     }
     setError(null);
@@ -144,7 +150,11 @@ export default function OrderBulkBar() {
     if (selectedIds.size === 0) return;
     const n = selectedIds.size;
     const label = { IN_PRODUCTION: 'EN PRODUCTION', SHIPPED: 'EXPÉDIÉES', DELIVERED: 'LIVRÉES' }[status];
-    if (!confirm(`Marquer ${n} commande${n > 1 ? 's' : ''} comme ${label} ?\n\nNote : les orders déjà DELIVERED, CANCELLED ou FAILED seront ignorées (sécurité).`)) {
+    if (!(await confirm({
+      title: `Marquer ${n} commande${n > 1 ? 's' : ''} comme ${label} ?`,
+      body: 'Les orders déjà DELIVERED, CANCELLED ou FAILED seront ignorées (sécurité).',
+      confirmLabel: 'Confirmer',
+    }))) {
       return;
     }
     // Round 41 #2 — Pour SHIPPED, on ouvre un inline form combiné (tracking +
@@ -225,6 +235,7 @@ export default function OrderBulkBar() {
 
   return (
     <>
+      {dialog}
       {/* Round 41 #2 — Inline form pour bulkNote (was window.prompt) */}
       {openForm === 'note' && (
         <form

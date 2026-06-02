@@ -12,6 +12,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface Props {
   id: string;
@@ -23,6 +24,7 @@ interface Props {
 
 export default function FavoriteActions({ id, name, folder, tags, existingFolders = [] }: Props) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -107,7 +109,7 @@ export default function FavoriteActions({ id, name, folder, tags, existingFolder
   }
 
   async function remove() {
-    if (!window.confirm(`Supprimer "${name}" ?`)) return;
+    if (!(await confirm({ title: `Supprimer « ${name} » ?`, confirmLabel: 'Supprimer', danger: true }))) return;
     setError(null);
     startTransition(async () => {
       try {
@@ -192,6 +194,7 @@ export default function FavoriteActions({ id, name, folder, tags, existingFolder
 
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      {dialog}
       <button type="button" className="btn btn-primary btn-sm" onClick={use} disabled={busy} style={{ opacity: busy ? 0.5 : 1 }}>
         Utiliser →
       </button>

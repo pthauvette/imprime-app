@@ -15,6 +15,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 const MAX_LEN = 1500;
 
@@ -28,6 +29,7 @@ export default function ReviewReplyForm({
   existingReplyAt: string | null;
 }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [draft, setDraft] = useState(existingReply ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export default function ReviewReplyForm({
         borderRadius: 'var(--r-sm)',
       }}
     >
+      {dialog}
       <div
         style={{
           fontFamily: 'var(--font-mono)',
@@ -135,8 +138,8 @@ export default function ReviewReplyForm({
         {hasReply && (
           <button
             type="button"
-            onClick={() => {
-              if (confirm('Supprimer la réponse publique ? Elle sera retirée immédiatement de la landing.')) {
+            onClick={async () => {
+              if (await confirm({ title: 'Supprimer la réponse publique ?', body: 'Elle sera retirée immédiatement de la landing.', confirmLabel: 'Supprimer', danger: true })) {
                 setDraft('');
                 void submit('');
               }
