@@ -13,9 +13,16 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
-export default function SignInForm({ callbackUrl }: { callbackUrl?: string }) {
+export default function SignInForm({
+  callbackUrl,
+  initialEmail,
+}: {
+  callbackUrl?: string;
+  /** Pré-rempli depuis ?email= (flow « Renvoyer un lien » — évite de retaper). */
+  initialEmail?: string;
+}) {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

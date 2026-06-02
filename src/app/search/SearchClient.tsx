@@ -22,20 +22,28 @@ export default function SearchClient({ initialQuery }: { initialQuery: string })
   const [q, setQ] = useState(initialQuery);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [didSearch, setDidSearch] = useState(false);
+  // Round 6 #5 — état d'erreur DISTINCT de « 0 résultat ». Avant, le catch
+  // faisait juste setResults([]) → un échec API affichait « Aucun résultat »
+  // (trompeur : laisse croire qu'il n'y a pas de correspondance plutôt qu'une
+  // panne). On distingue les deux à l'affichage.
+  const [errored, setErrored] = useState(false);
   const [loading, startTransition] = useTransition();
 
   useEffect(() => {
     if (q.length < 2) {
       setResults([]);
       setDidSearch(false);
+      setErrored(false);
       return;
     }
     const t = setTimeout(() => {
       startTransition(async () => {
         try {
           const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
           setResults(data.results ?? []);
+          setErrored(false);
           setDidSearch(true);
           // Sync URL pour deep-link (shallow)
           const params = new URLSearchParams();
@@ -43,6 +51,8 @@ export default function SearchClient({ initialQuery }: { initialQuery: string })
           window.history.replaceState(null, '', `/search?${params.toString()}`);
         } catch {
           setResults([]);
+          setErrored(true);
+          setDidSearch(true);
         }
       });
     }, 250);
@@ -75,12 +85,36 @@ export default function SearchClient({ initialQuery }: { initialQuery: string })
           ? 'Tape au moins 2 caractères pour chercher.'
           : loading
             ? 'Recherche…'
-            : didSearch
-              ? `${results.length} résultat${results.length > 1 ? 's' : ''} pour « ${q} »`
-              : ''}
+            : errored
+              ? 'La recherche a échoué.'
+              : didSearch
+                ? `${results.length} résultat${results.length > 1 ? 's' : ''} pour « ${q} »`
+                : ''}
       </div>
 
-      {results.length === 0 && didSearch && !loading && (
+      {errored && !loading && (
+        <div
+          role="alert"
+          style={{
+            padding: 40,
+            textAlign: 'center',
+            background: 'var(--danger-soft, #fef2f2)',
+            border: '1px solid var(--danger, #dc2626)',
+            borderRadius: 'var(--r-lg)',
+            color: 'var(--danger, #dc2626)',
+          }}
+        >
+          <div style={{ fontSize: 36, marginBottom: 8 }}>⚠️</div>
+          <p style={{ fontSize: 14, margin: '0 0 12px' }}>
+            La recherche n&apos;a pas pu aboutir (problème de connexion). Réessaie dans un instant.
+          </p>
+          <p style={{ fontSize: 12, margin: 0 }}>
+            Si ça persiste, <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>écris-nous</a>.
+          </p>
+        </div>
+      )}
+
+      {!errored && results.length === 0 && didSearch && !loading && (
         <div
           style={{
             padding: 40,
