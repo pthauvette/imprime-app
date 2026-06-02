@@ -46,13 +46,55 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     );
   }
 
-  const refundAmount = body.amountCents ?? order.amountCents;
-  if (refundAmount > order.amountCents) {
+  // Borne le CUMUL des refunds (Round 4 #4). Le garde-fou précédent ne comparait
+  // qu'UN appel à order.amountCents → deux refunds partiels (60 $ + 60 $ sur
+  // 100 $) passaient chacun mais dépassaient le total au 2e (Stripe rejette en
+  // 502 brut). On dérive le déjà-remboursé depuis Stripe (source de vérité :
+  // inclut aussi les refunds émis via le dashboard Stripe) et on valide contre
+  // le RESTANT, pas le total.
+  let alreadyRefundedCents = 0;
+  try {
+    const existingRefunds = await getStripe().refunds.list({
+      payment_intent: order.paymentIntentId,
+      limit: 100,
+    });
+    alreadyRefundedCents = existingRefunds.data
+      .filter((r) => r.status !== 'failed' && r.status !== 'canceled')
+      .reduce((sum, r) => sum + r.amount, 0);
+  } catch (err) {
     return NextResponse.json(
-      { error: 'Refund amount exceeds order total' },
+      { error: err instanceof Error ? err.message : 'Impossible de vérifier les remboursements existants' },
+      { status: 502 },
+    );
+  }
+  const remainingCents = Math.max(0, order.amountCents - alreadyRefundedCents);
+
+  if (remainingCents <= 0) {
+    return NextResponse.json(
+      {
+        error: 'Cette commande est déjà entièrement remboursée.',
+        code: 'REFUND_NONE_REMAINING',
+        alreadyRefundedCents,
+        remainingCents: 0,
+      },
       { status: 400 },
     );
   }
+  if (body.amountCents !== undefined && body.amountCents > remainingCents) {
+    return NextResponse.json(
+      {
+        error: `Montant supérieur au restant remboursable : ${(remainingCents / 100).toFixed(2)} $ sur ${(order.amountCents / 100).toFixed(2)} $ (déjà remboursé : ${(alreadyRefundedCents / 100).toFixed(2)} $).`,
+        code: 'REFUND_EXCEEDS_REMAINING',
+        alreadyRefundedCents,
+        remainingCents,
+      },
+      { status: 400 },
+    );
+  }
+
+  // Montant effectif : explicite si fourni, sinon le RESTANT (un « full refund »
+  // après un partiel ne rembourse que ce qui reste, jamais le total d'origine).
+  const refundAmount = body.amountCents ?? remainingCents;
 
   // Stripe refund — partial if amountCents is set, full otherwise
   //
@@ -204,5 +246,8 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     amountCents: refundAmount,
     walletRestoredCents,
     cancelled: body.cancelOrder ?? false,
+    // Comptabilité refund post-opération (pour affichage admin).
+    alreadyRefundedCents: alreadyRefundedCents + refundAmount,
+    remainingCents: Math.max(0, remainingCents - refundAmount),
   });
 });
