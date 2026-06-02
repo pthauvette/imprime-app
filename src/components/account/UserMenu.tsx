@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { signOut } from 'next-auth/react';
 import ThemeToggle from './ThemeToggle';
 import LangSwitch from '@/components/i18n/LangSwitch';
@@ -38,8 +39,22 @@ function initials(name: string | null | undefined, email: string): string {
 
 export default function UserMenu({ user }: UserMenuProps) {
   const [open, setOpen] = useState(false);
+  // Round 46 — position (viewport-relative) figée à l'ouverture. Le popover est
+  // rendu en PORTAIL vers <body> avec position: fixed, pour échapper au stacking
+  // context du header (.mkt-nav/.shell sont en z-index:2 comme <main>, donc le
+  // menu, prisonnier de cette couche, était peint DERRIÈRE <main> → items non
+  // cliquables, dont « Se déconnecter »). Le portail le sort de ce piège.
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setCoords({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) });
+    }
+    setOpen((v) => !v);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -53,11 +68,18 @@ export default function UserMenu({ user }: UserMenuProps) {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
     }
+    // position: fixed (portail) → on ferme au scroll/resize plutôt que de
+    // laisser le menu détaché de l'avatar.
+    function onScrollResize() { setOpen(false); }
     document.addEventListener('mousedown', onClick);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScrollResize, true);
+    window.addEventListener('resize', onScrollResize);
     return () => {
       document.removeEventListener('mousedown', onClick);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScrollResize, true);
+      window.removeEventListener('resize', onScrollResize);
     };
   }, [open]);
 
@@ -68,7 +90,7 @@ export default function UserMenu({ user }: UserMenuProps) {
       <button
         ref={btnRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Menu utilisateur — ${display}`}
@@ -103,15 +125,15 @@ export default function UserMenu({ user }: UserMenuProps) {
         )}
       </button>
 
-      {open && (
+      {open && coords && createPortal(
         <div
           ref={panelRef}
           role="menu"
           style={{
-            position: 'absolute',
-            right: 0,
-            top: 'calc(100% + 8px)',
-            zIndex: 100,
+            position: 'fixed',
+            top: coords.top,
+            right: coords.right,
+            zIndex: 1000,
             minWidth: 260,
             background: 'var(--bg-surface)',
             border: '1px solid var(--border-subtle)',
@@ -190,7 +212,8 @@ export default function UserMenu({ user }: UserMenuProps) {
               ↩ Se déconnecter
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
