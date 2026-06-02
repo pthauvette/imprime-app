@@ -37,6 +37,11 @@ const BodySchema = z.discriminatedUnion('action', [
     status: z.enum(BULK_ALLOWED_STATUSES),
     trackingNumber: z.string().min(1).max(80).optional(),
     carrier: z.string().min(1).max(40).optional(),
+    // Opt-in explicite : « ces N commandes partent dans UN seul colis, donc un
+    // tracking commun est légitime ». Sans ça, on REFUSE un tracking commun sur
+    // >1 commande (sinon chaque client reçoit le tracking d'un autre — cf. guard
+    // plus bas). Une commande seule n'a jamais besoin de ce flag.
+    groupedShipment: z.boolean().optional(),
   }),
   // Round 23 #2 — bulk resend confirmation. Safe : juste un email,
   // pas de side-effect Stripe/Sinalite. Cap 50 (vs 100 pour les autres
@@ -107,6 +112,22 @@ export const POST = withErrorHandler(async (req: Request) => {
       select: { id: true, status: true, sinaliteOrderId: true },
     });
 
+    // Garde-fou tracking commun : un même numéro ne peut pas s'appliquer à
+    // plusieurs commandes DISTINCTES (chaque client recevrait, dans son email
+    // et /track, le tracking de quelqu'un d'autre). On bloque sauf envoi groupé
+    // explicite (un seul colis). On se base sur eligible.length : si une seule
+    // commande recevra réellement le tracking, c'est sans danger.
+    if (body.trackingNumber && eligible.length > 1 && !body.groupedShipment) {
+      return NextResponse.json(
+        {
+          error:
+            "Un numéro de tracking commun ne peut pas s'appliquer à plusieurs commandes distinctes — chaque client recevrait le tracking d'un autre. Ajoute le tracking commande par commande, ou coche « envoi groupé » si elles partent dans un seul colis.",
+          code: 'BULK_TRACKING_MULTI',
+        },
+        { status: 400 },
+      );
+    }
+
     const eventData = JSON.stringify({
       status: body.status,
       ...(body.trackingNumber ? { trackingNumber: body.trackingNumber } : {}),
@@ -142,7 +163,12 @@ export const POST = withErrorHandler(async (req: Request) => {
       ids: body.ids,
       count,
       ...(body.action === 'markStatus'
-        ? { status: body.status, trackingNumber: body.trackingNumber, carrier: body.carrier }
+        ? {
+            status: body.status,
+            trackingNumber: body.trackingNumber,
+            carrier: body.carrier,
+            ...(body.groupedShipment ? { groupedShipment: true } : {}),
+          }
         : {}),
     },
   });

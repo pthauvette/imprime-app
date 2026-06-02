@@ -33,6 +33,10 @@ export default function OrderBulkBar() {
   const [carrierText, setCarrierText] = useState('UPS');
   // shipPending : commande à exécuter une fois le ship form submitted.
   const [shipPendingCount, setShipPendingCount] = useState(0);
+  // Round 4 #1 — opt-in « envoi groupé » : autorise un tracking commun sur
+  // plusieurs commandes (un seul colis). Sans ça, le tracking est désactivé
+  // quand >1 commande, et le serveur refuse (anti tracking erroné cross-client).
+  const [groupedShipment, setGroupedShipment] = useState(false);
 
   // Attach handlers aux checkboxes au mount + sur navigation (pagination
   // change le DOM). useEffect re-run sur route change via router.refresh.
@@ -149,6 +153,7 @@ export default function OrderBulkBar() {
     if (status === 'SHIPPED') {
       setTrackingText('');
       setCarrierText('UPS');
+      setGroupedShipment(false);
       setShipPendingCount(n);
       setError(null);
       setResult(null);
@@ -183,6 +188,9 @@ export default function OrderBulkBar() {
     e.preventDefault();
     const tracking = trackingText.trim();
     const carrier = carrierText.trim();
+    // Tracking commun autorisé seulement sur 1 commande, ou envoi groupé coché.
+    const trackingAllowed = shipPendingCount <= 1 || groupedShipment;
+    const sendTracking = trackingAllowed ? tracking : '';
     setOpenForm(null);
     setError(null);
     setResult(null);
@@ -197,8 +205,9 @@ export default function OrderBulkBar() {
             ids,
             status: 'SHIPPED',
             // Tracking + carrier optional — only sent if both have value
-            ...(tracking ? { trackingNumber: tracking } : {}),
-            ...(tracking && carrier ? { carrier } : {}),
+            ...(sendTracking ? { trackingNumber: sendTracking } : {}),
+            ...(sendTracking && carrier ? { carrier } : {}),
+            ...(sendTracking && shipPendingCount > 1 ? { groupedShipment: true } : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -300,20 +309,45 @@ export default function OrderBulkBar() {
               Tracking + transporteur optionnels — laisse vide si pas applicable
             </span>
           </div>
+          {/* Round 4 #1 — sur >1 commande, un tracking commun donnerait à chaque
+              client le tracking d'un autre. On le verrouille derrière un opt-in
+              « envoi groupé » (un seul colis). 1 commande → champ libre. */}
+          {shipPendingCount > 1 && (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 11, lineHeight: 1.45, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={groupedShipment}
+                onChange={(e) => setGroupedShipment(e.target.checked)}
+                disabled={busy}
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                <strong>Envoi groupé</strong> — ces {shipPendingCount} commandes partent dans un seul
+                colis, le même tracking s'applique à toutes.
+                <span style={{ display: 'block', color: 'var(--text-muted)' }}>
+                  Sinon, laisse décoché et ajoute le tracking sur chaque commande individuellement.
+                </span>
+              </span>
+            </label>
+          )}
           <div>
             <label htmlFor="orders-bulk-tracking" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-              Tracking commun (optionnel)
+              Tracking {shipPendingCount > 1 ? 'commun' : ''} (optionnel)
             </label>
             <input
               id="orders-bulk-tracking"
               type="text"
               value={trackingText}
               onChange={(e) => setTrackingText(e.target.value)}
-              placeholder="Ex : 1Z999AA10123456784"
+              placeholder={
+                shipPendingCount > 1 && !groupedShipment
+                  ? 'Coche « envoi groupé » pour un tracking commun'
+                  : 'Ex : 1Z999AA10123456784'
+              }
               maxLength={100}
               autoFocus
-              style={{ width: '100%', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
-              disabled={busy}
+              style={{ width: '100%', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', opacity: shipPendingCount > 1 && !groupedShipment ? 0.5 : 1 }}
+              disabled={busy || (shipPendingCount > 1 && !groupedShipment)}
             />
           </div>
           <div>
