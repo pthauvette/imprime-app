@@ -14,7 +14,7 @@ export default function RefundPolicyPage() {
           <div className="mkt-nav-links">
             <a href="/order/start" className="mkt-nav-link">Produits</a>
             <a href="/about" className="mkt-nav-link">Notre histoire</a>
-            <a href="/contact" className="mkt-nav-link">Aide</a>
+            <a href="/help" className="mkt-nav-link">Aide</a>
             <a href="/contact" className="mkt-nav-link">Contact</a>
             <a href="/order/start" className="mkt-nav-cta">Commander →</a>
           </div>
@@ -168,7 +168,7 @@ export default function RefundPolicyPage() {
             <p>Notre équipe répond en moins de 4 h ouvrables. On préfère résoudre vite plutôt que de t'écrire un courriel par jour pendant deux semaines.</p>
             <div className="cta-actions">
               <a href="/contact" className="cta-btn-primary">Ouvrir un ticket →</a>
-              <a href="/contact" className="cta-btn-secondary">Centre d'aide</a>
+              <a href="/help" className="cta-btn-secondary">Centre d'aide</a>
             </div>
           </div>
         </main>

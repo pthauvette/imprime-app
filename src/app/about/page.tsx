@@ -10,7 +10,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
-import { DELIVERY_WINDOW, DELIVERY_DAYS } from '@/lib/content/marketing';
+import { DELIVERY_WINDOW, DELIVERY_DAYS, SUPPORT_SLA } from '@/lib/content/marketing';
 
 export const metadata = {
   title: 'À propos de Plio — print wholesale au Canada',
@@ -200,7 +200,7 @@ export default function AboutPage() {
                 Email général
               </div>
               <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)', fontSize: 15, fontWeight: 600 }}>bonjour@plio.ca</a>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Réponse sous 2 h ouvrables</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Réponse en {SUPPORT_SLA}</div>
             </div>
             <div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
