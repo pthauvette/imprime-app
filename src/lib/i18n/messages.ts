@@ -18,6 +18,18 @@ export type Locale = 'fr' | 'en';
 export const DEFAULT_LOCALE: Locale = 'fr';
 export const ALL_LOCALES: Locale[] = ['fr', 'en'];
 
+/**
+ * Round 8 #1 — le switch FR/EN public est MASQUÉ tant que la couverture i18n
+ * est insuffisante. Aujourd'hui seuls le nav/hero de la home passent par
+ * translate() ; footer, funnel /order/*, compte, admin et pages legal restent
+ * en FR dur (~18% de couverture). Exposer un toggle qui ne traduit presque
+ * rien = fausse promesse de bilinguisme sur un marché B2B canadien → pire que
+ * pas de toggle. L'infra (messages/translate/cookie) reste en place : passer ce
+ * flag à `true` quand l'extraction EN aura été faite (footer → funnel → pages
+ * publiques). LangSwitch retourne null tant que c'est false.
+ */
+export const I18N_SWITCH_ENABLED: boolean = false;
+
 const fr = {
   // ─── Marketing nav ────────────────────────────────────────────────────
   'nav.products': 'Produits',
