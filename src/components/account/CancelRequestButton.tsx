@@ -138,14 +138,20 @@ export default function CancelRequestButton({
         )}
 
         {feedback && (
-          <div style={{
-            padding: '12px 14px',
-            background: feedback.ok ? 'var(--success-soft, #f0fdf4)' : 'var(--danger-soft)',
-            border: `1px solid ${feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)'}`,
-            borderRadius: 'var(--r-md)',
-            fontSize: 13,
-            color: feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)',
-          }}>
+          <div
+            // Audit v2 #9.2 — feedback (succès OU erreur) annoncé aux lecteurs
+            // d'écran. role=status + aria-live=polite couvre les deux cas.
+            role="status"
+            aria-live="polite"
+            style={{
+              padding: '12px 14px',
+              background: feedback.ok ? 'var(--success-soft, #f0fdf4)' : 'var(--danger-soft)',
+              border: `1px solid ${feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)'}`,
+              borderRadius: 'var(--r-md)',
+              fontSize: 13,
+              color: feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)',
+            }}
+          >
             {feedback.ok ? '✓' : '✗'} {feedback.message}
           </div>
         )}

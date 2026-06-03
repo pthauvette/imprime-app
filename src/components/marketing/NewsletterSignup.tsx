@@ -12,6 +12,7 @@
  */
 
 import { useState } from 'react';
+import FormError from '@/components/forms/FormError';
 
 export default function NewsletterSignup({ source = 'landing-footer' }: { source?: string }) {
   const [email, setEmail] = useState('');
@@ -100,11 +101,8 @@ export default function NewsletterSignup({ source = 'landing-footer' }: { source
           J&apos;accepte de recevoir des communications marketing de Plio (Démocratik inc.) à cette adresse. Je peux me désabonner à tout moment depuis le lien dans chaque email. <a href="/legal/privacy" style={{ color: 'var(--accent-primary)' }}>Politique de confidentialité</a>.
         </span>
       </label>
-      {error && (
-        <div style={{ fontSize: 12, color: 'var(--danger)' }}>
-          ✗ {error}
-        </div>
-      )}
+      {/* Audit v2 #9.2 — erreur annoncée aux lecteurs d'écran (role=alert). */}
+      <FormError>{error}</FormError>
     </form>
   );
 }
