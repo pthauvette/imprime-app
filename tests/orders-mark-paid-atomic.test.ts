@@ -43,8 +43,12 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+// Audit v2 #3.3 — l'alerte de clamp wallet part APRÈS commit (import dynamique).
+vi.mock('@/lib/alerting/slack', () => ({ sendCriticalAlert: vi.fn(async () => true) }));
+
 import { prisma } from '@/lib/db';
 import { markOrderPaidWithWalletDebit, OrderNotFoundError } from '@/lib/db/orders';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -124,20 +128,34 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1 + Round 38 #4 optimistic loc
     expect(txWalletTransaction.create).not.toHaveBeenCalled();
   });
 
-  it('overdraft (wallet 100 < debit 500) → throw + ledger non écrit', async () => {
-    // Order guard passes (count:1) mais wallet guard fail
-    txOrder.updateMany.mockResolvedValue({ count: 1 });
-    txUser.updateMany.mockResolvedValue({ count: 0 }); // guard fail
-    txUser.findUnique.mockResolvedValue({ walletCents: 100 });
+  // Audit v2 #3.3 — AVANT : overdraft → throw → order coincée PENDING alors que
+  // Stripe a déjà chargé. MAINTENANT : clamp au disponible, order complétée.
+  it('solde insuffisant (100 < 500) → CLAMP au disponible, PAS de throw', async () => {
+    txOrder.updateMany.mockResolvedValue({ count: 1 }); // order guard passe
+    txUser.updateMany.mockResolvedValue({ count: 0 });   // wallet gte guard échoue
+    txUser.findUnique.mockResolvedValue({ walletCents: 100 }); // dispo réel = 100
+    txUser.update.mockResolvedValue({});
 
-    await expect(
-      markOrderPaidWithWalletDebit({
-        paymentIntentId: 'pi_123',
-        walletDebit: { userId: 'u_owner', amountCents: 500, description: 'overdraft test' },
-      }),
-    ).rejects.toThrow(/overdraft/i);
+    // ne throw PAS
+    const result = await markOrderPaidWithWalletDebit({
+      paymentIntentId: 'pi_123',
+      walletDebit: { userId: 'u_owner', amountCents: 500, description: 'clamp test' },
+    });
+    expect(result).toBeDefined();
 
-    expect(txWalletTransaction.create).not.toHaveBeenCalled();
+    // débite le disponible (100) via update
+    expect(txUser.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ walletCents: { decrement: 100 } }) }),
+    );
+    // ledger ORDER_SPEND clampé : -100, balanceAfter 0
+    const walletTxArgs = txWalletTransaction.create.mock.calls[0]![0];
+    expect(walletTxArgs.data.amountCents).toBe(-100);
+    expect(walletTxArgs.data.balanceAfterCents).toBe(0);
+
+    // alerte APRÈS commit du manque (500 - 100 = 400¢)
+    expect(sendCriticalAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'warning', context: expect.objectContaining({ shortfallCents: 400 }) }),
+    );
   });
 
   it('amountCents = 0 → skip wallet flow (defensive)', async () => {
