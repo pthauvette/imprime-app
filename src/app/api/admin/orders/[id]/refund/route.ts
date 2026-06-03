@@ -102,12 +102,22 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   // customer over-refunded. Hash inclut orderId + amount + adminUserId
   // → même admin qui retry exactement = même refund. Admin différent
   // ou amount différent = new refund (intentionnel).
+  //
+  // Audit v2 #5.1 — on ajoute `alreadyRefundedCents` à la clé. Sans ça, DEUX
+  // refunds partiels DISTINCTS de même montant par le même admin (ex 2× 20 $)
+  // produisaient la MÊME clé → Stripe renvoyait le 1er refund en cache au 2e
+  // appel, mais le code notifiait/journalisait/comptait comme si un 2e avait
+  // réussi → client lésé (40 $ annoncés, 20 $ versés). `alreadyRefundedCents`
+  // n'avance qu'APRÈS qu'un refund a settled : un double-clic rapide lit la même
+  // valeur (toujours dédupé), mais un 2e refund intentionnel lit le cumul mis à
+  // jour → clé différente → vrai 2e refund.
   const { createHash } = await import('node:crypto');
   const refundIdemKey = `re_${createHash('sha256')
     .update(JSON.stringify({
       orderId: order.id,
       amountCents: body.amountCents ?? 'full',
       adminUserId: guard.userId,
+      alreadyRefundedCents,
     }))
     .digest('hex')
     .slice(0, 48)}`;
