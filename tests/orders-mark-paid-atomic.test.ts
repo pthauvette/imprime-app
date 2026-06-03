@@ -24,11 +24,15 @@ const txOrderEvent = { create: vi.fn() };
 const txUser = { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() };
 const txWalletTransaction = { create: vi.fn() };
 
+// Audit v2 #5.2 — increment promo gardé via SQL brut (tx.$executeRaw).
+const txExecuteRaw = vi.fn(async () => 1);
+
 const txMock = {
   order: txOrder,
   orderEvent: txOrderEvent,
   user: txUser,
   walletTransaction: txWalletTransaction,
+  $executeRaw: txExecuteRaw,
 };
 
 vi.mock('@/lib/db', () => ({
@@ -67,6 +71,7 @@ beforeEach(() => {
   txUser.update.mockResolvedValue({});
   txUser.updateMany.mockResolvedValue({ count: 1 });
   txWalletTransaction.create.mockResolvedValue({ id: 'wtx_1' });
+  txExecuteRaw.mockResolvedValue(1 as never);
 });
 
 describe('markOrderPaidWithWalletDebit (Round 36 #1 + Round 38 #4 optimistic locking)', () => {
@@ -236,5 +241,32 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1 + Round 38 #4 optimistic loc
     expect(txUser.update).toHaveBeenCalledOnce();
     const clampArgs = txUser.update.mock.calls[0]![0];
     expect(clampArgs.data.referralCreditCents).toEqual({ decrement: 1000 });
+  });
+
+  // ─── Audit v2 #5.2 — increment promo gardé à la confirmation ──────────────
+  it('order avec promoCodeId → increment usesCount gardé (SQL brut) dans la tx PAID', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o_test', userId: 'u_owner', paymentIntentId: 'pi_123', promoCodeId: 'promo_1',
+    } as never);
+
+    await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
+
+    expect(txExecuteRaw).toHaveBeenCalledOnce(); // increment gardé WHERE usesCount < maxUses
+  });
+
+  it('order sans promoCodeId → aucun increment promo', async () => {
+    // findUnique par défaut (beforeEach) n'a pas de promoCodeId
+    await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
+    expect(txExecuteRaw).not.toHaveBeenCalled();
+  });
+
+  it('promo épuisée entre checkout et paiement (affected=0) → pas de throw, rabais honoré', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o_test', userId: 'u_owner', paymentIntentId: 'pi_123', promoCodeId: 'promo_full',
+    } as never);
+    txExecuteRaw.mockResolvedValueOnce(0 as never); // garde maxUses → 0 ligne affectée
+
+    const result = await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
+    expect(result).toBeDefined(); // le paiement (déjà capturé) n'est jamais rollback
   });
 });
