@@ -14,6 +14,7 @@ import type { Route } from 'next';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import type { CaProvince } from '@/lib/sinalite/types';
 import { readSavedShip, writeSavedShip } from '@/lib/cart/ship-store';
+import { buildShipPayload } from '@/lib/order/ship-payload';
 import AddressAutocomplete from '@/components/order/AddressAutocomplete';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
@@ -156,12 +157,11 @@ function ShippingPageInner() {
 
   const nextHref = canContinue
     ? `/order/review?productId=${productId}&options=${options}&files=${files}&ship=${encodeURIComponent(
-        JSON.stringify({
+        buildShipPayload({
           firstName, lastName, email, phone,
           line1, line2, city, province, postalCode,
           method: selectedMethod, price: selectedShippingPrice, sig: selectedSig,
-          // Round 26 #2 — instructions livraison (trim + slice safety)
-          ...(shippingNote.trim() && { note: shippingNote.trim().slice(0, 200) }),
+          note: shippingNote,
         }),
       )}` as Route
     : null;
@@ -374,7 +374,7 @@ function ShippingPageInner() {
           <button
             className="btn btn-primary"
             onClick={() => {
-              if (!nextHref) return;
+              if (!nextHref || !selectedMethod) return;
               // Persist le ship pour pré-remplir au prochain passage du
               // wizard (cas multi-item où l'user ajoute un 2e produit).
               // Auto-cleared sur /order/confirmation.
@@ -387,10 +387,16 @@ function ShippingPageInner() {
                 const resumeParams = new URLSearchParams({
                   options,
                   files,
-                  ship: JSON.stringify({
+                  // Audit v2 #4.2 — MÊME builder que nextHref → le ship du
+                  // resumeQuery inclut sig (anti-tamper du devis) + note. Avant,
+                  // le sig était omis → tout checkout recovery arrivait « devis
+                  // non signé », bloquant le flip du garde shipping log-only →
+                  // reject 409 (cf. mémoire #203).
+                  ship: buildShipPayload({
                     firstName, lastName, email, phone,
                     line1, line2, city, province, postalCode,
-                    method: selectedMethod, price: selectedShippingPrice,
+                    method: selectedMethod, price: selectedShippingPrice, sig: selectedSig,
+                    note: shippingNote,
                   }),
                 });
                 void fetch('/api/abandoned-cart', {
