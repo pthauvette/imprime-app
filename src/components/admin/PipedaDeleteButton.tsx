@@ -11,6 +11,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useModalFocusTrap } from '@/hooks/useModalFocusTrap';
 
 interface Props {
   userId: string;
@@ -29,6 +30,12 @@ export default function PipedaDeleteButton({
   const [adminNotes, setAdminNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, startTransition] = useTransition();
+
+  // A11y (#9.x) : focus piégé + restauré, Escape ferme — mais PAS pendant la
+  // suppression en cours (cohérent avec le backdrop qui ignore le click si busy).
+  const dialogRef = useModalFocusTrap<HTMLDivElement>(open, () => {
+    if (!busy) setOpen(false);
+  });
 
   const canSubmit = confirmText === 'SUPPRIMER' && !busy;
 
@@ -123,7 +130,7 @@ export default function PipedaDeleteButton({
             if (e.target === e.currentTarget && !busy) setOpen(false);
           }}
         >
-          <div style={{
+          <div ref={dialogRef} style={{
             background: 'var(--bg-surface)',
             borderRadius: 'var(--r-xl, 16px)',
             padding: 28,

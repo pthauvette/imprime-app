@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useModalFocusTrap } from '@/hooks/useModalFocusTrap';
 
 interface AddressInput {
   kind: 'SHIPPING' | 'BILLING';
@@ -38,6 +39,10 @@ export default function AddressForm({ initial, onClose }: Props) {
   const isEdit = !!initial;
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // A11y (#9.x) : le form n'est monté que lorsqu'ouvert → active=true. Escape
+  // ferme, focus piégé dans le dialog, focus restauré au déclencheur à la sortie.
+  const dialogRef = useModalFocusTrap<HTMLFormElement>(true, onClose);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -102,6 +107,7 @@ export default function AddressForm({ initial, onClose }: Props) {
       }}
     >
       <form
+        ref={dialogRef}
         onSubmit={handleSubmit}
         style={{
           background: 'var(--bg-canvas, #fff)',
