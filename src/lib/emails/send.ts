@@ -195,7 +195,7 @@ export async function sendResellerApprovedEmail(input: {
   });
 }
 
-export async function sendWelcomeEmail(input: { user: User }) {
+export async function sendWelcomeEmail(input: { user: User; promoCode?: string }) {
   const { user } = input;
   const vars: WelcomeVars = {
     CUSTOMER_FIRST_NAME: firstName(user),
@@ -203,6 +203,9 @@ export async function sendWelcomeEmail(input: { user: User }) {
     ORDER_START_URL: `${APP_URL}/order/start`,
     CATALOG_URL: `${APP_URL}/templates`,
     UNSUBSCRIBE_URL: unsubscribeUrl(),
+    // #8.3 — bloc code promo de bienvenue (25 $, min 100 $, 1re commande). Vide
+    // si l'inscription ne vient pas de la page promo (pas de code accordé).
+    WELCOME_PROMO_HTML: input.promoCode ? welcomePromoBlockHtml(input.promoCode) : '',
   };
   return queueEmail({
     to: user.email,
@@ -210,6 +213,17 @@ export async function sendWelcomeEmail(input: { user: User }) {
     vars: vars as unknown as Record<string, string | number>,
     label: `welcome:${user.id}`,
   });
+}
+
+/** Bloc HTML du code promo de bienvenue inséré dans le welcome email. */
+function welcomePromoBlockHtml(code: string): string {
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:24px 0 0;">
+    <tr><td style="background:#1F3D2B; border-radius:14px; padding:20px 24px; text-align:center;">
+      <div style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#A7C4B5; font-weight:700;">Ton cadeau de bienvenue</div>
+      <div style="font-family:Georgia, serif; font-size:26px; color:#FAFAF7; font-weight:700; letter-spacing:0.04em; margin:8px 0;">${code}</div>
+      <div style="font-size:13px; line-height:1.5; color:#D7E2DB;">25 $ de rabais sur ta première commande de 100 $ et plus. Saisis ce code à l'étape paiement.</div>
+    </td></tr>
+  </table>`;
 }
 
 /** Envoyé après payment_intent.succeeded + submission Sinalite réussie. */

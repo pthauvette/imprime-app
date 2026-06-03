@@ -42,7 +42,7 @@ export default async function SignUpPage() {
         <div>
           <h2 className="side-headline">25 $ <em>offerts</em> sur ta première commande.</h2>
           <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px' }}>
-            Plus 5 échantillons gratuits, accès aux templates, et notre éditeur en ligne.
+            Code de bienvenue envoyé par courriel à l&apos;inscription — valable sur ta 1<sup>re</sup> commande de 100 $ et plus. Plus 5 échantillons gratuits, l&apos;accès aux templates et notre éditeur en ligne.
           </p>
 
           <div className="side-perks">

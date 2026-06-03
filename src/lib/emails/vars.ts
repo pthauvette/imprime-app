@@ -30,6 +30,9 @@ export type WelcomeVars = {
   ORDER_START_URL: string;
   CATALOG_URL: string;
   UNSUBSCRIBE_URL: string;
+  /** #8.3 — bloc HTML du code promo de bienvenue (vide si l'inscription ne vient
+   *  pas de la page promo). Injecté tel quel (moteur de template sans conditionnel). */
+  WELCOME_PROMO_HTML: string;
 };
 
 export type OrderConfirmationVars = {
