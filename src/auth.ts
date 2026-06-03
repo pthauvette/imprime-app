@@ -192,10 +192,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (isFirstSignIn) {
           const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
           if (fullUser) {
-            try {
-              await sendWelcomeEmail({ user: fullUser });
-            } catch (err) {
-              logAuth.error({ err, userId: user.id }, 'welcome email failed');
+            // Audit v2 #7.8 — dédup du welcome email : queueEmail ne consulte
+            // PAS le label, donc sans ce pré-check l'heuristique isFirstSignIn
+            // (recentlyCreated + noActivity) pouvait renvoyer un 2e welcome à un
+            // user qui se reconnecte vite après création. findFirst sur le label
+            // welcome:<userId> (même que sendWelcomeEmail).
+            const alreadyWelcomed = await prisma.emailDelivery
+              .findFirst({ where: { label: `welcome:${user.id}` }, select: { id: true } })
+              .catch(() => null);
+            if (!alreadyWelcomed) {
+              try {
+                await sendWelcomeEmail({ user: fullUser });
+              } catch (err) {
+                logAuth.error({ err, userId: user.id }, 'welcome email failed');
+              }
             }
           }
 
