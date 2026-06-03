@@ -190,38 +190,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
         if (isFirstSignIn) {
+          // Audit v2 #8.3 — code promo de bienvenue (« 25 $ offerts sur ta 1re
+          // commande »), SEULEMENT si l'inscription vient de la page promo
+          // (cookie plio_welcome posé par SignUpForm). Code promo (et non crédit
+          // wallet) car il faut imposer le minimum de commande de 100 $
+          // (minSubtotalCents) + 1re commande only — impossible sur un solde
+          // wallet fongible. Idempotent + best-effort (n'altère pas le login).
+          let welcomeCode: string | undefined;
+          try {
+            const { cookies } = await import('next/headers');
+            const eligible = (await cookies()).get('plio_welcome')?.value === '1';
+            if (eligible) {
+              const { grantWelcomePromo } = await import('@/lib/promo/welcome');
+              welcomeCode = await grantWelcomePromo(user.id);
+              logAuth.info({ userId: user.id, code: welcomeCode }, 'welcome promo accordé');
+            }
+          } catch (err) {
+            logAuth.error({ err, userId: user.id }, 'welcome promo failed (non-fatal)');
+          }
+
           const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
           if (fullUser) {
-            // Audit v2 #7.8 — dédup du welcome email : queueEmail ne consulte
-            // PAS le label, donc sans ce pré-check l'heuristique isFirstSignIn
-            // (recentlyCreated + noActivity) pouvait renvoyer un 2e welcome à un
-            // user qui se reconnecte vite après création. findFirst sur le label
-            // welcome:<userId> (même que sendWelcomeEmail).
+            // Audit v2 #7.8 — dédup du welcome email (queueEmail ne consulte pas
+            // le label) : findFirst sur welcome:<userId> avant l'envoi.
             const alreadyWelcomed = await prisma.emailDelivery
               .findFirst({ where: { label: `welcome:${user.id}` }, select: { id: true } })
               .catch(() => null);
             if (!alreadyWelcomed) {
               try {
-                await sendWelcomeEmail({ user: fullUser });
+                await sendWelcomeEmail({ user: fullUser, promoCode: welcomeCode });
               } catch (err) {
                 logAuth.error({ err, userId: user.id }, 'welcome email failed');
               }
             }
-          }
-
-          // Audit v2 #8.3 — crédit de bienvenue de 25 $ (la page d'inscription
-          // le promet : « 25 $ offerts sur ta première commande »). Avant, AUCUN
-          // crédit n'était accordé → publicité trompeuse (LPC QC). Helper
-          // idempotent (1 seul crédit par user) + best-effort (un échec ne bloque
-          // pas le login).
-          try {
-            const { grantWelcomeCredit } = await import('@/lib/wallet/operations');
-            const granted = await grantWelcomeCredit(user.id);
-            if (granted > 0) {
-              logAuth.info({ userId: user.id, amountCents: granted }, 'welcome credit accordé');
-            }
-          } catch (err) {
-            logAuth.error({ err, userId: user.id }, 'welcome credit failed (non-fatal)');
           }
         }
       } catch (err) {

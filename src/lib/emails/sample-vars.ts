@@ -44,6 +44,7 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     ORDER_START_URL: `${APP_URL}/order/start`,
     CATALOG_URL: `${APP_URL}/templates`,
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
+    WELCOME_PROMO_HTML: '<p style="font-size:13px;color:#4A554D;margin:16px 0 0;">[bloc code promo BIENVENUEXXXXXX — 25 $ / min 100 $ — si inscription via page promo]</p>',
   },
   'reseller-approved': {
     CONTACT_FIRST_NAME: 'Sophie',

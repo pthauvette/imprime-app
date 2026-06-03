@@ -45,6 +45,13 @@ export default function SignUpForm() {
       };
       document.cookie = `${PENDING_PROFILE_COOKIE}=${encodeURIComponent(JSON.stringify(profile))}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
 
+      // #8.3 — marque cette inscription comme venant de la page promo
+      // (« 25 $ offerts sur ta 1re commande »). Lu par auth.ts events.signIn :
+      // seul ce flag accorde le code BIENVENUE (les comptes créés autrement —
+      // ex. checkout invité — n'y ont pas droit). Survit jusqu'au clic du
+      // magic-link (24 h).
+      document.cookie = `plio_welcome=1; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+
       const result = await signIn('nodemailer', {
         email: cleanEmail,
         callbackUrl: '/account',
