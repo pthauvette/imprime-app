@@ -72,14 +72,17 @@ export async function POST(req: Request) {
     );
   }
 
-  // Idempotence : UNIQUE viol → déjà processed. payload = rawBody pour replay admin.
-  const { isNew } = await recordWebhookEvent({
+  // Idempotence (Audit v2 #2.2) : on ne déduplique QUE si une tentative
+  // précédente a RÉUSSI. Un échec transitoire (row success=false) doit pouvoir
+  // être re-traité par le retry automatique Stripe, sinon il est neutralisé.
+  // payload = rawBody pour replay admin.
+  const { isNew, alreadyCompleted } = await recordWebhookEvent({
     source: 'STRIPE',
     eventId: event.id,
     eventType: event.type,
     payload: rawBody,
   });
-  if (!isNew) {
+  if (!isNew && alreadyCompleted) {
     return NextResponse.json({ received: true, deduped: true });
   }
 

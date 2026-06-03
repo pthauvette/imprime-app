@@ -19,7 +19,7 @@ vi.mock('@/lib/db', () => ({
 }));
 
 vi.mock('@/lib/db/orders', () => ({
-  recordWebhookEvent: vi.fn(async () => ({ isNew: true })),
+  recordWebhookEvent: vi.fn(async () => ({ isNew: true, alreadyCompleted: false })),
   updateWebhookOutcome: vi.fn(async () => {}),
 }));
 

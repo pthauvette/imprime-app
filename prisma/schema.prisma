@@ -461,9 +461,13 @@ model WebhookEvent {
   processedAt DateTime @default(now())
 
   // Outcome tracking — patché en fin de handler par updateWebhookOutcome.
-  // `success` est `true` par défaut pour rester compatible avec les rows
-  // historiques créées avant l'instrumentation. Les nouvelles rows
-  // démarrent en `success=true` puis sont écrasées en cas d'exception.
+  // `@default(true)` reste pour compat des rows historiques + le chemin
+  // recordWebhookOutcome (qui set success explicitement).
+  // Audit v2 #2.2 — recordWebhookEvent crée désormais la row avec
+  // `success=false` (CLAIM pessimiste) et updateWebhookOutcome la flippe à
+  // `true` au succès. Ainsi `success=true` signifie sans ambiguïté « traité
+  // avec succès » → la dédup ne s'active que sur succès confirmé, et un échec
+  // transitoire n'empêche plus le retry Stripe/SNS de re-traiter.
   success     Boolean  @default(true)
   statusCode  Int?
   latencyMs   Int?

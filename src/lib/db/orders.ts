@@ -473,20 +473,41 @@ export async function recordWebhookEvent(input: {
   /** Raw body for future replays. Optional — pre-replay-feature rows had no
    *  payload, future events should always provide it. */
   payload?: string;
-}): Promise<{ isNew: boolean }> {
+}): Promise<{ isNew: boolean; alreadyCompleted: boolean }> {
   try {
     await prisma.webhookEvent.create({
       data: {
         source: input.source,
         eventId: input.eventId,
         eventType: input.eventType,
+        // Audit v2 #2.2 — CLAIM pessimiste : la row démarre `success=false`
+        // (= « non confirmé ») et n'est flippée à `true` que par
+        // updateWebhookOutcome quand le handler RÉUSSIT. Ça permet de
+        // distinguer « déjà traité avec succès » (dedup légitime) de
+        // « tentative précédente échouée / en cours » (à re-traiter au retry).
+        //
+        // Avant : `success @default(true)` rendait une row fraîche
+        // indistinguable d'un succès → un échec transitoire (blip DB, overdraft
+        // wallet, Sinalite+refund KO) insérait quand même la row, puis chaque
+        // retry Stripe re-tombait sur P2002 → isNew:false → 200 `deduped` SANS
+        // retraiter. Le retry automatique Stripe était donc neutralisé ;
+        // récupération uniquement via replay manuel (dead-letter 24h+).
+        success: false,
         ...(input.payload !== undefined && { payload: input.payload }),
       },
     });
-    return { isNew: true };
+    return { isNew: true, alreadyCompleted: false };
   } catch (err) {
-    // Unique violation (P2002) = déjà processed
-    if (isPrismaUniqueError(err)) return { isNew: false };
+    if (isPrismaUniqueError(err)) {
+      // Row déjà présente. On ne déduplique QUE si une tentative précédente a
+      // réellement RÉUSSI (success=true). Sinon (échec / in-flight), on laisse
+      // le caller re-traiter → le retry Stripe redevient effectif.
+      const existing = await prisma.webhookEvent.findUnique({
+        where: { source_eventId: { source: input.source, eventId: input.eventId } },
+        select: { success: true },
+      });
+      return { isNew: false, alreadyCompleted: existing?.success === true };
+    }
     throw err;
   }
 }

@@ -106,14 +106,16 @@ export async function POST(req: Request) {
   }
 
   // Idempotence : fingerprint stable que Sinalite va générer identique sur retry.
+  // Audit v2 #2.2 — dedup seulement sur succès confirmé : un échec transitoire
+  // (success=false) doit pouvoir être re-traité au retry.
   const fingerprint = `${payload.orderId}:${payload.status}:${payload.timestamp}`;
-  const { isNew } = await recordWebhookEvent({
+  const { isNew, alreadyCompleted } = await recordWebhookEvent({
     source: 'SINALITE',
     eventId: fingerprint,
     eventType: payload.status,
     payload: rawBody,
   });
-  if (!isNew) {
+  if (!isNew && alreadyCompleted) {
     return NextResponse.json({ received: true, deduped: true });
   }
 

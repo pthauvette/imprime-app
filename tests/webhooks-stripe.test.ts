@@ -45,7 +45,7 @@ vi.mock('@/lib/db/orders', () => {
     markOrderSubmitted: vi.fn(async () => undefined),
     markOrderFailed: vi.fn(async () => undefined),
     markRefundIssued: vi.fn(async () => undefined),
-    recordWebhookEvent: vi.fn(async () => ({ isNew: true })),
+    recordWebhookEvent: vi.fn(async () => ({ isNew: true, alreadyCompleted: false })),
     updateWebhookOutcome: vi.fn(async () => undefined),
     OrderNotFoundError,
   };
@@ -158,7 +158,7 @@ function paymentFailedEvent(intentId = 'pi_test_123', extra: Record<string, unkn
 beforeEach(() => {
   vi.clearAllMocks();
   // Reset to default success-path behaviors
-  vi.mocked(orders.recordWebhookEvent).mockResolvedValue({ isNew: true });
+  vi.mocked(orders.recordWebhookEvent).mockResolvedValue({ isNew: true, alreadyCompleted: false });
   vi.mocked(orders.markOrderPaid).mockResolvedValue(undefined as never);
   vi.mocked(orders.markOrderSubmitted).mockResolvedValue(undefined as never);
   vi.mocked(orders.markOrderFailed).mockResolvedValue(undefined as never);
@@ -224,7 +224,7 @@ describe('B. Idempotence — replay of same event.id', () => {
     vi.mocked(stripeInstance.webhooks.constructEvent).mockReturnValueOnce(
       paymentSucceededEvent('pi_replay') as never,
     );
-    vi.mocked(orders.recordWebhookEvent).mockResolvedValueOnce({ isNew: false });
+    vi.mocked(orders.recordWebhookEvent).mockResolvedValueOnce({ isNew: false, alreadyCompleted: true });
 
     const res = await POST(makeStripeRequest());
 
@@ -234,6 +234,30 @@ describe('B. Idempotence — replay of same event.id', () => {
     expect(sinalite.createOrder).not.toHaveBeenCalled();
     expect(emails.sendOrderConfirmationEmail).not.toHaveBeenCalled();
     expect(orders.updateWebhookOutcome).not.toHaveBeenCalled();
+  });
+
+  // Audit v2 #2.2 — une tentative précédente ÉCHOUÉE (success=false →
+  // alreadyCompleted=false) ne doit PAS être dédupliquée : le retry Stripe
+  // doit re-traiter, sinon un échec transitoire neutralise le retry à jamais.
+  it('prior failed attempt (alreadyCompleted=false) → REPROCESSES, no dedup', async () => {
+    vi.mocked(stripeInstance.webhooks.constructEvent).mockReturnValueOnce(
+      paymentSucceededEvent('pi_retry_after_fail') as never,
+    );
+    vi.mocked(orders.recordWebhookEvent).mockResolvedValueOnce({ isNew: false, alreadyCompleted: false });
+    vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
+      { ...baseOrder, paymentIntentId: 'pi_retry_after_fail', status: 'PENDING' } as never,
+    );
+
+    const res = await POST(makeStripeRequest());
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ received: true });
+    // re-traité : le handler a tourné (PENDING → PAID) + l'outcome est patché
+    // (succès cette fois). C'est markOrderPaidWithWalletDebit qui porte le débit.
+    expect(orders.markOrderPaidWithWalletDebit).toHaveBeenCalled();
+    expect(orders.updateWebhookOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, statusCode: 200 }),
+    );
   });
 });
 
