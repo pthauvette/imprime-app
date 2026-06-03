@@ -8,9 +8,8 @@
  * Cache 10 min côté Next pour pas re-query DB à chaque visit landing.
  */
 
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db';
-
-export const revalidate = 600; // 10 min
 
 // Fallback shape pour quand la DB est unreachable (build local sans DB,
 // CI without DB, prod transient errors). Section sera "On vient de
@@ -47,8 +46,15 @@ async function fetchData(): Promise<{ reviews: ReviewLite[]; stats: Stats } | nu
   }
 }
 
+// Audit v2 #10.1 — cache le résultat des requêtes reviews 10 min (tag `reviews`)
+// indépendamment du rendu dynamique de la landing.
+const getTestimonialsCached = unstable_cache(fetchData, ['landing-testimonials-v1'], {
+  revalidate: 600,
+  tags: ['reviews'],
+});
+
 export default async function TestimonialsSection() {
-  const data = await fetchData();
+  const data = await getTestimonialsCached();
   const reviews = data?.reviews ?? [];
   const stats = data?.stats ?? { _count: { _all: 0 }, _avg: { rating: null } };
 

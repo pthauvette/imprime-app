@@ -20,6 +20,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
@@ -91,6 +92,9 @@ export const POST = withErrorHandler(async (req: Request) => {
       ...(body.action === 'feature' ? { isFeatured: body.isFeatured } : {}),
     },
   });
+
+  // Audit v2 #10.1 — invalide le cache reviews de la landing (tag 'reviews').
+  revalidateTag('reviews');
 
   return NextResponse.json({ ok: true, count, action: body.action });
 });
