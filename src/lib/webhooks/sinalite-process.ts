@@ -92,14 +92,61 @@ export async function processSinaliteEvent(
           });
           void sendReviewRequestEmail({ order, user: order.user });
           break;
-        case 'CANCELLED':
+        case 'CANCELLED': {
+          // Audit v2 #1.3 — Sinalite annule la production : il faut ÉMETTRE le
+          // refund Stripe + restaurer le wallet AVANT d'annoncer un remboursement.
+          // Avant, on envoyait un email « Remboursement : X $ » SANS aucun refund
+          // (faux + risque chargeback + pratique trompeuse). On n'annonce
+          // désormais que le montant RÉELLEMENT remboursé.
+          let refundedCents = 0;
+          if (order.paymentIntentId) {
+            try {
+              const { getStripe } = await import('@/lib/stripe/client');
+              const { createHash } = await import('node:crypto');
+              const idem = `sinalite_cancel_${createHash('sha256').update(order.paymentIntentId).digest('hex').slice(0, 40)}`;
+              const refund = await getStripe().refunds.create(
+                {
+                  payment_intent: order.paymentIntentId,
+                  reason: 'requested_by_customer',
+                  metadata: { orderId: order.id, reason: 'sinalite_cancelled' },
+                },
+                { idempotencyKey: idem },
+              );
+              const { markRefundIssued } = await import('@/lib/db/orders');
+              await markRefundIssued({ orderId: order.id, refundId: refund.id });
+              const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
+              await restoreWalletCreditOnFullRefund({ order, refundId: refund.id });
+              refundedCents = order.amountCents;
+            } catch (err) {
+              // Refund échoué → NE PAS prétendre rembourser (refundedCents reste 0).
+              // Alerter pour remboursement manuel.
+              logSinalite.error(
+                { err, orderId: order.id, paymentIntentId: order.paymentIntentId },
+                'Sinalite CANCELLED — refund Stripe FAILED',
+              );
+              const { sendCriticalAlert } = await import('@/lib/alerting/slack');
+              void sendCriticalAlert({
+                severity: 'critical',
+                title: 'Sinalite CANCELLED — refund Stripe ÉCHOUÉ',
+                body: `Commande annulée par Sinalite mais le refund automatique a échoué. Rembourse manuellement le client.`,
+                context: {
+                  orderId: order.id,
+                  paymentIntentId: order.paymentIntentId,
+                  error: err instanceof Error ? err.message : 'unknown',
+                },
+                actionUrl: `/admin/orders/${order.id}`,
+                actionLabel: 'Voir la commande',
+              });
+            }
+          }
           await sendOrderCancelledEmail({
             order,
             user: order.user,
             reason: payload.notes ?? 'Annulation par Sinalite',
-            refundAmountCents: order.amountCents,
+            refundAmountCents: refundedCents, // 0 si refund non émis → pas de fausse promesse
           });
           break;
+        }
       }
     }
   } else {

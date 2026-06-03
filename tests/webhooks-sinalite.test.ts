@@ -25,6 +25,7 @@ vi.mock('@/lib/db/orders', async () => {
     applySinaliteStatusChange: vi.fn(async () => undefined),
     recordWebhookEvent: vi.fn(async () => ({ isNew: true })),
     updateWebhookOutcome: vi.fn(async () => undefined),
+    markRefundIssued: vi.fn(async () => undefined),
     OrderNotFoundError,
   };
 });
@@ -33,6 +34,22 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     order: { findUnique: vi.fn() },
   },
+}));
+
+// Audit v2 #1.3 — le handler CANCELLED émet désormais un refund Stripe + restaure
+// le wallet AVANT d'annoncer un remboursement. On stub ces seams.
+vi.mock('@/lib/stripe/client', () => ({
+  getStripe: vi.fn(() => ({
+    refunds: { create: vi.fn(async () => ({ id: 're_sinalite_1' })) },
+  })),
+}));
+
+vi.mock('@/lib/wallet/operations', () => ({
+  restoreWalletCreditOnFullRefund: vi.fn(async () => 0),
+}));
+
+vi.mock('@/lib/alerting/slack', () => ({
+  sendCriticalAlert: vi.fn(async () => true),
 }));
 
 vi.mock('@/lib/emails/send', () => ({
@@ -67,6 +84,9 @@ vi.mock('@/lib/logger', () => {
 import * as orders from '@/lib/db/orders';
 import { prisma } from '@/lib/db';
 import * as emails from '@/lib/emails/send';
+import { getStripe } from '@/lib/stripe/client';
+import { restoreWalletCreditOnFullRefund } from '@/lib/wallet/operations';
+import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { makeTestUser } from './factories/user';
 import { makeTestOrder } from './factories/order';
 
@@ -270,8 +290,19 @@ describe('N. status=DELIVERED', () => {
 
 // ─── O. CANCELLED ───────────────────────────────────────────────────────────
 describe('O. status=CANCELLED', () => {
-  it('uses payload.notes as cancellation reason when provided', async () => {
+  // Audit v2 #1.3 — invariant MONEY : avant, ce handler envoyait un email
+  // « Remboursement : X $ » SANS jamais émettre de refund Stripe (faux +
+  // risque chargeback). Désormais : on émet le refund AVANT d'annoncer, et
+  // l'email n'annonce QUE le montant réellement remboursé.
+  function stubStripeRefund(refundId = 're_sinalite_1') {
+    const refundsCreate = vi.fn(async () => ({ id: refundId }));
+    vi.mocked(getStripe).mockReturnValue({ refunds: { create: refundsCreate } } as never);
+    return refundsCreate;
+  }
+
+  it('émet un refund Stripe (idempotent) + restaure le wallet AVANT d\'annoncer', async () => {
     const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    const refundsCreate = stubStripeRefund();
     vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
       { ...baseOrder, user: baseUser } as never,
     );
@@ -280,6 +311,19 @@ describe('O. status=CANCELLED', () => {
       makeReq(validPayload({ status: 'CANCELLED', notes: 'Hors stock production' })),
     );
 
+    // refund émis avec idempotencyKey dérivé du paymentIntent (retry-safe)
+    expect(refundsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_test_1', reason: 'requested_by_customer' }),
+      expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sinalite_cancel_/) }),
+    );
+    expect(orders.markRefundIssued).toHaveBeenCalledWith({
+      orderId: baseOrder.id,
+      refundId: 're_sinalite_1',
+    });
+    expect(restoreWalletCreditOnFullRefund).toHaveBeenCalledWith(
+      expect.objectContaining({ order: expect.objectContaining({ id: baseOrder.id }), refundId: 're_sinalite_1' }),
+    );
+    // l'email annonce le montant RÉELLEMENT remboursé
     expect(emails.sendOrderCancelledEmail).toHaveBeenCalledWith({
       order: expect.objectContaining({ id: baseOrder.id }),
       user: baseUser,
@@ -291,6 +335,7 @@ describe('O. status=CANCELLED', () => {
 
   it('falls back to "Annulation par Sinalite" when notes is missing', async () => {
     const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    stubStripeRefund();
     vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
       { ...baseOrder, user: baseUser } as never,
     );
@@ -299,6 +344,41 @@ describe('O. status=CANCELLED', () => {
 
     expect(emails.sendOrderCancelledEmail).toHaveBeenCalledWith(
       expect.objectContaining({ reason: 'Annulation par Sinalite' }),
+    );
+  });
+
+  it('refund Stripe échoue → email refundAmountCents=0 (pas de fausse promesse) + alerte critique', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    vi.mocked(getStripe).mockImplementationOnce(() => {
+      throw new Error('stripe down');
+    });
+    vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
+      { ...baseOrder, user: baseUser } as never,
+    );
+
+    const res = await POST(makeReq(validPayload({ status: 'CANCELLED' })));
+
+    expect(emails.sendOrderCancelledEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ refundAmountCents: 0 }),
+    );
+    expect(sendCriticalAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'critical' }),
+    );
+    // refund raté = best-effort, le webhook répond quand même 200 (idempotent retry)
+    expect(res.status).toBe(200);
+  });
+
+  it('order sans paymentIntentId → aucun refund tenté + email refundAmountCents=0', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
+      { ...baseOrder, paymentIntentId: null, user: baseUser } as never,
+    );
+
+    await POST(makeReq(validPayload({ status: 'CANCELLED' })));
+
+    expect(getStripe).not.toHaveBeenCalled();
+    expect(emails.sendOrderCancelledEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ refundAmountCents: 0 }),
     );
   });
 });
