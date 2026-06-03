@@ -24,6 +24,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
@@ -32,24 +33,13 @@ import { recordCronRun } from '@/lib/cron/runs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const RETENTION_YEARS = 2;
 const TERMINAL_STATUSES = ['DELIVERED', 'CANCELLED', 'FAILED'] as const;
 const MAX_DELETE_PER_RUN = 5000;
 
 export async function GET(req: NextRequest) {
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/purge-old-events: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/purge-old-events: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'purge-old-events');
+  if (denied) return denied;
 
   const start = Date.now();
   const cutoff = new Date(Date.now() - RETENTION_YEARS * 365 * 24 * 3600 * 1000);

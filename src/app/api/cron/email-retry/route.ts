@@ -19,6 +19,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { getEmailsReadyForRetry, processDelivery } from '@/lib/emails/queue';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
@@ -27,23 +28,12 @@ import { recordCronRun } from '@/lib/cron/runs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 50;
 
 export async function GET(req: NextRequest) {
   // Auth
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/email-retry: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/email-retry: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'email-retry');
+  if (denied) return denied;
 
   const start = Date.now();
 

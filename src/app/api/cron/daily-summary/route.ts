@@ -20,6 +20,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { sendAdminDailySummaryEmail } from '@/lib/emails/send';
 import { log } from '@/lib/logger';
@@ -30,7 +31,6 @@ import type { AdminDailySummaryVars } from '@/lib/emails/vars';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
   .split(',')
   .map((e) => e.trim().toLowerCase())
@@ -112,18 +112,8 @@ function buildFailuresBlock(
 
 export async function GET(req: NextRequest) {
   // Auth — refuse si pas configuré (prod) ou si header manque/mismatch.
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/daily-summary: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/daily-summary: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'daily-summary');
+  if (denied) return denied;
 
   if (ADMIN_EMAILS.length === 0) {
     return NextResponse.json(

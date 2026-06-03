@@ -21,6 +21,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { sendReengagementFollowUpEmail, sendReengagementWinbackEmail } from '@/lib/emails/send';
 import { reviewSubmitToken } from '@/lib/reviews/token';
@@ -31,7 +32,6 @@ import { recordCronRun } from '@/lib/cron/runs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_FOLLOWUP = 100;
 const BATCH_WINBACK = 100;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
@@ -50,18 +50,8 @@ interface RunSummary {
 
 export async function GET(req: NextRequest) {
   // ─── Auth ──────────────────────────────────────────────────────────────
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/re-engagement: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/re-engagement: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 're-engagement');
+  if (denied) return denied;
 
   const start = Date.now();
   const summary: RunSummary = {

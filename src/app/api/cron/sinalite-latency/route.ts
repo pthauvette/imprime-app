@@ -13,6 +13,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
@@ -22,7 +23,6 @@ import { sendCriticalAlert } from '@/lib/alerting/slack';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const P95_ALERT_MS = 3000;
 const RECENT_RUNS_FOR_TREND = 4; // ~1h avec cron toutes les 15 min
 const PROBE_TIMEOUT_MS = 8000;
@@ -67,18 +67,8 @@ function quantile(sorted: number[], q: number): number | null {
 }
 
 export async function GET(req: NextRequest) {
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/sinalite-latency: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/sinalite-latency: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'sinalite-latency');
+  if (denied) return denied;
 
   if (!process.env.SINALITE_CLIENT_ID || !process.env.SINALITE_API_BASE) {
     log.warn('cron/sinalite-latency: Sinalite env not configured, skipping');

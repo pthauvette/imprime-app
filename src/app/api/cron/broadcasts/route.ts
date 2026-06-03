@@ -10,6 +10,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
@@ -19,7 +20,6 @@ import { dispatchBroadcast } from '@/lib/broadcast/dispatch';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 10; // max broadcasts par run (chacun peut être 10k emails)
 // Audit v2 #7.3 — un broadcast coincé en PROCESSING depuis > ce seuil (run
 // crashé ou stranded par l'ancien claim non borné) est ré-éligible. dispatch
@@ -29,18 +29,8 @@ const BATCH_SIZE = 10; // max broadcasts par run (chacun peut être 10k emails)
 const STUCK_PROCESSING_MIN = 15;
 
 export async function GET(req: NextRequest) {
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/broadcasts: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/broadcasts: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'broadcasts');
+  if (denied) return denied;
 
   const start = Date.now();
 

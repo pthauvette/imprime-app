@@ -19,6 +19,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { sendResellerMonthlyStatsEmail } from '@/lib/emails/send';
 import { log } from '@/lib/logger';
@@ -29,7 +30,6 @@ import type { ResellerMonthlyStatsVars } from '@/lib/emails/vars';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
 const MONTH_NAMES = [
@@ -60,18 +60,8 @@ function lastMonthWindow(now: Date): { start: Date; end: Date; monthKey: string;
 }
 
 export async function GET(req: NextRequest) {
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/reseller-monthly-stats: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/reseller-monthly-stats: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'reseller-monthly-stats');
+  if (denied) return denied;
 
   const startTs = Date.now();
   const now = new Date();

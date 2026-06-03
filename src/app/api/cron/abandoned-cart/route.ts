@@ -15,6 +15,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { sendAbandonedCartEmail } from '@/lib/emails/send';
 import { recoveryClickToken } from '@/lib/recovery/click-token';
@@ -26,24 +27,13 @@ import { recordCronRun } from '@/lib/cron/runs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 const BATCH = 100;
 
 export async function GET(req: NextRequest) {
   // Auth
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/abandoned-cart: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/abandoned-cart: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'abandoned-cart');
+  if (denied) return denied;
 
   const start = Date.now();
   const cutoffOld = new Date(Date.now() - 24 * 3600 * 1000);
