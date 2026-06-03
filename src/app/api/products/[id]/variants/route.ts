@@ -1,44 +1,41 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { sinalite } from '@/lib/sinalite/client';
+import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import { withErrorHandler } from '@/lib/api-helpers';
 
 /**
- * GET /api/products/[id]/variants?offset=0
+ * GET /api/products/[id]/variants
  *
- * Renvoie jusqu'à 1000 variants {price, key} pour pricing local côté client.
- * Pagination: passe ?offset=1000 pour les 1000 suivants.
+ * Renvoie les variants { price, key } pour pricing local côté client.
+ * Le `key` est sortedOptionIds.join('-') — utilise lookupVariant() côté client.
  *
- * Le `key` est sortedOptionIds.join('-') — utilise lookupVariant() côté client
- * pour résoudre un prix sans roundtrip.
+ * Audit v2 #6.2 — AVANT : renvoyait `sinalite.listVariants()` = les prix de GROS
+ * BRUTS de Sinalite (notre coût d'achat), sans markup. Endpoint public → fuite
+ * de l'intel concurrentielle (marge, cost basis). MAINTENANT : on passe par
+ * getEnrichedVariantIndex (le MÊME index marked-up que le wizard utilise), donc
+ * on ne renvoie que les prix de DÉTAIL. La pagination (offset/hasMore) devient
+ * vestigiale : l'index enrichi est complet et déjà chargé server-side ; on
+ * renvoie tout d'un coup avec hasMore:false (pas de boucle infinie côté caller).
  */
 
 const ParamsSchema = z.object({
   id: z.string().regex(/^\d+$/).transform(Number),
 });
 
-const QuerySchema = z.object({
-  offset: z.string().regex(/^\d+$/).transform(Number).optional().default('0'),
-});
-
 export const GET = withErrorHandler(async (
-  req: Request,
+  _req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) => {
   const { id } = ParamsSchema.parse(await ctx.params);
-  const url = new URL(req.url);
-  const { offset } = QuerySchema.parse({
-    offset: url.searchParams.get('offset') ?? '0',
-  });
 
-  const variants = await sinalite.listVariants(id, offset);
+  const enriched = await getEnrichedVariantIndex(id);
+  const variants = Array.from(enriched.index, ([key, price]) => ({ key, price }));
 
   return NextResponse.json({
     productId: id,
-    offset,
+    offset: 0,
     count: variants.length,
-    /** True si plus de variants à charger (full page de 1000). */
-    hasMore: variants.length === 1000,
+    hasMore: false,
     variants,
   });
 });
