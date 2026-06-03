@@ -156,10 +156,37 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    // Génère un code promo unique pour ce user, valable 30j, 1 use max,
-    // 10 % off. Format REVIENS<6 chars random>.
+    // Audit v2 #7.2 — on génère la VALEUR du code puis on ENVOIE d'abord (le
+    // helper vérifie l'opt-out emailReengagement + suppression/throttle) ; on ne
+    // PERSISTE le PromoCode qu'APRÈS un envoi confirmé. Avant : le code était
+    // créé AVANT l'envoi → pour un opt-out (le send early-return sans créer
+    // d'EmailDelivery), un code promo ACTIF orphelin était créé, et comme aucun
+    // EmailDelivery n'existait, la dédup label ne matchait jamais → recréation
+    // QUOTIDIENNE (bloat de codes valides jamais livrés).
     const codeSuffix = Math.random().toString(36).slice(2, 8).toUpperCase();
     const code = `REVIENS${codeSuffix}`;
+
+    let result: Awaited<ReturnType<typeof sendReengagementWinbackEmail>>;
+    try {
+      result = await sendReengagementWinbackEmail({
+        user,
+        promoCode: code,
+        discountLabel: `${WINBACK_DISCOUNT_PCT} % de remise`,
+        daysSinceLast,
+      });
+    } catch (err) {
+      log.error({ err, userId }, 'winback send failed');
+      summary.winback.failed++;
+      continue;
+    }
+
+    if (!result.sent) {
+      // opt-out / suppressed / throttled → aucun code créé (plus d'orphelin).
+      summary.winback.skipped++;
+      continue;
+    }
+
+    // Email parti → on matérialise le code promo (référencé dans l'email).
     try {
       await prisma.promoCode.create({
         data: {
@@ -171,24 +198,11 @@ export async function GET(req: NextRequest) {
           maxUses: 1,
         },
       });
+      summary.winback.sent++;
     } catch (err) {
-      // Race ou collision unique — skip ce user, on retentera demain
-      log.error({ err, userId, code }, 'winback promo create failed');
-      summary.winback.failed++;
-      continue;
-    }
-
-    try {
-      const result = await sendReengagementWinbackEmail({
-        user,
-        promoCode: code,
-        discountLabel: `${WINBACK_DISCOUNT_PCT} % de remise`,
-        daysSinceLast,
-      });
-      if (result.sent) summary.winback.sent++;
-      else summary.winback.skipped++;
-    } catch (err) {
-      log.error({ err, userId }, 'winback send failed');
+      // Rare : l'email est parti mais le code n'a pas pu être créé (collision
+      // unique / blip DB) → le client a un code qui ne validera pas. On alerte.
+      log.error({ err, userId, code }, 'winback promo create failed AFTER send — customer has unusable code');
       summary.winback.failed++;
     }
   }
