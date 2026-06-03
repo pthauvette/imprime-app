@@ -38,7 +38,12 @@ export type AdminAuditKind =
   | 'ADMIN_USER_BULK_ACTION' // autres actions bulk users (opt-in/out emails, message)
   | 'ADMIN_WEBHOOK_REPLAY' // rejeu d'un webhook (financier)
   | 'ADMIN_REVIEW_MODERATE' // modération d'un avis (approve/reject/reply)
-  | 'ADMIN_RESELLER_DECISION'; // décision sur une demande reseller (approve/reject/archive)
+  | 'ADMIN_RESELLER_DECISION' // décision sur une demande reseller (approve/reject/archive)
+  // Audit v2 #10.7 — DEMANDE d'annulation par le CLIENT (acteur = client, pas
+  // admin). Avant : loggée en ADMIN_MANUAL_CANCEL avec l'email CLIENT → polluait
+  // les rapports d'audit admin (confusion « qui a annulé » + email client mêlé
+  // aux actions admin). Kind dédié pour la filtrer/distinguer.
+  | 'CUSTOMER_CANCEL_REQUEST';
 
 export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT' | 'EXPERIMENT';
 

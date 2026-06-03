@@ -197,13 +197,15 @@ describe('POST /api/orders/[id]/cancel-request', () => {
     expect(res.status).toBe(400);
   });
 
-  it('audit log avec action=CUSTOMER_CANCEL_REQUEST', async () => {
+  // Audit v2 #10.7 — kind DÉDIÉ (plus de réutilisation de ADMIN_MANUAL_CANCEL).
+  it('audit log kind=CUSTOMER_CANCEL_REQUEST (pas ADMIN_MANUAL_CANCEL)', async () => {
     const { POST } = await import('@/app/api/orders/[id]/cancel-request/route');
     await POST(makeReq({ reason: 'test reason here' }), ctxFor('order_1'));
     expect(prisma.adminAuditEvent.create).toHaveBeenCalledOnce();
     const audit = vi.mocked(prisma.adminAuditEvent.create).mock.calls[0][0];
+    expect(audit.data.kind).toBe('CUSTOMER_CANCEL_REQUEST');
+    expect(audit.data.kind).not.toBe('ADMIN_MANUAL_CANCEL');
     const data = JSON.parse(audit.data.data as string);
-    expect(data.action).toBe('CUSTOMER_CANCEL_REQUEST');
     expect(data.status).toBe('PAID');
   });
 });

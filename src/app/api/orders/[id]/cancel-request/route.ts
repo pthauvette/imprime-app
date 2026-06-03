@@ -145,15 +145,17 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     s.status === 'fulfilled' ? s.value : { to: ADMIN_EMAILS[i]!, sent: false },
   );
 
-  // Audit log
+  // Audit log — Audit v2 #10.7 : kind DÉDIÉ (l'acteur est le CLIENT qui demande,
+  // pas un admin qui annule). Avant on réutilisait ADMIN_MANUAL_CANCEL → les
+  // demandes clients (avec email client) polluaient les rapports d'annulations
+  // admin. On garde adminId/adminEmail = client (acteur réel de l'événement).
   void recordAdminAudit({
-    kind: 'ADMIN_MANUAL_CANCEL', // reuse — c'est un cancel-related event
+    kind: 'CUSTOMER_CANCEL_REQUEST',
     adminId: session.user.id,
     adminEmail: session.user.email ?? '',
     targetType: 'ORDER',
     targetId: id,
     data: {
-      action: 'CUSTOMER_CANCEL_REQUEST',
       status: order.status,
       reasonLength: body.reason.length,
       reason: body.reason.slice(0, 500), // snippet
