@@ -42,7 +42,7 @@ export default async function SignUpPage() {
         <div>
           <h2 className="side-headline">25 $ <em>offerts</em> sur ta première commande.</h2>
           <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px' }}>
-            Plus 5 échantillons gratuits, accès aux templates, et notre éditeur en ligne avec IA.
+            Plus 5 échantillons gratuits, accès aux templates, et notre éditeur en ligne.
           </p>
 
           <div className="side-perks">
@@ -64,7 +64,7 @@ export default async function SignUpPage() {
               <div className="side-perk-icon">🎨</div>
               <div className="side-perk-text">
                 <strong>Templates &amp; éditeur en ligne</strong>
-                <span>Pas de design ? On a des templates et un éditeur avec IA.</span>
+                <span>Pas de design ? On a des templates et un éditeur en ligne.</span>
               </div>
             </div>
             <div className="side-perk">
