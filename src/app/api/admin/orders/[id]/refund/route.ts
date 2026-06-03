@@ -140,7 +140,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     );
   }
 
-  await markRefundIssued({ orderId: order.id, refundId: refund.id });
+  await markRefundIssued({ orderId: order.id, refundId: refund.id, amountCents: refund.amount });
   if (body.cancelOrder) {
     await markOrderFailed({
       orderId: order.id,

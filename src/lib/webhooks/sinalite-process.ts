@@ -126,7 +126,7 @@ export async function processSinaliteEvent(
                 { idempotencyKey: idem },
               );
               const { markRefundIssued } = await import('@/lib/db/orders');
-              await markRefundIssued({ orderId: order.id, refundId: refund.id });
+              await markRefundIssued({ orderId: order.id, refundId: refund.id, amountCents: refund.amount });
               const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
               await restoreWalletCreditOnFullRefund({ order, refundId: refund.id });
               // Audit v2 #3.1 — symétrique pour le crédit referral débité à la confirmation.

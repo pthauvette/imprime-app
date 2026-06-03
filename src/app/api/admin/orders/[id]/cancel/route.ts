@@ -66,7 +66,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
           reason: body.reason,
         },
       }, { idempotencyKey: cancelIdemKey });
-      await markRefundIssued({ orderId: order.id, refundId: refund.id });
+      await markRefundIssued({ orderId: order.id, refundId: refund.id, amountCents: refund.amount });
       // Audit v2 #1.4 — /cancel est sémantiquement un FULL refund → restaurer le
       // crédit wallet débité (le refund Stripe ne rend que la part Stripe). Sans
       // ça, le client perdait son wallet alors que l'email annonce le total

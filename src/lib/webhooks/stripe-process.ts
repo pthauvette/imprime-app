@@ -332,7 +332,7 @@ async function handlePaymentSucceeded(
           error: err instanceof Error ? err.message.slice(0, 500) : 'unknown',
         },
       }, { idempotencyKey: `auto_refund_${intent.id}` });
-      await markRefundIssued({ orderId: order.id, refundId: refund.id });
+      await markRefundIssued({ orderId: order.id, refundId: refund.id, amountCents: refund.amount });
       // Audit v2 #1.2 — restaurer le crédit wallet débité (markOrderPaidWithWalletDebit
       // l'a débité plus haut ; le refund Stripe ne rend QUE la part Stripe). C'est
       // le chemin de refund le PLUS fréquent (échec imprimeur auto) et il ne

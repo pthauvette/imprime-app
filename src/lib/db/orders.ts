@@ -491,12 +491,20 @@ export class OrderStatusTransitionError extends Error {
 export async function markRefundIssued(input: {
   orderId: string;
   refundId: string;
+  /** Audit v2 #10.6 — montant RÉELLEMENT remboursé en cents (= refund.amount
+   *  Stripe). Sans ça, le dashboard finances comptait chaque refund comme un
+   *  remboursement TOTAL de la commande → revenu net faussé sur les refunds
+   *  partiels. Optionnel pour rétrocompat (vieux events → fallback order total). */
+  amountCents?: number;
 }) {
   return prisma.orderEvent.create({
     data: {
       orderId: input.orderId,
       kind: 'REFUND_ISSUED',
-      data: JSON.stringify({ refundId: input.refundId }),
+      data: JSON.stringify({
+        refundId: input.refundId,
+        ...(input.amountCents !== undefined && { amountCents: input.amountCents }),
+      }),
     },
   });
 }
