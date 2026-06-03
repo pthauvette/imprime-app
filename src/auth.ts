@@ -192,11 +192,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (isFirstSignIn) {
           const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
           if (fullUser) {
-            await sendWelcomeEmail({ user: fullUser });
+            try {
+              await sendWelcomeEmail({ user: fullUser });
+            } catch (err) {
+              logAuth.error({ err, userId: user.id }, 'welcome email failed');
+            }
+          }
+
+          // Audit v2 #8.3 — crédit de bienvenue de 25 $ (la page d'inscription
+          // le promet : « 25 $ offerts sur ta première commande »). Avant, AUCUN
+          // crédit n'était accordé → publicité trompeuse (LPC QC). Helper
+          // idempotent (1 seul crédit par user) + best-effort (un échec ne bloque
+          // pas le login).
+          try {
+            const { grantWelcomeCredit } = await import('@/lib/wallet/operations');
+            const granted = await grantWelcomeCredit(user.id);
+            if (granted > 0) {
+              logAuth.info({ userId: user.id, amountCents: granted }, 'welcome credit accordé');
+            }
+          } catch (err) {
+            logAuth.error({ err, userId: user.id }, 'welcome credit failed (non-fatal)');
           }
         }
       } catch (err) {
-        logAuth.error({ err, userId: user.id }, 'welcome email failed');
+        logAuth.error({ err, userId: user.id }, 'first sign-in handling failed');
       }
     },
   },
