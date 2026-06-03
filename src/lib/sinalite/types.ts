@@ -190,10 +190,12 @@ export type SinaliteOrderResponse = z.infer<typeof SinaliteOrderResponse>;
 // ─── SHIPPING ESTIMATE ────────────────────────────────────────────────────
 
 export const SinaliteShippingEstimateRequest = z.object({
+  // Audit v2 #6.4 — borne haute : sans cap, un payload géant amplifiait le
+  // coût/latence du proxy Sinalite (1 commande = quelques items au plus).
   items: z.array(z.object({
     productId: z.number(),
     options: z.record(z.string(), z.string()),
-  })).min(1),
+  })).min(1).max(20),
   shippingInfo: z.object({
     ShipState: CaProvince,
     ShipZip: z.string(),
