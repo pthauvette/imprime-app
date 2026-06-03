@@ -8,6 +8,7 @@
  * fail, l'UPDATE wallet est rollback.
  */
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { logEmail as log } from '@/lib/logger';
 
@@ -200,10 +201,26 @@ export async function restoreWalletCreditOnFullRefund(input: {
  * Process un topup complet : record le TOPUP + le TOPUP_BONUS si tier.
  * 2 rows dans le ledger (audit clair : "voici ton vrai paiement, voici le bonus").
  *
- * Round 37 #1 — Maintenant atomique : les 2 inserts vivent dans la MÊME
- * prisma.$transaction. Avant : si TOPUP commit puis TOPUP_BONUS fail (DB blip,
- * connection close), le user payait pour le bonus tier mais ne le recevait
- * pas (ledger split-brain → support ticket des semaines plus tard).
+ * Round 37 #1 — Atomique : les 2 inserts vivent dans la MÊME prisma.$transaction.
+ * Avant : si TOPUP commit puis TOPUP_BONUS fail (DB blip), le user payait pour le
+ * bonus tier mais ne le recevait pas (ledger split-brain → support ticket).
+ *
+ * Audit v2 #2.1 — IDEMPOTENT : le replay admin d'un webhook topup
+ * (`checkout.session.completed`/`invoice.paid`) bypasse le dedup WebhookEvent.
+ * Sans garde, rejouer crédite 2× (vrai argent injecté). On no-op si un TOPUP
+ * existe déjà pour ce paymentIntent. Le chemin order, lui, est protégé par le
+ * garde `status !== 'PENDING'`.
+ *
+ * Audit v2 #3.4 — Concurrence : on prend un verrou pessimiste sur la row User
+ * (`SELECT … FOR UPDATE`) AVANT le findFirst, ce qui sérialise les topups
+ * concurrents du même user → le couple « check idempotence → insert » est
+ * atomique sans contrainte DB (un `@@unique([paymentIntentId, kind])` ferait
+ * échouer `prisma migrate deploy` si la prod a déjà des doublons hérités du
+ * bug). Et on crédite via `increment` atomique (avant : read-modify-write sur
+ * une lecture non verrouillée → topup + checkout concurrents = mouvement perdu).
+ *
+ * @returns totalCreditCents=0 + alreadyProcessed=true si le topup était déjà
+ *          enregistré (replay).
  */
 export async function processWalletTopup(opts: {
   userId: string;
@@ -211,57 +228,78 @@ export async function processWalletTopup(opts: {
   paymentIntentId: string;
   bonusCents: number;
   tierLabel: string | null;
-}): Promise<{ totalCreditCents: number; balanceAfterCents: number }> {
+}): Promise<{ totalCreditCents: number; balanceAfterCents: number; alreadyProcessed?: boolean }> {
   return prisma.$transaction(async (tx) => {
-    // Lookup balance courant 1 fois
-    const userBefore = await tx.user.findUnique({
-      where: { id: opts.userId },
-      select: { walletCents: true },
-    });
-    if (!userBefore) {
+    // #3.4 — verrou pessimiste : sérialise les topups concurrents du même user
+    // pour rendre le garde d'idempotence (findFirst → create) atomique sans
+    // contrainte DB. La row reste verrouillée jusqu'au commit de la transaction.
+    const locked = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT id FROM "User" WHERE id = ${opts.userId} FOR UPDATE`,
+    );
+    if (locked.length === 0) {
       throw new Error(`User ${opts.userId} introuvable pour wallet topup`);
     }
 
-    // 1. TOPUP : credit principal
-    const balanceAfterTopup = userBefore.walletCents + opts.amountCents;
-    await tx.user.update({
+    // #2.1 — idempotence : un TOPUP existe déjà pour ce paymentIntent → no-op.
+    const existing = await tx.walletTransaction.findFirst({
+      where: { paymentIntentId: opts.paymentIntentId, kind: 'TOPUP' },
+      select: { id: true },
+    });
+    if (existing) {
+      const current = await tx.user.findUnique({
+        where: { id: opts.userId },
+        select: { walletCents: true },
+      });
+      log.info({
+        userId: opts.userId,
+        paymentIntentId: opts.paymentIntentId,
+      }, 'wallet topup skipped — already processed (idempotent replay)');
+      return {
+        totalCreditCents: 0,
+        balanceAfterCents: current?.walletCents ?? 0,
+        alreadyProcessed: true,
+      };
+    }
+
+    // 1. TOPUP : credit principal — increment atomique (#3.4).
+    const afterTopup = await tx.user.update({
       where: { id: opts.userId },
       data: {
-        walletCents: balanceAfterTopup,
+        walletCents: { increment: opts.amountCents },
         walletLastActivityAt: new Date(),
       },
+      select: { walletCents: true },
     });
+    let finalBalance = afterTopup.walletCents;
     await tx.walletTransaction.create({
       data: {
         userId: opts.userId,
         kind: 'TOPUP',
         amountCents: opts.amountCents,
-        balanceAfterCents: balanceAfterTopup,
+        balanceAfterCents: finalBalance,
         paymentIntentId: opts.paymentIntentId,
         description: `Topup Stripe ${(opts.amountCents / 100).toFixed(2)} $`.slice(0, 500),
       },
     });
 
-    let finalBalance = balanceAfterTopup;
-
-    // 2. TOPUP_BONUS si applicable, dans la même tx
+    // 2. TOPUP_BONUS si applicable, dans la même tx.
     if (opts.bonusCents > 0 && opts.tierLabel) {
-      const balanceAfterBonus = balanceAfterTopup + opts.bonusCents;
-      await tx.user.update({
+      const afterBonus = await tx.user.update({
         where: { id: opts.userId },
-        data: { walletCents: balanceAfterBonus },
+        data: { walletCents: { increment: opts.bonusCents } },
+        select: { walletCents: true },
       });
+      finalBalance = afterBonus.walletCents;
       await tx.walletTransaction.create({
         data: {
           userId: opts.userId,
           kind: 'TOPUP_BONUS',
           amountCents: opts.bonusCents,
-          balanceAfterCents: balanceAfterBonus,
+          balanceAfterCents: finalBalance,
           paymentIntentId: opts.paymentIntentId,
           description: `Bonus tier "${opts.tierLabel}" : +${(opts.bonusCents / 100).toFixed(2)} $`.slice(0, 500),
         },
       });
-      finalBalance = balanceAfterBonus;
     }
 
     log.info({
