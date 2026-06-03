@@ -21,10 +21,18 @@ vi.mock('@/lib/db', () => ({
     designDraft: { updateMany: vi.fn(), create: vi.fn() },
   },
 }));
+// Audit v2 #6.3 — rate-limit ; par défaut on laisse passer.
+vi.mock('@/lib/ratelimit', () => ({
+  rateLimit: vi.fn(async () => ({ ok: true })),
+  clientIp: vi.fn(() => '1.2.3.4'),
+}));
 
+import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { getTemplateBySlug } from '@/lib/templates/registry';
+import { renderTemplateToPdf } from '@/lib/templates/render';
+import { rateLimit } from '@/lib/ratelimit';
 
 const TEMPLATE = {
   slug: 'carte-classic',
@@ -103,5 +111,21 @@ describe('POST /api/designs/finalize — reprise de brouillon', () => {
     expect(json.designId).toBe('d_fresh');
     expect(prisma.designDraft.updateMany).not.toHaveBeenCalled();
     expect(prisma.designDraft.create).toHaveBeenCalledTimes(1);
+  });
+
+  // Audit v2 #6.3 — rate-limit avant tout render/write coûteux.
+  it('#6.3 — rate-limited → 429, AUCUN render ni write DB', async () => {
+    vi.mocked(rateLimit).mockResolvedValueOnce({
+      ok: false,
+      response: NextResponse.json({ code: 'RATE_LIMITED' }, { status: 429 }),
+    } as never);
+
+    const POST = await importRoute();
+    const res = await POST(postReq({ templateSlug: 'carte-classic', values: { name: 'X' } }));
+
+    expect(res.status).toBe(429);
+    expect(renderTemplateToPdf).not.toHaveBeenCalled();
+    expect(prisma.designDraft.create).not.toHaveBeenCalled();
+    expect(prisma.designDraft.updateMany).not.toHaveBeenCalled();
   });
 });

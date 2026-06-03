@@ -43,6 +43,9 @@ export const limiters = {
   upload: makeLimiter(10, '1 m', 'upload'),
   signin: makeLimiter(5, '15 m', 'signin'),
   render: makeLimiter(30, '1 m', 'render'),
+  // Audit v2 #6.4 — /api/shipping/estimate proxie vers Sinalite (API payante)
+  // sans auth ; on borne par IP pour éviter l'abus de coût.
+  shipping: makeLimiter(20, '1 m', 'shipping'),
 };
 
 export type LimiterKey = keyof typeof limiters;

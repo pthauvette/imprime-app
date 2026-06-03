@@ -17,6 +17,7 @@ import { getTemplateBySlug } from '@/lib/templates/registry';
 import { renderTemplateToPdf } from '@/lib/templates/render';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
+import { rateLimit, clientIp } from '@/lib/ratelimit';
 
 const BodySchema = z.object({
   templateSlug: z.string(),
@@ -30,6 +31,12 @@ const BodySchema = z.object({
 const GUEST_EMAIL = 'guest@plio.local';
 
 export const POST = withErrorHandler(async (req: Request) => {
+  // Audit v2 #6.3 — endpoint public (auth optionnelle) qui rend un PDF (Lambda
+  // compute) + écrit en DB. Rate-limit par IP (bucket 'render', comme
+  // /api/designs/render) avant tout travail coûteux.
+  const limit = await rateLimit('render', clientIp(req));
+  if (!limit.ok) return limit.response;
+
   const body = await parseBody(req, BodySchema);
 
   const template = getTemplateBySlug(body.templateSlug);

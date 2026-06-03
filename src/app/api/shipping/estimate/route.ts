@@ -3,6 +3,7 @@ import { sinalite } from '@/lib/sinalite/client';
 import { SinaliteShippingEstimateRequest } from '@/lib/sinalite/types';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { shippingQuoteToken } from '@/lib/shipping/quote-token';
+import { rateLimit, clientIp } from '@/lib/ratelimit';
 
 /**
  * POST /api/shipping/estimate
@@ -18,6 +19,11 @@ import { shippingQuoteToken } from '@/lib/shipping/quote-token';
  * qui la vérifie → anti-tamper sur shippingPrice sans re-appel Sinalite.
  */
 export const POST = withErrorHandler(async (req: Request) => {
+  // Audit v2 #6.4 — endpoint public non authentifié qui proxie vers Sinalite
+  // (API payante). Rate-limit par IP avant tout appel coûteux.
+  const limit = await rateLimit('shipping', clientIp(req));
+  if (!limit.ok) return limit.response;
+
   const payload = await parseBody(req, SinaliteShippingEstimateRequest);
   const result = await sinalite.estimateShipping(payload);
 
