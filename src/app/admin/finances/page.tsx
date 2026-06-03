@@ -10,9 +10,10 @@
  *   - refunds récents (OrderEvent.kind === 'REFUND_ISSUED')
  *
  * LIMITES DU MODÈLE DB :
- *   1. OrderEvent.data pour REFUND_ISSUED ne contient que { refundId } —
- *      pas le montant. Pour MVP on suppose refund = full order amount.
- *      TODO post-MVP : stocker amountCents dans OrderEvent.data.
+ *   1. Audit v2 #10.6 — RÉSOLU : OrderEvent.data pour REFUND_ISSUED contient
+ *      désormais amountCents (= refund.amount Stripe), donc les refunds partiels
+ *      sont sommés au bon montant (cf. refundAmountCentsOf). Les events
+ *      antérieurs au fix retombent sur le total commande (fallback).
  *   2. Order.taxCents est le total taxes — pas de décomposition TPS/TVQ/HST.
  *      Le tableau "taxes par province" affiche donc juste le total collecté
  *      par province, sans split.
@@ -26,6 +27,7 @@ import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
 
 export const metadata = { title: 'Admin — Finances' };
 export const dynamic = 'force-dynamic';
@@ -109,9 +111,10 @@ export default async function AdminFinancesPage({
       where: { paidAt: { gte: periodStart, lt: periodEnd } },
       select: { amountCents: true, paidAt: true },
     }).catch(() => []),
-    // Refunds in period — count REFUND_ISSUED events.
-    // TODO: store refund amountCents in OrderEvent.data so we can sum
-    // accurately instead of assuming full-order refund.
+    // Refunds in period — REFUND_ISSUED events. Audit v2 #10.6 — on lit
+    // `data.amountCents` (montant réel) via refundAmountCentsOf au lieu de
+    // sommer le total de la commande. Le champ `data` est inclus par défaut
+    // (findMany sans select restrictif).
     prisma.orderEvent.findMany({
       where: {
         kind: 'REFUND_ISSUED',
@@ -198,9 +201,9 @@ export default async function AdminFinancesPage({
   const orderCount = revenueAgg._count._all;
   const aovCents = orderCount > 0 ? Math.round(revCents / orderCount) : 0;
 
-  const refundsCents = refundsInPeriod.reduce((a, r) => a + r.order.amountCents, 0);
+  const refundsCents = refundsInPeriod.reduce((a, r) => a + refundAmountCentsOf(r), 0);
   const refundsCount = refundsInPeriod.length;
-  const refundsPrevCents = refundsPrevPeriod.reduce((a, r) => a + r.order.amountCents, 0);
+  const refundsPrevCents = refundsPrevPeriod.reduce((a, r) => a + refundAmountCentsOf(r), 0);
   const refundsDelta = refundsPrevCents > 0
     ? Math.round(((refundsCents - refundsPrevCents) / refundsPrevCents) * 100)
     : null;
@@ -572,7 +575,7 @@ export default async function AdminFinancesPage({
                           </Link>
                         </td>
                         <td className="muted">{e.order.shipName}</td>
-                        <td className="num">−{formatCurrency(e.order.amountCents / 100)}</td>
+                        <td className="num">−{formatCurrency(refundAmountCentsOf(e) / 100)}</td>
                       </tr>
                     );
                   })}
@@ -581,7 +584,7 @@ export default async function AdminFinancesPage({
             )}
             {recentRefundEvents.length > 0 && (
               <div style={{ padding: '8px 24px 16px', fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                * Montant approximé = total de la commande (refund partiels non stockés).
+                * Montant exact pour les remboursements récents ; les anciens (avant le suivi du montant) affichent le total de la commande.
               </div>
             )}
           </div>

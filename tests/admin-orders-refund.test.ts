@@ -120,7 +120,7 @@ beforeEach(() => {
     user: { id: 'u_admin', email: 'admin@plio.ca' },
   } as never);
   vi.mocked(prisma.order.findUnique).mockResolvedValue(ORDER_BASE as never);
-  stripeMock.refunds.create.mockResolvedValue({ id: 're_test_123', status: 'succeeded' } as never);
+  stripeMock.refunds.create.mockResolvedValue({ id: 're_test_123', status: 'succeeded', amount: 8000 } as never);
   stripeMock.refunds.list.mockResolvedValue({ data: [] } as never);
 });
 
@@ -364,12 +364,13 @@ describe('POST /api/admin/orders/[id]/refund (Round 36 #4)', () => {
     expect(restoreWalletCreditOnFullRefund).toHaveBeenCalledOnce();
   });
 
-  it('200 + markRefundIssued appelé avec refund.id', async () => {
+  it('200 + markRefundIssued appelé avec refund.id + amountCents réel (#10.6)', async () => {
     const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
     await POST(makeReq({}), { params: Promise.resolve({ id: 'o_test' }) });
     expect(markRefundIssued).toHaveBeenCalledWith({
       orderId: 'o_test',
       refundId: 're_test_123',
+      amountCents: 8000, // = refund.amount Stripe (pour le revenu net finances)
     });
   });
 
