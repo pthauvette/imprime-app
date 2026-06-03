@@ -12,6 +12,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useModalFocusTrap } from '@/hooks/useModalFocusTrap';
 
 interface Props {
   orderId: string;
@@ -30,6 +31,8 @@ interface Props {
 export default function ShippingEditButton({ orderId, status, current }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Audit v2 #9.4 — Escape + focus-trap + restore focus sur le modal d'édition.
+  const dialogRef = useModalFocusTrap<HTMLDivElement>(open, () => setOpen(false));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -92,6 +95,7 @@ export default function ShippingEditButton({ orderId, status, current }: Props) 
 
       {open && (
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="ship-edit-title"
