@@ -48,12 +48,14 @@ export async function processSinaliteEvent(
   payload: SinaliteWebhookPayloadInput,
   ctx: { orderId?: string; unknown?: boolean },
 ): Promise<void> {
+  let transitioned = false;
   try {
-    await applySinaliteStatusChange({
+    const result = await applySinaliteStatusChange({
       sinaliteOrderId: payload.orderId,
       status: payload.status as SinaliteStatus,
       data: payload,
     });
+    transitioned = result.transitioned;
   } catch (err) {
     if (err instanceof OrderNotFoundError) {
       logSinalite.warn(
@@ -75,6 +77,17 @@ export async function processSinaliteEvent(
     });
     if (order) {
       ctx.orderId = order.id;
+      // Audit v2 #3.2 — n'émettre emails + refund (CANCELLED) QUE sur une
+      // transition réelle. Avant : le fingerprint inclut le timestamp → un
+      // re-push (ETA corrigée) ou un webhook désordonné re-déclenchait l'envoi
+      // (double email shipped/review-request, refund redondant).
+      if (!transitioned) {
+        logSinalite.info(
+          { orderId: order.id, status: payload.status },
+          'Sinalite status non-transition (replay / out-of-order) — skip email/refund',
+        );
+        return;
+      }
       switch (payload.status) {
         case 'SHIPPED':
           await sendOrderShippedEmail({

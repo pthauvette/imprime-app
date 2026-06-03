@@ -440,26 +440,50 @@ export async function applySinaliteStatusChange(input: {
   sinaliteOrderId: number;
   status: SinaliteStatus;
   data: unknown;
-}) {
+}): Promise<{ transitioned: boolean; orderId: string; fromStatus: string; toStatus: OrderStatus }> {
   const order = await prisma.order.findUnique({
     where: { sinaliteOrderId: String(input.sinaliteOrderId) },
   });
   if (!order) throw new OrderNotFoundError(`sinalite=${input.sinaliteOrderId}`);
 
   const nextStatus = SINALITE_TO_DB_STATUS[input.status];
-  return prisma.$transaction([
-    prisma.order.update({
-      where: { id: order.id },
+
+  // Audit v2 #3.2 — applique la FSM (avant : `order.update` brut SANS garde →
+  // un webhook tardif/désordonné régressait le statut, ex DELIVERED→IN_PRODUCTION,
+  // contredisant l'invariant Round 38 #4). On garde via `updateMany` WHERE status
+  // IN (prior autorisés) ET status != nextStatus → la transition n'a lieu QUE si
+  // elle est valide ET que c'est un VRAI changement (pas un self-loop / re-push
+  // d'ETA). On retourne `transitioned` pour que le caller n'émette les emails
+  // (et le refund CANCELLED) qu'une seule fois, sur une transition réelle.
+  const allowedPrior = ALLOWED_PRIOR_STATUSES[nextStatus] ?? [];
+
+  return prisma.$transaction(async (tx) => {
+    const guard = await tx.order.updateMany({
+      where: {
+        id: order.id,
+        status: { in: allowedPrior, not: nextStatus },
+      },
       data: { status: nextStatus },
-    }),
-    prisma.orderEvent.create({
+    });
+    const transitioned = guard.count > 0;
+
+    // OrderEvent enregistré TOUJOURS (audit du webhook reçu, même no-op) — utile
+    // pour debug des out-of-order / replays. On stamp le résultat de transition.
+    await tx.orderEvent.create({
       data: {
         orderId: order.id,
         kind: 'SINALITE_STATUS_CHANGED',
-        data: JSON.stringify(input.data).slice(0, 2000),
+        data: JSON.stringify({
+          payload: input.data,
+          transitioned,
+          fromStatus: order.status,
+          toStatus: nextStatus,
+        }).slice(0, 2000),
       },
-    }),
-  ]);
+    });
+
+    return { transitioned, orderId: order.id, fromStatus: order.status, toStatus: nextStatus };
+  });
 }
 
 // ─── QUERIES ──────────────────────────────────────────────────────────────
