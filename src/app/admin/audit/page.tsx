@@ -21,7 +21,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Journal audit · Plio' };
+export const metadata = { title: 'Admin — Journal audit' };
 
 const PAGE_SIZE = 50;
 

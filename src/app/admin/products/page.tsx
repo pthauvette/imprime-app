@@ -17,7 +17,7 @@ import { fetchOverridesMap } from '@/lib/products/overrides';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import ProductOverrideActions from './ProductOverrideActions';
 
-export const metadata = { title: 'Admin — Catalogue Sinalite · Plio' };
+export const metadata = { title: 'Admin — Catalogue Sinalite' };
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;

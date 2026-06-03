@@ -12,7 +12,7 @@ import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Newsletter · Plio' };
+export const metadata = { title: 'Admin — Newsletter' };
 
 const PER_PAGE = 50; // newsletter list = plus compact, OK pour plus de rows
 

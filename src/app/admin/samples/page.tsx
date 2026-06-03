@@ -18,7 +18,7 @@ import { formatDateTime } from '@/lib/format';
 import SampleActions from './SampleActions';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Demandes d\'échantillons · Plio' };
+export const metadata = { title: 'Admin — Demandes d\'échantillons' };
 
 const STATUS_TABS = [
   { key: 'PENDING', label: 'En attente', urgent: true },

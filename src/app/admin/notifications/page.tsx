@@ -27,7 +27,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Notifications · Plio' };
+export const metadata = { title: 'Admin — Notifications' };
 
 type Priority = 'critical' | 'warning' | 'info';
 

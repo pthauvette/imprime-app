@@ -26,7 +26,7 @@ import { ALL_TEMPLATES, getSampleVars } from '@/lib/emails/sample-vars';
 import EmailPreviewForm from './EmailPreviewForm';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Aperçu emails · Plio' };
+export const metadata = { title: 'Admin — Aperçu emails' };
 
 const TEMPLATE_LABELS: Record<EmailTemplate, string> = {
   'magic-link': 'Magic link (sign-in)',

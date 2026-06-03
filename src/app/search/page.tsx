@@ -11,7 +11,7 @@ import SearchClient from './SearchClient';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'Recherche · Plio',
+  title: 'Recherche',
   description: 'Trouve une réponse dans notre centre d\'aide et nos articles de blog.',
 };
 

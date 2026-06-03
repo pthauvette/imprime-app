@@ -14,7 +14,7 @@ import { formatDateTime, formatCurrency } from '@/lib/format';
 import ResellerActions from './ResellerActions';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Demandes reseller · Plio' };
+export const metadata = { title: 'Admin — Demandes reseller' };
 
 const STATUS_TABS = [
   { key: 'PENDING', label: 'En attente', urgent: true },

@@ -16,7 +16,7 @@ import PromoCreateForm from './PromoCreateForm';
 import PromoToggleButton from './PromoToggleButton';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Codes promo · Plio' };
+export const metadata = { title: 'Admin — Codes promo' };
 
 function cad(cents: number): string {
   return (cents / 100).toFixed(2).replace('.', ',') + ' $';

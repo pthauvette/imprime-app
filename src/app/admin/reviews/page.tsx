@@ -13,7 +13,7 @@ import AdminPagination from '@/components/admin/AdminPagination';
 import ReviewsBulkList, { type ReviewListItem } from './ReviewsBulkList';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Reviews · Plio' };
+export const metadata = { title: 'Admin — Reviews' };
 
 const PER_PAGE = 25;
 

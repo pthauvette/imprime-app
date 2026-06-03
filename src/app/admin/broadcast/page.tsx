@@ -12,7 +12,7 @@ import { formatDateTime } from '@/lib/format';
 import BroadcastComposer from './BroadcastComposer';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Broadcasts · Plio' };
+export const metadata = { title: 'Admin — Broadcasts' };
 
 const SEGMENT_LABELS: Record<string, string> = {
   newsletter: 'Newsletter',

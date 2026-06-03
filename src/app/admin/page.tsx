@@ -18,7 +18,7 @@ import RefreshButton from '@/components/admin/RefreshButton';
 import type { OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 
-export const metadata = { title: 'Admin — Tableau de bord · Plio' };
+export const metadata = { title: 'Admin — Tableau de bord' };
 export const dynamic = 'force-dynamic';
 
 const EVENT_DOT: Record<OrderEventKind, string> = {

@@ -76,11 +76,10 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-    ],
-  },
+  // Audit v2 #10.9 — `public/favicon.ico` était absent → 404 sur chaque page +
+  // aucun favicon dans l'onglet. On laisse Next détecter automatiquement
+  // `src/app/icon.svg` (généré, wordmark « P » sur fond brand) au lieu de
+  // pointer vers un asset inexistant.
 };
 
 export const viewport: Viewport = {
