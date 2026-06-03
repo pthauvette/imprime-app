@@ -178,39 +178,15 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     });
   }
 
-  if (isFullRefund && order.walletCreditAppliedCents > 0) {
-    try {
-      const { recordWalletTx } = await import('@/lib/wallet/operations');
-      await recordWalletTx({
-        userId: order.userId,
-        kind: 'REFUND',
-        amountCents: order.walletCreditAppliedCents, // POSITIVE — credit back
-        orderId: order.id,
-        adminId: guard.userId,
-        description: `Refund order #${order.id.slice(-6)} — wallet credit restored`,
-      });
-      walletRestoredCents = order.walletCreditAppliedCents;
-    } catch (err) {
-      // Non-fatal : Stripe refund a déjà succeed, l'order audit le note.
-      // Admin doit reconcilier manuellement le wallet (via Slack alert).
-      const { logStripe } = await import('@/lib/logger');
-      logStripe.error(
-        { err, orderId: order.id, walletAppliedCents: order.walletCreditAppliedCents },
-        'wallet restore on refund failed (non-fatal — manual reconcile needed)',
-      );
-      const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-      void sendCriticalAlert({
-        severity: 'critical',
-        title: 'Wallet restore on refund FAILED',
-        body: `Stripe refund OK mais wallet credit non restauré. Ajuste manuellement /admin/users/${order.userId}.`,
-        context: {
-          orderId: order.id,
-          refundId: refund.id,
-          walletAppliedCents: order.walletCreditAppliedCents,
-          error: err instanceof Error ? err.message : 'unknown',
-        },
-      });
-    }
+  if (isFullRefund) {
+    // Audit v2 #1.2/#1.4 — restauration extraite en helper partagé + idempotent
+    // (même logique Round 37 #1, maintenant réutilisée par /cancel et le webhook).
+    const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
+    walletRestoredCents = await restoreWalletCreditOnFullRefund({
+      order,
+      actorId: guard.userId,
+      refundId: refund.id,
+    });
   }
 
   // Best-effort email

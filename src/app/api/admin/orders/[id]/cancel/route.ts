@@ -67,6 +67,12 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
         },
       }, { idempotencyKey: cancelIdemKey });
       await markRefundIssued({ orderId: order.id, refundId: refund.id });
+      // Audit v2 #1.4 — /cancel est sémantiquement un FULL refund → restaurer le
+      // crédit wallet débité (le refund Stripe ne rend que la part Stripe). Sans
+      // ça, le client perdait son wallet alors que l'email annonce le total
+      // remboursé. Helper partagé idempotent + non-fatal (cf. /refund).
+      const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
+      await restoreWalletCreditOnFullRefund({ order, actorId: guard.userId, refundId: refund.id });
     } catch (err) {
       return NextResponse.json(
         { error: `Refund failed: ${err instanceof Error ? err.message : 'unknown'}` },
@@ -93,7 +99,10 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     order,
     user: order.user,
     reason: body.reason,
-    refundAmountCents: order.amountCents,
+    // Audit v2 #1.5 — n'annoncer un remboursement QUE s'il a été émis. Une
+    // commande PENDING (jamais débitée) ne donne lieu à aucun refund → 0, sinon
+    // l'email promet « Remboursement : X $ » jamais versé.
+    refundAmountCents: refund ? order.amountCents : 0,
   });
 
   void recordAdminAudit({
