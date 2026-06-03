@@ -73,6 +73,9 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       // remboursé. Helper partagé idempotent + non-fatal (cf. /refund).
       const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
       await restoreWalletCreditOnFullRefund({ order, actorId: guard.userId, refundId: refund.id });
+      // Audit v2 #3.1 — symétrique pour le crédit referral débité à la confirmation.
+      const { restoreReferralCreditOnFullRefund } = await import('@/lib/referrals/restore');
+      await restoreReferralCreditOnFullRefund({ order, actorId: guard.userId, refundId: refund.id });
     } catch (err) {
       return NextResponse.json(
         { error: `Refund failed: ${err instanceof Error ? err.message : 'unknown'}` },

@@ -264,6 +264,46 @@ export async function markOrderPaidWithWalletDebit(input: {
       });
     }
 
+    // 3. Audit v2 #3.1 — débit du crédit REFERRAL à la confirmation (déplacé
+    // depuis la création de l'order). Même tx, protégé par le guard PENDING→PAID
+    // ci-dessus (count===0 → early-return) → débité exactement une fois, jamais
+    // sur un order non payé. Garde `gte` = plancher (jamais de balance négative).
+    if (order.referralCreditAppliedCents > 0) {
+      const refGuard = await tx.user.updateMany({
+        where: {
+          id: order.userId,
+          referralCreditCents: { gte: order.referralCreditAppliedCents },
+        },
+        data: { referralCreditCents: { decrement: order.referralCreditAppliedCents } },
+      });
+      if (refGuard.count === 0) {
+        // Solde insuffisant (rare : 2 checkouts concurrents ont consommé le même
+        // crédit). On NE throw PAS — sinon l'order resterait PENDING alors que le
+        // client a déjà payé la part Stripe. On débite le restant (clamp ≥ 0) et
+        // on logge le manque pour réconciliation manuelle.
+        const u = await tx.user.findUnique({
+          where: { id: order.userId },
+          select: { referralCreditCents: true },
+        });
+        const avail = Math.max(0, u?.referralCreditCents ?? 0);
+        if (avail > 0) {
+          await tx.user.update({
+            where: { id: order.userId },
+            data: { referralCreditCents: { decrement: avail } },
+          });
+        }
+        logWebhook.warn(
+          {
+            orderId: order.id,
+            userId: order.userId,
+            applied: order.referralCreditAppliedCents,
+            debited: avail,
+          },
+          'referral credit insuffisant au débit — clampé (rabais > solde, reconcile manuel)',
+        );
+      }
+    }
+
     return updatedOrder;
   });
 }

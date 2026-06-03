@@ -97,6 +97,7 @@ const ORDER_BASE = {
   status: 'PAID',
   amountCents: 8000, // $80 facturé Stripe
   walletCreditAppliedCents: 2000, // $20 wallet déjà débité — Round 37 #1
+  referralCreditAppliedCents: 0, // Audit v2 #3.1 — restore helper no-op sur 0
   paymentIntentId: 'pi_123',
   currency: 'cad',
   user: { id: 'u_owner', email: 'customer@plio.ca', firstName: 'Customer' },
