@@ -516,6 +516,14 @@ function ReviewPageInner() {
             )}
             {clientSecret && breakdown && stripe && (
               <Elements
+                // Audit v2 #1.1 — Stripe lie <Elements> à son clientSecret AU MONTAGE
+                // (immuable côté SDK). Quand le panier/promo change, l'effet recrée le
+                // PaymentIntent (nouveau clientSecret + nouveau breakdown.total) mais
+                // sans `key`, <Elements> garde l'ANCIEN intent → confirmPayment()
+                // débite l'ancien montant ≠ total affiché/consenti. key={clientSecret}
+                // force le remount sur le nouvel intent (re-saisie carte = consentement
+                // frais sur le bon montant, comportement voulu).
+                key={clientSecret}
                 stripe={stripe}
                 options={{
                   clientSecret,
