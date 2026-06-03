@@ -16,6 +16,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
+import { timingSafeStringEqual } from '@/lib/webhooks/sinalite-signature';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,8 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Paramètres manquants.', { status: 400 });
   }
 
-  if (token !== newsletterUnsubscribeToken(email)) {
+  // Audit v2 #6.7 — comparaison constant-time du HMAC.
+  if (!timingSafeStringEqual(token, newsletterUnsubscribeToken(email))) {
     return new NextResponse('Lien invalide ou expiré.', { status: 400 });
   }
 
@@ -83,7 +85,8 @@ export async function POST(req: NextRequest) {
   if (!email || !token) {
     return NextResponse.json({ error: 'Missing email/token' }, { status: 400 });
   }
-  if (token !== newsletterUnsubscribeToken(email)) {
+  // Audit v2 #6.7 — comparaison constant-time du HMAC.
+  if (!timingSafeStringEqual(token, newsletterUnsubscribeToken(email))) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
   }
 
