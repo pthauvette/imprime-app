@@ -17,6 +17,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useModalFocusTrap } from '@/hooks/useModalFocusTrap';
 
 const SNOOZE_COOKIE = 'plio_nps_snooze';
 const SNOOZE_DAYS = 30;
@@ -34,6 +35,10 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A11y (#9.x) : Escape ferme (= snooze), focus piégé dans le dialog, focus
+  // restauré au déclencheur à la fermeture. snoozeAndClose est hoistée.
+  const dialogRef = useModalFocusTrap<HTMLDivElement>(open, snoozeAndClose);
 
   // Mount-time check du cookie de snooze. Si l'orderId est dedans →
   // ne pas open (l'user a dit "plus tard" il y a moins de 30j).
@@ -110,6 +115,7 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
       }}
     >
       <div
+        ref={dialogRef}
         style={{
           background: 'var(--bg-surface)',
           borderRadius: 'var(--r-xl, 16px)',
