@@ -21,7 +21,7 @@ import { ALL_TEMPLATES, listProductTypes } from '@/lib/templates/registry';
 import type { AppTemplate } from '@/lib/templates/types';
 import { formatDate } from '@/lib/format';
 
-export const metadata = { title: 'Admin — Templates · Plio' };
+export const metadata = { title: 'Admin — Templates' };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminTemplatesPage() {

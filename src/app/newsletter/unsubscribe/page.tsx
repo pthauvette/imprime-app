@@ -23,7 +23,7 @@ import UnsubscribeForm from './UnsubscribeForm';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'Désabonnement · Plio',
+  title: 'Désabonnement',
   // robots noindex — pas dans les SERP, c'est juste un endpoint
   robots: { index: false, follow: false },
 };

@@ -20,7 +20,7 @@ import MessageActions from './MessageActions';
 const PER_PAGE = 25;
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Messages · Plio' };
+export const metadata = { title: 'Admin — Messages' };
 
 const STATUS_TABS = [
   { key: 'OPEN', label: 'Ouverts', urgent: true },

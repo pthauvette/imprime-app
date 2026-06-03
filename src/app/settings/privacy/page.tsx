@@ -17,7 +17,7 @@ import DeleteAccountRequest from './DeleteAccountRequest';
 import CookieConsentResetButton from '@/components/legal/CookieConsentResetButton';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Confidentialité · Plio' };
+export const metadata = { title: 'Confidentialité' };
 
 export default async function PrivacySettingsPage() {
   const session = await auth();

@@ -14,7 +14,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import SearchUI from './SearchUI';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Recherche · Plio' };
+export const metadata = { title: 'Admin — Recherche' };
 
 export default async function AdminSearchPage({
   searchParams,

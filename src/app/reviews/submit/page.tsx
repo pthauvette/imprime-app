@@ -14,7 +14,7 @@ import { reviewSubmitToken } from '@/lib/reviews/token';
 import ReviewSubmitForm from './ReviewSubmitForm';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Laisser un avis · Plio' };
+export const metadata = { title: 'Laisser un avis' };
 
 export default async function ReviewSubmitPage({
   searchParams,

@@ -12,7 +12,7 @@ import { formatDateTime } from '@/lib/format';
 import EmailsBulkTable, { type EmailListItem } from './EmailsBulkTable';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Queue email · Plio' };
+export const metadata = { title: 'Admin — Queue email' };
 
 type StatusFilter = 'all' | 'PENDING' | 'SENT' | 'FAILED' | 'DEAD';
 

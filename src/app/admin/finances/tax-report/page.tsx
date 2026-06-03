@@ -18,7 +18,7 @@ import type { CaProvince } from '@/lib/sinalite/types';
 import { formatCurrency } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Rapport de taxes · Plio' };
+export const metadata = { title: 'Admin — Rapport de taxes' };
 
 const PAID_STATUSES = ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'];
 

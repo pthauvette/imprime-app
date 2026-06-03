@@ -15,7 +15,7 @@ import { formatDateTime, formatCurrency } from '@/lib/format';
 import QuoteActions from './QuoteActions';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Devis sur-mesure · Plio' };
+export const metadata = { title: 'Admin — Devis sur-mesure' };
 
 const STATUS_TABS = [
   { key: 'PENDING', label: 'À quoter', urgent: true },

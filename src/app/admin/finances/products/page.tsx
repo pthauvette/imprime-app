@@ -25,7 +25,7 @@ import { parseItemsSnapshot } from '@/lib/orders/items';
 import { formatCurrency, formatNumber } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Sales par produit · Plio' };
+export const metadata = { title: 'Admin — Sales par produit' };
 
 const PAID_STATUSES = ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'];
 

@@ -31,7 +31,7 @@ import {
 } from '@/lib/customers/loyalty';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Mon compte · Plio' };
+export const metadata = { title: 'Mon compte' };
 
 // Round 43 #2 — labels + tons centralisés (STATUS_LABELS + ORDER_STATUS_TONE),
 // rendu via <StatusPill variant="text">. Avant : record couleur local dupliqué.

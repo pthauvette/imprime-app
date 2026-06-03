@@ -18,7 +18,7 @@ import { prisma } from '@/lib/db';
 import QuickLinkForm from './QuickLinkForm';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin — Commande téléphonique · Plio' };
+export const metadata = { title: 'Admin — Commande téléphonique' };
 
 export default async function AdminQuickLinkPage() {
   const { session } = await requireAdminPage();
