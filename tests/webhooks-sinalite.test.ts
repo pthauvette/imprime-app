@@ -22,7 +22,7 @@ vi.mock('@/lib/db/orders', async () => {
     }
   }
   return {
-    applySinaliteStatusChange: vi.fn(async () => undefined),
+    applySinaliteStatusChange: vi.fn(async () => ({ transitioned: true, orderId: 'order_db_1', fromStatus: 'SUBMITTED', toStatus: 'SHIPPED' })),
     recordWebhookEvent: vi.fn(async () => ({ isNew: true, alreadyCompleted: false })),
     updateWebhookOutcome: vi.fn(async () => undefined),
     markRefundIssued: vi.fn(async () => undefined),
@@ -123,7 +123,7 @@ const validPayload = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(orders.recordWebhookEvent).mockResolvedValue({ isNew: true, alreadyCompleted: false });
-  vi.mocked(orders.applySinaliteStatusChange).mockResolvedValue(undefined as never);
+  vi.mocked(orders.applySinaliteStatusChange).mockResolvedValue({ transitioned: true, orderId: 'order_db_1', fromStatus: 'SUBMITTED', toStatus: 'SHIPPED' } as never);
   vi.mocked(orders.updateWebhookOutcome).mockResolvedValue(undefined);
 });
 
@@ -160,7 +160,7 @@ describe('J. Signature validation when SINALITE_WEBHOOK_SECRET is set', () => {
     const ordersAfter = await import('@/lib/db/orders');
     const { prisma: prismaAfter } = await import('@/lib/db');
     vi.mocked(ordersAfter.recordWebhookEvent).mockResolvedValue({ isNew: true, alreadyCompleted: false });
-    vi.mocked(ordersAfter.applySinaliteStatusChange).mockResolvedValue(undefined as never);
+    vi.mocked(ordersAfter.applySinaliteStatusChange).mockResolvedValue({ transitioned: true, orderId: 'order_db_1', fromStatus: 'SUBMITTED', toStatus: 'SHIPPED' } as never);
     vi.mocked(ordersAfter.updateWebhookOutcome).mockResolvedValue(undefined);
     vi.mocked(prismaAfter.order.findUnique).mockResolvedValue(
       { ...baseOrder, user: baseUser } as never,
@@ -380,6 +380,43 @@ describe('O. status=CANCELLED', () => {
     expect(emails.sendOrderCancelledEmail).toHaveBeenCalledWith(
       expect.objectContaining({ refundAmountCents: 0 }),
     );
+  });
+});
+
+// ─── O-bis. FSM : non-transition (replay / out-of-order) → pas d'email/refund ─
+// Audit v2 #3.2 — applySinaliteStatusChange retourne transitioned:false quand le
+// statut ne change pas réellement (re-push ETA, webhook désordonné). Le caller
+// ne doit alors PAS ré-émettre emails ni refund.
+describe('O-bis. transitioned=false → skip email + refund', () => {
+  it('SHIPPED rejoué (transitioned=false) → aucun email shipped', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    vi.mocked(orders.applySinaliteStatusChange).mockResolvedValueOnce(
+      { transitioned: false, orderId: 'order_db_1', fromStatus: 'SHIPPED', toStatus: 'SHIPPED' } as never,
+    );
+    vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
+      { ...baseOrder, user: baseUser } as never,
+    );
+
+    const res = await POST(makeReq(validPayload({ status: 'SHIPPED' })));
+
+    expect(emails.sendOrderShippedEmail).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+  });
+
+  it('CANCELLED rejoué (transitioned=false) → aucun email NI refund Stripe', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    vi.mocked(orders.applySinaliteStatusChange).mockResolvedValueOnce(
+      { transitioned: false, orderId: 'order_db_1', fromStatus: 'CANCELLED', toStatus: 'CANCELLED' } as never,
+    );
+    vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
+      { ...baseOrder, user: baseUser } as never,
+    );
+
+    const res = await POST(makeReq(validPayload({ status: 'CANCELLED' })));
+
+    expect(emails.sendOrderCancelledEmail).not.toHaveBeenCalled();
+    expect(getStripe).not.toHaveBeenCalled(); // pas de refund redondant
+    expect(res.status).toBe(200);
   });
 });
 
