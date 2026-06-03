@@ -165,7 +165,10 @@ function ShippingPageInner() {
         }),
       )}` as Route
     : null;
-  const prevHref = `/order/upload?productId=${productId}&options=${options}` as Route;
+  // Audit v2 #4.3 — porter &files : sans ça, « Précédent » vers upload vidait la
+  // dropzone (la page upload ne réhydrate que si elle reçoit `files`) → re-upload
+  // forcé juste avant le paiement.
+  const prevHref = `/order/upload?productId=${productId}&options=${options}${files ? `&files=${files}` : ''}` as Route;
 
   return (
     <div className="shell">
