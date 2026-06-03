@@ -37,12 +37,22 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Lien invalide ou expiré.', { status: 400 });
   }
 
-  // Update status — idempotent (no error si déjà UNSUBSCRIBED ou inexistant)
-  await prisma.newsletterSubscriber.updateMany({
-    where: { email, status: 'ACTIVE' },
-    data: { status: 'UNSUBSCRIBED', unsubscribedAt: new Date() },
-  });
-  log.info({ email }, 'newsletter unsubscribed');
+  // Update status — idempotent (no error si déjà UNSUBSCRIBED ou inexistant).
+  // Audit v2 #7.7 — on désabonne AUSSI User.emailMarketing (comme le POST RFC
+  // 8058). Avant, le GET ne touchait que la table NewsletterSubscriber → un user
+  // auth-ed qui cliquait le lien GED continuait de recevoir broadcasts admin,
+  // reseller-monthly-stats et reengagement (qui gardent sur user.emailMarketing).
+  await Promise.all([
+    prisma.newsletterSubscriber.updateMany({
+      where: { email, status: 'ACTIVE' },
+      data: { status: 'UNSUBSCRIBED', unsubscribedAt: new Date() },
+    }),
+    prisma.user.updateMany({
+      where: { email, emailMarketing: true },
+      data: { emailMarketing: false },
+    }),
+  ]);
+  log.info({ email }, 'newsletter + marketing unsubscribed (GET)');
 
   // Render confirmation HTML (page minimale, pas de chrome Plio)
   return new NextResponse(
