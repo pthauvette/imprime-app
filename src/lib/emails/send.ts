@@ -13,6 +13,7 @@
 
 import type { Order, User } from '@prisma/client';
 import { queueEmail } from './queue';
+import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
 import { logEmail } from '@/lib/logger';
 import { parseItemsSnapshot, type DisplayItem } from '@/lib/orders/items';
 import { renderLifecycleTimeline } from './lifecycle-timeline';
@@ -104,6 +105,19 @@ function trackUrl(order: Order, _user: { email: string }): string {
 
 function unsubscribeUrl(): string {
   return `${APP_URL}/settings/email-preferences`;
+}
+
+/**
+ * Audit v2 #7.4 — lien de désabonnement SANS auth (HMAC token), pour les
+ * destinataires qui n'ont pas de compte (invités abandoned-cart). La page
+ * /settings/email-preferences est auth-gated → un invité ne pouvait PAS se
+ * désabonner (non-conformité CASL). Même endpoint que le header
+ * List-Unsubscribe (cf. queue.ts oneClickUnsubscribeUrl).
+ */
+function unsubscribeUrlFor(email: string): string {
+  const normalized = email.toLowerCase().trim();
+  const params = new URLSearchParams({ email: normalized, token: newsletterUnsubscribeToken(normalized) });
+  return `${APP_URL}/api/newsletter/unsubscribe?${params.toString()}`;
 }
 
 /**
@@ -262,6 +276,12 @@ export async function sendOrderShippedEmail(input: {
   const eta = input.estimatedDelivery ?? new Date(Date.now() + 2 * 24 * 3600 * 1000);
   const carrier = input.carrier ?? extractCarrier(order.shippingMethod);
   const tracking = input.trackingNumber ?? '';
+  // Audit v2 #7.5 — si SHIPPED arrive sans numéro de tracking (ou carrier
+  // inconnu), trackingDeepLink renvoie '' → le bouton « Suivre le colis »
+  // pointait dans le vide (href=""). Fallback vers la page commande, où le
+  // client retrouve son statut (et le tracking dès qu'il sera disponible).
+  const deepLink = trackingDeepLink(carrier, tracking);
+  const trackUrl = deepLink || orderUrl(order);
   const vars: OrderShippedVars = {
     CUSTOMER_FIRST_NAME: firstName(user),
     CUSTOMER_NAME: fullName(user),
@@ -269,7 +289,7 @@ export async function sendOrderShippedEmail(input: {
     CARRIER: carrier,
     CARRIER_SERVICE: extractService(order.shippingMethod, carrier),
     TRACKING_NUMBER: tracking,
-    TRACK_URL: trackingDeepLink(carrier, tracking),
+    TRACK_URL: trackUrl,
     ETA_FORMATTED: dateFrLong(eta),
     SHIP_ADDRESS_HTML: shipAddressHtml(order),
     ORDER_URL: orderUrl(order),
@@ -518,7 +538,9 @@ export async function sendAbandonedCartEmail(input: {
     CUSTOMER_FIRST_NAME: input.firstName,
     PRODUCT_NAME: input.productName,
     RESUME_URL: input.resumeUrl,
-    UNSUBSCRIBE_URL: unsubscribeUrl(),
+    // Audit v2 #7.4 — lien désabo token-based (l'invité abandoned-cart n'a pas
+    // de compte → la page email-preferences auth-gated lui était inaccessible).
+    UNSUBSCRIBE_URL: unsubscribeUrlFor(input.to),
   };
   return queueEmail({
     to: input.to,
