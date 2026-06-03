@@ -85,9 +85,17 @@ export default async function QuantityPage({
     notFound();
   }
 
+  // Audit v2 #4.1 — sécurité serveur : retire tout ID du groupe qty réinjecté
+  // par un aller-retour Upload→Quantité (upload propage TOUTES ses options, qty
+  // incluse). Le client refait ce filtre, mais on nettoie aussi ici pour que
+  // baseOptionIds (passé au client + servant à prevHref) soit propre par
+  // construction. Le turnaround, lui, est conservé (Step 3 a pu le choisir).
+  const qtyIdSet = new Set(qtyOptions.map((o) => o.id));
+  const cleanBaseOptionIds = baseOptionIds.filter((id) => !qtyIdSet.has(id));
+
   // Find default turnaround from URL options (if Step 3 included one)
   const turnaroundIdSet = new Set(turnaroundOptions.map((o) => o.id));
-  const defaultTurnaroundId = baseOptionIds.find((id) => turnaroundIdSet.has(id)) ?? turnaroundOptions[0]?.id;
+  const defaultTurnaroundId = cleanBaseOptionIds.find((id) => turnaroundIdSet.has(id)) ?? turnaroundOptions[0]?.id;
 
   // Serialize Map → Record for client serialization
   const variantIndex: Record<string, number> = {};
@@ -98,7 +106,7 @@ export default async function QuantityPage({
   return (
     <QuantityClient
       product={product}
-      baseOptionIds={baseOptionIds}
+      baseOptionIds={cleanBaseOptionIds}
       qtyOptions={qtyOptions}
       turnaroundOptions={turnaroundOptions}
       variantIndex={variantIndex}
