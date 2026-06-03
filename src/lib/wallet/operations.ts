@@ -18,7 +18,11 @@ export type WalletTxKind =
   | 'ORDER_SPEND'
   | 'REFUND'
   | 'ADMIN_ADJUSTMENT'
-  | 'EXPIRY';
+  | 'EXPIRY'
+  // Audit v2 #8.3 — crédit de bienvenue 25 $ accordé au premier sign-in
+  // (la page d'inscription le promet). `kind` est une String libre en DB,
+  // donc aucune migration nécessaire.
+  | 'WELCOME_CREDIT';
 
 interface RecordOpts {
   userId: string;
@@ -127,6 +131,33 @@ export async function recordWalletTx(opts: RecordOpts): Promise<{ balanceAfterCe
 
     return { balanceAfterCents: newBalance, txId: txRow.id };
   });
+}
+
+/** Audit v2 #8.3 — montant du crédit de bienvenue (« 25 $ offerts »). */
+export const WELCOME_CREDIT_CENTS = 2500;
+
+/**
+ * Accorde le crédit de bienvenue de 25 $ au premier sign-in (la page
+ * d'inscription le promet). IDEMPOTENT : ne crédite qu'UNE fois par user
+ * (marqueur WalletTransaction kind=WELCOME_CREDIT), donc safe même si
+ * l'heuristique « premier sign-in » re-déclenche, ou en cas de retry.
+ *
+ * @returns cents accordés (0 si déjà accordé).
+ */
+export async function grantWelcomeCredit(userId: string): Promise<number> {
+  const existing = await prisma.walletTransaction.findFirst({
+    where: { userId, kind: 'WELCOME_CREDIT' },
+    select: { id: true },
+  });
+  if (existing) return 0;
+
+  await recordWalletTx({
+    userId,
+    kind: 'WELCOME_CREDIT',
+    amountCents: WELCOME_CREDIT_CENTS,
+    description: 'Crédit de bienvenue — 25 $ offerts à l\'inscription',
+  });
+  return WELCOME_CREDIT_CENTS;
 }
 
 /**
