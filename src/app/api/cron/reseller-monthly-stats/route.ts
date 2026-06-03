@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
   let sentCount = 0;
   let skippedOptOut = 0;
   let zeroOrderResellers = 0;
+  let skippedDuplicate = 0;
 
   try {
     // 1. Get tous les resellers actifs (VERIFIED OR AUTO_DETECTED)
@@ -139,6 +140,19 @@ export async function GET(req: NextRequest) {
       const grp = lastMonthByUser.get(r.id);
       if (!grp || grp._count._all === 0) {
         zeroOrderResellers++;
+        continue;
+      }
+
+      // Audit v2 #7.1 — dedup par label : queueEmail ne consulte PAS le label,
+      // donc sans ce pré-check un re-run du cron (retry GH Actions) renvoyait 2×
+      // le récap à chaque reseller B2B. Même garde que re-engagement.
+      const dedupLabel = `reseller-monthly-stats:${r.id}:${monthKey}`;
+      const alreadySent = await prisma.emailDelivery.findFirst({
+        where: { label: dedupLabel },
+        select: { id: true },
+      });
+      if (alreadySent) {
+        skippedDuplicate++;
         continue;
       }
 
@@ -202,6 +216,7 @@ export async function GET(req: NextRequest) {
       scanned: resellers.length,
       sent: sentCount,
       skippedOptOut,
+      skippedDuplicate,
       zeroOrderResellers,
     };
     log.info(result, 'cron/reseller-monthly-stats ran');

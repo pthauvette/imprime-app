@@ -16,6 +16,8 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     user: { findMany: vi.fn() },
     order: { groupBy: vi.fn() },
+    // Audit v2 #7.1 — dedup par label (findFirst pré-check).
+    emailDelivery: { findFirst: vi.fn(async () => null) },
   },
 }));
 
@@ -47,6 +49,7 @@ beforeEach(() => {
   process.env = { ...ORIGINAL_ENV, CRON_SECRET: 'test_secret', NODE_ENV: 'production' };
   vi.mocked(prisma.user.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.order.groupBy).mockResolvedValue([] as never);
+  vi.mocked(prisma.emailDelivery.findFirst).mockResolvedValue(null as never);
 });
 
 describe('GET /api/cron/reseller-monthly-stats', () => {
@@ -115,6 +118,32 @@ describe('GET /api/cron/reseller-monthly-stats', () => {
     expect(call.vars.STATUS_HEADLINE).toContain('VERIFIED');
     // Label monthKey doit suivre format YYYY-MM
     expect(call.monthKey).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  // Audit v2 #7.1 — re-run du cron ne renvoie PAS un 2e récap.
+  it('#7.1 — EmailDelivery déjà loggé pour ce label → skip (pas de 2e envoi)', async () => {
+    vi.mocked(prisma.user.findMany).mockResolvedValueOnce([
+      { id: 'u_1', email: 'a@plio.ca', name: 'Alice', firstName: 'Alice', resellerStatus: 'VERIFIED', emailMarketing: true },
+    ] as never);
+    vi.mocked(prisma.order.groupBy)
+      .mockResolvedValueOnce([
+        { userId: 'u_1', _count: { _all: 8 }, _sum: { amountCents: 100_000, resellerDiscountCents: 5_000 } },
+      ] as never)
+      .mockResolvedValueOnce([] as never);
+    // un EmailDelivery existe déjà pour ce label (run précédent)
+    vi.mocked(prisma.emailDelivery.findFirst).mockResolvedValueOnce({ id: 'em_prev' } as never);
+
+    const { GET } = await import('@/app/api/cron/reseller-monthly-stats/route');
+    const res = await GET(makeReq('Bearer test_secret') as never);
+    const json = await res.json();
+
+    expect(sendResellerMonthlyStatsEmail).not.toHaveBeenCalled();
+    expect(json.sent).toBe(0);
+    expect(json.skippedDuplicate).toBe(1);
+    // la garde est scopée au label déterministe user+monthKey
+    expect(prisma.emailDelivery.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ label: expect.stringContaining('reseller-monthly-stats:u_1:') }) }),
+    );
   });
 
   it('comparison label "premier mois" quand prev mois = 0', async () => {
