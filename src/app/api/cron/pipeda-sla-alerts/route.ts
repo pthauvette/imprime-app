@@ -19,6 +19,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
@@ -29,23 +30,12 @@ import { sendCriticalAlert } from '@/lib/alerting/slack';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const WARN_DAYS = 25;
 const CRITICAL_DAYS = 30;
 
 export async function GET(req: NextRequest) {
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/pipeda-sla-alerts: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/pipeda-sla-alerts: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'pipeda-sla-alerts');
+  if (denied) return denied;
 
   const start = Date.now();
   const adminEmailsRaw = process.env.ADMIN_EMAILS;

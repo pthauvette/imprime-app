@@ -22,6 +22,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 // On utilise fetch raw (vs Stripe SDK) pour accéder au response Date header,
 // que le SDK n'expose pas. Le call est juste un GET /v1/balance, pas besoin
 // du SDK.
@@ -33,23 +34,12 @@ import { sendCriticalAlert } from '@/lib/alerting/slack';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const DRIFT_WARN_MS = 120 * 1000; // 2 min — alerter avant les 5min de tolerance
 const STRIPE_API_BASE = 'https://api.stripe.com/v1';
 
 export async function GET(req: NextRequest) {
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/stripe-clock-skew: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/stripe-clock-skew: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'stripe-clock-skew');
+  if (denied) return denied;
 
   const start = Date.now();
   const stripeSecret = process.env.STRIPE_SECRET_KEY;

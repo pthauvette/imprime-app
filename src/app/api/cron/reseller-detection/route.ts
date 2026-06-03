@@ -16,6 +16,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
 import { pingCronHealthcheck } from '@/lib/cron/healthcheck';
@@ -25,23 +26,12 @@ import { shouldBePlatinum, PLATINUM_REVENUE_THRESHOLD_CENTS } from '@/lib/resell
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET;
 const RESELLER_MIN_ORDERS = 5;
 const WINDOW_DAYS = 365;
 
 export async function GET(req: NextRequest) {
-  if (!CRON_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      log.error('cron/reseller-detection: CRON_SECRET not set in production');
-      return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-    }
-    log.warn('cron/reseller-detection: CRON_SECRET not set — allowing in non-prod');
-  } else {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const denied = requireCronAuth(req, 'reseller-detection');
+  if (denied) return denied;
 
   const start = Date.now();
   const cutoff = new Date(Date.now() - WINDOW_DAYS * 24 * 3600 * 1000);
