@@ -29,17 +29,32 @@ export function withErrorHandler<Args extends unknown[]>(
       }
       if (err instanceof SinaliteError) {
         const status = err.status >= 500 ? 502 : err.status;
+        // Audit v2 #6.6 — NE PAS exposer endpoint/body Sinalite (détails internes
+        // de l'API imprimeur) ni le message brut au client. Tout est loggé côté
+        // serveur ; le client reçoit un message générique.
+        log.error(
+          { err, status: err.status, endpoint: err.endpoint, body: err.body },
+          'Sinalite error',
+        );
         return NextResponse.json<ApiError>(
           {
-            error: `Erreur Sinalite: ${err.message}`,
+            error: "Le service d'impression est temporairement indisponible. Réessaie dans un instant.",
             code: 'SINALITE_ERROR',
-            details: { status: err.status, endpoint: err.endpoint, body: err.body },
           },
           { status },
         );
       }
-      const message = err instanceof Error ? err.message : 'Erreur interne';
+      // Audit v2 #6.6 — message générique en PROD (le message brut d'une Error
+      // peut fuiter des détails internes : erreurs DB, chemins, requêtes). Le
+      // détail complet est loggé serveur. En dev/test on garde le message pour
+      // le DX.
       log.error({ err }, 'api handler error');
+      const message =
+        process.env.NODE_ENV === 'production'
+          ? 'Une erreur interne est survenue.'
+          : err instanceof Error
+            ? err.message
+            : 'Erreur interne';
       return NextResponse.json<ApiError>(
         { error: message, code: 'INTERNAL' },
         { status: 500 },
