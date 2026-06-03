@@ -112,9 +112,25 @@ describe('GET /api/recovery/click', () => {
     expect(res.headers.get('location')).toBe('https://plio.ca/');
   });
 
-  it('?to=https://plio.ca/... explicit absolute → accepté (same-origin)', async () => {
+  // Audit v2 #6.1 — l'ancien `startsWith(APP_URL)` acceptait ces vecteurs.
+  it('#6.1 — préfixe trompeur plio.ca.evil.com → fallback home', async () => {
+    const token = recoveryClickToken('cart_1');
+    const res = await call(`cart=cart_1&t=${token}&to=${encodeURIComponent('https://plio.ca.evil.com/phish')}`);
+    expect(res.headers.get('location')).toBe('https://plio.ca/');
+  });
+
+  it('#6.1 — protocol-relative //evil.com → fallback home', async () => {
+    const token = recoveryClickToken('cart_1');
+    const res = await call(`cart=cart_1&t=${token}&to=${encodeURIComponent('//evil.com/phish')}`);
+    expect(res.headers.get('location')).toBe('https://plio.ca/');
+  });
+
+  // Audit v2 #6.1 — durcissement : on n'accepte plus QUE les chemins internes
+  // relatifs (le cron abandoned-cart ne génère que du relatif). Une URL absolue,
+  // même same-origin, retombe désormais sur le fallback (safeInternalPath).
+  it('#6.1 — URL absolue (même same-origin) → fallback home (relative-only)', async () => {
     const token = recoveryClickToken('cart_1');
     const res = await call(`cart=cart_1&t=${token}&to=${encodeURIComponent('https://plio.ca/account')}`);
-    expect(res.headers.get('location')).toBe('https://plio.ca/account');
+    expect(res.headers.get('location')).toBe('https://plio.ca/');
   });
 });

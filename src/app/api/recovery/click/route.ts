@@ -18,6 +18,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyRecoveryClickToken } from '@/lib/recovery/click-token';
+import { safeInternalPath } from '@/lib/auth/safe-redirect';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -31,22 +32,15 @@ export async function GET(req: NextRequest) {
   const token = url.searchParams.get('t');
   const to = url.searchParams.get('to');
 
-  // Default destination si `to` manquant ou unsafe : home page.
-  const fallback = `${APP_URL}/`;
-  let destination = fallback;
-  if (to) {
-    try {
-      const decoded = decodeURIComponent(to);
-      // Only allow same-origin paths (anti-open-redirect)
-      if (decoded.startsWith('/')) {
-        destination = `${APP_URL}${decoded}`;
-      } else if (decoded.startsWith(APP_URL)) {
-        destination = decoded;
-      }
-    } catch {
-      // Invalid encoding, stay on fallback
-    }
-  }
+  // Audit v2 #6.1 — anti-open-redirect : l'ancien `decoded.startsWith(APP_URL)`
+  // acceptait `https://plio.ca.evil.com/phish` (préfixe sans frontière d'origine)
+  // → phishing atteignable sans token. Le `to` est toujours un chemin INTERNE
+  // relatif (cf. cron abandoned-cart : `/order/review?...`), donc on réutilise
+  // safeInternalPath (helper sécu Round 1, déjà testé : rejette //evil.com,
+  // \evil.com, javascript:, origin tierce → fallback). Note : on ne re-décode
+  // PAS `to` (searchParams.get l'a déjà décodé une fois) — l'ancien
+  // decodeURIComponent supplémentaire pouvait corrompre le `ship=%7B…%7D` encodé.
+  const destination = `${APP_URL}${safeInternalPath(to, '/')}`;
 
   if (!cartId || !token) {
     return NextResponse.redirect(destination, 302);
