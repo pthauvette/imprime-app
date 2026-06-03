@@ -23,7 +23,7 @@ vi.mock('@/lib/db/orders', async () => {
   }
   return {
     applySinaliteStatusChange: vi.fn(async () => undefined),
-    recordWebhookEvent: vi.fn(async () => ({ isNew: true })),
+    recordWebhookEvent: vi.fn(async () => ({ isNew: true, alreadyCompleted: false })),
     updateWebhookOutcome: vi.fn(async () => undefined),
     markRefundIssued: vi.fn(async () => undefined),
     OrderNotFoundError,
@@ -122,7 +122,7 @@ const validPayload = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(orders.recordWebhookEvent).mockResolvedValue({ isNew: true });
+  vi.mocked(orders.recordWebhookEvent).mockResolvedValue({ isNew: true, alreadyCompleted: false });
   vi.mocked(orders.applySinaliteStatusChange).mockResolvedValue(undefined as never);
   vi.mocked(orders.updateWebhookOutcome).mockResolvedValue(undefined);
 });
@@ -159,7 +159,7 @@ describe('J. Signature validation when SINALITE_WEBHOOK_SECRET is set', () => {
     // identity used by the route. Vitest preserves vi.mock across resets.
     const ordersAfter = await import('@/lib/db/orders');
     const { prisma: prismaAfter } = await import('@/lib/db');
-    vi.mocked(ordersAfter.recordWebhookEvent).mockResolvedValue({ isNew: true });
+    vi.mocked(ordersAfter.recordWebhookEvent).mockResolvedValue({ isNew: true, alreadyCompleted: false });
     vi.mocked(ordersAfter.applySinaliteStatusChange).mockResolvedValue(undefined as never);
     vi.mocked(ordersAfter.updateWebhookOutcome).mockResolvedValue(undefined);
     vi.mocked(prismaAfter.order.findUnique).mockResolvedValue(
@@ -198,7 +198,7 @@ describe('K. Invalid payload', () => {
 describe('L. Idempotence via fingerprint', () => {
   it('short-circuits with deduped=true when fingerprint already seen', async () => {
     const { POST } = await import('@/app/api/webhooks/sinalite/route');
-    vi.mocked(orders.recordWebhookEvent).mockResolvedValueOnce({ isNew: false });
+    vi.mocked(orders.recordWebhookEvent).mockResolvedValueOnce({ isNew: false, alreadyCompleted: true });
 
     const res = await POST(makeReq(validPayload()));
 

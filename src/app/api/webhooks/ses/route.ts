@@ -99,13 +99,16 @@ export async function POST(req: Request) {
   }
 
   // Idempotence : dedup sur SNS MessageId (SNS livre at-least-once).
+  // Audit v2 #2.3 — même fix que #2.2 : on ne déduplique que si une tentative
+  // précédente a réussi. Si suppressEmail a throw au milieu d'une notif
+  // multi-destinataires (success=false), le retry SNS doit pouvoir re-traiter.
   const dedup = await recordWebhookEvent({
     source: 'SES',
     eventId: msg.MessageId,
     eventType: msg.Type,
     payload: rawBody,
   });
-  if (!dedup.isNew) {
+  if (!dedup.isNew && dedup.alreadyCompleted) {
     return NextResponse.json({ received: true, deduped: true });
   }
 

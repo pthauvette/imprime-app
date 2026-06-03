@@ -22,7 +22,7 @@ vi.mock('@/lib/logger', () => {
   return { log: { info: noop, warn: noop, error: noop, fatal: noop, debug: noop } };
 });
 vi.mock('@/lib/db/orders', () => ({
-  recordWebhookEvent: vi.fn(async () => ({ isNew: true })),
+  recordWebhookEvent: vi.fn(async () => ({ isNew: true, alreadyCompleted: false })),
   updateWebhookOutcome: vi.fn(async () => undefined),
 }));
 vi.mock('@/lib/emails/suppression', () => ({
@@ -47,7 +47,7 @@ const ORIG_ENV = { ...process.env };
 beforeEach(() => {
   vi.resetAllMocks();
   // Re-set defaults after resetAllMocks
-  vi.mocked(recordWebhookEvent).mockResolvedValue({ isNew: true });
+  vi.mocked(recordWebhookEvent).mockResolvedValue({ isNew: true, alreadyCompleted: false });
   vi.mocked(suppressEmail).mockResolvedValue({ created: true });
   process.env = {
     ...ORIG_ENV,
@@ -197,7 +197,7 @@ describe('POST /api/webhooks/ses (Round 39 #4)', () => {
   });
 
   it('dedup sur SNS MessageId : 2e event même id → 200 deduped', async () => {
-    vi.mocked(recordWebhookEvent).mockResolvedValueOnce({ isNew: false });
+    vi.mocked(recordWebhookEvent).mockResolvedValueOnce({ isNew: false, alreadyCompleted: true });
     const { POST } = await import('@/app/api/webhooks/ses/route');
     const res = await POST(makeReq({
       Type: 'Notification',
