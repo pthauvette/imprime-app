@@ -46,6 +46,11 @@ export const limiters = {
   // Audit v2 #6.4 — /api/shipping/estimate proxie vers Sinalite (API payante)
   // sans auth ; on borne par IP pour éviter l'abus de coût.
   shipping: makeLimiter(20, '1 m', 'shipping'),
+  // Audit v2 #6.5 — capture abandoned-cart bornée PAR EMAIL (en plus de l'IP) :
+  // empêche de ré-enrôler la même victime en boucle (chaque capture reset
+  // emailSentAt → re-éligible recovery → spam CASL). 5/h/email couvre le va-et-
+  // vient légitime dans le wizard tout en bloquant l'abus multi-IP.
+  abandonedCart: makeLimiter(5, '1 h', 'abcart'),
 };
 
 export type LimiterKey = keyof typeof limiters;

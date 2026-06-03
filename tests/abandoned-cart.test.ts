@@ -62,6 +62,7 @@ vi.mock('@/lib/logger', () => {
   };
 });
 
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendAbandonedCartEmail } from '@/lib/emails/send';
 import { rateLimit } from '@/lib/ratelimit';
@@ -175,6 +176,27 @@ describe('POST /api/abandoned-cart (capture)', () => {
     const args = vi.mocked(prisma.abandonedCart.upsert).mock.calls[0]![0]!;
     expect(args.where.email_productId?.email).toBe('sophie@studio.ca');
     expect(args.create.email).toBe('sophie@studio.ca');
+  });
+
+  // Audit v2 #6.5 — rate-limit PAR EMAIL : anti ré-enrôlement d'une victime
+  // (chaque capture reset emailSentAt → sinon recovery email à chaque cron run).
+  it('#6.5 — rate-limit email dépassé → 429, AUCUN upsert', async () => {
+    vi.mocked(rateLimit)
+      .mockResolvedValueOnce({ ok: true } as never) // IP passe
+      .mockResolvedValueOnce({
+        ok: false,
+        response: NextResponse.json({ code: 'RATE_LIMITED' }, { status: 429 }),
+      } as never); // email bloqué
+
+    const POST = await importCapture();
+    const res = await POST(
+      makeReq({ email: 'Victim@x.ca', productId: 7, resumeQuery: 'x', lastStep: 'shipping' }),
+    );
+
+    expect(res.status).toBe(429);
+    expect(prisma.abandonedCart.upsert).not.toHaveBeenCalled();
+    // la limite email est bien keyée par l'email lowercased
+    expect(rateLimit).toHaveBeenCalledWith('abandonedCart', 'victim@x.ca');
   });
 });
 
