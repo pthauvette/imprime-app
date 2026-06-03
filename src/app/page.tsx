@@ -11,6 +11,8 @@ import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import { getServerLocale } from '@/lib/i18n/locale';
 import { translate } from '@/lib/i18n/messages';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
+import { getCardStartingPrice } from '@/lib/products/card-price';
+import { formatCents, formatNumber } from '@/lib/format';
 
 export const metadata = { title: "Plio — Print wholesale au Canada" };
 
@@ -19,6 +21,12 @@ export default async function LandingPage() {
   // Le reste du contenu marketing reste en FR (migration incrémentale).
   const locale = await getServerLocale();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+
+  // #8.7 — prix vitrine DYNAMIQUE (coût Sinalite + marge admin), plus de
+  // « 0,08 $ » figé. Null si Sinalite injoignable (build/CI) → fallback sans
+  // chiffre pour ne jamais promettre un tarif inventé.
+  const cardPrice = await getCardStartingPrice();
+  const fmtLocale = locale === 'en' ? 'en-CA' : 'fr-CA';
   // Round 46 — SÉCURITÉ : la session n'est PLUS résolue côté serveur ici.
   // Rendre session.user.email dans le HTML SSR le faisait fuiter quand le
   // runtime SSR Amplify resservait par intermittence un rendu connecté à une
@@ -86,7 +94,11 @@ export default async function LandingPage() {
                 <div className="scd"></div>
                 <div className="sct">Photographe</div>
               </div>
-              <div className="floating-badge b1">★ <strong>0,08 $</strong>/carte à 1 000 u.</div>
+              <div className="floating-badge b1">
+                {cardPrice
+                  ? <>★ <strong>{formatCents(cardPrice.unitPriceCents, fmtLocale)}</strong>/carte à {formatNumber(cardPrice.atQuantity, fmtLocale)} u.</>
+                  : <>★ <strong>Prix dégressif</strong> au volume</>}
+              </div>
               <div className="floating-badge b2">🚚 <strong>UPS Standard</strong> dès 9,10 $</div>
               <div className="floating-badge b3">⚡ Devis en <strong>2 minutes</strong></div>
             </div>

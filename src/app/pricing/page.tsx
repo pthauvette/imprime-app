@@ -128,7 +128,7 @@ export default function PricingPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {[
               { num: '01', title: 'Produit + options', desc: 'Le prix de base dépend du papier, format, finition. Tout est visible dans le wizard.' },
-              { num: '02', title: 'Quantité dégressive', desc: 'Plus tu commandes, moins c\'est cher par unité. 1000 cartes coûtent ~0,12 $/u vs 0,52 $/u à 100.' },
+              { num: '02', title: 'Quantité dégressive', desc: 'Plus tu commandes, moins c\'est cher par unité : le prix/carte est divisé par ~4 entre 100 et 1000 unités. Le tarif exact s\'affiche dans le wizard.' },
               { num: '03', title: 'Délai (rush ou standard)', desc: `Standard inclus (livraison ${DELIVERY_WINDOW}). Express et Rush accélèrent la production — le surcoût exact s'affiche au devis selon le produit.` },
               { num: '04', title: 'Livraison + taxes', desc: 'UPS/Postes Canada calculés selon ta province. TPS/TVQ ajoutées au sous-total.' },
             ].map((step) => (
@@ -287,7 +287,7 @@ const PRICING_FAQ = [
   },
   {
     q: 'Y a-t-il un minimum de commande ?',
-    a: 'Pas vraiment. Le wizard accepte les tirages dès 25-50 unités (selon produit). Sache juste que le coût par unité est élevé à petit volume — pour un seul lot de cartes c\'est ~0,50 $/u, ce qui peut être plus cher qu\'un imprimeur de quartier.',
+    a: 'Pas vraiment. Le wizard accepte les tirages dès 25-50 unités (selon produit). Sache juste que le coût par unité est nettement plus élevé à petit volume — pour un seul petit lot de cartes, ça peut revenir plus cher qu\'un imprimeur de quartier.',
   },
   {
     q: 'Les prix sont-ils négociables pour gros volume ?',
