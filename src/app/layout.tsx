@@ -44,11 +44,13 @@ export const metadata: Metadata = {
   formatDetection: { email: false, address: false, telephone: false },
   alternates: {
     canonical: '/',
-    // Plio est servi en FR par défaut + EN via toggle (cookie plio_lang).
-    // Pas de hreflang URL distincts (même path) — Google va indexer la
-    // version FR. Si on veut un vrai SEO bilingue, faut passer à
-    // /[locale]/... routing (next-intl ou next 16 i18n native).
-    languages: { 'fr-CA': APP_URL, 'en-CA': APP_URL },
+    // Audit v2 #10.9 — pas de hreflang `languages` ici. Le site n'a PAS d'URLs
+    // distinctes par langue (i18n via cookie plio_lang, même path) ; déclarer
+    // fr-CA ET en-CA vers la MÊME URL est un signal hreflang ERRONÉ (Google
+    // attend des URLs distinctes par langue → annotations ignorées au mieux,
+    // confusion de canonical au pire). On garde le canonical seul. Quand on
+    // passera à un routing /[locale]/ (next-intl / i18n natif), on rajoutera de
+    // vrais hreflang vers des URLs distinctes.
   },
   openGraph: {
     type: 'website',
