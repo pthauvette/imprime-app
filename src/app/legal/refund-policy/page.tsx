@@ -59,7 +59,7 @@ export default function RefundPolicyPage() {
                 <div className="scenario-icon">i</div>
                 <div className="scenario-num">★ Cas 03</div>
                 <h2>Changement d'avis</h2>
-                <p>Avant que la production démarre — généralement <strong>2 heures</strong> après le paiement — tu peux annuler en 1 clic depuis ton compte. <strong>Refund complet</strong>, instantané.</p>
+                <p>Avant que la production démarre — généralement <strong>2 heures</strong> après le paiement — tu peux <strong>demander l&apos;annulation</strong> depuis ton compte. On traite ta demande rapidement et, si la presse n&apos;a pas démarré, on émet un <strong>refund complet</strong> sur ta carte d&apos;origine (délai bancaire 5 à 10 jours, cf. ci-dessus).</p>
                 <p>Après le démarrage de la presse, ce n'est plus possible : on a déjà engagé du matériel, de l'encre et du temps machine.</p>
                 <div className="scenario-meta">
                   <span className="scenario-pill">2 h pour annuler</span>

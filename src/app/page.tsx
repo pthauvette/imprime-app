@@ -246,7 +246,7 @@ export default async function LandingPage() {
               </details>
               <details className="faq-item">
                 <summary className="faq-q">Et si je n'ai pas de design ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Télécharge nos templates gratuits avec bleed et safe zone déjà configurés. Ou utilise notre éditeur en ligne avec templates, photos stock et génération de logo par IA.</div>
+                <div className="faq-a">Télécharge nos templates gratuits avec bleed et safe zone déjà configurés. Ou utilise notre éditeur en ligne pour personnaliser un template directement dans ton navigateur.</div>
               </details>
               <details className="faq-item">
                 <summary className="faq-q">Comment fonctionne le remboursement ?<span className="faq-toggle">+</span></summary>
