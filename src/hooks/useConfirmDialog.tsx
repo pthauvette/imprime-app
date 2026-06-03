@@ -35,7 +35,8 @@
  * dans son JSX (ou pas, le rendering kicks in seulement quand open).
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { wrapFocusIndex } from '@/lib/a11y/focus-trap';
 
 interface ConfirmOptions {
   title: string;
@@ -52,6 +53,7 @@ interface PendingConfirm extends ConfirmOptions {
 
 export function useConfirmDialog() {
   const [pending, setPending] = useState<PendingConfirm | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const confirm = useCallback((opts: ConfirmOptions): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -66,8 +68,55 @@ export function useConfirmDialog() {
     }
   }, [pending]);
 
+  // Audit v2 #9.1 — a11y du modal : Escape pour fermer, focus-trap (Tab cycle
+  // dans le dialog), et restauration du focus à l'élément déclencheur à la
+  // fermeture. Avant : Escape ne faisait rien et Tab pouvait sortir vers le
+  // contenu derrière (clavier/lecteur d'écran perdus, surtout sur les actions
+  // destructives — suppression de compte/adresse).
+  useEffect(() => {
+    if (!pending) return;
+    const trigger = (typeof document !== 'undefined' ? document.activeElement : null) as HTMLElement | null;
+
+    const focusables = (): HTMLElement[] => {
+      const node = dialogRef.current;
+      if (!node) return [];
+      return Array.from(
+        node.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        pending.resolve(false);
+        setPending(null);
+        return;
+      }
+      if (e.key === 'Tab') {
+        const els = focusables();
+        if (els.length === 0) return;
+        const currentIndex = els.indexOf(document.activeElement as HTMLElement);
+        const target = wrapFocusIndex(currentIndex, els.length, e.shiftKey);
+        if (target !== null) {
+          e.preventDefault();
+          els[target]?.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      // Restaure le focus à l'élément qui a ouvert le dialog.
+      trigger?.focus?.();
+    };
+  }, [pending]);
+
   const dialog = pending ? (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
