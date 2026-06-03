@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/emails/render', () => ({
+  MARKETING_TEMPLATES: new Set(['reengagement-follow-up', 'reengagement-winback', 'reseller-monthly-stats']),
   sendEmail: vi.fn(async () => ({ sent: true })),
   EMAIL_SUBJECTS: {},
 }));

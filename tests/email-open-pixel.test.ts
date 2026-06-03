@@ -24,7 +24,7 @@ vi.mock('@/lib/logger', () => {
 });
 
 import { prisma } from '@/lib/db';
-import { renderEmail } from '@/lib/emails/render';
+import { renderEmail, MARKETING_TEMPLATES } from '@/lib/emails/render';
 
 async function importPixel() {
   vi.resetModules();
@@ -117,5 +117,18 @@ describe('renderEmail + pixel injection (via sendEmail wiring)', () => {
     expect(injected).toContain('/api/emails/pixel/del_x');
     // Pixel doit être JUSTE avant </body> (pas après)
     expect(injected.indexOf(pixelTag)).toBeLessThan(injected.indexOf('</body>'));
+  });
+
+  // Audit v2 #7.8 — le pixel d'ouverture (et le header List-Unsubscribe) ne
+  // s'appliquent QU'aux templates marketing. Les transactionnels n'ont pas de
+  // tracking d'ouverture (intrusif + sans valeur).
+  it('#7.8 — MARKETING_TEMPLATES = uniquement les marketing ; transactionnels exclus', () => {
+    expect(MARKETING_TEMPLATES.has('reengagement-follow-up')).toBe(true);
+    expect(MARKETING_TEMPLATES.has('reengagement-winback')).toBe(true);
+    expect(MARKETING_TEMPLATES.has('reseller-monthly-stats')).toBe(true);
+    // transactionnels → PAS de pixel
+    for (const t of ['order-confirmation', 'order-shipped', 'order-delivered', 'refund-issued', 'welcome', 'magic-link', 'admin-daily-summary'] as const) {
+      expect(MARKETING_TEMPLATES.has(t)).toBe(false);
+    }
   });
 });

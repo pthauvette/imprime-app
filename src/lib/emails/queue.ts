@@ -23,7 +23,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { sendEmail, type EmailTemplate } from './render';
+import { sendEmail, MARKETING_TEMPLATES, type EmailTemplate } from './render';
 import { logEmail } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
@@ -38,37 +38,11 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
  * (le user veut les confirmations de paiement même s'il a unsubscribé
  * de la newsletter).
  */
-/**
- * Round 37 #3 — `admin-custom-message` retiré du set marketing.
- *
- * Avant : ce template était dans MARKETING_TEMPLATES → recevait l'unsub
- * header. Mais il est used pour à la fois :
- *   - Marketing : admin broadcast, admin reply to customer 1:1
- *   - Transactional : wallet expiry warning, weekly digest, contact
- *     ack, quote reply, samples ack, reseller-apply
- *
- * Conséquence : user qui clique "unsubscribe" sur un wallet expiry
- * warning (transactional !) perdait TOUTES les futures wallet expiry
- * warnings → silent loss de feature critique.
- *
- * Maintenant : default = pas d'unsub header. Les callers vraiment
- * marketing doivent passer `marketingUnsubscribe: true` dans
- * QueueEmailInput pour opt-in explicitement.
- */
-const MARKETING_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
-  'reengagement-follow-up',
-  'reengagement-winback',
-  'reseller-monthly-stats',
-]);
-// Round 45 #4 — NE PAS ajouter 'abandoned-cart' ici sans d'abord faire que le
-// cron honore le désabonnement. Ajouter un template ici émet un header one-click
-// List-Unsubscribe (RFC 8058) → on est ALORS obligé d'honorer le clic. Or le
-// cron abandoned-cart ne gate sur aucun opt-out (recovery = consentement
-// implicite, lien unsub seulement dans le body, ce qui suffit CASL). Volume
-// actuel sous le seuil Gmail/Yahoo (~5k/j). Pour reprendre proprement : gater le
-// cron sur User.emailMarketing=false OU NewsletterSubscriber.status=UNSUBSCRIBED
-// (users ET invités). NE PAS utiliser EmailSuppression (bloquerait le
-// transactionnel — cf. schema.prisma). Décision tracée (Round 45 #4 B1, différé).
+// Audit v2 #7.8 — MARKETING_TEMPLATES déplacé dans render.ts (source unique
+// partagée avec le pixel d'ouverture). Le header List-Unsubscribe ne s'émet que
+// pour ces templates ; les transactionnels n'ont ni header ni pixel.
+// (Round 37 #3 : admin-custom-message volontairement HORS du set marketing — il
+//  sert aussi des transactionnels comme le wallet-expiry warning.)
 
 /** Round 28 #4 — Derive l'unsubscribe URL pour un recipient.
  *  Idempotent + déterministe via HMAC, donc safe à re-derive en retry. */

@@ -30,6 +30,23 @@ export type EmailTemplate =
   | 'abandoned-cart'
   | 'reseller-monthly-stats';
 
+/**
+ * Templates marketing (par opposition aux transactionnels). Source unique
+ * partagée : utilisée par queue.ts (header List-Unsubscribe RFC 8058) ET par le
+ * pixel d'ouverture ci-dessous (Audit v2 #7.8 — on ne traque l'ouverture que des
+ * emails marketing ; traquer un email transactionnel = order confirmation,
+ * suivi de livraison… est intrusif et inutile).
+ *
+ * Round 45 #4 — NE PAS ajouter 'abandoned-cart' ici sans d'abord faire que le
+ * cron honore le désabonnement (un template ici émet le header one-click
+ * List-Unsubscribe → on est ALORS obligé d'honorer le clic). Décision différée.
+ */
+export const MARKETING_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
+  'reengagement-follow-up',
+  'reengagement-winback',
+  'reseller-monthly-stats',
+]);
+
 // Cache des templates chargés (au premier render)
 const cache = new Map<EmailTemplate, string>();
 
@@ -121,10 +138,11 @@ export async function sendEmail(opts: {
   let html = renderEmail(opts.template, opts.vars);
   const subject = opts.subject ?? EMAIL_SUBJECTS[opts.template](opts.vars);
 
-  // Injecte le pixel de tracking si on a un deliveryId. Avant </body>
-  // pour rester invisible (height=1 width=1, display:block pour pas
-  // d'espace résiduel dans Outlook).
-  if (opts.deliveryId) {
+  // Injecte le pixel de tracking si on a un deliveryId ET que le template est
+  // marketing (Audit v2 #7.8 — on ne traque pas l'ouverture des transactionnels :
+  // order confirmation, suivi de livraison, refund… le pixel y est intrusif et
+  // sans valeur produit). Avant </body> pour rester invisible.
+  if (opts.deliveryId && MARKETING_TEMPLATES.has(opts.template)) {
     const pixelUrl = `${APP_URL}/api/emails/pixel/${opts.deliveryId}`;
     const pixelTag = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
     if (html.includes('</body>')) {
