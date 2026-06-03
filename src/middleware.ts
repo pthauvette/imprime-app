@@ -71,7 +71,24 @@ export default auth((req) => {
   const needsAuth = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p + '/'),
   );
-  if (!needsAuth) return;
+  if (!needsAuth) {
+    // Audit v2 #10.2 — route publique : on n'auth pas, MAIS si un ?ref=CODE est
+    // présent il faut quand même poser le cookie « en passant » (les liens de
+    // parrainage pointent vers la HOME publique `/?ref=CODE`). Avant, le `return`
+    // ici court-circuitait la pose du cookie → parrainage cassé depuis la landing.
+    if (cookieToSet) {
+      const res = NextResponse.next();
+      res.cookies.set(cookieToSet.name, cookieToSet.value, {
+        maxAge: cookieToSet.maxAge,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+      });
+      return res;
+    }
+    return;
+  }
 
   if (!req.auth) {
     const signInUrl = new URL('/sign-in', req.url);

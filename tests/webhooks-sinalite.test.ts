@@ -484,3 +484,50 @@ describe('R. Unexpected error in applySinaliteStatusChange', () => {
     );
   });
 });
+
+// ─── S. Gardes 503 (secret absent prod) + timestamp (Audit v2 #10.4) ────────
+describe('S. Gardes 503 + timestamp freshness (#10.4)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('503 « Not configured » si SINALITE_WEBHOOK_SECRET absent EN PRODUCTION', async () => {
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'production');
+    // SINALITE_WEBHOOK_SECRET non stubé → absent (le setup ne l'injecte pas).
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+
+    const res = await POST(makeReq(validPayload()));
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({ error: 'Not configured' });
+  });
+
+  it('400 « Stale » si timestamp > 5 min dans le passé (anti-replay)', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    const stale = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const res = await POST(makeReq(validPayload({ timestamp: stale })));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Stale webhook rejected' });
+    expect(orders.recordWebhookEvent).not.toHaveBeenCalled();
+  });
+
+  it('400 « Invalid timestamp » si timestamp > 5 min dans le futur (clock-skew)', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    const future = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const res = await POST(makeReq(validPayload({ timestamp: future })));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid timestamp' });
+  });
+
+  it('400 « Invalid timestamp » si timestamp non parsable (NaN)', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    const res = await POST(makeReq(validPayload({ timestamp: 'pas-une-date' })));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid timestamp' });
+  });
+});
