@@ -21,6 +21,12 @@ export const dynamic = 'force-dynamic';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 10; // max broadcasts par run (chacun peut être 10k emails)
+// Audit v2 #7.3 — un broadcast coincé en PROCESSING depuis > ce seuil (run
+// crashé ou stranded par l'ancien claim non borné) est ré-éligible. dispatch
+// n'enqueue que (rapide) + est idempotent (dédup destinataires), donc re-traiter
+// est sûr. EmailBroadcast n'a pas d'updatedAt → on se base sur scheduledAt
+// (l'heure prévue, forcément passée pour un PROCESSING legit).
+const STUCK_PROCESSING_MIN = 15;
 
 export async function GET(req: NextRequest) {
   if (!CRON_SECRET) {
@@ -39,29 +45,50 @@ export async function GET(req: NextRequest) {
   const start = Date.now();
 
   try {
-    // Claim atomique pour idempotence : SCHEDULED → PROCESSING dans une
-    // updateMany WHERE scheduledAt < now, puis findMany sur le claim.
     const now = new Date();
-    const claim = await prisma.emailBroadcast.updateMany({
-      where: {
-        status: 'SCHEDULED',
-        scheduledAt: { lte: now },
-      },
-      data: { status: 'PROCESSING' },
+
+    // Reaper (Audit v2 #7.3) : ré-arme les broadcasts coincés en PROCESSING
+    // (run crashé OU surplus stranded par l'ancien claim non borné) → SCHEDULED.
+    const stuckCutoff = new Date(now.getTime() - STUCK_PROCESSING_MIN * 60_000);
+    const reaped = await prisma.emailBroadcast.updateMany({
+      where: { status: 'PROCESSING', scheduledAt: { lt: stuckCutoff } },
+      data: { status: 'SCHEDULED' },
+    });
+    if (reaped.count > 0) {
+      log.warn({ reaped: reaped.count }, 'cron/broadcasts: ré-armé des PROCESSING coincés → SCHEDULED');
+    }
+
+    // Claim BORNÉ (Audit v2 #7.3) : on sélectionne d'abord les BATCH_SIZE
+    // broadcasts qu'on va RÉELLEMENT traiter, puis on ne flippe QUE ceux-là.
+    // Avant : updateMany flippait TOUS les SCHEDULED dûs → le surplus au-delà de
+    // BATCH_SIZE restait PROCESSING à jamais (jamais re-claimé car plus aucun
+    // SCHEDULED) → broadcast 10k+ destinataires silencieusement jamais envoyé.
+    const due = await prisma.emailBroadcast.findMany({
+      where: { status: 'SCHEDULED', scheduledAt: { lte: now } },
+      orderBy: { scheduledAt: 'asc' },
+      take: BATCH_SIZE,
+      select: { id: true },
     });
 
-    if (claim.count === 0) {
-      const result = { ok: true, latencyMs: Date.now() - start, processed: 0 };
+    if (due.length === 0) {
+      const result = { ok: true, latencyMs: Date.now() - start, processed: 0, reaped: reaped.count };
       void pingCronHealthcheck('broadcasts', 'success', { processed: 0 });
-      void recordCronRun({ name: 'broadcasts', status: 'success', latencyMs: Date.now() - start, data: { processed: 0 } });
+      void recordCronRun({ name: 'broadcasts', status: 'success', latencyMs: Date.now() - start, data: { processed: 0, reaped: reaped.count } });
       return NextResponse.json(result);
     }
 
-    // Re-fetch les rows claimées (max BATCH_SIZE pour ce run)
+    const ids = due.map((d) => d.id);
+    // Claim atomique scopé aux IDs sélectionnés ; le WHERE status='SCHEDULED'
+    // garde contre un run concurrent (le 1er flippe, le 2e ne matche plus).
+    const claim = await prisma.emailBroadcast.updateMany({
+      where: { id: { in: ids }, status: 'SCHEDULED' },
+      data: { status: 'PROCESSING' },
+    });
+
+    // Re-fetch UNIQUEMENT les rows de ce claim (id IN ids, désormais PROCESSING).
     const ready = await prisma.emailBroadcast.findMany({
-      where: { status: 'PROCESSING' },
+      where: { id: { in: ids }, status: 'PROCESSING' },
       orderBy: { scheduledAt: 'asc' },
-      take: BATCH_SIZE,
     });
 
     let processed = 0;
@@ -90,6 +117,7 @@ export async function GET(req: NextRequest) {
       processed,
       totalEnqueued,
       claimed: claim.count,
+      reaped: reaped.count,
     };
     log.info(result, 'cron/broadcasts ran');
     void pingCronHealthcheck('broadcasts', 'success', { processed, totalEnqueued });
