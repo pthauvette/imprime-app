@@ -8,6 +8,7 @@
  * desc. Hide gracefully si zéro review qualifiable.
  */
 
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db';
 
 interface ReviewForDisplay {
@@ -59,8 +60,16 @@ async function fetchApprovedReviews(): Promise<ReviewForDisplay[]> {
   }
 }
 
+// Audit v2 #10.1 — cache le résultat 10 min (tag `reviews`) : la landing est
+// dynamique (cookies i18n), donc sans ce cache cette requête tournait à CHAQUE
+// visite. revalidateTag('reviews') côté admin invalide immédiatement.
+const getApprovedReviewsCached = unstable_cache(fetchApprovedReviews, ['landing-reviews-widget-v1'], {
+  revalidate: 600,
+  tags: ['reviews'],
+});
+
 export default async function ReviewsWidget() {
-  const reviews = await fetchApprovedReviews();
+  const reviews = await getApprovedReviewsCached();
 
   if (reviews.length === 0) return null;
 

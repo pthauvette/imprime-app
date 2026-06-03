@@ -12,6 +12,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
@@ -88,6 +89,11 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
       rating: existing.rating,
     },
   });
+
+  // Audit v2 #10.1 — invalide le cache reviews de la landing (unstable_cache
+  // tag 'reviews') pour que l'approbation / feature / reply apparaisse tout de
+  // suite, sans attendre le revalidate de 10 min.
+  revalidateTag('reviews');
 
   return NextResponse.json({ ok: true, review: updated });
 });
