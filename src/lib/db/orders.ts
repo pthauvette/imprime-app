@@ -138,16 +138,12 @@ export async function createPendingOrder(input: CreateOrderInput) {
     shippingNote: input.shippingNote ?? null,
   };
 
-  if (input.promoCodeId) {
-    const [, order] = await prisma.$transaction([
-      prisma.promoCode.update({
-        where: { id: input.promoCodeId },
-        data: { usesCount: { increment: 1 } },
-      }),
-      prisma.order.create({ data: orderData }),
-    ]);
-    return order;
-  }
+  // Audit v2 #5.2 — on n'incrémente PLUS PromoCode.usesCount ici. Avant :
+  // increment à la création PENDING, sans garde `usesCount < maxUses`
+  // (over-redemption concurrent) ET jamais décrémenté sur abandon → drift, codes
+  // « épuisés » prématurément (clients refusés à tort). L'increment vit
+  // désormais dans markOrderPaidWithWalletDebit, au passage PAID, gardé.
+  // Le promoCodeId reste persté sur l'Order (intention) pour l'increment.
   return prisma.order.create({ data: orderData });
 }
 
@@ -340,6 +336,28 @@ export async function markOrderPaidWithWalletDebit(input: {
             debited: avail,
           },
           'referral credit insuffisant au débit — clampé (rabais > solde, reconcile manuel)',
+        );
+      }
+    }
+
+    // 4. Audit v2 #5.2 — increment du compteur d'usage promo à la CONFIRMATION,
+    // gardé `usesCount < maxUses` (comparaison colonne-à-colonne → SQL brut,
+    // atomique, anti over-redemption). Protégé par le guard PENDING→PAID →
+    // exactement une fois, jamais sur un order non payé (plus de drift).
+    if (order.promoCodeId) {
+      const affected = await tx.$executeRaw`
+        UPDATE "PromoCode"
+        SET "usesCount" = "usesCount" + 1
+        WHERE "id" = ${order.promoCodeId}
+          AND ("maxUses" IS NULL OR "usesCount" < "maxUses")
+      `;
+      if (affected === 0) {
+        // Course « dernière place » : le code a atteint maxUses entre le checkout
+        // et le paiement. Le client garde son rabais (Stripe a déjà capturé) ; on
+        // n'incrémente pas au-delà du cap. Log pour visibilité.
+        logWebhook.warn(
+          { orderId: order.id, promoCodeId: order.promoCodeId },
+          'promo usesCount non incrémenté — maxUses atteint entre checkout et paiement (rabais honoré)',
         );
       }
     }
