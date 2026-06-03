@@ -44,6 +44,13 @@ export const metadata: Metadata = {
   formatDetection: { email: false, address: false, telephone: false },
   alternates: {
     canonical: '/',
+    // Audit v2 #10.9 — RSS découvrable : <link rel="alternate" type="application/
+    // rss+xml"> dans le <head> de toutes les pages → les lecteurs RSS et Google
+    // détectent le flux /feed.xml automatiquement (sinon il n'existe qu'à une URL
+    // que personne ne devine).
+    types: {
+      'application/rss+xml': [{ url: '/feed.xml', title: 'Plio — Blog' }],
+    },
     // Audit v2 #10.9 — pas de hreflang `languages` ici. Le site n'a PAS d'URLs
     // distinctes par langue (i18n via cookie plio_lang, même path) ; déclarer
     // fr-CA ET en-CA vers la MÊME URL est un signal hreflang ERRONÉ (Google
