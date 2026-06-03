@@ -17,6 +17,7 @@ import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { prisma } from '@/lib/db';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
 import { reviewSubmitToken } from '@/lib/reviews/token';
+import { timingSafeStringEqual } from '@/lib/webhooks/sinalite-signature';
 import { log } from '@/lib/logger';
 
 const BodySchema = z.object({
@@ -33,8 +34,9 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   const body = await parseBody(req, BodySchema);
 
-  // Verify token
-  if (body.token !== reviewSubmitToken(body.orderId)) {
+  // Verify token — Audit v2 #6.7 : comparaison constant-time (anti timing
+  // attack sur la dérivation du HMAC).
+  if (!timingSafeStringEqual(body.token, reviewSubmitToken(body.orderId))) {
     return NextResponse.json({ error: 'Lien invalide ou expiré.' }, { status: 400 });
   }
 

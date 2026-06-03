@@ -14,7 +14,14 @@ import { auth } from '@/auth';
  */
 
 const QuerySchema = z.object({
-  limit: z.string().regex(/^\d+$/).transform(Number).optional().default('50'),
+  // Audit v2 #6.8 — clamp [1,100] : sans cap, `?limit=999999` forçait un scan
+  // DB illimité (DoS léger). On borne au lieu de rejeter (meilleur UX).
+  limit: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
+    .default('50')
+    .transform((s) => Math.min(100, Math.max(1, Number(s)))),
   status: z.enum(ORDER_STATUS).optional(),
 });
 
