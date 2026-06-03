@@ -333,6 +333,14 @@ async function handlePaymentSucceeded(
         },
       }, { idempotencyKey: `auto_refund_${intent.id}` });
       await markRefundIssued({ orderId: order.id, refundId: refund.id });
+      // Audit v2 #1.2 — restaurer le crédit wallet débité (markOrderPaidWithWalletDebit
+      // l'a débité plus haut ; le refund Stripe ne rend QUE la part Stripe). C'est
+      // le chemin de refund le PLUS fréquent (échec imprimeur auto) et il ne
+      // restaurait jamais le wallet → perte client silencieuse. Helper partagé,
+      // idempotent (safe si le webhook retry) et non-fatal. actorId undefined =
+      // système (pas un admin).
+      const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
+      await restoreWalletCreditOnFullRefund({ order, refundId: refund.id });
       await markOrderFailed({
         orderId: order.id,
         reason: err instanceof Error ? err.message : 'Sinalite createOrder failed',
