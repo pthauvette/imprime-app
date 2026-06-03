@@ -23,6 +23,7 @@ import {
   DEFAULT_MARGIN_SPEC,
   type MarginSpec,
 } from '@/lib/products/margin-specs';
+import { buildFilesParam, parseFilesParam } from '@/lib/order/files-param';
 
 export default function UploadPage() {
   return (
@@ -100,6 +101,29 @@ function UploadPageInner() {
     };
   }, [designId, recto]);
 
+  // Audit v2 #4.3 — réhydrate recto/verso depuis ?files quand on revient via
+  // « Précédent » depuis shipping (qui porte désormais &files). Sans ça, la
+  // dropzone était vide → re-upload forcé juste avant le paiement. On ne lit que
+  // l'URL (les fichiers sont déjà uploadés sur S3) ; name/size sont
+  // reconstruits pour l'affichage. Gardé sur `!designId` : si l'user vient de
+  // l'éditeur, l'auto-fill design ci-dessus a priorité. First-writer-wins via
+  // setState fonctionnel → n'écrase jamais un upload déjà présent.
+  useEffect(() => {
+    if (designId) return;
+    const { frontUrl, backUrl } = parseFilesParam(searchParams.get('files'));
+    const toFile = (url: string): UploadedFile => ({
+      url,
+      name: decodeURIComponent(url.split('/').pop()?.split('?')[0] ?? 'fichier.pdf'),
+      size: 0,
+      contentType: 'application/pdf',
+    });
+    if (frontUrl) setRecto((cur) => cur ?? toFile(frontUrl));
+    if (backUrl) setVerso((cur) => cur ?? toFile(backUrl));
+    // Lecture unique au mount : on ne veut pas re-réhydrater à chaque édition
+    // de l'URL (l'user pourrait avoir cleared volontairement un fichier).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch product category pour choisir les insets visuels de l'overlay
   // bleed/trim/safe. Best-effort : on garde le default si le fetch fail
   // ou si l'API renvoie une category inconnue.
@@ -121,12 +145,7 @@ function UploadPageInner() {
     };
   }, [productId]);
 
-  const filesParam = [
-    recto ? `front:${encodeURIComponent(recto.url)}` : null,
-    verso ? `back:${encodeURIComponent(verso.url)}` : null,
-  ]
-    .filter(Boolean)
-    .join('|');
+  const filesParam = buildFilesParam(recto?.url, verso?.url);
 
   const designSuffix = designId ? `&designId=${designId}` : '';
   const nextHref = `/order/shipping?productId=${productId}&options=${options}&files=${filesParam}${designSuffix}` as Route;
