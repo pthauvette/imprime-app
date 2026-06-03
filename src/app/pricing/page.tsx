@@ -294,8 +294,8 @@ const PRICING_FAQ = [
     a: 'Pour les comptes reseller (agences, studios qui revendent), oui — le tier wholesale s\'applique automatiquement après approbation de ton application. Pour les autres, le pricing public est ce qu\'il y a de mieux.',
   },
   {
-    q: 'Comment se compare votre prix à Vistaprint ?',
-    a: 'On est généralement 15-30 % moins cher sur les produits comparables, ET on imprime 100 % au Canada (certains concurrents outsource une partie en Inde / Tunisie). Pour les comparaisons précises, va dans le wizard avec ton tirage — chaque option a son prix.',
+    q: 'Comment se comparent vos prix ?',
+    a: 'On imprime 100 % au Canada (Markham, Ontario) et on garde une structure de prix transparente, affichée en temps réel. Les tarifs varient selon le produit, le tirage et les finitions — pour une comparaison précise, configure ton produit dans le wizard : chaque option montre son prix exact, sans surprise au checkout.',
   },
   {
     q: 'TPS et TVQ inclues dans les prix affichés ?',
