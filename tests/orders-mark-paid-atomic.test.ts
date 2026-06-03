@@ -183,4 +183,40 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1 + Round 38 #4 optimistic loc
     const walletTxArgs = txWalletTransaction.create.mock.calls[0]![0];
     expect(walletTxArgs.data.description).toHaveLength(500);
   });
+
+  // ─── Audit v2 #3.1 — débit du crédit referral à la confirmation ───────────
+  it('referral appliqué → débité (gte guard) dans la même tx que PAID', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o_test', userId: 'u_owner', paymentIntentId: 'pi_123',
+      referralCreditAppliedCents: 2500,
+    } as never);
+
+    await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
+
+    // un seul updateMany user (referral) — pas de walletDebit ici
+    expect(txUser.updateMany).toHaveBeenCalledOnce();
+    const refArgs = txUser.updateMany.mock.calls[0]![0];
+    expect(refArgs.where.referralCreditCents).toEqual({ gte: 2500 }); // plancher
+    expect(refArgs.data.referralCreditCents).toEqual({ decrement: 2500 });
+    // pas de clamp (guard a réussi)
+    expect(txUser.update).not.toHaveBeenCalled();
+  });
+
+  it('referral insuffisant (concurrent spend) → clampé au restant, PAS de throw', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o_test', userId: 'u_owner', paymentIntentId: 'pi_123',
+      referralCreditAppliedCents: 2500,
+    } as never);
+    txUser.updateMany.mockResolvedValue({ count: 0 }); // gte guard échoue
+    txUser.findUnique.mockResolvedValue({ referralCreditCents: 1000 }); // reste 10$
+
+    // ne throw PAS (sinon order coincée PENDING alors que Stripe a chargé)
+    const result = await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
+    expect(result).toBeDefined();
+
+    // clamp : on débite le restant (1000), jamais en-dessous de 0
+    expect(txUser.update).toHaveBeenCalledOnce();
+    const clampArgs = txUser.update.mock.calls[0]![0];
+    expect(clampArgs.data.referralCreditCents).toEqual({ decrement: 1000 });
+  });
 });

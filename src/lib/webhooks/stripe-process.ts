@@ -341,6 +341,9 @@ async function handlePaymentSucceeded(
       // système (pas un admin).
       const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
       await restoreWalletCreditOnFullRefund({ order, refundId: refund.id });
+      // Audit v2 #3.1 — symétrique pour le crédit referral débité à la confirmation.
+      const { restoreReferralCreditOnFullRefund } = await import('@/lib/referrals/restore');
+      await restoreReferralCreditOnFullRefund({ order, refundId: refund.id });
       await markOrderFailed({
         orderId: order.id,
         reason: err instanceof Error ? err.message : 'Sinalite createOrder failed',

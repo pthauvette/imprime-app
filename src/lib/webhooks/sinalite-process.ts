@@ -116,6 +116,9 @@ export async function processSinaliteEvent(
               await markRefundIssued({ orderId: order.id, refundId: refund.id });
               const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
               await restoreWalletCreditOnFullRefund({ order, refundId: refund.id });
+              // Audit v2 #3.1 — symétrique pour le crédit referral débité à la confirmation.
+              const { restoreReferralCreditOnFullRefund } = await import('@/lib/referrals/restore');
+              await restoreReferralCreditOnFullRefund({ order, refundId: refund.id });
               refundedCents = order.amountCents;
             } catch (err) {
               // Refund échoué → NE PAS prétendre rembourser (refundedCents reste 0).

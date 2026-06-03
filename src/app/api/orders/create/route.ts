@@ -376,18 +376,19 @@ export const POST = withErrorHandler(async (req: Request) => {
   const user = earlySession?.user
     ? await prisma.user.update({
         where: { id: earlySession.user.id },
-        // Si referralCreditApplied > 0, on déduit la balance maintenant. Le
-        // PaymentIntent est créé donc l'user est engagé. Si Stripe fail au
-        // confirmPayment, on devra refund le crédit dans le webhook
-        // payment_failed (TODO future improvement — pour MVP, edge case
-        // accepté car rare et le crédit reste sur le compte).
+        // Audit v2 #3.1 — on NE débite PLUS le crédit referral ici. Avant : le
+        // decrement se faisait à la création du PI (avant paiement), sans garde
+        // de plancher (gte) ni reversal → tout abandon/échec/refund perdait le
+        // crédit, et 2 checkouts concurrents pouvaient driver la balance < 0.
+        // Désormais le débit vit dans markOrderPaidWithWalletDebit (même tx que
+        // PENDING→PAID, garde gte, idempotent), donc un order non payé ne touche
+        // jamais au crédit. Le montant d'intention reste persté sur l'Order
+        // (referralCreditAppliedCents) pour le débit à la confirmation + le
+        // restore sur full refund/cancel.
         data: {
           firstName: payload.contact.firstName,
           lastName: payload.contact.lastName,
           phone: payload.contact.phone,
-          ...(referralCreditApplied > 0 && {
-            referralCreditCents: { decrement: referralCreditApplied },
-          }),
         },
       })
     : await findOrCreateUserByEmail({

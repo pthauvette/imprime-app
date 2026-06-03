@@ -155,6 +155,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   // ambigu (qu'est-ce qui est "le" refund ?). Simple + prédictible :
   // partial = Stripe only, full = restore tout.
   let walletRestoredCents = 0;
+  let referralRestoredCents = 0;
   const isFullRefund = !body.amountCents || body.amountCents >= order.amountCents;
 
   // Round 38 #1 — Garde-fou off-by-one : si admin tape 7999¢ sur order 8000¢
@@ -187,6 +188,13 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       actorId: guard.userId,
       refundId: refund.id,
     });
+    // Audit v2 #3.1 — restaure aussi le crédit referral débité à la confirmation.
+    const { restoreReferralCreditOnFullRefund } = await import('@/lib/referrals/restore');
+    referralRestoredCents = await restoreReferralCreditOnFullRefund({
+      order,
+      actorId: guard.userId,
+      refundId: refund.id,
+    });
   }
 
   // Best-effort email
@@ -209,7 +217,9 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       orderTotalCents: order.amountCents,
       partial: refundAmount < order.amountCents,
       walletRestoredCents,
+      referralRestoredCents,
       walletCreditAppliedCents: order.walletCreditAppliedCents,
+      referralCreditAppliedCents: order.referralCreditAppliedCents,
       reason: body.reason ?? null,
       cancelled: body.cancelOrder ?? false,
       customerEmail: order.user.email,
@@ -221,6 +231,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     refundId: refund.id,
     amountCents: refundAmount,
     walletRestoredCents,
+    referralRestoredCents,
     cancelled: body.cancelOrder ?? false,
     // Comptabilité refund post-opération (pour affichage admin).
     alreadyRefundedCents: alreadyRefundedCents + refundAmount,
