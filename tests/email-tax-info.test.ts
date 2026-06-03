@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@/lib/emails/render', () => ({
+  MARKETING_TEMPLATES: new Set(['reengagement-follow-up', 'reengagement-winback', 'reseller-monthly-stats']),
   sendEmail: vi.fn(async () => ({ sent: true })),
   EMAIL_SUBJECTS: {},
 }));
@@ -20,6 +21,7 @@ async function importSendFresh() {
   vi.resetModules();
   // Re-mock après reset
   vi.doMock('@/lib/emails/render', () => ({
+    MARKETING_TEMPLATES: new Set(['reengagement-follow-up', 'reengagement-winback', 'reseller-monthly-stats']),
     sendEmail: vi.fn(async () => ({ sent: true })),
     EMAIL_SUBJECTS: {},
   }));

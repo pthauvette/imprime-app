@@ -26,6 +26,8 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/emails/render', () => ({
   sendEmail: vi.fn(async () => ({ sent: true })),
   EMAIL_SUBJECTS: {},
+  // Audit v2 #7.8 — queue.ts importe désormais MARKETING_TEMPLATES de render.
+  MARKETING_TEMPLATES: new Set(['reengagement-follow-up', 'reengagement-winback', 'reseller-monthly-stats']),
 }));
 
 vi.mock('@/lib/logger', () => {

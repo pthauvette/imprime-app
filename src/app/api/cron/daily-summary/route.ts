@@ -136,6 +136,26 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const last24hStart = new Date(now.getTime() - 24 * 3600 * 1000);
 
+  // Audit v2 #7.8 — dedup par jour : si le digest du jour a déjà été émis (un
+  // re-run GH Actions / retry), on skip AVANT de recalculer les KPI et de
+  // ré-envoyer le même digest à chaque admin. Le label est partagé par jour
+  // (admin-daily-summary:<YYYY-MM-DD>), donc on cherche par préfixe de date.
+  const dateKey = now.toISOString().slice(0, 10);
+  try {
+    const alreadySent = await prisma.emailDelivery.findFirst({
+      where: { label: { startsWith: `admin-daily-summary:${dateKey}` } },
+      select: { id: true },
+    });
+    if (alreadySent) {
+      log.info({ dateKey }, 'cron/daily-summary: digest déjà envoyé aujourd\'hui — skip');
+      return NextResponse.json({ ok: true, skipped: 'already-sent-today', dateKey });
+    }
+  } catch (err) {
+    // Best-effort : si la query dedup fail (blip DB), on continue (mieux un
+    // éventuel doublon qu'aucun digest).
+    log.warn({ err }, 'cron/daily-summary: dedup pre-check failed, continuing');
+  }
+
   try {
   // Fetch tout en parallèle
   const [

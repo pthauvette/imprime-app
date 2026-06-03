@@ -23,6 +23,10 @@ vi.mock('@/lib/db', () => ({
     user: {
       count: vi.fn(async () => 0),
     },
+    // Audit v2 #7.8 — dedup par jour (findFirst label).
+    emailDelivery: {
+      findFirst: vi.fn(async () => null),
+    },
   },
 }));
 
@@ -50,6 +54,7 @@ function resetMocks() {
   vi.mocked(prisma.order.groupBy).mockResolvedValue([] as never);
   vi.mocked(prisma.order.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.user.count).mockResolvedValue(0);
+  vi.mocked(prisma.emailDelivery.findFirst).mockResolvedValue(null as never);
   vi.mocked(sendAdminDailySummaryEmail).mockResolvedValue({ sent: true } as never);
 }
 
@@ -147,6 +152,22 @@ describe('/api/cron/daily-summary — KPIs + send', () => {
     expect(args.vars.FAILURES_24H).toBe(0);
     expect(args.vars.FAILURES_COLOR).toBe('#4A554D');
     expect(args.vars.FAILURES_BLOCK_HTML).toBe('');
+  });
+
+  // Audit v2 #7.8 — re-run du cron le même jour ne ré-envoie pas le digest.
+  it('#7.8 — digest déjà envoyé aujourd\'hui → skip, aucun send', async () => {
+    vi.mocked(prisma.emailDelivery.findFirst).mockResolvedValueOnce({ id: 'del_today' } as never);
+
+    const { GET } = await import('@/app/api/cron/daily-summary/route');
+    const res = await GET(makeReq({ authorization: 'Bearer sec' }));
+    const j = await res.json();
+
+    expect(j.skipped).toBe('already-sent-today');
+    expect(sendAdminDailySummaryEmail).not.toHaveBeenCalled();
+    // la garde cherche par préfixe de date du jour
+    expect(prisma.emailDelivery.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { label: { startsWith: expect.stringContaining('admin-daily-summary:') } } }),
+    );
   });
 
   it('NEW_USERS_PLURAL = "" si exactement 1 nouvel user', async () => {

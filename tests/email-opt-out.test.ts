@@ -17,6 +17,7 @@ import type { Order, User } from '@prisma/client';
 // Mock sendEmail au niveau du module render — on veut tester la garde
 // opt-out sans toucher SES réel.
 vi.mock('@/lib/emails/render', () => ({
+  MARKETING_TEMPLATES: new Set(['reengagement-follow-up', 'reengagement-winback', 'reseller-monthly-stats']),
   sendEmail: vi.fn(async () => ({ sent: true })),
   EMAIL_SUBJECTS: {},
 }));
