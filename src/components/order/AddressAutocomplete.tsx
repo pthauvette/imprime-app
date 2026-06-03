@@ -38,6 +38,8 @@ interface Props {
   placeholder?: string;
   /** Style de l'input — passé tel quel pour matcher les autres Field. */
   inputStyle?: React.CSSProperties;
+  /** Audit v2 #9.3 — nom accessible du combobox (sinon lu juste « combobox »). */
+  ariaLabel?: string;
 }
 
 export default function AddressAutocomplete({
@@ -46,6 +48,7 @@ export default function AddressAutocomplete({
   onSelect,
   placeholder,
   inputStyle,
+  ariaLabel,
 }: Props) {
   const [items, setItems] = useState<FindItem[]>([]);
   const [available, setAvailable] = useState<boolean | null>(null);
@@ -166,6 +169,9 @@ export default function AddressAutocomplete({
         spellCheck={false}
         // Round 7 #5 — pattern combobox : la sélection ↑↓ devient audible.
         role="combobox"
+        // Audit v2 #9.3 — nom accessible (sinon le combobox est annoncé sans
+        // libellé). Défaut « Adresse » ; surchargeable via ariaLabel.
+        aria-label={ariaLabel ?? 'Adresse'}
         aria-expanded={open && items.length > 0}
         aria-controls={listboxId}
         aria-autocomplete="list"
