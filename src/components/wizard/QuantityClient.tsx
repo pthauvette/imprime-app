@@ -6,6 +6,7 @@ import type { Route } from 'next';
 import { useMemo, useState } from 'react';
 import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import { cleanBaseOptionIds, buildVariantKey } from '@/lib/products/variant-key';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
 interface Props {
@@ -57,20 +58,30 @@ export default function QuantityClient({
   const [qtyIdx, setQtyIdx] = useState(defaultQtyIdx);
   const [turnaroundId, setTurnaroundId] = useState<number | undefined>(defaultTurnaroundId);
 
-  // Remove old turnaround from baseOptionIds (Step 3 may have included it)
+  // Audit v2 #4.1 — base nettoyée : on retire le turnaround (Step 3 a pu
+  // l'inclure) ET les IDs du groupe qty. Sans le retrait du qty, un aller-retour
+  // Upload→Précédent→Quantité réinjectait l'ancien qtyId (upload propage TOUTES
+  // ses options, qty incluse) → lookupPrice construisait une clé à DEUX qtyId
+  // (ancien + nouveau) absente de variantIndex → prix « — », bouton Continuer
+  // désactivé → funnel bloqué sur un aller-retour banal.
+  const qtyIdSet = useMemo(() => new Set(qtyOptions.map((o) => o.id)), [qtyOptions]);
   const baseWithoutTurnaround = useMemo(() => {
     const turnaroundIds = new Set(turnaroundOptions.map((o) => o.id));
-    return baseOptionIds.filter((id) => !turnaroundIds.has(id));
-  }, [baseOptionIds, turnaroundOptions]);
+    return cleanBaseOptionIds(baseOptionIds, qtyIdSet, turnaroundIds);
+  }, [baseOptionIds, turnaroundOptions, qtyIdSet]);
+
+  // Pour « Précédent » → Configurer : on garde le turnaround (Configurer a le
+  // groupe délai) mais on retire le qty parasite (Configurer n'a pas de qty).
+  const baseForConfigure = useMemo(
+    () => baseOptionIds.filter((id) => !qtyIdSet.has(id)),
+    [baseOptionIds, qtyIdSet],
+  );
 
   const currentQty = sortedQty[qtyIdx];
   const qtyValue = currentQty ? Number(currentQty.name) : 0;
 
   const lookupPrice = (qtyOptId: number, turnId?: number): number | null => {
-    const ids = [...baseWithoutTurnaround, qtyOptId];
-    if (turnId !== undefined) ids.push(turnId);
-    const key = [...ids].sort((a, b) => a - b).join('-');
-    return variantIndex[key] ?? null;
+    return variantIndex[buildVariantKey(baseWithoutTurnaround, qtyOptId, turnId)] ?? null;
   };
 
   const currentPrice = currentQty ? lookupPrice(currentQty.id, turnaroundId) : null;
@@ -112,7 +123,7 @@ export default function QuantityClient({
   // défaut = perte du travail. configure lit ?options=ID1,ID2,… et re-coche via
   // prefilledOptionIds. On renvoie baseOptionIds (la sélection telle qu'elle
   // était en quittant Configurer ; la quantité, elle, se re-choisit ici).
-  const prevHref = `/order/configure?productId=${product.id}&options=${baseOptionIds.join(',')}${designSuffix}` as Route;
+  const prevHref = `/order/configure?productId=${product.id}&options=${baseForConfigure.join(',')}${designSuffix}` as Route;
 
   // Snap percentage for slider fill width
   const snapPct = sortedQty.length > 1 ? (qtyIdx / (sortedQty.length - 1)) * 100 : 50;
