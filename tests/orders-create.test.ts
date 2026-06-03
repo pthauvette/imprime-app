@@ -21,6 +21,7 @@ vi.mock('@/lib/db', () => ({
     },
     designDraft: {
       update: vi.fn(async () => ({})),
+      updateMany: vi.fn(async () => ({ count: 1 })),
     },
     abandonedCart: {
       updateMany: vi.fn(async () => ({ count: 0 })),
@@ -327,5 +328,32 @@ describe('/api/orders/create — breakdown shape (Round 30 #1)', () => {
     expect(json.breakdown.referralCredit).toBe(0);
     expect(json.breakdown.resellerDiscount).toBe(0);
     expect(json.breakdown.resellerDiscountLabel).toBeNull();
+  });
+});
+
+describe('/api/orders/create — DesignDraft ownership (Audit v2 #5.3)', () => {
+  it('lie le draft via updateMany gardé { id, userId, orderId:null } (pas update brut)', async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: 'u_test', email: 't@plio.ca', role: 'USER' },
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      loyaltyTier: 'BRONZE', referralCreditCents: 0, walletCents: 0,
+      taxExempt: false, taxExemptCertId: null, resellerStatus: 'NONE',
+    } as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({ ...validPayload, designId: 'draft_other_user' }));
+    expect(res.status).toBe(200);
+
+    // ownership guard : empêche de rattacher le draft d'autrui + le re-link
+    expect(prisma.designDraft.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'draft_other_user', userId: 'u_test', orderId: null },
+        data: { orderId: 'order_test' },
+      }),
+    );
+    // l'ancien update brut (sans garde) n'est plus utilisé
+    expect(prisma.designDraft.update).not.toHaveBeenCalled();
   });
 });

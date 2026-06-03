@@ -300,7 +300,15 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Phase 2b: tax computation — taxe sur (subtotal - all discounts + shipping)
   // Round 18 #5 — si user.taxExempt, skip tax entièrement. Cert ID archivé
   // dans le User row + snapshot dans sinalitePayload pour audit fiscal.
-  const taxableSubtotal = subtotal - discountAmount - resellerDiscountAmount + effectiveShippingPrice;
+  // Audit v2 #5.4 — clamp à 0 : un promo 100 % cumulé à un rabais reseller peut
+  // rendre (subtotal − discounts + shipping) NÉGATIF → computeTax renverrait une
+  // taxe négative et grossTotalCents partirait sous zéro. Un total de commande
+  // ne peut pas être négatif ; les crédits wallet/referral s'appliquent ensuite
+  // avec leurs propres planchers.
+  const taxableSubtotal = Math.max(
+    0,
+    subtotal - discountAmount - resellerDiscountAmount + effectiveShippingPrice,
+  );
   const tax = userTaxExempt
     ? { lines: [], total: 0, combinedRate: 0 }
     : computeTax(taxableSubtotal, payload.shippingAddress.province);
@@ -456,10 +464,15 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Phase 5b : best-effort link au DesignDraft si le user vient de l'éditeur.
   // Ne fail PAS la commande si le link ne marche pas (designId invalide,
   // déjà lié à un autre order, etc.) — c'est de l'analytics, pas critique.
+  //
+  // Audit v2 #5.3 — ownership guard : `update({ where:{ id } })` permettait de
+  // rattacher le draft d'un AUTRE user (id deviné/fuité) à sa propre commande.
+  // `updateMany` gardé sur { userId, orderId:null } (comme designs/finalize)
+  // empêche le cross-user link + le re-link d'un draft déjà attaché.
   if (payload.designId) {
     try {
-      await prisma.designDraft.update({
-        where: { id: payload.designId },
+      await prisma.designDraft.updateMany({
+        where: { id: payload.designId, userId: user.id, orderId: null },
         data: { orderId: newOrder.id },
       });
     } catch (err) {
