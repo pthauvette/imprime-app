@@ -208,6 +208,46 @@ describe('POST /api/admin/orders/[id]/refund (Round 36 #4)', () => {
     expect(stripeMock.refunds.create).not.toHaveBeenCalled();
   });
 
+  // Audit v2 #5.1 — la clé d'idempotence inclut alreadyRefundedCents.
+  const idemKeyOf = (call: number): string | undefined => {
+    const args = stripeMock.refunds.create.mock.calls[call] as unknown[] | undefined;
+    return (args?.[1] as { idempotencyKey?: string } | undefined)?.idempotencyKey;
+  };
+
+  it('#5.1 — 2 refunds partiels de même montant, cumuls différents → clés idempotence DIFFÉRENTES', async () => {
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+
+    // 1er refund 20 $, rien de déjà remboursé
+    stripeMock.refunds.list.mockResolvedValueOnce({ data: [] } as never);
+    await POST(makeReq({ amountCents: 2000 }), { params: Promise.resolve({ id: 'o_test' }) });
+    const key1 = idemKeyOf(0);
+
+    stripeMock.refunds.create.mockClear();
+
+    // 2e refund 20 $, mais 20 $ déjà settled → cumul différent
+    stripeMock.refunds.list.mockResolvedValueOnce({ data: [{ amount: 2000, status: 'succeeded' }] } as never);
+    await POST(makeReq({ amountCents: 2000 }), { params: Promise.resolve({ id: 'o_test' }) });
+    const key2 = idemKeyOf(0);
+
+    expect(key1).toBeDefined();
+    expect(key2).toBeDefined();
+    expect(key1).not.toBe(key2); // même montant, cumul différent → vrai 2e refund
+  });
+
+  it('#5.1 — double-clic (même cumul) → MÊME clé (toujours dédupé)', async () => {
+    const { POST } = await import('@/app/api/admin/orders/[id]/refund/route');
+    // les deux lectures voient 0 déjà remboursé (le 1er n'a pas encore settled)
+    stripeMock.refunds.list.mockResolvedValue({ data: [] } as never);
+
+    await POST(makeReq({ amountCents: 2000 }), { params: Promise.resolve({ id: 'o_test' }) });
+    const key1 = idemKeyOf(0);
+    stripeMock.refunds.create.mockClear();
+    await POST(makeReq({ amountCents: 2000 }), { params: Promise.resolve({ id: 'o_test' }) });
+    const key2 = idemKeyOf(0);
+
+    expect(key1).toBe(key2); // double-clic exact → Stripe dédupe
+  });
+
   it('ignore les refunds failed/canceled dans le cumul', async () => {
     stripeMock.refunds.list.mockResolvedValueOnce({
       data: [
