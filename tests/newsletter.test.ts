@@ -20,6 +20,8 @@ vi.mock('@/lib/db', () => ({
       update: vi.fn(),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
+    // Audit v2 #7.7 — le GET unsubscribe désabonne aussi User.emailMarketing.
+    user: { updateMany: vi.fn(async () => ({ count: 1 })) },
   },
 }));
 
@@ -132,6 +134,12 @@ describe('GET /api/newsletter/unsubscribe', () => {
       where: { email, status: 'ACTIVE' },
       data: { status: 'UNSUBSCRIBED', unsubscribedAt: expect.any(Date) },
     });
+    // Audit v2 #7.7 — désabonne aussi User.emailMarketing (broadcasts, reseller
+    // stats, reengagement gardent sur ce flag).
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { email, emailMarketing: true },
+      data: { emailMarketing: false },
+    });
   });
 
   it('token invalid → 400 sans toucher la DB', async () => {
@@ -140,6 +148,7 @@ describe('GET /api/newsletter/unsubscribe', () => {
     const res = await GET(req as unknown as Parameters<typeof GET>[0]);
     expect(res.status).toBe(400);
     expect(prisma.newsletterSubscriber.updateMany).not.toHaveBeenCalled();
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 
   it('400 si email ou token manquant', async () => {
