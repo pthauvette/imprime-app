@@ -17,17 +17,14 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { generateInvoicePdf } from '@/lib/print/invoice-pdf';
+import { getCompanyIdentity } from '@/lib/company/identity';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const COMPANY = {
-  legalName: process.env.COMPANY_LEGAL_NAME || 'Démocratik inc.',
-  address: process.env.COMPANY_ADDRESS || 'Montréal QC, Canada',
-  gst: process.env.COMPANY_GST_NUMBER || '(num. TPS à venir)',
-  qst: process.env.COMPANY_QST_NUMBER || '(num. TVQ à venir)',
-};
+// Audit v2 #10.8 — identité fiscale centralisée (source unique).
+const COMPANY = getCompanyIdentity();
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();

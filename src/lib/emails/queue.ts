@@ -27,6 +27,7 @@ import { sendEmail, MARKETING_TEMPLATES, type EmailTemplate } from './render';
 import { logEmail } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
+import { getCompanyIdentity } from '@/lib/company/identity';
 import { isSuppressed } from './suppression';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
@@ -347,14 +348,9 @@ async function buildInvoiceAttachments(
       logEmail.warn({ orderId }, 'invoice attachment skipped : order not found');
       return undefined;
     }
-    // Identité légale du vendeur — figure sur la facture pour CTI/RTI
-    // côté clients B2B.
-    const company = {
-      legalName: process.env.COMPANY_LEGAL_NAME || 'Démocratik inc.',
-      address: process.env.COMPANY_ADDRESS || 'Montréal QC, Canada',
-      gst: process.env.COMPANY_GST_NUMBER || '(num. TPS à venir)',
-      qst: process.env.COMPANY_QST_NUMBER || '(num. TVQ à venir)',
-    };
+    // Identité légale du vendeur — figure sur la facture pour CTI/RTI côté
+    // clients B2B. Audit v2 #10.8 — source unique getCompanyIdentity.
+    const company = getCompanyIdentity();
     const bytes = await generateInvoicePdf({
       order,
       customer: {

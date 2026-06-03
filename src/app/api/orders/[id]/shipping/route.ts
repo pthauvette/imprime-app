@@ -24,6 +24,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { withErrorHandler } from '@/lib/api-helpers';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -41,7 +42,10 @@ const PatchSchema = z.object({
   shipPhone: z.string().min(7).max(20),
 });
 
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+// Audit v2 #10.8 — enveloppé dans withErrorHandler : une exception inattendue
+// (ex. blip DB dans le $transaction) renvoie désormais une 500 générique cohérente
+// (sans fuite de stack) au lieu d'une erreur Next.js brute non gérée.
+export const PATCH = withErrorHandler(async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const session = await auth();
   if (!session?.user?.id) {
@@ -158,4 +162,4 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   log.info({ orderId: id, userId: session.user.id }, 'order shipping modified by customer');
 
   return NextResponse.json({ ok: true });
-}
+});
