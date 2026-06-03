@@ -14,6 +14,7 @@
 import type { Order, User } from '@prisma/client';
 import { queueEmail } from './queue';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
+import { getCompanyIdentity } from '@/lib/company/identity';
 import { logEmail } from '@/lib/logger';
 import { parseItemsSnapshot, type DisplayItem } from '@/lib/orders/items';
 import { renderLifecycleTimeline } from './lifecycle-timeline';
@@ -43,14 +44,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 // RTI (remboursements taxe intrant Québec).
 // Fallback à des placeholders en dev pour pas crasher si env absent —
 // les vraies valeurs sont set dans Amplify env vars.
-// `||` (pas `??`) parce qu'env vars vides sont fréquentes en dev/CI et
-// doivent fall back aux placeholders, pas afficher une string vide.
-const COMPANY = {
-  legalName: process.env.COMPANY_LEGAL_NAME || 'Démocratik inc.',
-  address: process.env.COMPANY_ADDRESS || 'Montréal QC, Canada',
-  gst: process.env.COMPANY_GST_NUMBER || '(num. TPS à venir)',
-  qst: process.env.COMPANY_QST_NUMBER || '(num. TVQ à venir)',
-};
+// Audit v2 #10.8 — identité fiscale centralisée (getCompanyIdentity).
+const COMPANY = getCompanyIdentity();
 
 const cad = (cents: number) =>
   (cents / 100).toFixed(2).replace('.', ',');
