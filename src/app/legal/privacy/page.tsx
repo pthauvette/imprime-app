@@ -139,22 +139,22 @@ export default function PrivacyPage() {
                     <div className="tp-desc">Traite la carte bancaire. Plio ne voit jamais le numéro complet — uniquement les 4 derniers chiffres et le type de carte. Données stockées chez Stripe (PCI-DSS niveau 1).</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">Vercel (USA) + Neon Postgres (USA)</div>
+                    <div className="tp-name">AWS Amplify + Neon Postgres (USA)</div>
                     <div className="tp-role">Hébergement application + base de données</div>
-                    <div className="tp-desc">Notre application web et la base de données principale sont hébergées chez Vercel et Neon (régions US East). Tes données transitent en TLS 1.3.</div>
+                    <div className="tp-desc">Notre application web est hébergée sur AWS Amplify Hosting ; la base de données principale est Neon Postgres (région US East). Tes données transitent en TLS 1.3.</div>
                   </div>
                   <div className="tp-card">
                     <div className="tp-name">AWS S3 (Canada-Central)</div>
                     <div className="tp-role">Stockage des fichiers print-ready</div>
-                    <div className="tp-desc">Tes PDFs / images uploadés résident exclusivement à Montréal (ca-central-1). Presigned URLs expirent en 7 jours.</div>
+                    <div className="tp-desc">Tes PDFs / images uploadés résident exclusivement à Montréal (ca-central-1). L&apos;accès se fait via une URL à clé aléatoire non devinable (pas d&apos;indexation publique ni de listing du bucket).</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">AWS SES (USA)</div>
+                    <div className="tp-name">AWS SES (Canada-Central)</div>
                     <div className="tp-role">Courriel transactionnel + marketing</div>
                     <div className="tp-desc">Envoie les confirmations de commande, magic links de connexion et (avec ton opt-in) les newsletters. Pas d&apos;usage marketing sans consentement explicite (CASL).</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">Sinalite (USA)</div>
+                    <div className="tp-name">Sinalite (Markham, Ontario, Canada)</div>
                     <div className="tp-role">Partenaire d&apos;impression</div>
                     <div className="tp-desc">Reçoit ton nom, adresse de livraison, téléphone et fichiers print-ready pour l&apos;impression et l&apos;expédition. Pas d&apos;autres données partagées.</div>
                   </div>
@@ -176,7 +176,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <p style={{ marginTop: 16 }}>
-                  <strong>Transferts hors-Canada :</strong> certains sous-traitants (Stripe, Vercel, Neon, AWS SES, Sinalite, Sentry, Upstash) traitent tes données aux États-Unis ou en Europe. Conformément à l&apos;article 17 de la Loi 25, nous avons évalué que ces transferts offrent une protection équivalente, et les accords de traitement (DPA) couvrent les obligations de confidentialité et de sécurité. Tu peux demander la liste détaillée des DPA via <a href="mailto:privacy@plio.ca">privacy@plio.ca</a>.
+                  <strong>Transferts hors-Canada :</strong> certains sous-traitants (Stripe, AWS Amplify, Neon, Sentry, Upstash) traitent tes données aux États-Unis ou en Europe. Le stockage des fichiers (AWS S3), l&apos;envoi de courriels (AWS SES) et l&apos;impression (Sinalite, Markham ON) sont au Canada. Conformément à l&apos;article 17 de la Loi 25, nous avons évalué que ces transferts offrent une protection équivalente, et les accords de traitement (DPA) couvrent les obligations de confidentialité et de sécurité. Tu peux demander la liste détaillée des DPA via <a href="mailto:privacy@plio.ca">privacy@plio.ca</a>.
                 </p>
 
                 <p>Aucune donnée personnelle n&apos;est revendue, louée ou cédée à des fins publicitaires. Aucun partenaire publicitaire (Meta, Google Ads, TikTok) n&apos;a accès à tes informations. Aucun outil d&apos;analytique tiers (Google Analytics, Plausible, etc.) n&apos;est actuellement déployé.</p>
