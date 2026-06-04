@@ -151,6 +151,31 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       where: { email: emailSnapshot.toLowerCase() },
     }),
 
+    // Audit-vérif Légal #3 — EmailDelivery : DELETE direct. `to` (courriel) +
+    // `varsJson` (nom + adresse de livraison rendus dans les confirmations) sont
+    // des PII customer-identifiable. Ce sont des logs de livraison SANS rétention
+    // fiscale → suppression. Sans ça, le courriel + nom + adresse du client
+    // survivaient EN CLAIR après une suppression PIPEDA, en contradiction directe
+    // avec le courriel de confirmation envoyé au client (« supprimés »).
+    prisma.emailDelivery.deleteMany({
+      where: { to: emailSnapshot.toLowerCase() },
+    }),
+
+    // Audit-vérif Légal #3 — CustomQuoteRequest : anonymise les PII du demandeur
+    // (courriel / nom / téléphone / company / IP / UA). Garde le contenu projet
+    // (type, description, budget, statut) — non-identifiant — pour les analytics.
+    prisma.customQuoteRequest.updateMany({
+      where: { email: emailSnapshot.toLowerCase() },
+      data: {
+        email: anonymizedEmail,
+        name: ANONYMIZED_TEXT,
+        phone: null,
+        companyName: null,
+        requestIp: null,
+        requestUa: null,
+      },
+    }),
+
     // Anonymize User row (inchangé)
     prisma.user.update({
       where: { id: userId },
