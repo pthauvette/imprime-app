@@ -265,9 +265,17 @@ export default function QuantityClient({
             <div className="delay-block-label">Quand tu en as besoin ?</div>
             <div className="delay-pills">
               {turnaroundOptions.map((opt) => {
+                // Audit-vérif Funnel #5 — le « +X$ » d'une pastille turnaround doit
+                // être le surcoût vs le délai PAR DÉFAUT (référence stable), pas vs
+                // le délai actuellement sélectionné. Avant, deltaVsDefault utilisait
+                // currentPrice (sélection courante) → le « +X$ » affiché changeait
+                // selon ce que l'utilisateur avait déjà choisi (parfois négatif).
                 const priceAtThisDelay = currentQty ? lookupPrice(currentQty.id, opt.id) : null;
-                const deltaVsDefault = priceAtThisDelay !== null && currentPrice !== null && defaultTurnaroundId
-                  ? priceAtThisDelay - (defaultTurnaroundId === opt.id ? priceAtThisDelay : currentPrice)
+                const priceAtDefault = currentQty && defaultTurnaroundId
+                  ? lookupPrice(currentQty.id, defaultTurnaroundId)
+                  : null;
+                const deltaVsDefault = priceAtThisDelay !== null && priceAtDefault !== null
+                  ? priceAtThisDelay - priceAtDefault
                   : null;
                 return (
                   <button
