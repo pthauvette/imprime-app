@@ -33,6 +33,8 @@ vi.mock('@/lib/db', () => ({
     sampleRequest: { updateMany: vi.fn(async () => ({ count: 0 })) },
     abandonedCart: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     newsletterSubscriber: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    emailDelivery: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    customQuoteRequest: { updateMany: vi.fn(async () => ({ count: 0 })) },
     deleteAccountRequest: { update: vi.fn(async () => ({})) },
   },
 }));
@@ -179,6 +181,33 @@ describe('POST /api/admin/users/[id]/delete-pipeda (Round 39 #1)', () => {
     expect(prisma.newsletterSubscriber.deleteMany).toHaveBeenCalledOnce();
     const args = vi.mocked(prisma.newsletterSubscriber.deleteMany).mock.calls[0]![0];
     expect(args?.where).toEqual({ email: 'doomed@plio.ca' });
+  });
+
+  it('Légal #3 — EmailDelivery DELETED par to match (PII to + varsJson)', async () => {
+    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
+    await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
+
+    expect(prisma.emailDelivery.deleteMany).toHaveBeenCalledOnce();
+    const args = vi.mocked(prisma.emailDelivery.deleteMany).mock.calls[0]![0];
+    expect(args?.where).toEqual({ to: 'doomed@plio.ca' });
+  });
+
+  it('Légal #3 — CustomQuoteRequest PII anonymisé (email/nom/tél/company/IP/UA)', async () => {
+    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
+    await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
+
+    expect(prisma.customQuoteRequest.updateMany).toHaveBeenCalledOnce();
+    const args = vi.mocked(prisma.customQuoteRequest.updateMany).mock.calls[0]![0];
+    expect(args?.where).toEqual({ email: 'doomed@plio.ca' });
+    expect(args?.data).toEqual(
+      expect.objectContaining({
+        name: '[PIPEDA-DELETED]',
+        phone: null,
+        companyName: null,
+        requestIp: null,
+        requestUa: null,
+      }),
+    );
   });
 
   it('Round 39 #1 — email match lowercased (defensive)', async () => {
