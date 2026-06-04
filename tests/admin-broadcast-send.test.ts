@@ -26,6 +26,8 @@ vi.mock('@/lib/db', () => ({
       })),
       update: vi.fn(async () => ({})),
     },
+    // H2 — dispatchBroadcast préfetch les labels par-destinataire déjà livrés.
+    emailDelivery: { findMany: vi.fn(async () => []) },
   },
 }));
 

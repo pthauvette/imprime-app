@@ -430,6 +430,12 @@ export async function sendAdminCustomMessageEmail(input: {
   vars: AdminCustomMessageVars;
   /** Reply-To header — typiquement l'email de l'admin envoyeur. */
   replyTo: string;
+  /**
+   * Override du label de livraison. Les broadcasts passent un label
+   * PAR-DESTINATAIRE (broadcast:<id>:<email>) pour permettre la dédup au re-run
+   * (audit-vérif H2). Sinon, label commun admin-custom-message:<ORDER_ID>.
+   */
+  label?: string;
 }) {
   return queueEmail({
     to: input.to,
@@ -437,7 +443,7 @@ export async function sendAdminCustomMessageEmail(input: {
     vars: input.vars as unknown as Record<string, string | number>,
     subject: input.vars.SUBJECT,
     replyTo: input.replyTo,
-    label: `admin-custom-message:${input.vars.ORDER_ID}`,
+    label: input.label ?? `admin-custom-message:${input.vars.ORDER_ID}`,
   });
 }
 
