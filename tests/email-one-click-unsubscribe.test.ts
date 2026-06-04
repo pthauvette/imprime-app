@@ -40,10 +40,17 @@ vi.mock('@/lib/alerting/slack', () => ({
   sendCriticalAlert: vi.fn(async () => undefined),
 }));
 
+// Audit-vérif M2 — le désabo enregistre désormais une suppression (couvre les
+// invités abandoned-cart). On mocke pour isoler la route de la table EmailSuppression.
+vi.mock('@/lib/emails/suppression', () => ({
+  suppressEmail: vi.fn(async () => ({ created: true })),
+}));
+
 import { prisma } from '@/lib/db';
 import * as render from '@/lib/emails/render';
 import { queueEmail } from '@/lib/emails/queue';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
+import { suppressEmail } from '@/lib/emails/suppression';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -172,5 +179,10 @@ describe('POST /api/newsletter/unsubscribe (Round 28 #4 RFC 8058)', () => {
     const userCall = vi.mocked(prisma.user.updateMany).mock.calls[0]![0];
     expect(userCall.where).toMatchObject({ email, emailMarketing: true });
     expect(userCall.data).toMatchObject({ emailMarketing: false });
+
+    // M2 — suppression enregistrée (couvre les invités sans compte ni abo)
+    expect(suppressEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email, reason: 'MANUAL', source: 'USER_UNSUB' }),
+    );
   });
 });
