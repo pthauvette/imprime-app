@@ -103,6 +103,16 @@ const CreateOrderSchema = z.object({
    * côté serveur (le client peut tricher) et on rejette si invalide.
    */
   promoCode: z.string().min(1).max(64).optional(),
+
+  /**
+   * Audit-vérif Funnel #2 — nonce STABLE par tentative de checkout (généré une
+   * fois au montage de la page review). Combiné au hash de config pour la clé
+   * d'idempotence Stripe : retries de la même tentative → même clé (pas de
+   * double PaymentIntent), nouvelle tentative (rechargement) → nouvelle clé
+   * (re-commande identique possible). Avant, la clé hashait internalRef =
+   * `PLIO-${Date.now()}` → chaque appel était unique → idempotence neutralisée.
+   */
+  idempotencyKey: z.string().min(8).max(64).optional(),
 });
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────
@@ -363,18 +373,26 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Phase 4: create PaymentIntent — automatic capture, full sinalitePayload
   // persisted in our DB (not Stripe metadata — too big for the 500-char limit).
   //
-  // Round 38 #3 — idempotencyKey derived from request body hash. Si le
-  // client double-clic ou retry après un timeout réseau, Stripe retourne
-  // le même PI au lieu d'en créer 2 (= 2 charges potentielles). Hash
-  // inclut email + items + expectedSubtotal pour que retries identiques
-  // soient dédupés mais retries-avec-changement (typo fix) crée un new PI.
+  // Round 38 #3 + Audit-vérif Funnel #2 — clé d'idempotence Stripe.
+  // Si le client double-clic ou retry après un timeout réseau, Stripe retourne
+  // le même PI au lieu d'en créer 2 (= 2 charges potentielles).
+  //
+  // CORRECTION Funnel #2 : on N'inclut PLUS `payload.items` tel quel — il porte
+  // `internalRef: PLIO-${Date.now()}` qui rendait CHAQUE appel unique → la clé
+  // changeait à chaque retry → idempotence neutralisée. On hashe désormais la
+  // config STABLE (productId + optionIds) + le promoCode (affecte le montant) +
+  // un `attempt` nonce envoyé par le client (stable par tentative de checkout,
+  // unique par rechargement de page). Résultat : retry d'une tentative → même
+  // clé (dédup) ; nouvelle tentative ou re-commande identique → nouvelle clé.
   const { createHash } = await import('node:crypto');
   const idempotencyKey = `oc_${createHash('sha256')
     .update(JSON.stringify({
+      attempt: payload.idempotencyKey ?? '',
       email: payload.contact.email.toLowerCase(),
-      items: payload.items,
+      items: payload.items.map((it) => ({ productId: it.productId, optionIds: it.optionIds })),
       expectedSubtotal: payload.expectedSubtotal,
       shippingMethod: payload.shippingMethod,
+      promoCode: payload.promoCode ?? null,
     }))
     .digest('hex')
     .slice(0, 48)}`;
