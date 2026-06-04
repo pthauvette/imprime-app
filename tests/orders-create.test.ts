@@ -203,6 +203,27 @@ describe('/api/orders/create — garde curation serveur (Funnel #3/#4)', () => {
   });
 });
 
+describe('/api/orders/create — idempotence Stripe (Funnel #2)', () => {
+  async function keyFor(body: unknown): Promise<string> {
+    const { POST } = await import('@/app/api/orders/create/route');
+    await POST(makeReq(body));
+    const calls = stripeMock.paymentIntents.create.mock.calls as unknown as Array<[unknown, { idempotencyKey: string }]>;
+    return calls[calls.length - 1]![1].idempotencyKey;
+  }
+
+  it('internalRef volatil n\'affecte PAS la clé (retry de la même tentative → dédupé)', async () => {
+    const a = await keyFor({ ...validPayload, idempotencyKey: 'attempt-1', items: [{ productId: 1, optionIds: [4, 30, 1], files: validPayload.items[0]!.files, internalRef: 'PLIO-111' }] });
+    const b = await keyFor({ ...validPayload, idempotencyKey: 'attempt-1', items: [{ productId: 1, optionIds: [4, 30, 1], files: validPayload.items[0]!.files, internalRef: 'PLIO-999' }] });
+    expect(a).toBe(b);
+  });
+
+  it('nonce de tentative différent → clé différente (re-commande identique possible)', async () => {
+    const a = await keyFor({ ...validPayload, idempotencyKey: 'attempt-1' });
+    const b = await keyFor({ ...validPayload, idempotencyKey: 'attempt-2' });
+    expect(a).not.toBe(b);
+  });
+});
+
 describe('/api/orders/create — GOLD perk integration (Round 13 #5)', () => {
   it('GOLD user → shippingCents = 0 dans Stripe metadata', async () => {
     vi.mocked(auth).mockResolvedValue({

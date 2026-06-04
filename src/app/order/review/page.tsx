@@ -131,6 +131,15 @@ function ReviewPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Audit-vérif Funnel #2 — nonce STABLE par tentative de checkout (1 par montage
+  // de cette page). Envoyé à /api/orders/create comme base de la clé d'idempotence
+  // Stripe : un retry réutilise la même clé (pas de double PaymentIntent), un
+  // rechargement de page démarre une nouvelle tentative (re-commande possible).
+  const idempotencyKey = useMemo(() => {
+    try { return crypto.randomUUID(); }
+    catch { return `att-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
+  }, []);
+
   // Promo code : code appliqué + status (ok/error/checking) + message FR
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
 
@@ -285,6 +294,7 @@ function ReviewPageInner() {
             ...(ship.note ? { shippingNote: ship.note } : {}),
             expectedSubtotal,
             notes: `Commande Plio ${new Date().toISOString()}`,
+            idempotencyKey,
             ...(designId ? { designId } : {}),
             ...(appliedPromo ? { promoCode: appliedPromo } : {}),
           }),
