@@ -19,3 +19,6 @@ next-env.d.ts
 test-results/
 playwright-report/
 .playwright/
+
+# Mapping Sinalite généré (régénérable via scripts/sinalite-map.mjs)
+docs/sinalite-*.draft.json

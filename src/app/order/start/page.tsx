@@ -278,7 +278,10 @@ export default async function OrderStartPage({
             {families.map((family, i) => (
               <Link
                 key={family.slug}
-                href={`/order/product?category=${family.slug}` as Route}
+                // Produit virtuel (pilote) : la famille cartes ouvre le sélecteur
+                // Papier × Finition (/order/cards) au lieu de lister 25 productId
+                // Sinalite quasi-identiques. Les autres familles : flow normal.
+                href={(family.slug === 'cartes-de-visite' ? '/order/cards' : `/order/product?category=${family.slug}`) as Route}
                 className="cat-card"
                 style={{ '--i': String(i) } as React.CSSProperties}
               >
