@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sinalite } from '@/lib/sinalite/client';
 import {
-  getVariantIndex,
   lookupVariant,
   supportsCustomSize,
   requiresRemotePricing,
 } from '@/lib/sinalite/pricing';
+import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import { withErrorHandler } from '@/lib/api-helpers';
 
 /**
@@ -93,29 +93,35 @@ export const POST = withErrorHandler(async (
   const { id } = ParamsSchema.parse(await ctx.params);
   const { optionIds } = PriceBodySchema.parse(await req.json());
 
-  // Try variants index first — O(1) once built, in-memory cache 10 min TTL.
-  const { index, fromCache, variantCount } = await getVariantIndex(id);
+  // Audit-vérif Funnel #1 — on renvoie le prix MARKUP INCLUS (getEnrichedVariantIndex),
+  // exactement comme /api/orders/create calcule le subtotal FACTURÉ. Avant, ce
+  // endpoint renvoyait l'index BRUT alors que le wizard (configure/quantity) ET le
+  // serveur utilisent l'enrichi → dès qu'une marge admin (marginPct) était posée,
+  // l'expectedSubtotal (calculé ici, brut) ≠ subtotal serveur (enrichi) → le check
+  // anti-tamper rejetait 100 % des checkouts du produit en PRICE_MISMATCH 409.
+  // Complète l'audit v2 #6.2 (qui n'avait corrigé que /variants, pas ce single-price).
+  const { index, marginPct, variantCount } = await getEnrichedVariantIndex(id);
   const price = lookupVariant(optionIds, index);
 
   if (price !== null) {
     return NextResponse.json({
       price,
       source: 'variants-index',
-      cache: fromCache ? 'hit' : 'miss',
       variantCount,
       productId: id,
       optionIds,
     });
   }
 
-  // Combo absente de l'index → exclusion ou custom_size → fallback remote
+  // Combo absente de l'index (exclusion / custom_size) → prix remote + markup
+  // appliqué manuellement, même formule que orders/create (roundCents au cent).
+  const multiplier = marginPct !== null ? 1 + marginPct / 100 : 1;
   const result = await sinalite.getPrice(id, optionIds);
   return NextResponse.json({
-    price: parseFloat(result.price),
+    price: Math.round(parseFloat(result.price) * multiplier * 100) / 100,
     packageInfo: result.packageInfo,
     productOptions: result.productOptions,
     source: 'remote-fallback',
-    cache: 'index-miss',
     variantCount,
     productId: id,
     optionIds,
