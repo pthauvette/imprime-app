@@ -149,7 +149,7 @@ function UploadPageInner() {
 
   const designSuffix = designId ? `&designId=${designId}` : '';
   const nextHref = `/order/shipping?productId=${productId}&options=${options}&files=${filesParam}${designSuffix}` as Route;
-  const prevHref = `/order/quantity?productId=${productId}&options=${options}${designSuffix}` as Route;
+  const prevHref = `/order/configure?productId=${productId}&options=${options}${designSuffix}` as Route;
   const canContinue = recto !== null;
 
   return (
@@ -163,8 +163,7 @@ function UploadPageInner() {
           <span className="breadcrumb">Téléverse ton design</span>
         </div>
         <div className="progress-block">
-          <div className="progress" role="progressbar" aria-valuenow={5} aria-valuemin={1} aria-valuemax={7}>
-            <div className="progress-segment done"></div>
+          <div className="progress" role="progressbar" aria-valuenow={4} aria-valuemin={1} aria-valuemax={6}>
             <div className="progress-segment done"></div>
             <div className="progress-segment done"></div>
             <div className="progress-segment done"></div>
@@ -172,7 +171,7 @@ function UploadPageInner() {
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
           </div>
-          <div className="progress-label">Étape 05 sur 07 — Téléverse ton design</div>
+          <div className="progress-label">Étape 04 sur 06 — Téléverse ton design</div>
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
@@ -183,7 +182,7 @@ function UploadPageInner() {
       <main className="step-layout">
         {/* Round 40 #2 — padding via .step-content CSS so mobile @media wins */}
         <div className="step-content" style={{ maxWidth: 1080 }}>
-          <div className="step-eyebrow">Étape 05</div>
+          <div className="step-eyebrow">Étape 04</div>
           <h1 className="step-question">Téléverse ton <em>design.</em></h1>
           <p className="step-lede">
             PDF, AI, EPS, PSD, JPG, PNG ou TIFF (max 150 MB). On vérifie automatiquement bleed,
