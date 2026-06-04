@@ -47,8 +47,15 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
 /** Round 28 #4 — Derive l'unsubscribe URL pour un recipient.
  *  Idempotent + déterministe via HMAC, donc safe à re-derive en retry. */
-function oneClickUnsubscribeUrl(to: string, template: EmailTemplate): string | undefined {
-  if (!MARKETING_TEMPLATES.has(template)) return undefined;
+function oneClickUnsubscribeUrl(
+  to: string,
+  template: EmailTemplate,
+  forceMarketing = false,
+): string | undefined {
+  // Audit-vérif M3 — `forceMarketing` permet aux broadcasts (template
+  // admin-custom-message, hors MARKETING_TEMPLATES car aussi transactionnel)
+  // d'émettre quand même le header one-click RFC 8058.
+  if (!forceMarketing && !MARKETING_TEMPLATES.has(template)) return undefined;
   const email = to.toLowerCase().trim();
   const token = newsletterUnsubscribeToken(email);
   const params = new URLSearchParams({ email, token });
@@ -71,6 +78,12 @@ export interface QueueEmailInput {
   /** Round 28 #4 — Marketing email → RFC 8058 one-click unsubscribe.
    *  Passé tel quel à sendEmail() qui ajoute les headers SMTP. */
   listUnsubscribeUrl?: string;
+  /**
+   * Audit-vérif M3 — marque cet envoi comme MARKETING même si le template est
+   * transactionnel/exempté (cas des broadcasts via admin-custom-message). Force
+   * (a) l'application du cap CASL quotidien et (b) le header one-click List-Unsub.
+   */
+  marketing?: boolean;
 }
 
 const BACKOFF_MINUTES = [5, 15]; // 1er retry +5min, 2e +15min
@@ -111,8 +124,15 @@ const THROTTLE_EXEMPT_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
  * Returns true si l'user a dépassé sa quote daily (et l'email doit être skipped).
  * Exempte les templates transactional listés.
  */
-async function isUserThrottled(to: string, template: EmailTemplate): Promise<boolean> {
-  if (THROTTLE_EXEMPT_TEMPLATES.has(template)) return false;
+async function isUserThrottled(
+  to: string,
+  template: EmailTemplate,
+  isMarketing = false,
+): Promise<boolean> {
+  // Audit-vérif M3 — un envoi marketing explicite (broadcast) reste soumis au cap
+  // CASL même si son template figure dans THROTTLE_EXEMPT_TEMPLATES (cas de
+  // admin-custom-message, exempté pour les réponses 1:1 transactionnelles).
+  if (!isMarketing && THROTTLE_EXEMPT_TEMPLATES.has(template)) return false;
   const since = new Date(Date.now() - THROTTLE_WINDOW_MS);
   const recent = await prisma.emailDelivery.count({
     where: {
@@ -169,7 +189,7 @@ export async function queueEmail(input: QueueEmailInput): Promise<{
   // Best-effort : si la query throttle fail (DB), on log et on continue
   // (mieux envoyer 6 emails que zéro si DB blip).
   try {
-    if (await isUserThrottled(input.to, input.template)) {
+    if (await isUserThrottled(input.to, input.template, input.marketing)) {
       logEmail.warn(
         { to: input.to, template: input.template, label: input.label },
         'email throttled (user has hit daily cap)',
@@ -210,7 +230,7 @@ export async function queueEmail(input: QueueEmailInput): Promise<{
         attachments,
         // Round 28 #4 — explicit override OR auto-derive from template
         listUnsubscribeUrl: input.listUnsubscribeUrl
-          ?? oneClickUnsubscribeUrl(input.to, input.template),
+          ?? oneClickUnsubscribeUrl(input.to, input.template, input.marketing),
       });
       return { sent: true, id: 'no-queue-fallback' };
     } catch {
@@ -271,8 +291,16 @@ export async function processDelivery(deliveryId: string): Promise<{
       // set openedAt (1ère ouverture seulement).
       deliveryId,
       // Round 28 #4 — auto-derive on retry path (rebuilds from template +
-      // to via HMAC token, déterministe et stateless)
-      listUnsubscribeUrl: oneClickUnsubscribeUrl(delivery.to, delivery.template as EmailTemplate),
+      // to via HMAC token, déterministe et stateless).
+      // Audit-vérif M3 — les broadcasts (label broadcast:<id>:<email>, posé par
+      // dispatchBroadcast) sont marketing même si leur template est exempté →
+      // on force le one-click. Stateless : la convention de label suffit, pas de
+      // colonne `marketing` à persister.
+      listUnsubscribeUrl: oneClickUnsubscribeUrl(
+        delivery.to,
+        delivery.template as EmailTemplate,
+        delivery.label?.startsWith('broadcast:') ?? false,
+      ),
     });
     await prisma.emailDelivery.update({
       where: { id: deliveryId },
