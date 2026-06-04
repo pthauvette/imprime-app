@@ -73,7 +73,7 @@ export default async function ProductPickerPage({
             role="progressbar"
             aria-valuenow={2}
             aria-valuemin={1}
-            aria-valuemax={7}
+            aria-valuemax={6}
           >
             <div className="progress-segment done"></div>
             <div className="progress-segment active"></div>
@@ -81,9 +81,8 @@ export default async function ProductPickerPage({
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
-            <div className="progress-segment"></div>
           </div>
-          <div className="progress-label">Étape 02 sur 07 — Produit</div>
+          <div className="progress-label">Étape 02 sur 06 — Produit</div>
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>

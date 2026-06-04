@@ -7,6 +7,7 @@ import { useState, useMemo } from 'react';
 import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
+import SaveConfigButton from '@/components/wizard/SaveConfigButton';
 
 type OptionGroupMap = Record<string, SinaliteOption[]>;
 
@@ -19,17 +20,22 @@ interface Props {
   /** Si set, l'utilisateur arrive depuis /design/[slug] et son PDF est déjà
    *  généré — on propage l'ID jusqu'à /order/upload qui auto-load le fichier. */
   designId: string | null;
-  /** Index pré-construit : `sortedIds.join('-')` → prix CAD. Permet de montrer
-   *  le prix live à l'étape 3 (avant de connaître la quantité finale), au lieu
-   *  d'attendre l'étape 4. On utilise la qty la plus basse comme préview. */
+  /** Index pré-construit : `sortedIds.join('-')` → prix CAD (matrice COMPLÈTE,
+   *  toutes options + qty + turnaround). Pilote le prix LIVE : à mesure que
+   *  l'utilisateur change une option OU déplace le slider de quantité, on relit
+   *  la clé correspondante. La quantité est gérée ici (fusion de l'ancienne
+   *  étape /quantity), plus à une étape séparée. */
   variantIndex: Record<string, number>;
 }
 
 /**
- * Step 3 — Configure ta commande.
+ * Étape 3 — Configure ta commande (options + QUANTITÉ + prix live).
  *
- * State : Map<groupName, optionId> de la sélection courante.
- * Le groupe "qty" est exclu (géré au Step 4).
+ * State : `selection` = Map<groupName, optionId> pour les options (format,
+ * papier, finition, délai…) + `qtyIdx` = index dans les paliers de quantité.
+ * Le groupe "qty" est rendu comme un slider ici (fusion de l'ancienne étape
+ * /quantity) ; le prix se recalcule à chaque changement via le variantIndex.
+ * « Continuer » va directement à /order/upload.
  */
 export default function ConfigureClient({
   product,
@@ -56,14 +62,24 @@ export default function ConfigureClient({
     setSelection((s) => ({ ...s, [group]: id }));
   };
 
-  // Pour la preview de prix : on prend la plus PETITE qty du produit comme
-  // référence. C'est le scénario "starter" — la qty sera ajustée à l'étape 4
-  // (et le prix unitaire baisse à mesure que la qty monte). On affiche aussi
-  // un teaser à la plus GRANDE qty pour montrer le pricing en gros.
+  // UX — quantité FUSIONNÉE dans la configuration (plus d'étape /quantity séparée).
+  // Le slider qty + le prix réagissent en temps réel ; « Continuer » va direct à
+  // l'upload. Le variantIndex est la matrice COMPLÈTE (toutes options + qty), donc
+  // lookupPrice (qui inclut déjà la sélection courante, turnaround compris) donne
+  // le prix exact pour la qty choisie.
   const sortedQty = useMemo(() => {
     const opts = optionGroups['qty'] ?? [];
     return [...opts].sort((a, b) => Number(a.name) - Number(b.name));
   }, [optionGroups]);
+
+  // Default qty : le palier pré-rempli (flow reorder) sinon un palier « populaire »
+  // (3e plus petit, ou le plus petit s'il y a peu de paliers) — pour que le prix
+  // affiché d'emblée soit réaliste plutôt que le minimum trompeur.
+  const [qtyIdx, setQtyIdx] = useState<number>(() => {
+    const prefilledQtyId = defaultSelection['qty'];
+    const i = prefilledQtyId ? sortedQty.findIndex((o) => o.id === prefilledQtyId) : -1;
+    return i >= 0 ? i : Math.min(2, Math.max(0, sortedQty.length - 1));
+  });
 
   const lookupPrice = (qtyOptId: number): number | null => {
     const ids = orderedGroups
@@ -74,20 +90,33 @@ export default function ConfigureClient({
     return variantIndex[key] ?? null;
   };
 
-  const minQty = sortedQty[0];
+  const currentQty = sortedQty[qtyIdx];
+  const qtyValue = currentQty ? Number(currentQty.name) : 0;
+  const currentPrice = currentQty ? lookupPrice(currentQty.id) : null;
+  const unitPrice = currentPrice && qtyValue > 0 ? currentPrice / qtyValue : null;
+
+  // Économie vs le palier de qty précédent (en $/unité).
+  const prevQty = qtyIdx > 0 ? sortedQty[qtyIdx - 1] : null;
+  const prevPrice = prevQty ? lookupPrice(prevQty.id) : null;
+  const prevUnit = prevPrice && prevQty ? prevPrice / Number(prevQty.name) : null;
+  const savingsPct = unitPrice && prevUnit ? Math.round(((prevUnit - unitPrice) / prevUnit) * 100) : null;
+
+  // Teaser gros volume (plus grand palier, s'il est moins cher/unité que l'actuel).
   const maxQty = sortedQty[sortedQty.length - 1];
-  const minQtyPrice = minQty ? lookupPrice(minQty.id) : null;
-  const maxQtyPrice = maxQty && maxQty !== minQty ? lookupPrice(maxQty.id) : null;
-  const minQtyUnit = minQtyPrice && minQty ? minQtyPrice / Number(minQty.name) : null;
+  const maxQtyPrice = maxQty && maxQty !== currentQty ? lookupPrice(maxQty.id) : null;
   const maxQtyUnit = maxQtyPrice && maxQty ? maxQtyPrice / Number(maxQty.name) : null;
 
-  const optionsParam = orderedGroups
+  // Remplissage du slider (%).
+  const snapPct = sortedQty.length > 1 ? (qtyIdx / (sortedQty.length - 1)) * 100 : 50;
+
+  // Toutes les options choisies (hors qty) + la qty sélectionnée → /upload.
+  const selectedOptionIds = orderedGroups
     .map((g) => selection[g])
-    .filter((v): v is number => typeof v === 'number')
-    .join(',');
+    .filter((v): v is number => typeof v === 'number');
+  const allOptionIds = currentQty ? [...selectedOptionIds, currentQty.id] : selectedOptionIds;
 
   const designSuffix = designId ? `&designId=${designId}` : '';
-  const nextHref = `/order/quantity?productId=${product.id}&options=${optionsParam}${designSuffix}` as Route;
+  const nextHref = `/order/upload?productId=${product.id}&options=${allOptionIds.join(',')}${designSuffix}` as Route;
   const prevHref = `/order/product?category=${guessCategorySlug(product.category)}` as Route;
 
   return (
@@ -102,16 +131,15 @@ export default function ConfigureClient({
           </span>
         </div>
         <div className="progress-block">
-          <div className="progress" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={7}>
+          <div className="progress" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={6}>
             <div className="progress-segment done"></div>
             <div className="progress-segment done"></div>
             <div className="progress-segment active"></div>
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
-            <div className="progress-segment"></div>
           </div>
-          <div className="progress-label">Étape 03 sur 07 — Configuration</div>
+          <div className="progress-label">Étape 03 sur 06 — Configuration & quantité</div>
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
@@ -137,6 +165,62 @@ export default function ConfigureClient({
             />
           ))}
 
+          {/* Quantité — fusionnée ici (avant : étape /quantity séparée). Slider sur
+              les paliers réels Sinalite ; le prix à droite suit en temps réel. */}
+          {sortedQty.length > 0 && (
+            <section style={{ padding: '40px 0', borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr auto', gap: 16, alignItems: 'baseline', marginBottom: 24 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600 }}>
+                  {romanize(orderedGroups.length + 1)}.
+                </span>
+                <div>
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '-0.01em', margin: '0 0 4px', fontWeight: 400 }}>
+                    Quantité
+                  </h2>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    Plus tu commandes, moins c&apos;est cher par unité.
+                  </div>
+                </div>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 'var(--r-pill)', background: 'var(--bg-sunken)', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {formatNumber(qtyValue)} u.
+                </span>
+              </div>
+
+              <div className="slider-wrap">
+                <div className="slider-track">
+                  <div className="slider-fill" style={{ inset: `0 ${100 - snapPct}% 0 0` }} />
+                  <div className="slider-thumb" style={{ left: `${snapPct}%` }} aria-hidden="true" />
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(0, sortedQty.length - 1)}
+                    step={1}
+                    value={qtyIdx}
+                    onChange={(e) => setQtyIdx(Number(e.target.value))}
+                    aria-label="Quantité"
+                    aria-valuetext={`${formatNumber(qtyValue)} unités`}
+                    className="slider-input"
+                  />
+                </div>
+                <div className="slider-ticks">
+                  {sortedQty.map((opt, i) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`slider-tick${i === qtyIdx ? ' active' : ''}`}
+                      onClick={() => setQtyIdx(i)}
+                      aria-label={`${formatNumber(Number(opt.name))} unités`}
+                      aria-pressed={i === qtyIdx}
+                    >
+                      <div className="slider-tick-mark"></div>
+                      <div className="slider-tick-label">{formatNumber(Number(opt.name))}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
           {metadata.includes('custom_size') && <CustomSizeHint />}
         </div>
 
@@ -154,16 +238,16 @@ export default function ConfigureClient({
                   </div>
                 );
               })}
-              <div className="recap-config-row placeholder">
+              <div className="recap-config-row">
                 <span className="label">Quantité</span>
-                <span className="value">À choisir étape 4</span>
+                <span className="value">{currentQty ? `${formatNumber(qtyValue)} u.` : '—'}</span>
               </div>
             </div>
 
-            {/* Live price preview — montre le prix de la plus petite qty (starter)
-                et le prix unitaire à la plus grande qty (bulk). Permet au client
-                de voir l'impact de chaque option AVANT d'arriver à l'étape qty. */}
-            {minQty && minQtyPrice !== null ? (
+            {/* Prix LIVE — total + prix/unité pour la qty SÉLECTIONNÉE (le slider
+                ci-contre le pilote), + l'économie vs le palier précédent et un
+                teaser gros volume. Plus de « prix à l'étape suivante ». */}
+            {currentQty && currentPrice !== null ? (
               <div
                 style={{
                   marginTop: 20,
@@ -177,32 +261,40 @@ export default function ConfigureClient({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    Prix à partir de
+                    Sous-total
                   </span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
-                    {formatNumber(Number(minQty.name))} u.
+                    {formatNumber(qtyValue)} u.
                   </span>
                 </div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, lineHeight: 1, color: 'var(--accent-primary)', fontWeight: 400, letterSpacing: '-0.02em' }}>
-                  {formatCurrency(minQtyPrice)}
+                  {formatCurrency(currentPrice)}
                 </div>
-                {minQtyUnit !== null && (
+                {unitPrice !== null && (
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    soit <strong>{formatCurrency(minQtyUnit)}</strong> / unité
+                    soit <strong>{formatCurrency(unitPrice)}</strong> / unité
+                    {savingsPct !== null && savingsPct > 0 && (
+                      <span style={{ color: 'var(--success)', fontWeight: 600 }}>
+                        {' '}· -{savingsPct}% vs {prevQty ? formatNumber(Number(prevQty.name)) : ''} u.
+                      </span>
+                    )}
                   </div>
                 )}
-                {maxQty && maxQtyPrice !== null && maxQtyUnit !== null && maxQtyUnit < (minQtyUnit ?? Infinity) && (
+                {maxQty && maxQtyPrice !== null && maxQtyUnit !== null && unitPrice !== null && maxQtyUnit < unitPrice && (
                   <div style={{ paddingTop: 12, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                     💡 À <strong>{formatNumber(Number(maxQty.name))}</strong> unités : <strong>{formatCurrency(maxQtyUnit)}</strong>/u
                     <span style={{ color: 'var(--success)', fontWeight: 600 }}>
-                      {' '}(-{Math.round((((minQtyUnit ?? 0) - maxQtyUnit) / (minQtyUnit ?? 1)) * 100)}%)
+                      {' '}(-{Math.round(((unitPrice - maxQtyUnit) / unitPrice) * 100)}%)
                     </span>
                   </div>
                 )}
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                  + taxes et livraison, calculées une fois ton adresse saisie.
+                </div>
               </div>
             ) : (
               <div style={{ marginTop: 20, padding: 16, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Le prix se calcule à l'étape suivante (combinaison non standard).
+                Prix indisponible pour cette combinaison — ajuste une option.
               </div>
             )}
           </div>
@@ -216,11 +308,18 @@ export default function ConfigureClient({
           </Link>
         </div>
         <div className="shell-footer-center">↵ Entrée pour continuer · Tab pour naviguer</div>
-        <div className="shell-footer-right">
-          <button className="btn btn-primary" onClick={() => router.push(nextHref)}>
-            {minQtyPrice !== null
-              ? <>Ajuster la quantité · à partir de {formatCurrency(minQtyPrice)} <kbd>↵</kbd></>
-              : <>Choisir la quantité <kbd>↵</kbd></>}
+        <div className="shell-footer-right" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <SaveConfigButton
+            productId={product.id}
+            productName={product.name.trim()}
+            optionIds={allOptionIds}
+            summary={qtyValue ? `${formatNumber(qtyValue)} unités` : ''}
+            disabled={currentPrice === null}
+          />
+          <button className="btn btn-primary" onClick={() => router.push(nextHref)} disabled={currentPrice === null}>
+            {currentPrice !== null
+              ? <>Téléverser le design · {formatCurrency(currentPrice)} <kbd>↵</kbd></>
+              : <>Téléverser le design <kbd>↵</kbd></>}
           </button>
         </div>
       </footer>

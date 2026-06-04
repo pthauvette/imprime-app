@@ -179,14 +179,13 @@ function ShippingPageInner() {
           <span className="breadcrumb">Adresse & livraison</span>
         </div>
         <div className="progress-block">
-          <div className="progress" role="progressbar" aria-valuenow={6} aria-valuemin={1} aria-valuemax={7}>
+          <div className="progress" role="progressbar" aria-valuenow={5} aria-valuemin={1} aria-valuemax={6}>
             <div className="progress-segment done"></div><div className="progress-segment done"></div>
             <div className="progress-segment done"></div><div className="progress-segment done"></div>
-            <div className="progress-segment done"></div>
             <div className="progress-segment active"></div>
             <div className="progress-segment"></div>
           </div>
-          <div className="progress-label">Étape 06 sur 07 — Livraison</div>
+          <div className="progress-label">Étape 05 sur 06 — Livraison</div>
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
@@ -197,7 +196,7 @@ function ShippingPageInner() {
       <main className="step-layout">
         {/* Round 40 #2 — padding via .step-content CSS so mobile @media wins */}
         <div className="step-content" style={{ maxWidth: 880 }}>
-          <div className="step-eyebrow">Étape 06</div>
+          <div className="step-eyebrow">Étape 05</div>
           <h1 className="step-question">On l'envoie <em>où ?</em></h1>
           <p className="step-lede">
             Livraison partout au Canada en 1 à 7 jours selon le carrier choisi.

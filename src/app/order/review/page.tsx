@@ -335,13 +335,13 @@ function ReviewPageInner() {
           <span className="breadcrumb">Récapitulatif & paiement</span>
         </div>
         <div className="progress-block">
-          <div className="progress" role="progressbar" aria-valuenow={7} aria-valuemin={1} aria-valuemax={7}>
+          <div className="progress" role="progressbar" aria-valuenow={6} aria-valuemin={1} aria-valuemax={6}>
             <div className="progress-segment done"></div><div className="progress-segment done"></div>
             <div className="progress-segment done"></div><div className="progress-segment done"></div>
-            <div className="progress-segment done"></div><div className="progress-segment done"></div>
+            <div className="progress-segment done"></div>
             <div className="progress-segment active"></div>
           </div>
-          <div className="progress-label">Étape 07 sur 07 — Récapitulatif & paiement</div>
+          <div className="progress-label">Étape 06 sur 06 — Récapitulatif & paiement</div>
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
@@ -352,7 +352,7 @@ function ReviewPageInner() {
       <main className="step-layout">
         {/* Round 40 #2 — padding via .step-content CSS so mobile @media wins */}
         <div className="step-content" style={{ maxWidth: 800 }}>
-          <div className="step-eyebrow">Étape 07</div>
+          <div className="step-eyebrow">Étape 06</div>
           <h1 className="step-question">Dernière <em>vérification.</em></h1>
           <p className="step-lede">
             On démarre la production dès que ton paiement est confirmé. Tracking par courriel sous 24h.

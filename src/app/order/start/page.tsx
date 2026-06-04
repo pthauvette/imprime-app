@@ -142,8 +142,8 @@ export default async function OrderStartPage({
             role="progressbar"
             aria-valuenow={1}
             aria-valuemin={1}
-            aria-valuemax={7}
-            aria-label="Étape 1 sur 7"
+            aria-valuemax={6}
+            aria-label="Étape 1 sur 6"
           >
             <div className="progress-segment active"></div>
             <div className="progress-segment"></div>
@@ -151,9 +151,8 @@ export default async function OrderStartPage({
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
-            <div className="progress-segment"></div>
           </div>
-          <div className="progress-label">Étape 01 sur 07 — Catégorie</div>
+          <div className="progress-label">Étape 01 sur 06 — Catégorie</div>
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
