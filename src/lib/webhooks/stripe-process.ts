@@ -80,17 +80,25 @@ export async function processStripeEvent(
     }
     case 'invoice.paid': {
       // Round 22 #3 — recurring wallet topup. Stripe envoie invoice.paid
-      // chaque mois quand la subscription est chargée. Le metadata est
-      // copié depuis subscription_data.metadata (cf wallet/topup route).
+      // chaque mois quand la subscription est chargée.
+      //
+      // Audit-vérif H1 — BUG CORRIGÉ : avant, on testait `invoice.metadata?.kind`.
+      // Or Stripe ne RECOPIE PAS `subscription_data.metadata` sur les
+      // `invoice.metadata` des factures récurrentes (la metadata vit sur l'objet
+      // Subscription). `invoice.metadata.kind` était donc TOUJOURS undefined →
+      // la condition était toujours fausse → le wallet n'était JAMAIS crédité,
+      // même à la 1re facture : le client était débité chaque mois pour rien.
+      // On récupère désormais la metadata depuis la Subscription elle-même.
       const invoice = event.data.object as Stripe.Invoice;
       const subId = typeof invoice.subscription === 'string'
         ? invoice.subscription
         : invoice.subscription?.id;
-      if (subId && invoice.metadata?.kind === 'wallet_topup') {
-        await handleWalletRecurringInvoice(invoice);
-      } else if (subId) {
-        // Invoice paid pour une subscription qui n'est PAS un wallet topup
-        // (jamais le cas actuellement, mais defensive). Log et ignore.
+      if (!subId) break; // facture hors-abonnement → rien à faire ici
+      const sub = await getStripe().subscriptions.retrieve(subId);
+      if (sub.metadata?.kind === 'wallet_topup') {
+        await handleWalletRecurringInvoice(invoice, sub.metadata);
+      } else {
+        // Subscription qui n'est PAS un wallet topup (defensive). Log et ignore.
         logStripe.info({ invoiceId: invoice.id, subId }, 'invoice.paid pour sub non-wallet — ignored');
       }
       break;
@@ -132,16 +140,18 @@ async function handleWalletSubscriptionCreated(session: Stripe.Checkout.Session)
   // 1ère période immédiatement). On ne crédite pas ici pour éviter double-credit.
 }
 
-async function handleWalletRecurringInvoice(invoice: Stripe.Invoice): Promise<void> {
+async function handleWalletRecurringInvoice(
+  invoice: Stripe.Invoice,
+  meta: Stripe.Metadata,
+): Promise<void> {
   const { processWalletTopup } = await import('@/lib/wallet/operations');
-  const meta = invoice.metadata ?? {};
   const userId = meta.userId;
   const amountCents = parseInt(meta.amountCents ?? '0', 10);
   const bonusCents = parseInt(meta.bonusCents ?? '0', 10);
   const tierLabel = meta.tierLabel || null;
 
   if (!userId || !amountCents) {
-    throw new Error(`invoice.paid metadata invalide : ${JSON.stringify(meta)}`);
+    throw new Error(`subscription metadata invalide pour invoice.paid : ${JSON.stringify(meta)}`);
   }
 
   // Idempotence : le invoice ID est unique Stripe-side, on l'utilise comme

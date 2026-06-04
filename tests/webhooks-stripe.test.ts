@@ -21,6 +21,7 @@ const { stripeInstance } = vi.hoisted(() => ({
   stripeInstance: {
     webhooks: { constructEvent: vi.fn() },
     refunds: { create: vi.fn() },
+    subscriptions: { retrieve: vi.fn() },
   },
 }));
 vi.mock('stripe', () => {
@@ -77,6 +78,15 @@ vi.mock('@/lib/emails/send', () => ({
   sendOrderDeliveredEmail: vi.fn(async () => ({ sent: true })),
 }));
 
+// ─── Wallet operations ───────────────────────────────────────────────────────
+// stripe-process importe (dynamiquement) processWalletTopup (invoice.paid) ET
+// restoreWalletCreditOnFullRefund (refund path) — il faut les deux dans le mock,
+// sinon le chemin refund casse (« No export … on the mock »).
+vi.mock('@/lib/wallet/operations', () => ({
+  processWalletTopup: vi.fn(async () => ({ totalCreditCents: 5500, balanceAfterCents: 5500 })),
+  restoreWalletCreditOnFullRefund: vi.fn(async () => undefined),
+}));
+
 // ─── Logger : silencieux pour ne pas polluer les sorties test ────────────────
 vi.mock('@/lib/logger', () => {
   const noop = () => undefined;
@@ -103,6 +113,7 @@ vi.mock('@/lib/logger', () => {
 
 // ─── Imports SUT après mocks ─────────────────────────────────────────────────
 import { POST } from '@/app/api/webhooks/stripe/route';
+import { processWalletTopup } from '@/lib/wallet/operations';
 import * as orders from '@/lib/db/orders';
 import { prisma } from '@/lib/db';
 import { sinalite } from '@/lib/sinalite/client';
@@ -456,5 +467,71 @@ describe('I. payment_intent.payment_failed with matching order', () => {
     expect(orders.updateWebhookOutcome).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, orderId: order.id }),
     );
+  });
+});
+
+// ─── F. invoice.paid — wallet auto-renew (audit-vérif H1) ────────────────────
+// Régression : la metadata wallet_topup vit sur la SUBSCRIPTION, pas sur
+// l'invoice (Stripe ne la recopie pas). On vérifie qu'on la lit bien via
+// subscriptions.retrieve → le wallet est crédité (avant : jamais crédité).
+function invoicePaidEvent(subId = 'sub_test_1', extra: Record<string, unknown> = {}) {
+  return {
+    id: `evt_inv_${subId}`,
+    type: 'invoice.paid' as const,
+    data: {
+      object: {
+        id: `in_${subId}`,
+        subscription: subId,
+        payment_intent: `pi_inv_${subId}`,
+        metadata: {}, // VIDE : Stripe ne copie pas subscription_data.metadata ici
+        ...extra,
+      },
+    },
+  };
+}
+
+describe('F. invoice.paid — wallet auto-renew (H1)', () => {
+  it('crédite le wallet en lisant la metadata de la SUBSCRIPTION (invoice.metadata est vide)', async () => {
+    vi.mocked(stripeInstance.webhooks.constructEvent).mockReturnValueOnce(invoicePaidEvent('sub_1') as never);
+    vi.mocked(stripeInstance.subscriptions.retrieve).mockResolvedValueOnce({
+      metadata: { kind: 'wallet_topup', userId: 'user_1', amountCents: '5000', bonusCents: '500', tierLabel: 'Or' },
+    } as never);
+
+    const res = await POST(makeStripeRequest());
+    expect(res.status).toBe(200);
+
+    // la metadata vient bien de la subscription (pas de l'invoice, vide)
+    expect(stripeInstance.subscriptions.retrieve).toHaveBeenCalledWith('sub_1');
+    expect(processWalletTopup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user_1',
+        amountCents: 5000,
+        bonusCents: 500,
+        tierLabel: 'Or',
+        paymentIntentId: 'pi_inv_sub_1',
+      }),
+    );
+  });
+
+  it('subscription qui n\'est PAS un wallet topup → ne crédite rien', async () => {
+    vi.mocked(stripeInstance.webhooks.constructEvent).mockReturnValueOnce(invoicePaidEvent('sub_2') as never);
+    vi.mocked(stripeInstance.subscriptions.retrieve).mockResolvedValueOnce({
+      metadata: { kind: 'autre_chose' },
+    } as never);
+
+    const res = await POST(makeStripeRequest());
+    expect(res.status).toBe(200);
+    expect(processWalletTopup).not.toHaveBeenCalled();
+  });
+
+  it('invoice sans subscription → ignorée, aucun crédit', async () => {
+    vi.mocked(stripeInstance.webhooks.constructEvent).mockReturnValueOnce(
+      invoicePaidEvent('sub_3', { subscription: null }) as never,
+    );
+
+    const res = await POST(makeStripeRequest());
+    expect(res.status).toBe(200);
+    expect(stripeInstance.subscriptions.retrieve).not.toHaveBeenCalled();
+    expect(processWalletTopup).not.toHaveBeenCalled();
   });
 });
