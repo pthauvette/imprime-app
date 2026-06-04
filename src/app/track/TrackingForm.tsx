@@ -175,6 +175,8 @@ export default function TrackingForm() {
 
       {status === 'error' && error && (
         <div
+          role="alert"
+          aria-live="assertive"
           style={{
             padding: '16px 20px',
             background: 'var(--danger-soft, #fef2f2)',

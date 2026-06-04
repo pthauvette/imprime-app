@@ -144,7 +144,7 @@ export default function ReviewsBulkList({
           <span style={{ fontSize: 12, color: 'var(--success)', marginLeft: 'auto' }}>✓ {lastResult}</span>
         )}
         {error && (
-          <span style={{ fontSize: 12, color: 'var(--danger)', marginLeft: 'auto' }}>✗ {error}</span>
+          <span role="alert" aria-live="assertive" style={{ fontSize: 12, color: 'var(--danger)', marginLeft: 'auto' }}>✗ {error}</span>
         )}
       </div>
 

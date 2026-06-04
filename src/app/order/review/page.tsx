@@ -510,7 +510,7 @@ function ReviewPageInner() {
 
             {loading && <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>⏳ Initialisation du paiement…</div>}
             {error && (
-              <div style={{ padding: 16, background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--r-md)', color: 'var(--danger)', fontSize: 13 }}>
+              <div role="alert" aria-live="assertive" style={{ padding: 16, background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--r-md)', color: 'var(--danger)', fontSize: 13 }}>
                 <strong>Erreur :</strong> {error}
               </div>
             )}

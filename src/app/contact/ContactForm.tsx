@@ -14,6 +14,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
+import FormError from '@/components/forms/FormError';
 
 const SUBJECTS = [
   'Question avant achat',
@@ -128,11 +129,9 @@ export default function ContactForm() {
         </div>
       </div>
 
-      {error && (
-        <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--danger)' }}>
-          ✗ {error}
-        </div>
-      )}
+      <FormError style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--r-md)', fontSize: 13 }}>
+        {error}
+      </FormError>
 
       <div className="form-submit-row">
         <div className="small">En soumettant, tu acceptes notre <a href="/legal/privacy" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>politique de confidentialité</a>.</div>
