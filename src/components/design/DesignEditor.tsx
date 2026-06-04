@@ -223,6 +223,8 @@ export default function DesignEditor({
 
         {error && (
           <div
+            role="alert"
+            aria-live="assertive"
             style={{
               padding: '12px 14px',
               background: 'var(--danger-soft)',

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import FormError from '@/components/forms/FormError';
 
 export default function ReviewSubmitForm({
   orderId,
@@ -131,11 +132,9 @@ export default function ReviewSubmitForm({
           </span>
         </label>
 
-        {error && (
-          <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--danger)' }}>
-            ✗ {error}
-          </div>
-        )}
+        <FormError style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--r-md)', fontSize: 13 }}>
+          {error}
+        </FormError>
 
         <button
           type="submit"

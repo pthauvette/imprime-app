@@ -138,7 +138,7 @@ export default function QuoteActions({ id, status }: { id: string; status: strin
         <button onClick={() => openInlineForm('note')} disabled={busy} className="btn btn-ghost btn-sm">
           + Note
         </button>
-        {error && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{error}</span>}
+        {error && <span role="alert" aria-live="assertive" style={{ fontSize: 11, color: 'var(--danger)' }}>{error}</span>}
       </div>
 
       {/* Round 40 #5 — Inline form (replaces window.prompt × 3) */}

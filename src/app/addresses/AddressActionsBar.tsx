@@ -13,6 +13,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressForm from './AddressForm';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import FormError from '@/components/forms/FormError';
 
 interface AddressData {
   id: string;
@@ -87,9 +88,7 @@ export default function AddressActionsBar({ addresses }: { addresses: AddressDat
         >
           + Ajouter une adresse
         </button>
-        {error && (
-          <span style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</span>
-        )}
+        <FormError style={{ display: 'inline' }}>{error}</FormError>
       </div>
 
       {/* Per-row actions appended below each card via flex grid */}
