@@ -60,6 +60,9 @@ vi.mock('@/lib/products/pricing', () => ({
   getEnrichedVariantIndex: vi.fn(async () => ({
     index: new Map<string, number>([['1-4-30', 50]]),
     hiddenOptionIds: new Set<number>(),
+    marginPct: null,
+    disabled: false,
+    variantCount: 1,
   })),
 }));
 
@@ -97,6 +100,7 @@ vi.mock('stripe', () => {
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 
 const URL = 'http://localhost/api/orders/create';
 
@@ -166,6 +170,36 @@ describe('/api/orders/create — payload validation', () => {
       shippingAddress: { ...validPayload.shippingAddress, province: 'CA' }, // état US
     }));
     expect(res.status).toBe(400);
+  });
+});
+
+describe('/api/orders/create — garde curation serveur (Funnel #3/#4)', () => {
+  it('400 PRODUCT_DISABLED si le produit est désactivé par l\'admin', async () => {
+    vi.mocked(getEnrichedVariantIndex).mockResolvedValueOnce({
+      index: new Map<string, number>([['1-4-30', 50]]),
+      hiddenOptionIds: new Set<number>(),
+      marginPct: null,
+      disabled: true,
+      variantCount: 1,
+    });
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('PRODUCT_DISABLED');
+  });
+
+  it('400 OPTION_HIDDEN si une option choisie est masquée par l\'admin', async () => {
+    vi.mocked(getEnrichedVariantIndex).mockResolvedValueOnce({
+      index: new Map<string, number>([['1-4-30', 50]]),
+      hiddenOptionIds: new Set<number>([30]), // l'option 30 est dans validPayload
+      marginPct: null,
+      disabled: false,
+      variantCount: 1,
+    });
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('OPTION_HIDDEN');
   });
 });
 

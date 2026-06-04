@@ -43,10 +43,12 @@ export const POST = withErrorHandler(async (req: Request) => {
   // orderCountForUser=0, ce qui veut dire que les firstOrderOnly passent.
   // Acceptable parce qu'au moment du checkout l'user crée son user record
   // par email — on re-validera côté /api/orders/create avec le vrai count.
+  // Audit-vérif L1 — exclut FAILED/CANCELLED (cohérent avec orders/create + award
+  // referral) : une 1re commande échouée ne doit pas consommer le firstOrderOnly.
   let orderCountForUser = 0;
   if (session?.user?.id) {
     orderCountForUser = await prisma.order.count({
-      where: { userId: session.user.id, status: { not: 'PENDING' } },
+      where: { userId: session.user.id, status: { notIn: ['PENDING', 'FAILED', 'CANCELLED'] } },
     });
   }
 
