@@ -56,6 +56,22 @@ export function useModalFocusTrap<T extends HTMLElement = HTMLDivElement>(
     };
 
     document.addEventListener('keydown', onKeyDown);
+
+    // Audit-vérif A1 — focus initial DANS le dialog à l'ouverture. Sans ça, le
+    // focus restait sur le déclencheur jusqu'à la 1re frappe Tab → un lecteur
+    // d'écran n'annonçait pas le contenu du dialog. On respecte un autoFocus déjà
+    // placé (si le focus est déjà dans le conteneur, on ne le déplace pas).
+    const node = ref.current;
+    if (node && !node.contains(document.activeElement)) {
+      const first = focusables()[0];
+      if (first) {
+        first.focus();
+      } else {
+        node.setAttribute('tabindex', '-1');
+        node.focus();
+      }
+    }
+
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       trigger?.focus?.();
