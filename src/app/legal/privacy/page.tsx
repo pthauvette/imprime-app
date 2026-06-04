@@ -70,13 +70,13 @@ export default function PrivacyPage() {
                         <td className="col-key">Nom complet</td>
                         <td>Toi (compte / facturation)</td>
                         <td>Facturation, étiquette de colis</td>
-                        <td className="duration">7 ans (loi fiscale)</td>
+                        <td className="duration">6 ans (loi fiscale)</td>
                       </tr>
                       <tr>
                         <td className="col-key">Adresse de livraison</td>
                         <td>Toi (commande)</td>
                         <td>Expédition par UPS / FedEx</td>
-                        <td className="duration">7 ans (loi fiscale)</td>
+                        <td className="duration">6 ans (loi fiscale)</td>
                       </tr>
                       <tr>
                         <td className="col-key">Carte de crédit</td>
@@ -151,7 +151,7 @@ export default function PrivacyPage() {
                   <div className="tp-card">
                     <div className="tp-name">AWS SES (Canada-Central)</div>
                     <div className="tp-role">Courriel transactionnel + marketing</div>
-                    <div className="tp-desc">Envoie les confirmations de commande, magic links de connexion et (avec ton opt-in) les newsletters. Pas d&apos;usage marketing sans consentement explicite (CASL).</div>
+                    <div className="tp-desc">Envoie les confirmations de commande, magic links de connexion et les infolettres. Les courriels marketing ne sont envoyés qu&apos;aux abonnés à l&apos;infolettre (consentement exprès) ou aux clients ayant une relation d&apos;affaires en cours, conformément à la LCAP. Désabonnement en tout temps.</div>
                   </div>
                   <div className="tp-card">
                     <div className="tp-name">Sinalite (Markham, Ontario, Canada)</div>
@@ -201,10 +201,10 @@ export default function PrivacyPage() {
                 <p>Les durées de conservation sont définies en fonction de la finalité de chaque traitement et des obligations légales applicables. Les durées détaillées figurent dans le tableau de l'article 1. À titre récapitulatif :</p>
                 <ul>
                   <li>Données de compte actif : pendant toute la durée de vie du compte;</li>
-                  <li>Pièces comptables (factures, adresses de facturation) : 7 ans, conformément à la Loi sur les impôts du Québec;</li>
+                  <li>Pièces comptables (factures, adresses de facturation) : 6 ans, conformément à la Loi de l'impôt sur le revenu (art. 230);</li>
                   <li>Fichiers de design soumis à production : 2 ans après livraison, pour permettre une réimpression rapide;</li>
                   <li>Données techniques (logs, IP) : 90 jours;</li>
-                  <li>Compte inactif : suppression automatique après 24 mois d'inactivité, sur notification préalable.</li>
+                  <li>Compte inactif : conservé tant que tu n'en demandes pas la suppression; les données non soumises à une obligation légale de conservation sont supprimées sur demande (voir ci-dessous).</li>
                 </ul>
                 <p>Tu peux demander la suppression anticipée de toutes les données non soumises à une obligation légale de conservation en écrivant à notre déléguée à la protection des données à <a href="mailto:dpo@plio.ca">dpo@plio.ca</a>.</p>
               </section>
@@ -255,8 +255,7 @@ export default function PrivacyPage() {
                 <ul>
                   <li>Chiffrement TLS 1.3 pour toutes les communications client-serveur;</li>
                   <li>Chiffrement au repos (AES-256) des bases de données et des sauvegardes;</li>
-                  <li>Authentification à deux facteurs disponible pour tous les comptes;</li>
-                  <li>Hachage bcrypt des mots de passe avec coût adaptatif;</li>
+                  <li>Connexion sans mot de passe par lien magique à usage unique (expiration 24 h) — aucun mot de passe à stocker, voler ou réutiliser;</li>
                   <li>Sauvegardes chiffrées quotidiennes avec rétention de 30 jours;</li>
                   <li>Audits de sécurité externes annuels par cabinet indépendant.</li>
                 </ul>
