@@ -17,6 +17,7 @@ import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
 import { timingSafeStringEqual } from '@/lib/webhooks/sinalite-signature';
+import { suppressEmail } from '@/lib/emails/suppression';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,8 +52,15 @@ export async function GET(req: NextRequest) {
       where: { email, emailMarketing: true },
       data: { emailMarketing: false },
     }),
+    // Audit-vérif M2 — les relances panier (abandoned-cart) vont à des INVITÉS
+    // (pas de User, pas de NewsletterSubscriber). Pour eux, les 2 updateMany
+    // ci-dessus matchent 0 ligne → le désabo était un NO-OP et ils continuaient
+    // d'être relancés (non-conformité CASL). On enregistre une suppression
+    // (idempotente) qui couvre TOUS les canaux marketing — abandoned-cart vérifie
+    // déjà isSuppressed avant d'envoyer.
+    suppressEmail({ email, reason: 'MANUAL', source: 'USER_UNSUB' }),
   ]);
-  log.info({ email }, 'newsletter + marketing unsubscribed (GET)');
+  log.info({ email }, 'newsletter + marketing unsubscribed + suppressed (GET)');
 
   // Render confirmation HTML (page minimale, pas de chrome Plio)
   return new NextResponse(
@@ -116,8 +124,12 @@ export async function POST(req: NextRequest) {
       where: { email, emailMarketing: true },
       data: { emailMarketing: false },
     }),
+    // Audit-vérif M2 — suppression idempotente couvrant les invités sans compte
+    // ni abonnement newsletter (destinataires abandoned-cart), sinon leur désabo
+    // était un no-op et ils continuaient d'être relancés (CASL).
+    suppressEmail({ email, reason: 'MANUAL', source: 'USER_UNSUB' }),
   ]);
-  log.info({ email, source: 'one-click-post' }, 'newsletter + marketing unsubscribed');
+  log.info({ email, source: 'one-click-post' }, 'newsletter + marketing unsubscribed + suppressed');
 
   return NextResponse.json({ ok: true });
 }
