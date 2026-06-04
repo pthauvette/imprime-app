@@ -24,6 +24,8 @@ export interface EnrichedVariantIndex {
   hiddenOptionIds: Set<number>;
   /** Markup appliqué (display only — ex: "Marge +10%"). */
   marginPct: number | null;
+  /** Produit désactivé par l'admin (ProductOverride.disabled) — retiré du catalogue. */
+  disabled: boolean;
   /** Number de variants dans l'index (pour debug). */
   variantCount: number;
 }
@@ -53,8 +55,9 @@ export async function getEnrichedVariantIndex(productId: number): Promise<Enrich
       );
 
   const hiddenOptionIds = parseHiddenOptionIds(override?.hiddenOptionIds);
+  const disabled = override?.disabled ?? false;
 
-  return { index, hiddenOptionIds, marginPct, variantCount };
+  return { index, hiddenOptionIds, marginPct, disabled, variantCount };
 }
 
 /** Best-effort lookup de l'override. Retourne null si DB unreachable. */
