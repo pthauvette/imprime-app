@@ -18,26 +18,42 @@ import { SUPPORT_SLA } from '@/lib/content/marketing';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface Props {
-  /** Préfill du nom (si user connecté). */
-  defaultName?: string;
-  /** Préfill de l'email (si user connecté). */
-  defaultEmail?: string;
   /** Contexte additionnel auto-ajouté au message (ex: "Étape 4 — Qté 500"). */
   contextHint?: string;
 }
 
 export default function FloatingHelpButton({
-  defaultName = '',
-  defaultEmail = '',
   contextHint,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Audit-vérif M1 — le préremplissage nom/email vient désormais du CLIENT
+  // (fetch /api/auth/session avec le cookie du vrai visiteur), PLUS du SSR. Rendre
+  // la session en SSR sur /order/* (route publique, anonyme) fuyait la PII d'un
+  // autre user quand le runtime Amplify resservait un rendu inter-requêtes — même
+  // anti-pattern que HeaderUserSlot (#197/#198). Inputs contrôlés pour que la
+  // valeur fetchée s'affiche même après le mount.
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
   // Round 7 #1 — focus-trap + restore (le modal a déjà Escape ci-dessous).
   useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/session', { credentials: 'include' })
+      .then((r) => (r.ok ? (r.json() as Promise<{ user?: { email?: string | null; name?: string | null } }>) : null))
+      .then((data) => {
+        if (cancelled || !data?.user) return;
+        // Ne pas écraser ce que l'utilisateur a déjà tapé.
+        setName((cur) => cur || data.user?.name || '');
+        setEmail((cur) => cur || data.user?.email || '');
+      })
+      .catch(() => { /* best-effort : l'utilisateur tapera ses infos */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Lock body scroll when open + ESC to close
   useEffect(() => {
@@ -186,7 +202,7 @@ export default function FloatingHelpButton({
               >
                 <div style={{ fontSize: 32, marginBottom: 4 }}>✓</div>
                 <p style={{ margin: 0, fontSize: 14, color: 'var(--text-primary)' }}>
-                  Message envoyé. On te répond à <strong>{defaultEmail || 'l\'adresse fournie'}</strong>.
+                  Message envoyé. On te répond à <strong>{email || 'l\'adresse fournie'}</strong>.
                 </p>
                 <button
                   type="button"
@@ -207,7 +223,8 @@ export default function FloatingHelpButton({
                     type="text"
                     name="name"
                     required
-                    defaultValue={defaultName}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     maxLength={150}
                     style={inputStyle}
                   />
@@ -220,7 +237,8 @@ export default function FloatingHelpButton({
                     type="email"
                     name="email"
                     required
-                    defaultValue={defaultEmail}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     maxLength={150}
                     style={inputStyle}
                   />
