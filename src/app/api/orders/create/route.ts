@@ -126,7 +126,28 @@ export const POST = withErrorHandler(async (req: Request) => {
     // attendu par le client (qui a vu ce même prix dans le wizard). Si
     // l'admin baisse la marge entre le wizard et le checkout, le check
     // expectedSubtotal va catch la divergence et forcer un refresh.
-    const { index, marginPct } = await getEnrichedVariantIndex(item.productId);
+    const { index, marginPct, hiddenOptionIds, disabled } = await getEnrichedVariantIndex(item.productId);
+
+    // Audit-vérif Funnel #4 — produit désactivé par l'admin (retiré du catalogue) :
+    // le wizard le masque, mais un POST direct (ou une URL en favori) le commandait
+    // encore. On rejette côté serveur.
+    if (disabled) {
+      return NextResponse.json(
+        { error: 'Ce produit n\'est plus disponible.', code: 'PRODUCT_DISABLED' },
+        { status: 400 },
+      );
+    }
+
+    // Audit-vérif Funnel #3 — options masquées par l'admin (hiddenOptionIds) :
+    // filtrées à l'affichage du wizard seulement. Un POST direct pouvait commander
+    // une variante volontairement retirée de la vente. On rejette côté serveur.
+    if (item.optionIds.some((id) => hiddenOptionIds.has(id))) {
+      return NextResponse.json(
+        { error: 'Cette configuration n\'est pas disponible à la commande.', code: 'OPTION_HIDDEN' },
+        { status: 400 },
+      );
+    }
+
     const local = lookupVariant(item.optionIds, index);
 
     if (local !== null) {
@@ -192,19 +213,22 @@ export const POST = withErrorHandler(async (req: Request) => {
   if (payload.promoCode) {
     const normalized = normalizeCode(payload.promoCode);
     promoRecord = await prisma.promoCode.findUnique({ where: { code: normalized } });
-    // Pour firstOrderOnly : compter les orders existantes (status != PENDING)
-    // du user qu'on va potentiellement créer/match plus bas. Comme le user
-    // n'est pas encore créé, on fait le lookup par email pour les guests.
+    // Pour firstOrderOnly : compter les commandes RÉELLEMENT HONORÉES du user.
+    // Audit-vérif L1 — avant : status:{ not:'PENDING' }, qui INCLUT FAILED et
+    // CANCELLED → un client dont la 1re commande échoue (refund Sinalite,
+    // annulation admin) perdait son code BIENVENUE alors qu'aucune commande n'a
+    // abouti. On exclut désormais FAILED/CANCELLED, cohérent avec l'award
+    // referral (notIn:['PENDING','FAILED','CANCELLED']).
     let orderCountForUser = 0;
     const existingSession = await auth();
     if (existingSession?.user?.id) {
       orderCountForUser = await prisma.order.count({
-        where: { userId: existingSession.user.id, status: { not: 'PENDING' } },
+        where: { userId: existingSession.user.id, status: { notIn: ['PENDING', 'FAILED', 'CANCELLED'] } },
       });
     } else {
       const existingUser = await prisma.user.findUnique({
         where: { email: payload.contact.email.toLowerCase() },
-        select: { _count: { select: { orders: { where: { status: { not: 'PENDING' } } } } } },
+        select: { _count: { select: { orders: { where: { status: { notIn: ['PENDING', 'FAILED', 'CANCELLED'] } } } } } },
       });
       orderCountForUser = existingUser?._count.orders ?? 0;
     }
