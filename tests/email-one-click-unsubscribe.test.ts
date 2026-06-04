@@ -124,6 +124,18 @@ describe('queueEmail → sendEmail listUnsubscribeUrl auto-derive (Round 28 #4)'
     expect(call.listUnsubscribeUrl).toBeUndefined();
   });
 
+  it('M3 — admin-custom-message + marketing:true (broadcast) → one-click URL dérivée', async () => {
+    await queueEmail({
+      to: 'user@plio.ca',
+      template: 'admin-custom-message',
+      vars: {},
+      marketing: true,
+    });
+    const call = vi.mocked(render.sendEmail).mock.calls[0]![0];
+    expect(call.listUnsubscribeUrl).toBeDefined();
+    expect(call.listUnsubscribeUrl).toContain('/api/newsletter/unsubscribe');
+  });
+
   it('explicit override > auto-derive', async () => {
     await queueEmail({
       to: 'user@example.com',

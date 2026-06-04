@@ -120,6 +120,22 @@ describe('queueEmail throttle (Round 37 #3)', () => {
     }
   });
 
+  it('M3 — admin-custom-message exempté par défaut, mais marketing:true → cap appliqué', async () => {
+    // Par défaut (réponse 1:1 admin) → exempté même à 100 emails
+    vi.clearAllMocks();
+    vi.mocked(prisma.emailDelivery.count).mockResolvedValue(100);
+    const exempt = await queueEmail({ to: 'heavy@plio.ca', template: 'admin-custom-message', vars: {} });
+    expect(exempt.skipped).toBeUndefined();
+    expect(prisma.emailDelivery.count).not.toHaveBeenCalled();
+
+    // Broadcast (marketing:true) → soumis au cap CASL
+    vi.clearAllMocks();
+    vi.mocked(prisma.emailDelivery.count).mockResolvedValue(5);
+    const throttled = await queueEmail({ to: 'heavy@plio.ca', template: 'admin-custom-message', vars: {}, marketing: true });
+    expect(throttled.skipped).toBe('throttled');
+    expect(prisma.emailDelivery.create).not.toHaveBeenCalled();
+  });
+
   it('throttle DB query fail → fail-soft, continue le send', async () => {
     vi.mocked(prisma.emailDelivery.count).mockRejectedValueOnce(new Error('DB blip'));
     const res = await queueEmail({

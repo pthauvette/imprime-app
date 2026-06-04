@@ -94,6 +94,8 @@ export async function dispatchBroadcast(broadcast: {
         to: email,
         replyTo: broadcast.adminEmail,
         label: recipientLabel,
+        marketing: true, // audit-vérif M3 — cap CASL + one-click List-Unsubscribe
+
         vars: {
           ORDER_ID: broadcast.id.slice(-6).toUpperCase(),
           SUBJECT: broadcast.subject,

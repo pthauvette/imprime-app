@@ -436,6 +436,12 @@ export async function sendAdminCustomMessageEmail(input: {
    * (audit-vérif H2). Sinon, label commun admin-custom-message:<ORDER_ID>.
    */
   label?: string;
+  /**
+   * Audit-vérif M3 — true pour les broadcasts marketing : applique le cap CASL
+   * quotidien + émet le header one-click List-Unsubscribe. Les réponses 1:1
+   * admin↔client restent transactionnelles (false par défaut).
+   */
+  marketing?: boolean;
 }) {
   return queueEmail({
     to: input.to,
@@ -444,6 +450,7 @@ export async function sendAdminCustomMessageEmail(input: {
     subject: input.vars.SUBJECT,
     replyTo: input.replyTo,
     label: input.label ?? `admin-custom-message:${input.vars.ORDER_ID}`,
+    marketing: input.marketing,
   });
 }
 
