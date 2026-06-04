@@ -30,6 +30,11 @@ vi.mock('@/lib/ratelimit', () => ({
   clientIp: vi.fn(() => '1.2.3.4'),
 }));
 
+// Audit-vérif M2 — le GET unsubscribe enregistre une suppression (invités).
+vi.mock('@/lib/emails/suppression', () => ({
+  suppressEmail: vi.fn(async () => ({ created: true })),
+}));
+
 import { prisma } from '@/lib/db';
 import { rateLimit } from '@/lib/ratelimit';
 
