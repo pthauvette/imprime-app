@@ -100,16 +100,21 @@ export default async function ConfigurePage({
       .filter((n) => Number.isFinite(n) && n > 0),
   );
 
-  // Default combo: lowest qty + first of each other group, MAIS si on a des
-  // options pré-sélectionnées (reorder flow), on les utilise en priorité.
+  // Default combo: first of chaque groupe + une qty « populaire » par défaut,
+  // MAIS si on a des options pré-sélectionnées (reorder flow), elles priment.
   const defaultSelection: Record<string, number> = {};
   for (const [group, opts] of Object.entries(optionGroups)) {
     const prefilled = opts.find((o) => prefilledOptionIds.has(o.id));
     if (prefilled) {
       defaultSelection[group] = prefilled.id;
     } else if (group === 'qty') {
+      // Depuis la fusion qty↔config, le slider démarre sur ce défaut. On choisit
+      // un palier « populaire » (3e plus petit) plutôt que le minimum, pour que le
+      // prix affiché d'emblée reflète la vraie valeur dégressive (et n'ancre pas
+      // le client sur 25 unités). Le reorder override déjà via prefilled ci-dessus.
       const sorted = [...opts].sort((a, b) => Number(a.name) - Number(b.name));
-      if (sorted[0]) defaultSelection[group] = sorted[0].id;
+      const popular = sorted[Math.min(2, sorted.length - 1)];
+      if (popular) defaultSelection[group] = popular.id;
     } else if (opts[0]) {
       defaultSelection[group] = opts[0].id;
     }
