@@ -176,6 +176,26 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       },
     }),
 
+    // Revue privacy Loi 25 — ResellerApplication : anonymise les PII du demandeur
+    // (courriel / nom contact / entreprise / tél / site / IP / UA + message libre,
+    // souvent identifiant). Garde les champs analytics non-identifiants (statut,
+    // estimatedMonthlyCents, currentSolution, projectTypes). Matched par email
+    // (pas de FK à User). Sans ça, une demande reseller survivait EN CLAIR à une
+    // suppression PIPEDA — trou sur le droit à l'effacement (art. 28.1).
+    prisma.resellerApplication.updateMany({
+      where: { email: emailSnapshot.toLowerCase() },
+      data: {
+        email: anonymizedEmail,
+        contactName: ANONYMIZED_TEXT,
+        companyName: ANONYMIZED_TEXT,
+        phone: null,
+        website: null,
+        message: null,
+        requestIp: null,
+        requestUa: null,
+      },
+    }),
+
     // Anonymize User row (inchangé)
     prisma.user.update({
       where: { id: userId },

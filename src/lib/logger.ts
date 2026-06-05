@@ -22,6 +22,36 @@ import pino from 'pino';
 
 const LEVEL = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 
+/**
+ * Chemins censurés dans TOUS les logs (Pino redact, fast-redact syntax).
+ *
+ * Revue privacy Loi 25 / LPRPDE — la journalisation envoie du JSON vers
+ * CloudWatch ; un courriel/téléphone client en clair y serait queryable et
+ * constituerait une collecte non minimisée. Plusieurs routes logguent `email`
+ * (au niveau racine) — newsletter, contact, suppression, broadcast, orders/create.
+ * On censure CENTRALEMENT plutôt que par site d'appel : couvre l'existant ET tout
+ * futur log, sans rustines à maintenir. Les clés distinctes (ex. `adminEmail` du
+ * personnel) ne sont PAS touchées — utile au débogage des notifs.
+ *
+ * Exporté pour être testable (tests/logger-redaction.test.ts).
+ */
+export const REDACT_PATHS = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'req.headers["stripe-signature"]',
+  'password',
+  'secret',
+  'token',
+  '*.password',
+  '*.secret',
+  '*.token',
+  // PII client (Loi 25) — niveau racine + un niveau d'imbrication.
+  'email',
+  '*.email',
+  'phone',
+  '*.phone',
+];
+
 // En prod : JSON brut pour CloudWatch / Sentry
 // En dev : pretty-printed via pino-pretty si dispo, sinon JSON
 const isDev = process.env.NODE_ENV !== 'production';
@@ -38,17 +68,7 @@ export const log = pino({
   },
   // Ne logge PAS les fields sensibles par défaut (custom redact)
   redact: {
-    paths: [
-      'req.headers.authorization',
-      'req.headers.cookie',
-      'req.headers["stripe-signature"]',
-      'password',
-      'secret',
-      'token',
-      '*.password',
-      '*.secret',
-      '*.token',
-    ],
+    paths: REDACT_PATHS,
     censor: '[REDACTED]',
   },
   // Pretty-print en dev pour lisibilité, JSON brut en prod
