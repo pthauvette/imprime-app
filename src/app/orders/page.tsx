@@ -76,7 +76,7 @@ export default async function OrdersPage({
   if (isImpersonating && impersonatedUser) {
     // Fire-and-forget — le helper ne throw jamais. On n'attend pas pour
     // garder la page rapide.
-    void recordAdminAudit({
+    await recordAdminAudit({
       kind: 'ADMIN_VIEW_AS_USER',
       adminId: session.user.id,
       adminEmail: session.user.email ?? '',

@@ -84,7 +84,7 @@ export default async function OrderStartPage({
       }
       Sentry.captureException(err);
     });
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'critical',
       title: 'Catalogue Sinalite indisponible — /order/start cassé',
       body: 'L\'API Sinalite ne répond pas correctement à listProducts. Les nouveaux clients ne peuvent pas démarrer une commande.',

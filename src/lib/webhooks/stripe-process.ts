@@ -364,7 +364,7 @@ async function handlePaymentSucceeded(
         'auto-refunded payment intent',
       );
 
-      void sendCriticalAlert({
+      await sendCriticalAlert({
         severity: 'warning',
         title: 'Sinalite createOrder failed — auto-refund OK',
         body: `Le customer a été automatiquement remboursé. Si tu vois plusieurs alertes comme ça en peu de temps, vérifie Sinalite (wallet, credentials, status).`,
@@ -413,7 +413,7 @@ async function handlePaymentSucceeded(
           refundError: refundErr instanceof Error ? refundErr.message : 'unknown',
         },
       });
-      void sendCriticalAlert({
+      await sendCriticalAlert({
         severity: 'critical',
         title: 'Refund FAILED after Sinalite failure — manual intervention required',
         body:

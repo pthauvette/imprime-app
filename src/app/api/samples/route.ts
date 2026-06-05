@@ -138,7 +138,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   }
 
   // Slack notification info-level — kit physique à préparer
-  void sendCriticalAlert({
+  await sendCriticalAlert({
     severity: 'info',
     title: `📦 Nouveau kit d'échantillons à expédier · ${body.name}`,
     body: `${body.selectedSamples.length} échantillon(s) demandé(s) : ${body.selectedSamples.join(', ')}\n\nLivraison : ${body.shipCity}, ${body.shipProvince}`,

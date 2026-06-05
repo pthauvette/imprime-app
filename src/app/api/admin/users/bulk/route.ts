@@ -128,7 +128,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     result = { count: sentCount };
   }
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     // Round 1 audit — kind dédié : set-role = élévation de privilège, à tracer
     // distinctement des autres actions bulk (opt-in/out, message).
     kind: body.action === 'set-role' ? 'ADMIN_USER_ROLE_CHANGE' : 'ADMIN_USER_BULK_ACTION',

@@ -149,7 +149,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   // pas un admin qui annule). Avant on réutilisait ADMIN_MANUAL_CANCEL → les
   // demandes clients (avec email client) polluaient les rapports d'annulations
   // admin. On garde adminId/adminEmail = client (acteur réel de l'événement).
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'CUSTOMER_CANCEL_REQUEST',
     adminId: session.user.id,
     adminEmail: session.user.email ?? '',
@@ -166,7 +166,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   // côté Patrick pour éviter qu'on imprime un truc que le client veut
   // annuler).
   if (order.status === 'SUBMITTED' || order.status === 'IN_PRODUCTION') {
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'warning',
       title: `Annulation demandée — commande déjà submitted (${order.status})`,
       body: `${customerName} demande d'annuler #${displayOrderId} (${cad(order.amountCents)} $). Action rapide requise pour vérifier auprès de la presse avant production.`,

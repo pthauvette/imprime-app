@@ -63,7 +63,7 @@ export default async function ConfigurePage({
       { err, productId },
       'sinalite fetch failed on /order/configure — render error.tsx',
     );
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'warning',
       title: 'Sinalite fetch failed on /order/configure',
       body: `Product ${productId} fetch failed. Customer redirected to error page. Investigue.`,

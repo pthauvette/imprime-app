@@ -56,7 +56,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     },
   });
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_TAX_EXEMPT_TOGGLE',
     adminId: guard.userId,
     adminEmail: guard.user.email,

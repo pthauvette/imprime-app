@@ -143,7 +143,7 @@ export const GET = withErrorHandler(async (req: Request) => {
   }
 
   // Audit (PII export — sensible)
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_DATA_EXPORT',
     adminId: guard.userId,
     adminEmail: guard.user.email,

@@ -47,7 +47,7 @@ export const PATCH = withErrorHandler(
       },
     });
 
-    void recordAdminAudit({
+    await recordAdminAudit({
       kind: 'ADMIN_USER_NOTES_UPDATE',
       adminId: guard.userId,
       adminEmail: guard.user.email,

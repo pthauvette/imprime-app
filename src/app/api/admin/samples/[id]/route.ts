@@ -66,7 +66,7 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
     });
   }
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_TEMPLATE_EDIT',
     adminId: guard.userId,
     adminEmail: guard.user.email,

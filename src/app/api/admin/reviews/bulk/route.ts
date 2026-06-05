@@ -79,7 +79,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     count = result.count;
   }
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_REVIEW_MODERATE', // Round 1 audit — cohérent avec la modération unitaire
     adminId: guard.userId,
     adminEmail: guard.user.email,

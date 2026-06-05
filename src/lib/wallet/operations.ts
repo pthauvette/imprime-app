@@ -192,7 +192,7 @@ export async function restoreWalletCreditOnFullRefund(input: {
       'wallet restore on refund failed (non-fatal — manual reconcile needed)',
     );
     const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'critical',
       title: 'Wallet restore on refund FAILED',
       body: `Stripe refund OK mais wallet credit non restauré. Ajuste manuellement /admin/users/${order.userId}.`,

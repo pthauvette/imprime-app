@@ -249,7 +249,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   ]);
 
   // 3. Audit log
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_DELETE_USER_PIPEDA',
     adminId: guard.userId,
     adminEmail: guard.user.email,

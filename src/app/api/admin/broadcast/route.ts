@@ -136,7 +136,7 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   // Path 1 : programmé pour le futur — pas de send maintenant, le cron va.
   if (isFutureScheduled) {
-    void recordAdminAudit({
+    await recordAdminAudit({
       kind: 'ADMIN_RESEND_EMAIL',
       adminId: guard.userId,
       adminEmail: guard.user.email,
@@ -169,7 +169,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     adminEmail: guard.user.email,
   });
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_RESEND_EMAIL',
     adminId: guard.userId,
     adminEmail: guard.user.email,

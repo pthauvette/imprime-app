@@ -81,7 +81,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   });
 
   // Audit log : trace qui a créé le code (utile si abus / fraude interne).
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_PROMO_CREATE',
     adminId: guard.userId,
     adminEmail: guard.user.email,

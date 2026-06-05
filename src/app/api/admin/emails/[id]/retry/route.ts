@@ -54,7 +54,7 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
   }
 
   // Audit
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_RESEND_EMAIL',
     adminId: guard.userId,
     adminEmail: guard.user.email,

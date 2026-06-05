@@ -126,7 +126,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   }
 
   // Slack — lead chaud, on veut réagir vite
-  void sendCriticalAlert({
+  await sendCriticalAlert({
     severity: 'info',
     title: `💰 Nouvelle demande de devis · ${body.name}${body.companyName ? ` (${body.companyName})` : ''}`,
     body: `Projet : ${body.projectType}${body.estimatedQuantity ? `\nQuantité : ${body.estimatedQuantity}` : ''}${body.deadline ? `\nDeadline : ${body.deadline}` : ''}${body.budgetCents !== undefined ? `\nBudget : ${(body.budgetCents / 100).toFixed(2)} $ CAD` : ''}\n\n${body.description.slice(0, 300)}${body.description.length > 300 ? '…' : ''}`,

@@ -61,7 +61,7 @@ export async function restoreReferralCreditOnFullRefund(input: {
       'referral restore on refund failed (non-fatal — manual reconcile needed)',
     );
     const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'critical',
       title: 'Referral credit restore on refund FAILED',
       body: `Refund OK mais crédit referral non restauré. Ajuste manuellement /admin/users/${order.userId}.`,

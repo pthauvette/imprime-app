@@ -70,7 +70,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     else failed++;
   }
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_RESEND_EMAIL',
     adminId: guard.userId,
     adminEmail: guard.user.email,

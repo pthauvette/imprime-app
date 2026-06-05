@@ -28,7 +28,7 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
 
   const result = await sendOrderConfirmationEmail({ order, user: order.user });
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_RESEND_EMAIL',
     adminId: guard.userId,
     adminEmail: guard.user.email,

@@ -106,7 +106,7 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
     });
   }
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_RESELLER_DECISION', // Round 1 audit — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,

@@ -85,7 +85,7 @@ export default async function CustomerOrderDetailPage({
   // de query param ici parce que l'URL identifie déjà l'order spécifique.
   const isImpersonating = isAdmin && !isOwner;
   if (isImpersonating) {
-    void recordAdminAudit({
+    await recordAdminAudit({
       kind: 'ADMIN_VIEW_AS_USER',
       adminId: session.user.id,
       adminEmail: session.user.email ?? '',
