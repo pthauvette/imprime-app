@@ -151,9 +151,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                   .filter(Boolean).join(' ').slice(0, 200);
               }
               // companyName est stocké dans Address (pas sur User pour MVP).
-              // Pour MVP : on respecte juste l'opt-out marketing si l'user
-              // n'a pas coché le checkbox.
-              if (pending.emailMarketing === false) updateData.emailMarketing = false;
+              // Loi 25 — opt-in marketing AFFIRMATIF : on n'active emailMarketing
+              // que si l'user a explicitement coché la case (cookie === true).
+              // Sinon on n'écrit rien → le défaut schéma (false) s'applique =
+              // opt-out. (Avant : défaut true + on ne posait que l'opt-out.)
+              if (pending.emailMarketing === true) updateData.emailMarketing = true;
               if (Object.keys(updateData).length > 0) {
                 await prisma.user.update({
                   where: { id: user.id },

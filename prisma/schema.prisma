@@ -45,8 +45,12 @@ model User {
   //     ne pas casser le check existant — c'est le toggle "live order updates")
   //   - emailMarketing : broadcasts admin (newsletter, annonces, tier campagnes)
   //   - emailReengagement : winback + post-delivery follow-up
+  // Loi 25 — emailMarketing défaut FALSE : le consentement marketing doit être
+  // AFFIRMATIF (opt-in explicite via la case du sign-up). Un compte créé sans
+  // cocher (ou via connexion directe) reste opt-out. Les notifs livraison
+  // (transactionnelles) restent défaut true (relation d'affaires existante).
   emailDeliveryNotifications Boolean @default(true)
-  emailMarketing             Boolean @default(true)
+  emailMarketing             Boolean @default(false)
   emailReengagement          Boolean @default(true)
 
   // ─── Parrainage ────────────────────────────────────────────────────────
