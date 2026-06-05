@@ -103,7 +103,10 @@ export async function processSinaliteEvent(
             user: order.user,
             deliveredAt: new Date(payload.timestamp),
           });
-          void sendReviewRequestEmail({ order, user: order.user });
+          // Courriel secondaire (best-effort) — AWAIT + catch : s'exécute avant
+          // le gel Lambda (suite #322/#323) sans faire échouer le webhook si
+          // l'envoi throw (l'email delivered ci-dessus, lui, est critique).
+          await sendReviewRequestEmail({ order, user: order.user }).catch(() => {});
           break;
         case 'CANCELLED': {
           // Audit v2 #1.3 — Sinalite annule la production : il faut ÉMETTRE le

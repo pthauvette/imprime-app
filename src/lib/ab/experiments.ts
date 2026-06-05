@@ -258,9 +258,10 @@ export async function getServerVariant<I extends ExperimentId>(
     // ignore — Server Component context
   }
 
-  // Log l'assignment — best-effort, fire-and-forget. UNIQUE constraint
-  // sur (experimentId, visitorId) dédupe si concurrent.
-  void recordAssignment(experimentId, variant.id, visitorId);
+  // Log l'assignment — non-throwing (catch interne, P2002 dédupe). On AWAIT :
+  // un `void` serait gelé sur Lambda (suite #322/#323). getServerVariant n'a pas
+  // d'appelant en prod aujourd'hui → impact latence nul.
+  await recordAssignment(experimentId, variant.id, visitorId);
 
   return variant;
 }

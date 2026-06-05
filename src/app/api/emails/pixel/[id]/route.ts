@@ -34,9 +34,11 @@ const TRANSPARENT_GIF = Buffer.from(
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  // Fire-and-forget update — on n'attend pas la DB pour servir le pixel
-  // (le client mail peut timeout l'image et marquer un broken icon sinon).
-  void recordOpen(id);
+  // On AWAIT : recordOpen est non-throwing (try/catch interne) et l'insert est
+  // ~qq ms — négligeable vs le timeout image (secondes) côté client mail. Un
+  // `void` ici serait GELÉ sur Lambda (le conteneur freeze au return) → opens
+  // sous-comptés/perdus. (suite #322/#323)
+  await recordOpen(id);
 
   return new Response(TRANSPARENT_GIF, {
     status: 200,
