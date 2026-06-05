@@ -60,9 +60,12 @@ test.describe('Wizard navigation (steps 1-4, no upload/payment)', () => {
     await firstProduct.click();
     await page.waitForURL(/\/order\/configure/);
 
-    // Config FUSIONNÉE (#303) : slider quantité + prix live + bouton vers upload.
+    // Config FUSIONNÉE (#303) : slider quantité + panneau prix + bouton vers upload.
+    // Le panneau rend « Sous-total » (prix dispo) OU « Prix indisponible » (combo
+    // par défaut sans tarif Sinalite) — les deux prouvent que la config fusionnée
+    // a rendu. On ne couple pas le test au produit arbitraire choisi par .first().
     await expect(page.locator('input[type="range"]')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Sous-total/i).first()).toBeVisible();
+    await expect(page.getByText(/Sous-total|Prix indisponible/i).first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Téléverser le design/i })).toBeVisible();
   });
 

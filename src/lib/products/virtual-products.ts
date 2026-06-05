@@ -136,10 +136,140 @@ const CARTES_POSTALES: VirtualProduct = {
   ],
 };
 
+// ─── Flyers ─────────────────────────────────────────────────────────────────
+const FLYERS: VirtualProduct = {
+  slug: 'flyers',
+  name: 'Flyer',
+  eyebrow: 'Étape 02 — Flyer',
+  lede: 'Tous les flyers en un seul produit — choisis le papier puis la finition.',
+  papers: [
+    { key: '100lb', label: '100lb couché', desc: 'Texte couché brillant · le standard polyvalent.' },
+    { key: 'enviro', label: 'Recyclé 80lb', desc: 'Non couché, éco.', specialty: true },
+    { key: 'linen', label: 'Lin 70lb', desc: 'Texture lin, non couché.', specialty: true },
+  ],
+  variants: [
+    { productId: 37, paper: '100lb', finish: 'standard', finishLabel: 'Sans couche' },
+    { productId: 38, paper: '100lb', finish: 'uv',       finishLabel: 'UV haute brillance' },
+    { productId: 39, paper: '100lb', finish: 'matte',    finishLabel: 'Mat' },
+    { productId: 40, paper: 'enviro', finish: 'standard', finishLabel: 'Recyclé non couché' },
+    { productId: 41, paper: 'linen',  finish: 'standard', finishLabel: 'Lin non couché' },
+  ],
+};
+
+// ─── Cartes de vœux ─────────────────────────────────────────────────────────
+const CARTES_DE_VOEUX: VirtualProduct = {
+  slug: 'cartes-de-voeux',
+  name: 'Carte de vœux',
+  eyebrow: 'Étape 02 — Carte de vœux',
+  lede: 'Toutes les cartes de vœux en un seul produit — papier puis finition.',
+  papers: [
+    { key: '14pt', label: '14pt — standard', desc: '350 g/m² · le polyvalent.' },
+    { key: 'enviro', label: 'Recyclé (enviro)', desc: '13pt non couché, éco.', specialty: true },
+  ],
+  variants: [
+    { productId: 48, paper: '14pt', finish: 'aq',    finishLabel: 'AQ (glossy léger)' },
+    { productId: 49, paper: '14pt', finish: 'uv',    finishLabel: 'UV haute brillance' },
+    { productId: 50, paper: '14pt', finish: 'matte', finishLabel: 'Mat' },
+    { productId: 51, paper: '14pt', finish: 'writable-aq', finishLabel: 'Inscriptible + AQ', note: 'intérieur inscriptible' },
+    { productId: 52, paper: '14pt', finish: 'writable-uv', finishLabel: 'Inscriptible + UV', note: 'intérieur inscriptible' },
+    { productId: 53, paper: 'enviro', finish: 'standard', finishLabel: 'Recyclé non couché' },
+  ],
+};
+
+// ─── Accroche-portes ────────────────────────────────────────────────────────
+const ACCROCHE_PORTES: VirtualProduct = {
+  slug: 'accroche-portes',
+  name: 'Accroche-porte',
+  eyebrow: 'Étape 02 — Accroche-porte',
+  lede: 'Tous les accroche-portes en un seul produit — papier puis finition.',
+  papers: [
+    { key: '14pt', label: '14pt — standard', desc: '350 g/m² · rigide, le standard.' },
+    { key: 'enviro', label: 'Recyclé (enviro)', desc: '13pt non couché, éco.', specialty: true },
+  ],
+  variants: [
+    { productId: 69, paper: '14pt', finish: 'aq',    finishLabel: 'AQ (glossy léger)' },
+    { productId: 70, paper: '14pt', finish: 'uv',    finishLabel: 'UV haute brillance' },
+    { productId: 71, paper: '14pt', finish: 'matte', finishLabel: 'Mat' },
+    { productId: 72, paper: 'enviro', finish: 'standard', finishLabel: 'Recyclé non couché' },
+  ],
+};
+
+// ─── Invitations ────────────────────────────────────────────────────────────
+const INVITATIONS: VirtualProduct = {
+  slug: 'invitations',
+  name: 'Invitation',
+  eyebrow: 'Étape 02 — Invitation',
+  lede: 'Toutes les invitations en un seul produit — papier puis finition.',
+  papers: [
+    { key: '14pt', label: '14pt — standard', desc: '350 g/m² · le polyvalent.' },
+    { key: 'pearl', label: 'Perle (nacré)', desc: 'Reflet nacré élégant.', specialty: true },
+    { key: 'foil', label: 'Foil métallique', desc: 'Dorure métallique.', specialty: true },
+  ],
+  variants: [
+    { productId: 15007, paper: '14pt', finish: 'aq',    finishLabel: 'AQ (glossy léger)' },
+    { productId: 15008, paper: '14pt', finish: 'uv',    finishLabel: 'UV haute brillance' },
+    { productId: 15005, paper: '14pt', finish: 'matte', finishLabel: 'Mat' },
+    { productId: 15006, paper: '14pt', finish: 'writable-aq', finishLabel: 'Inscriptible + AQ', note: 'inscriptible' },
+    { productId: 15010, paper: 'pearl', finish: 'standard', finishLabel: 'Perle nacré' },
+    { productId: 15011, paper: 'foil',  finish: 'standard', finishLabel: 'Foil métallique' },
+  ],
+};
+
+// ─── Chemises de présentation ───────────────────────────────────────────────
+const CHEMISES: VirtualProduct = {
+  slug: 'chemises-presentation',
+  name: 'Chemise de présentation',
+  eyebrow: 'Étape 02 — Chemise de présentation',
+  lede: 'Toutes les chemises (pochettes) en un seul produit — finition au choix.',
+  papers: [
+    { key: '14pt', label: '14pt — standard', desc: '350 g/m² · rigide, pochette pro.' },
+  ],
+  variants: [
+    { productId: 58, paper: '14pt', finish: 'aq',        finishLabel: 'AQ (glossy léger)' },
+    { productId: 59, paper: '14pt', finish: 'matte',     finishLabel: 'Mat' },
+    { productId: 60, paper: '14pt', finish: 'uv',        finishLabel: 'UV haute brillance' },
+    { productId: 4137, paper: '14pt', finish: 'matte-lam', finishLabel: 'Lamination mate' },
+  ],
+};
+
+// ─── Signets (bookmarks) ────────────────────────────────────────────────────
+const SIGNETS: VirtualProduct = {
+  slug: 'signets',
+  name: 'Signet',
+  eyebrow: 'Étape 02 — Signet',
+  lede: 'Tous les signets (marque-pages) en un seul produit — papier puis finition.',
+  papers: [
+    { key: '10pt', label: '10pt — léger', desc: '250 g/m² · économique.' },
+    { key: '14pt', label: '14pt — standard', desc: '350 g/m² · le polyvalent.' },
+    { key: '16pt', label: '16pt — premium', desc: '400 g/m² · plus épais, laminations dispo.' },
+    { key: 'enviro', label: 'Recyclé (enviro)', desc: '13pt non couché, éco.', specialty: true },
+    { key: 'linen', label: 'Lin', desc: '13pt texture lin, non couché.', specialty: true },
+  ],
+  variants: [
+    { productId: 5541, paper: '10pt', finish: 'matte', finishLabel: 'Mat' },
+    { productId: 5528, paper: '14pt', finish: 'uv',    finishLabel: 'UV haute brillance' },
+    { productId: 5529, paper: '14pt', finish: 'matte', finishLabel: 'Mat' },
+    { productId: 5534, paper: '14pt', finish: 'writable-uv', finishLabel: 'Inscriptible + UV', note: 'recto inscriptible' },
+    { productId: 5537, paper: '16pt', finish: 'uv',    finishLabel: 'UV haute brillance' },
+    { productId: 5538, paper: '16pt', finish: 'matte', finishLabel: 'Mat' },
+    { productId: 5530, paper: '16pt', finish: 'matte-lam', finishLabel: 'Lamination mate' },
+    { productId: 5531, paper: '16pt', finish: 'gloss-lam', finishLabel: 'Lamination glossy' },
+    { productId: 5546, paper: '16pt', finish: 'spot-uv', finishLabel: 'Mat + Spot UV', note: 'vernis sélectif' },
+    { productId: 5535, paper: 'enviro', finish: 'standard', finishLabel: 'Recyclé non couché' },
+    { productId: 5539, paper: 'linen',  finish: 'standard', finishLabel: 'Lin non couché' },
+  ],
+};
+
 /** Registre des produits virtuels, par slug. */
 export const VIRTUAL_PRODUCTS: Record<string, VirtualProduct> = {
   [CARTES_DE_VISITE.slug]: CARTES_DE_VISITE,
   [CARTES_POSTALES.slug]: CARTES_POSTALES,
+  [FLYERS.slug]: FLYERS,
+  [CARTES_DE_VOEUX.slug]: CARTES_DE_VOEUX,
+  [ACCROCHE_PORTES.slug]: ACCROCHE_PORTES,
+  [INVITATIONS.slug]: INVITATIONS,
+  [CHEMISES.slug]: CHEMISES,
+  [SIGNETS.slug]: SIGNETS,
 };
 
 /** Slugs qui ont un produit virtuel (pour wirer les tuiles du start). */
@@ -168,3 +298,24 @@ export function virtualFinishes(slug: string, paper: string): VirtualVariant[] {
 export function resolveVirtualProductId(slug: string, paper: string, finish: string): number | null {
   return VIRTUAL_PRODUCTS[slug]?.variants.find((v) => v.paper === paper && v.finish === finish)?.productId ?? null;
 }
+
+// ─── Collapse de la page produit ────────────────────────────────────────────
+// Index INVERSE : productId Sinalite → slug du produit virtuel qui le contient.
+// Sert à /order/product pour REMPLACER les N productId redondants d'une
+// sous-famille (ex. les 6 « Greeting Cards ») par UNE carte virtuelle, tout en
+// laissant les produits hors-virtuel (Foil, Letterhead, Notepads…) tels quels.
+const PRODUCT_ID_TO_SLUG: Map<number, string> = (() => {
+  const m = new Map<number, string>();
+  for (const vp of Object.values(VIRTUAL_PRODUCTS)) {
+    for (const v of vp.variants) m.set(v.productId, vp.slug);
+  }
+  return m;
+})();
+
+/** Slug du produit virtuel contenant ce productId, ou undefined. */
+export function virtualSlugForProductId(productId: number): string | undefined {
+  return PRODUCT_ID_TO_SLUG.get(productId);
+}
+
+/** Tous les productId couverts par un produit virtuel (pour filtrer la liste). */
+export const ALL_VIRTUAL_PRODUCT_IDS: ReadonlySet<number> = new Set(PRODUCT_ID_TO_SLUG.keys());

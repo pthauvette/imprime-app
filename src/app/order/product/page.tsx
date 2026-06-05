@@ -15,6 +15,11 @@ import JsonLd, { breadcrumbSchema, itemListSchema } from '@/components/seo/JsonL
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import ProductListClient from '@/components/wizard/ProductListClient';
 import HeaderUserSlot from '@/components/account/HeaderUserSlot';
+import {
+  ALL_VIRTUAL_PRODUCT_IDS,
+  virtualSlugForProductId,
+  getVirtualProduct,
+} from '@/lib/products/virtual-products';
 
 export const metadata = { title: "Quel produit ?" };
 export const dynamic = 'force-dynamic';
@@ -38,6 +43,27 @@ export default async function ProductPickerPage({
   );
   const products = await applyProductOverrides(sinaliteEnabled);
 
+  // Collapse : les productId couverts par un produit virtuel (papier × finition)
+  // sont remplacés par UNE carte virtuelle ; les autres produits (Foil, Die Cut,
+  // Letterhead, Notepads…) restent listés tels quels. Allège fortement les
+  // familles redondantes (ex. stationnerie : 45 produits → ~6 cartes + le reste).
+  const rawProducts = products.filter((p) => !ALL_VIRTUAL_PRODUCT_IDS.has(p.id));
+  const virtualSlugs: string[] = [];
+  for (const p of products) {
+    const vs = virtualSlugForProductId(p.id);
+    if (vs && !virtualSlugs.includes(vs)) virtualSlugs.push(vs);
+  }
+  const entryCount = virtualSlugs.length + rawProducts.length;
+
+  // Structured data (ItemList) = la vue COLLAPSÉE, pas les productId bruts : une
+  // entrée /order/v/<slug> par produit virtuel + /order/configure pour le reste.
+  // Évite d'émettre 5 flyers quasi-identiques aux moteurs (même redondance qu'on
+  // élimine dans l'UI).
+  const itemListEntries = [
+    ...virtualSlugs.map((vs) => ({ name: getVirtualProduct(vs)!.name, path: `/order/v/${vs}` })),
+    ...rawProducts.map((p) => ({ name: p.name.trim(), path: `/order/configure?productId=${p.id}` })),
+  ];
+
   return (
     <div className="shell">
       <JsonLd data={breadcrumbSchema([
@@ -45,15 +71,8 @@ export default async function ProductPickerPage({
         { name: 'Commander', path: '/order/start' },
         { name: family.name, path: `/order/product?category=${slug}` },
       ])} />
-      {products.length > 0 && (
-        <JsonLd
-          data={itemListSchema(
-            products.map((p) => ({
-              name: p.name.trim(),
-              path: `/order/configure?productId=${p.id}`,
-            })),
-          )}
-        />
+      {itemListEntries.length > 0 && (
+        <JsonLd data={itemListSchema(itemListEntries)} />
       )}
       <header className="shell-header">
         <div className="shell-header-left">
@@ -97,15 +116,38 @@ export default async function ProductPickerPage({
             Quel produit <em>exactement ?</em>
           </h1>
           <p className="step-lede">
-            {products.length} produit{products.length > 1 ? 's' : ''} disponible{products.length > 1 ? 's' : ''} dans cette famille.
+            {entryCount} produit{entryCount > 1 ? 's' : ''} disponible{entryCount > 1 ? 's' : ''} dans cette famille.
             Tous imprimés au Canada, livrés en {DELIVERY_WINDOW}.
           </p>
 
-          {products.length === 0 ? (
-            <EmptyProducts familyName={family.name} />
-          ) : (
-            <ProductListClient products={products} />
+          {/* Cartes des produits VIRTUELS (papier × finition regroupés). */}
+          {virtualSlugs.length > 0 && (
+            <div className="stock-grid" style={{ marginBottom: rawProducts.length > 0 ? 32 : 0 }}>
+              {virtualSlugs.map((vs) => {
+                const vp = getVirtualProduct(vs)!;
+                return (
+                  <Link
+                    key={vs}
+                    href={`/order/v/${vs}` as Route}
+                    className="stock-card"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <div className="stock-swatch coated" />
+                    <div className="stock-body">
+                      <div className="stock-name">{vp.name} <span style={{ color: 'var(--accent-primary)' }}>★</span></div>
+                      <div className="stock-desc">{vp.variants.length} finitions · papier + finition au choix</div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           )}
+
+          {entryCount === 0 ? (
+            <EmptyProducts familyName={family.name} />
+          ) : rawProducts.length > 0 ? (
+            <ProductListClient products={rawProducts} />
+          ) : null}
         </div>
 
         <aside className="recap">

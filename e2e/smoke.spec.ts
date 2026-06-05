@@ -149,4 +149,26 @@ test.describe('Wizard fusionné — produit virtuel cartes (#303/#304/#305)', ()
     await page.getByRole('button', { name: /Configurer/i }).click();
     await expect(page).toHaveURL(/\/order\/configure\?productId=24(?:\b|&|$)/);
   });
+
+  test('produit virtuel flyers : 100lb + UV → productId 38', async ({ page }) => {
+    await page.goto('/order/v/flyers');
+    await expect(page.getByRole('heading', { name: 'Papier', exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: /UV haute brillance/i }).click();
+    await page.getByRole('button', { name: /Configurer/i }).click();
+    await expect(page).toHaveURL(/\/order\/configure\?productId=38(?:\b|&|$)/);
+  });
+
+  test('stationnerie : la page produit COLLAPSE les sous-familles en cartes virtuelles', async ({ page }) => {
+    await page.goto('/order/product?category=stationnerie');
+    // Cartes virtuelles présentes (vœux, signets…) au lieu des 45 productId bruts.
+    const voeux = page.locator('a[href="/order/v/cartes-de-voeux"]');
+    await expect(voeux).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('a[href="/order/v/signets"]')).toBeVisible();
+    // Et les produits HORS-virtuel (Letterhead…) restent listés.
+    await expect(page.locator('body')).toContainText(/Letterhead/i);
+    // Clic sur une carte virtuelle → le picker.
+    await voeux.click();
+    await expect(page).toHaveURL(/\/order\/v\/cartes-de-voeux/);
+    await expect(page.getByRole('heading', { name: 'Papier', exact: true })).toBeVisible();
+  });
 });
