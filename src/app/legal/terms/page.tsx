@@ -2,9 +2,15 @@
  * /legal/terms — conditions d'utilisation.
  */
 
+import { getCompanyIdentity } from '@/lib/company/identity';
+
 export const metadata = { title: "Conditions d'utilisation — Plio" };
 
 export default function TermsPage() {
+  // Source UNIQUE de l'identité fiscale (env Amplify) — évite des numéros
+  // factices hardcodés sur un document à valeur légale. Fallback honnête
+  // « (… à venir) » tant que les vraies vars ne sont pas définies.
+  const company = getCompanyIdentity();
   return (
     <>
       <nav className="legal-nav">
@@ -126,8 +132,8 @@ export default function TermsPage() {
                 <strong>Plio.</strong>
                 Démocratik inc.<br />
                 4220 boul. St-Laurent, suite 200, Montréal QC H2W 1Z3<br />
-                Numéro d'entreprise du Québec · 1234567890<br />
-                TPS 123456789 RT0001 · TVQ 1234567890 TQ0001
+                Numéro d'entreprise du Québec · {company.neq}<br />
+                TPS {company.gst} · TVQ {company.qst}
               </div>
             </article>
           </div>

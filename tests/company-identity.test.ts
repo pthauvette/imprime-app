@@ -15,21 +15,25 @@ describe('getCompanyIdentity (#10.8)', () => {
   it('utilise les env vars quand présentes', () => {
     vi.stubEnv('COMPANY_LEGAL_NAME', 'Démocratik inc.');
     vi.stubEnv('COMPANY_ADDRESS', '4321 boul. Saint-Laurent, Montréal QC');
+    vi.stubEnv('COMPANY_NEQ_NUMBER', '1173456789');
     vi.stubEnv('COMPANY_GST_NUMBER', '123456789 RT0001');
     vi.stubEnv('COMPANY_QST_NUMBER', '1234567890 TQ0001');
 
     expect(getCompanyIdentity()).toEqual({
       legalName: 'Démocratik inc.',
       address: '4321 boul. Saint-Laurent, Montréal QC',
+      neq: '1173456789',
       gst: '123456789 RT0001',
       qst: '1234567890 TQ0001',
     });
   });
 
   it('env var VIDE → fallback placeholder (|| pas ??)', () => {
+    vi.stubEnv('COMPANY_NEQ_NUMBER', '');
     vi.stubEnv('COMPANY_GST_NUMBER', '');
     vi.stubEnv('COMPANY_QST_NUMBER', '');
     const c = getCompanyIdentity();
+    expect(c.neq).toBe('(NEQ à venir)');
     expect(c.gst).toBe('(num. TPS à venir)');
     expect(c.qst).toBe('(num. TVQ à venir)');
   });

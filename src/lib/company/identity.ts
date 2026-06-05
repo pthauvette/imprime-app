@@ -13,6 +13,8 @@
 export interface CompanyIdentity {
   legalName: string;
   address: string;
+  /** Numéro d'entreprise du Québec (NEQ), 10 chiffres. */
+  neq: string;
   /** Numéro TPS/GST, format « 123456789 RT0001 ». */
   gst: string;
   /** Numéro TVQ/QST, format « 1234567890 TQ0001 ». */
@@ -23,6 +25,7 @@ export function getCompanyIdentity(): CompanyIdentity {
   return {
     legalName: process.env.COMPANY_LEGAL_NAME || 'Démocratik inc.',
     address: process.env.COMPANY_ADDRESS || 'Montréal QC, Canada',
+    neq: process.env.COMPANY_NEQ_NUMBER || '(NEQ à venir)',
     gst: process.env.COMPANY_GST_NUMBER || '(num. TPS à venir)',
     qst: process.env.COMPANY_QST_NUMBER || '(num. TVQ à venir)',
   };
