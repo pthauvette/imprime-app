@@ -17,6 +17,7 @@ import { authConfig } from '@/auth.config';
 import { renderEmail } from '@/lib/emails/render';
 import { sendWelcomeEmail } from '@/lib/emails/send';
 import { logAuth } from '@/lib/logger';
+import { buildSignupUpdateData } from '@/lib/auth/pending-profile';
 
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const DEV_LINK_LOGGER = !SES_CONFIGURED;
@@ -128,34 +129,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Step 1c: si l'user vient de /sign-up, on a posé un cookie
           // plio_pending_profile avec firstName/lastName/companyName +
           // opt-in marketing. Cookie 15min TTL — survit le round-trip
-          // magic-link. On le lit ici pour populer le User row.
-          const pendingRaw = cookieStore.get('plio_pending_profile')?.value;
-          if (pendingRaw) {
+          // magic-link. On le lit ici pour populer le User row. La logique de
+          // parsing + opt-in affirmatif (Loi 25) vit dans buildSignupUpdateData
+          // (testé directement — audit v3 L6).
+          {
             try {
-              const pending = JSON.parse(decodeURIComponent(pendingRaw)) as {
-                firstName?: string;
-                lastName?: string;
-                companyName?: string;
-                emailMarketing?: boolean;
-              };
-              const updateData: {
-                firstName?: string;
-                lastName?: string;
-                name?: string;
-                emailMarketing?: boolean;
-              } = {};
-              if (pending.firstName) updateData.firstName = pending.firstName.slice(0, 100);
-              if (pending.lastName) updateData.lastName = pending.lastName.slice(0, 100);
-              if (pending.firstName || pending.lastName) {
-                updateData.name = [pending.firstName, pending.lastName]
-                  .filter(Boolean).join(' ').slice(0, 200);
-              }
-              // companyName est stocké dans Address (pas sur User pour MVP).
-              // Loi 25 — opt-in marketing AFFIRMATIF : on n'active emailMarketing
-              // que si l'user a explicitement coché la case (cookie === true).
-              // Sinon on n'écrit rien → le défaut schéma (false) s'applique =
-              // opt-out. (Avant : défaut true + on ne posait que l'opt-out.)
-              if (pending.emailMarketing === true) updateData.emailMarketing = true;
+              const updateData = buildSignupUpdateData(cookieStore.get('plio_pending_profile')?.value);
               if (Object.keys(updateData).length > 0) {
                 await prisma.user.update({
                   where: { id: user.id },
@@ -163,7 +142,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 }).catch(() => {/* no-op */});
               }
             } catch {
-              // JSON parse fail ou autre — ignore
+              // ignore
             }
           }
         } catch {
