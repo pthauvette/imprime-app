@@ -48,6 +48,7 @@ vi.mock('@/lib/sinalite/client', () => ({
       metadata: [],
     })),
     getProduct: vi.fn(async () => ({ id: 1, name: 'Cartes UV', category: 'Business Cards' })),
+    getPrice: vi.fn(async () => ({ price: '50' })),
   },
 }));
 
@@ -101,6 +102,7 @@ vi.mock('stripe', () => {
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
+import { sinalite } from '@/lib/sinalite/client';
 import { shippingQuoteToken } from '@/lib/shipping/quote-token';
 
 const URL = 'http://localhost/api/orders/create';
@@ -171,6 +173,31 @@ describe('/api/orders/create — payload validation', () => {
       shippingAddress: { ...validPayload.shippingAddress, province: 'CA' }, // état US
     }));
     expect(res.status).toBe(400);
+  });
+});
+
+describe('/api/orders/create — garde anti-tamper prix (audit v3 L3)', () => {
+  it('409 PRICE_MISMATCH si expectedSubtotal diverge du recompute serveur', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    // serveur recompute 50 (mock variant index) ; le client prétend 1 → rejet.
+    const res = await POST(makeReq({ ...validPayload, expectedSubtotal: 1 }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe('PRICE_MISMATCH');
+  });
+
+  it('502 PRICE_FETCH_FAILED si variant hors index + prix Sinalite non numérique', async () => {
+    vi.mocked(getEnrichedVariantIndex).mockResolvedValueOnce({
+      index: new Map<string, number>(), // variant absent → fallback remote
+      hiddenOptionIds: new Set<number>(),
+      marginPct: null,
+      disabled: false,
+      variantCount: 0,
+    } as never);
+    vi.mocked(sinalite.getPrice).mockResolvedValueOnce({ price: 'NaN' } as never);
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(502);
+    expect((await res.json()).code).toBe('PRICE_FETCH_FAILED');
   });
 });
 

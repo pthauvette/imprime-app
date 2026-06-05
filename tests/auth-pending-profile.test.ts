@@ -10,43 +10,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
+// Audit v3 L6 — on teste le VRAI helper (importé), plus une copie locale du
+// snippet. Un refactor d'auth.ts qui casse l'opt-in Loi 25 rougit donc ici.
+import { buildSignupUpdateData } from '@/lib/auth/pending-profile';
 
-// Reproduit la logique de parsing telle qu'elle vit dans
-// src/auth.ts events.signIn (lignes ~130-160 au moment d'écrire).
-// Test-driven : si on doit changer le shape, on change ici d'abord.
-interface PendingProfilePayload {
-  firstName?: string;
-  lastName?: string;
-  companyName?: string;
-  emailMarketing?: boolean;
-}
-
-interface UserUpdateData {
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  emailMarketing?: boolean;
-}
-
-function parsePendingProfileCookie(cookieValue: string): UserUpdateData {
-  let pending: PendingProfilePayload;
-  try {
-    pending = JSON.parse(decodeURIComponent(cookieValue)) as PendingProfilePayload;
-  } catch {
-    return {};
-  }
-  const updateData: UserUpdateData = {};
-  if (pending.firstName) updateData.firstName = pending.firstName.slice(0, 100);
-  if (pending.lastName) updateData.lastName = pending.lastName.slice(0, 100);
-  if (pending.firstName || pending.lastName) {
-    updateData.name = [pending.firstName, pending.lastName]
-      .filter(Boolean).join(' ').slice(0, 200);
-  }
-  // Loi 25 — opt-in affirmatif : on n'écrit emailMarketing que sur consentement
-  // explicite (=== true). Sinon omis → défaut schéma false (opt-out).
-  if (pending.emailMarketing === true) updateData.emailMarketing = true;
-  return updateData;
-}
+const parsePendingProfileCookie = buildSignupUpdateData;
 
 describe('parsePendingProfileCookie (auth.ts signIn snippet)', () => {
   it('parse firstName + lastName → name composite', () => {
