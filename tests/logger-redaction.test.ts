@@ -37,6 +37,13 @@ describe('logger — redaction PII (Loi 25)', () => {
     expect(out).toContain('ops@plio.ca');
   });
 
+  it('censure le courriel destinataire sous `to` / `recipient` (audit v3 M5)', () => {
+    const out = capture((l) => l.info({ to: 'client@exemple.ca', recipient: 'autre@exemple.ca' }, 'email send'));
+    expect(out).not.toContain('client@exemple.ca');
+    expect(out).not.toContain('autre@exemple.ca');
+    expect(out).toContain('[REDACTED]');
+  });
+
   it('couvre les secrets historiques (password/secret/token)', () => {
     const out = capture((l) => l.info({ password: 'hunter2', token: 'abc', secret: 's' }, 'x'));
     expect(out).not.toContain('hunter2');

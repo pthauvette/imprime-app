@@ -50,6 +50,13 @@ export const REDACT_PATHS = [
   '*.email',
   'phone',
   '*.phone',
+  // Audit v3 M5 — le courriel destinataire est souvent loggé sous `to`
+  // (emails/queue.ts, crons d'envoi) ou `recipient`. `adminEmail` (personnel)
+  // reste volontairement non censuré.
+  'to',
+  '*.to',
+  'recipient',
+  '*.recipient',
 ];
 
 // En prod : JSON brut pour CloudWatch / Sentry

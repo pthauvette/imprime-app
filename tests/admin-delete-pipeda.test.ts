@@ -28,7 +28,23 @@ vi.mock('@/lib/db', () => ({
     draft: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     designDraft: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     savedConfig: { deleteMany: vi.fn(async () => ({ count: 0 })) },
-    order: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    order: {
+      updateMany: vi.fn(async () => ({ count: 0 })),
+      findMany: vi.fn(async () => [
+        {
+          id: 'o1',
+          sinalitePayload: JSON.stringify({
+            items: [{ productId: 7 }],
+            shippingInfo: {
+              ShipFName: 'Doomed', ShipLName: 'User', ShipEmail: 'doomed@plio.ca',
+              ShipAddr: '1 rue X', ShipCity: 'Montréal', ShipState: 'QC', ShipZip: 'H2X 1Y4', ShipPhone: '+15145551234',
+            },
+            billingInfo: { BillEmail: 'doomed@plio.ca', BillPhone: '+15145551234' },
+          }),
+        },
+      ]),
+      update: vi.fn(async () => ({})),
+    },
     contactMessage: { updateMany: vi.fn(async () => ({ count: 0 })) },
     sampleRequest: { updateMany: vi.fn(async () => ({ count: 0 })) },
     abandonedCart: { deleteMany: vi.fn(async () => ({ count: 0 })) },
@@ -209,6 +225,23 @@ describe('POST /api/admin/users/[id]/delete-pipeda (Round 39 #1)', () => {
         requestUa: null,
       }),
     );
+  });
+
+  it('Audit v3 H1 — Order.sinalitePayload scrubbé (PII shipping/billing retirées du JSON)', async () => {
+    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
+    await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
+
+    expect(prisma.order.update).toHaveBeenCalledOnce();
+    const args = vi.mocked(prisma.order.update).mock.calls[0]![0];
+    expect(args.where).toEqual({ id: 'o1' });
+    const scrubbed = args.data.sinalitePayload as string;
+    // Plus aucune PII en clair ; province + items conservés.
+    for (const leak of ['Doomed', 'doomed@plio.ca', '1 rue X', '5145551234', 'H2X 1Y4']) {
+      expect(scrubbed).not.toContain(leak);
+    }
+    const parsed = JSON.parse(scrubbed);
+    expect(parsed.shippingInfo.ShipState).toBe('QC');
+    expect(parsed.items).toEqual([{ productId: 7 }]);
   });
 
   it('Loi 25 — ResellerApplication PII anonymisé (email/contact/entreprise/tél/site/IP/UA/message)', async () => {

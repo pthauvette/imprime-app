@@ -32,6 +32,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
 import { logAdmin } from '@/lib/logger';
+import { scrubSinalitePayloadPII } from '@/lib/account/scrub-sinalite-payload';
 
 const BodySchema = z.object({
   /** Double-confirm : doit valoir exactement "SUPPRIMER". */
@@ -88,7 +89,25 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   const anonymizedEmail = `deleted-${userId.slice(-8)}@anonymized.plio.local`;
   const ANONYMIZED_TEXT = '[PIPEDA-DELETED]';
 
+  // Audit v3 H1 — scrub des PII dans Order.sinalitePayload (snapshot JSON conservé
+  // 6 ans LIR). Les colonnes Order.ship* sont anonymisées plus bas, mais ce JSON
+  // gardait nom/courriel/adresse/téléphone (Ship*/Bill*) EN CLAIR. On le ré-écrit
+  // par order (valeur dépendante du contenu → pas un updateMany). Province (State)
+  // conservée comme Order.shipProvince.
+  const ordersToScrub = await prisma.order.findMany({
+    where: { userId },
+    select: { id: true, sinalitePayload: true },
+  });
+  const scrubSentinels = { text: ANONYMIZED_TEXT, email: anonymizedEmail, postal: 'A0A 0A0', phone: '+10000000000' };
+  const scrubOps = ordersToScrub.map((o) =>
+    prisma.order.update({
+      where: { id: o.id },
+      data: { sinalitePayload: scrubSinalitePayloadPII(o.sinalitePayload, scrubSentinels) },
+    }),
+  );
+
   await prisma.$transaction([
+    ...scrubOps,
     // Cascade-able auth tables
     prisma.account.deleteMany({ where: { userId } }),
     prisma.session.deleteMany({ where: { userId } }),
