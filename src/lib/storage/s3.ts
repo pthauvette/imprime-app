@@ -7,12 +7,20 @@
  *   - 0 risque de timeout Lambda (15 min hard limit Amplify Hosting)
  *   - Coût S3 PUT direct moindre que via NAT gateway
  *
- * Le bucket est public-read avec UUIDs cryptiques dans le path — Sinalite
- * doit pouvoir DOWNLOAD les files plus tard sans signature complexe. Les
- * URLs ne sont pas crawlables (random), mais quelqu'un qui voit l'URL peut
- * télécharger. C'est OK pour des designs print (rien de sensible perso).
+ * MODÈLE DE SÉCURITÉ (décision assumée — revue privacy 2026-06) : le bucket
+ * reste public-read pour que Sinalite puisse DOWNLOAD l'artwork à la production
+ * (parfois plusieurs jours après le paiement) sans presigned URL (qui plafonne
+ * à 7 j SigV4 → risque d'expiration avant production). La sécurité repose donc
+ * ENTIÈREMENT sur l'imprévisibilité de la clé (UUID v4 = 122 bits d'entropie).
+ *
+ * ⚠️ Ces fichiers PEUVENT contenir des PII (une carte de visite = nom/tél/
+ * adresse). « Quiconque voit l'URL peut télécharger » → la clé DOIT être
+ * cryptographiquement indevinable (cf. buildUploadKey + node:crypto.randomUUID,
+ * JAMAIS Math.random). Durcissement infra recommandé (hors code, console AWS) :
+ * S3 Block Public Access scopé + lifecycle de purge des `uploads/` anciens.
  */
 
+import { randomUUID } from 'node:crypto';
 import { S3Client } from '@aws-sdk/client-s3';
 import { createPresignedPost, type PresignedPost } from '@aws-sdk/s3-presigned-post';
 
@@ -97,12 +105,8 @@ export async function createUploadPresign(opts: PresignOptions): Promise<Presign
   }
 
   const ext = filenameExtension(opts.filename) ?? mimeToExt(opts.contentType);
-  const uuid = randomUuid();
-  // Path : uploads/{user|guest}/{uuid}-{front|back}.{ext}
-  // UUID au début pour éviter les collisions; userId pour organisation;
-  // kind pour debugging facile depuis la console S3.
-  const owner = opts.userId ?? 'guest';
-  const key = `uploads/${owner}/${uuid}-${opts.kind}.${ext}`;
+  // Clé = seule barrière de sécurité (objet public-read) → UUID crypto + bornage.
+  const key = buildUploadKey(opts.userId ?? 'guest', opts.kind, ext);
 
   const maxBytes = Math.min(opts.maxBytes ?? MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_BYTES);
 
@@ -169,11 +173,19 @@ function mimeToExt(mime: string): string {
   return map[mime] ?? 'bin';
 }
 
-function randomUuid(): string {
-  // Crypto.randomUUID est dispo en Node 19+ et browser modern
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  // Fallback : random hex
-  return Array.from({ length: 16 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join('');
+/**
+ * Construit la clé de stockage S3. La clé est la SEULE barrière de sécurité
+ * (objets public-read), donc :
+ *   - UUID v4 cryptographique (node:crypto.randomUUID, 122 bits) — JAMAIS
+ *     Math.random (PRNG prévisible = clés devinables = modèle cassé).
+ *   - `owner` (userId session-validé / 'guest') et `ext` bornés par allow-list
+ *     en défense en profondeur (anti path-traversal dans la clé, même si non
+ *     attaquant-contrôlés en pratique).
+ * Pur + exporté → testable sans config S3 (cf. tests/s3-upload-key.test.ts).
+ */
+export function buildUploadKey(owner: string, kind: PresignOptions['kind'], ext: string): string {
+  const safeOwner = /^[A-Za-z0-9_-]{1,64}$/.test(owner) ? owner : 'guest';
+  const safeExt = /^[a-z0-9]{1,5}$/.test(ext) ? ext : 'bin';
+  // uploads/{user|guest}/{uuid}-{front|back}.{ext}
+  return `uploads/${safeOwner}/${randomUUID()}-${kind}.${safeExt}`;
 }
