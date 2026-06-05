@@ -18,19 +18,32 @@ import {
  * au wizard de config normal. Remplace la liste des productId redondants d'une
  * famille (cartes de visite, cartes postales, …).
  */
-export default function VirtualProductPicker({ slug, designId }: { slug: string; designId: string | null }) {
+export default function VirtualProductPicker({
+  slug,
+  designId,
+  allowedProductIds,
+}: {
+  slug: string;
+  designId: string | null;
+  /** Audit v3 L1 — productId réellement actifs (filtrage enabled/overrides). */
+  allowedProductIds?: number[];
+}) {
   const router = useRouter();
   const vp = getVirtualProduct(slug)!; // la route valide l'existence en amont
-  const papers = useMemo(() => virtualPapers(slug), [slug]);
+  const allowed = useMemo(
+    () => (allowedProductIds ? new Set(allowedProductIds) : undefined),
+    [allowedProductIds],
+  );
+  const papers = useMemo(() => virtualPapers(slug, allowed), [slug, allowed]);
 
   const [paper, setPaper] = useState<string>(papers[0]?.key ?? '');
-  const finishes = useMemo(() => virtualFinishes(slug, paper), [slug, paper]);
+  const finishes = useMemo(() => virtualFinishes(slug, paper, allowed), [slug, paper, allowed]);
   const [finish, setFinish] = useState<string>(finishes[0]?.finish ?? '');
 
   // Changer de papier → reset la finition sur la 1re dispo de ce papier.
   function pickPaper(key: string) {
     setPaper(key);
-    const first = virtualFinishes(slug, key)[0];
+    const first = virtualFinishes(slug, key, allowed)[0];
     setFinish(first?.finish ?? '');
   }
 

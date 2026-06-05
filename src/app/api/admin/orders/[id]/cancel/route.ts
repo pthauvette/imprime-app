@@ -105,7 +105,10 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     // Audit v2 #1.5 — n'annoncer un remboursement QUE s'il a été émis. Une
     // commande PENDING (jamais débitée) ne donne lieu à aucun refund → 0, sinon
     // l'email promet « Remboursement : X $ » jamais versé.
-    refundAmountCents: refund ? order.amountCents : 0,
+    // Audit v3 L2 — utiliser refund.amount (montant RÉELLEMENT remboursé par
+    // Stripe = le restant) et NON order.amountCents (le total) : après un refund
+    // partiel préalable, annoncer le total serait faux (litiges/chargebacks).
+    refundAmountCents: refund ? refund.amount : 0,
   });
 
   void recordAdminAudit({
@@ -117,7 +120,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     data: {
       reason: body.reason,
       refundId: refund?.id ?? null,
-      refundedCents: refund ? order.amountCents : 0,
+      refundedCents: refund ? refund.amount : 0,
       previousStatus: order.status,
       customerEmail: order.user.email,
     },
@@ -126,6 +129,6 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   return NextResponse.json({
     ok: true,
     refundId: refund?.id ?? null,
-    refundedCents: refund ? order.amountCents : 0,
+    refundedCents: refund ? refund.amount : 0,
   });
 });

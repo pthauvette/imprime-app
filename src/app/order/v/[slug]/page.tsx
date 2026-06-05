@@ -10,6 +10,8 @@
 import { notFound } from 'next/navigation';
 import VirtualProductPicker from '@/components/wizard/VirtualProductPicker';
 import { getVirtualProduct } from '@/lib/products/virtual-products';
+import { sinalite } from '@/lib/sinalite/client';
+import { applyProductOverrides } from '@/lib/products/overrides';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +29,22 @@ export default async function VirtualProductPage({
   searchParams: Promise<{ designId?: string }>;
 }) {
   const { slug } = await params;
-  if (!getVirtualProduct(slug)) notFound();
+  const vp = getVirtualProduct(slug);
+  if (!vp) notFound();
   const { designId } = await searchParams;
-  return <VirtualProductPicker slug={slug} designId={designId ?? null} />;
+
+  // Audit v3 L1 — ne proposer que les variants dont le productId est RÉELLEMENT
+  // actif (enabled Sinalite + non désactivé par override admin), sinon l'user
+  // traverse tout le wizard avant un rejet PRODUCT_DISABLED au paiement.
+  const allProducts = await sinalite.listProducts();
+  const active = await applyProductOverrides(allProducts.filter((p) => p.enabled === 1));
+  const activeIds = new Set(active.map((p) => p.id));
+  const allowedProductIds = vp.variants.map((v) => v.productId).filter((id) => activeIds.has(id));
+
+  // Tout le produit virtuel est désactivé → indisponible.
+  if (allowedProductIds.length === 0) notFound();
+
+  return (
+    <VirtualProductPicker slug={slug} designId={designId ?? null} allowedProductIds={allowedProductIds} />
+  );
 }
