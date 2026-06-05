@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
 import type { SinaliteOrderRequest } from '@/lib/sinalite/types';
 import { logWebhook } from '@/lib/logger';
+import { composeName } from '@/lib/account/profile';
 
 // ─── ENUM-LIKE ────────────────────────────────────────────────────────────
 // SQLite n'a pas d'enums — on contraint via TypeScript.
@@ -45,20 +46,35 @@ export async function findOrCreateUserByEmail(input: {
   phone?: string;
 }) {
   const email = input.email.toLowerCase().trim();
-  return prisma.user.upsert({
+  const existing = await prisma.user.findUnique({
     where: { email },
-    create: {
-      email,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      phone: input.phone,
-    },
-    // Don't overwrite filled fields with empty ones — only patch what's missing
-    update: {
-      firstName: input.firstName ?? undefined,
-      lastName: input.lastName ?? undefined,
-      phone: input.phone ?? undefined,
-    },
+    select: { id: true, firstName: true, lastName: true, phone: true },
+  });
+
+  if (!existing) {
+    // Nouveau compte (guest checkout) : pose le profil + le `name` composite.
+    return prisma.user.create({
+      data: {
+        email,
+        firstName: input.firstName ?? null,
+        lastName: input.lastName ?? null,
+        phone: input.phone ?? null,
+        name: composeName(input.firstName, input.lastName),
+      },
+    });
+  }
+
+  // Compte EXISTANT (le courriel de livraison matche un compte). Audit v3 M4/L5 :
+  // on ne remplit QUE les champs manquants — jamais d'écrasement d'une identité
+  // déjà saisie par le contact d'une commande — et on recalcule `name` depuis les
+  // valeurs finales (avant : `?? undefined` écrasait quand l'input était fourni,
+  // et `name` restait périmé). Source unique du compose : composeName.
+  const firstName = existing.firstName ?? input.firstName ?? null;
+  const lastName = existing.lastName ?? input.lastName ?? null;
+  const phone = existing.phone ?? input.phone ?? null;
+  return prisma.user.update({
+    where: { id: existing.id },
+    data: { firstName, lastName, phone, name: composeName(firstName, lastName) },
   });
 }
 

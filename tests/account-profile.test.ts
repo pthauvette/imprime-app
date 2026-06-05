@@ -3,7 +3,24 @@
  * Valide la validation + le recalcul du `name` composite dénormalisé.
  */
 import { describe, it, expect } from 'vitest';
-import { normalizeProfileInput } from '@/lib/account/profile';
+import { normalizeProfileInput, composeName } from '@/lib/account/profile';
+
+describe('composeName', () => {
+  it('compose prénom + nom', () => {
+    expect(composeName('Sophie', 'Beauchamp')).toBe('Sophie Beauchamp');
+  });
+  it('prénom seul / nom seul', () => {
+    expect(composeName('Solo', null)).toBe('Solo');
+    expect(composeName(undefined, 'Roy')).toBe('Roy');
+  });
+  it('vides / null → null (fallback côté lecture)', () => {
+    expect(composeName(null, null)).toBeNull();
+    expect(composeName('', '')).toBeNull();
+  });
+  it('tronque à 200 caractères', () => {
+    expect(composeName('a'.repeat(150), 'b'.repeat(150))?.length).toBe(200);
+  });
+});
 
 describe('normalizeProfileInput', () => {
   it('valide + recalcule le name composite', () => {

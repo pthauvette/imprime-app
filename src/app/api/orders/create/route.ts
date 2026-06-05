@@ -448,33 +448,28 @@ export const POST = withErrorHandler(async (req: Request) => {
   // email — quand il se créera un compte plus tard avec ce même email,
   // Auth.js PrismaAdapter retombera sur le même User et l'historique sera là.
   // Note : on a déjà fait auth() en Phase 2c (earlySession) — réutilisé ici.
-  const user = earlySession?.user
-    ? await prisma.user.update({
-        where: { id: earlySession.user.id },
-        // Audit v2 #3.1 — on NE débite PLUS le crédit referral ici. Avant : le
-        // decrement se faisait à la création du PI (avant paiement), sans garde
-        // de plancher (gte) ni reversal → tout abandon/échec/refund perdait le
-        // crédit, et 2 checkouts concurrents pouvaient driver la balance < 0.
-        // Désormais le débit vit dans markOrderPaidWithWalletDebit (même tx que
-        // PENDING→PAID, garde gte, idempotent), donc un order non payé ne touche
-        // jamais au crédit. Le montant d'intention reste persté sur l'Order
-        // (referralCreditAppliedCents) pour le débit à la confirmation + le
-        // restore sur full refund/cancel.
-        data: {
+  //
+  // Audit v3 M4 — pour un compte CONNECTÉ, on N'ÉCRIT PLUS son profil
+  // (firstName/lastName/phone) avec payload.contact : c'est le contact de
+  // LIVRAISON (le user a pu commander pour un tiers, ou saisir un autre nom).
+  // Avant, un `prisma.user.update` inconditionnel écrasait l'identité du compte
+  // à chaque commande → profil corrompu (reseller surtout) + contradiction avec
+  // la rectification self-serve (#314). Le nom/tél de livraison vivent déjà sur
+  // Order.ship* + sinalitePayload ; un compte au profil vide se complète via
+  // /settings. On n'a besoin que de l'id ici.
+  const userId = earlySession?.user
+    ? earlySession.user.id
+    : (
+        await findOrCreateUserByEmail({
+          email: payload.contact.email,
           firstName: payload.contact.firstName,
           lastName: payload.contact.lastName,
           phone: payload.contact.phone,
-        },
-      })
-    : await findOrCreateUserByEmail({
-        email: payload.contact.email,
-        firstName: payload.contact.firstName,
-        lastName: payload.contact.lastName,
-        phone: payload.contact.phone,
-      });
+        })
+      ).id;
 
   const newOrder = await createPendingOrder({
-    userId: user.id,
+    userId,
     paymentIntentId: paymentIntent.id,
     amountCents: totalCents,
     itemsCount: payload.items.length,
@@ -539,7 +534,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   if (payload.designId) {
     try {
       await prisma.designDraft.updateMany({
-        where: { id: payload.designId, userId: user.id, orderId: null },
+        where: { id: payload.designId, userId, orderId: null },
         data: { orderId: newOrder.id },
       });
     } catch (err) {

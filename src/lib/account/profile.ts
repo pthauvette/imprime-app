@@ -33,6 +33,17 @@ export type ProfileResult =
   | { ok: true; data: NormalizedProfile }
   | { ok: false; error: string };
 
+/**
+ * Compose le champ dénormalisé `User.name` depuis firstName/lastName.
+ * SOURCE UNIQUE de cette logique — à réutiliser PARTOUT où firstName/lastName
+ * changent (rectification profil, guest checkout) pour ne pas laisser `name`
+ * périmé (audit v3 L5). Renvoie null si les deux sont vides (→ fallback
+ * `[firstName,lastName]` côté lecture).
+ */
+export function composeName(firstName?: string | null, lastName?: string | null): string | null {
+  return [firstName, lastName].filter(Boolean).join(' ').slice(0, 200) || null;
+}
+
 /** Valide les champs bruts (FormData) et renvoie le profil normalisé OU une erreur. */
 export function normalizeProfileInput(raw: {
   firstName: unknown;
@@ -51,6 +62,6 @@ export function normalizeProfileInput(raw: {
   const firstName = parsed.data.firstName || null;
   const lastName = parsed.data.lastName || null;
   const phone = parsed.data.phone || null;
-  const name = [firstName, lastName].filter(Boolean).join(' ').slice(0, 200) || null;
+  const name = composeName(firstName, lastName);
   return { ok: true, data: { firstName, lastName, phone, name } };
 }
