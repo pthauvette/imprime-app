@@ -10,6 +10,8 @@ import {
   virtualPapers,
   virtualFinishes,
   resolveVirtualProductId,
+  virtualSlugForProductId,
+  ALL_VIRTUAL_PRODUCT_IDS,
 } from '@/lib/products/virtual-products';
 
 describe('produits virtuels — résolution', () => {
@@ -25,6 +27,15 @@ describe('produits virtuels — résolution', () => {
     expect(resolveVirtualProductId('cartes-postales', '16pt', 'matte-lam')).toBe(24);
     expect(resolveVirtualProductId('cartes-postales', '10pt', 'aq')).toBe(26);
     expect(resolveVirtualProductId('cartes-postales', 'foil', 'standard')).toBe(7545);
+  });
+
+  it('autres form-factors : couples connus → bon productId', () => {
+    expect(resolveVirtualProductId('flyers', '100lb', 'uv')).toBe(38);
+    expect(resolveVirtualProductId('cartes-de-voeux', '14pt', 'matte')).toBe(50);
+    expect(resolveVirtualProductId('accroche-portes', '14pt', 'uv')).toBe(70);
+    expect(resolveVirtualProductId('invitations', 'foil', 'standard')).toBe(15011);
+    expect(resolveVirtualProductId('chemises-presentation', '14pt', 'matte-lam')).toBe(4137);
+    expect(resolveVirtualProductId('signets', '16pt', 'gloss-lam')).toBe(5531);
   });
 
   it('couple ou slug inexistant → null', () => {
@@ -66,5 +77,18 @@ describe('produits virtuels — intégrité du mapping', () => {
 
   it('getVirtualProduct retourne undefined pour un slug inconnu', () => {
     expect(getVirtualProduct('nope')).toBeUndefined();
+  });
+
+  it('collapse : productId → slug du produit virtuel qui le contient', () => {
+    expect(virtualSlugForProductId(7)).toBe('cartes-de-visite');
+    expect(virtualSlugForProductId(50)).toBe('cartes-de-voeux');
+    expect(virtualSlugForProductId(5531)).toBe('signets');
+    expect(virtualSlugForProductId(999999)).toBeUndefined(); // Foil/Die Cut/Letterhead → pas virtuel
+  });
+
+  it('collapse : ALL_VIRTUAL_PRODUCT_IDS = union de tous les productId virtuels, sans doublon', () => {
+    const total = Object.values(VIRTUAL_PRODUCTS).reduce((n, vp) => n + vp.variants.length, 0);
+    // Pas de productId partagé entre 2 produits virtuels → la taille du Set = somme.
+    expect(ALL_VIRTUAL_PRODUCT_IDS.size).toBe(total);
   });
 });
