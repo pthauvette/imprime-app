@@ -100,8 +100,8 @@ export async function GET(req: NextRequest) {
       alerted,
     };
     log.info(result, 'cron/stripe-clock-skew ran');
-    void pingCronHealthcheck('stripe-clock-skew', 'success', { driftSec, alerted });
-    void recordCronRun({
+    await pingCronHealthcheck('stripe-clock-skew', 'success', { driftSec, alerted });
+    await recordCronRun({
       name: 'stripe-clock-skew',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -111,8 +111,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/stripe-clock-skew failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('stripe-clock-skew', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('stripe-clock-skew', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'stripe-clock-skew',
       status: 'fail',
       latencyMs: Date.now() - start,

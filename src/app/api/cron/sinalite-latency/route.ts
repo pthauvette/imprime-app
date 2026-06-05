@@ -122,8 +122,8 @@ export async function GET(req: NextRequest) {
       alerted,
     };
     log.info(result, 'cron/sinalite-latency ran');
-    void pingCronHealthcheck('sinalite-latency', 'success', { latencyMs, p95 });
-    void recordCronRun({
+    await pingCronHealthcheck('sinalite-latency', 'success', { latencyMs, p95 });
+    await recordCronRun({
       name: 'sinalite-latency',
       status: 'success',
       latencyMs,
@@ -133,8 +133,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/sinalite-latency probe failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('sinalite-latency', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('sinalite-latency', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'sinalite-latency',
       status: 'fail',
       latencyMs: Date.now() - start,

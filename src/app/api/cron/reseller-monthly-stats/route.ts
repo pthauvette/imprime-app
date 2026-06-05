@@ -93,8 +93,8 @@ export async function GET(req: NextRequest) {
 
     if (resellers.length === 0) {
       const result = { ok: true, latencyMs: Date.now() - startTs, sent: 0, scanned: 0, monthKey };
-      void pingCronHealthcheck('reseller-monthly-stats', 'success', result);
-      void recordCronRun({ name: 'reseller-monthly-stats', status: 'success', latencyMs: Date.now() - startTs, data: result });
+      await pingCronHealthcheck('reseller-monthly-stats', 'success', result);
+      await recordCronRun({ name: 'reseller-monthly-stats', status: 'success', latencyMs: Date.now() - startTs, data: result });
       return NextResponse.json(result);
     }
 
@@ -210,8 +210,8 @@ export async function GET(req: NextRequest) {
       zeroOrderResellers,
     };
     log.info(result, 'cron/reseller-monthly-stats ran');
-    void pingCronHealthcheck('reseller-monthly-stats', 'success', { sent: sentCount });
-    void recordCronRun({
+    await pingCronHealthcheck('reseller-monthly-stats', 'success', { sent: sentCount });
+    await recordCronRun({
       name: 'reseller-monthly-stats',
       status: 'success',
       latencyMs: Date.now() - startTs,
@@ -221,8 +221,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/reseller-monthly-stats failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('reseller-monthly-stats', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('reseller-monthly-stats', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'reseller-monthly-stats',
       status: 'fail',
       latencyMs: Date.now() - startTs,

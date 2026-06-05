@@ -145,8 +145,8 @@ export async function GET(req: NextRequest) {
       totalExpiredCents,
     };
     log.info(result, 'cron/wallet-expiry ran');
-    void pingCronHealthcheck('wallet-expiry', 'success', { warningsSent, expired });
-    void recordCronRun({
+    await pingCronHealthcheck('wallet-expiry', 'success', { warningsSent, expired });
+    await recordCronRun({
       name: 'wallet-expiry',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -156,8 +156,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/wallet-expiry failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('wallet-expiry', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('wallet-expiry', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'wallet-expiry',
       status: 'fail',
       latencyMs: Date.now() - start,

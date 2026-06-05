@@ -70,8 +70,8 @@ export async function GET(req: NextRequest) {
 
     if (candidateIds.size === 0) {
       const result = { ok: true, latencyMs: Date.now() - start, promoted: 0, demoted: 0, platinumUpgraded: 0, platinumDowngraded: 0 };
-      void pingCronHealthcheck('reseller-detection', 'success', result);
-      void recordCronRun({ name: 'reseller-detection', status: 'success', latencyMs: Date.now() - start, data: result });
+      await pingCronHealthcheck('reseller-detection', 'success', result);
+      await recordCronRun({ name: 'reseller-detection', status: 'success', latencyMs: Date.now() - start, data: result });
       return NextResponse.json(result);
     }
 
@@ -135,8 +135,8 @@ export async function GET(req: NextRequest) {
       platinumThresholdCents: PLATINUM_REVENUE_THRESHOLD_CENTS,
     };
     log.info(result, 'cron/reseller-detection ran');
-    void pingCronHealthcheck('reseller-detection', 'success', { promoted, demoted });
-    void recordCronRun({
+    await pingCronHealthcheck('reseller-detection', 'success', { promoted, demoted });
+    await recordCronRun({
       name: 'reseller-detection',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -146,8 +146,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/reseller-detection failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('reseller-detection', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('reseller-detection', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'reseller-detection',
       status: 'fail',
       latencyMs: Date.now() - start,

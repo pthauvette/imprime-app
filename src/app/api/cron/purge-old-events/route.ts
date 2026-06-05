@@ -60,8 +60,8 @@ export async function GET(req: NextRequest) {
 
     if (eligibleOrders.length === 0) {
       const result = { ok: true, latencyMs: Date.now() - start, dryRun, eligibleOrders: 0, deletedEvents: 0 };
-      void pingCronHealthcheck('purge-old-events', 'success', result);
-      void recordCronRun({ name: 'purge-old-events', status: 'success', latencyMs: Date.now() - start, data: result });
+      await pingCronHealthcheck('purge-old-events', 'success', result);
+      await recordCronRun({ name: 'purge-old-events', status: 'success', latencyMs: Date.now() - start, data: result });
       return NextResponse.json(result);
     }
 
@@ -102,8 +102,8 @@ export async function GET(req: NextRequest) {
       cutoff: cutoff.toISOString(),
     };
     log.info(result, 'cron/purge-old-events ran');
-    void pingCronHealthcheck('purge-old-events', 'success', { deletedEvents, dryRun });
-    void recordCronRun({
+    await pingCronHealthcheck('purge-old-events', 'success', { deletedEvents, dryRun });
+    await recordCronRun({
       name: 'purge-old-events',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -113,8 +113,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/purge-old-events failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('purge-old-events', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('purge-old-events', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'purge-old-events',
       status: 'fail',
       latencyMs: Date.now() - start,

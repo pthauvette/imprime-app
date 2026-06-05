@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   if (!adminEmailsRaw) {
     const result = { ok: true, latencyMs: Date.now() - start, skipped: 'admin_emails_not_configured' };
     log.warn('cron/order-sla-alerts: ADMIN_EMAILS not configured — skip');
-    void recordCronRun({ name: 'order-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
+    await recordCronRun({ name: 'order-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
     return NextResponse.json(result);
   }
   const recipients = adminEmailsRaw.split(',').map((s) => s.trim()).filter(Boolean);
@@ -92,8 +92,8 @@ export async function GET(req: NextRequest) {
     if (stuckOrders.length === 0) {
       const result = { ok: true, latencyMs: Date.now() - start, stuckCount: 0, recipients: recipients.length, sent: 0 };
       log.info(result, 'cron/order-sla-alerts ran (zero stuck)');
-      void pingCronHealthcheck('order-sla-alerts', 'success', result);
-      void recordCronRun({ name: 'order-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
+      await pingCronHealthcheck('order-sla-alerts', 'success', result);
+      await recordCronRun({ name: 'order-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
       return NextResponse.json(result);
     }
 
@@ -195,8 +195,8 @@ export async function GET(req: NextRequest) {
       realertAfterDays: REALERT_AFTER_DAYS,
     };
     log.info(result, 'cron/order-sla-alerts ran');
-    void pingCronHealthcheck('order-sla-alerts', 'success', { stuck: stuckOrders.length, sent });
-    void recordCronRun({
+    await pingCronHealthcheck('order-sla-alerts', 'success', { stuck: stuckOrders.length, sent });
+    await recordCronRun({
       name: 'order-sla-alerts',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -206,8 +206,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/order-sla-alerts failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('order-sla-alerts', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('order-sla-alerts', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'order-sla-alerts',
       status: 'fail',
       latencyMs: Date.now() - start,

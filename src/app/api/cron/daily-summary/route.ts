@@ -236,8 +236,8 @@ export async function GET(req: NextRequest) {
     recipients: sends,
   };
     log.info(result, 'cron/daily-summary ran');
-    void pingCronHealthcheck('daily-summary', 'success', { orders24h, revenue24h });
-    void recordCronRun({
+    await pingCronHealthcheck('daily-summary', 'success', { orders24h, revenue24h });
+    await recordCronRun({
       name: 'daily-summary',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -250,8 +250,8 @@ export async function GET(req: NextRequest) {
     // qu'au timeout next-ping.
     log.error({ err }, 'cron/daily-summary failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('daily-summary', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('daily-summary', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'daily-summary',
       status: 'fail',
       latencyMs: Date.now() - start,

@@ -196,8 +196,8 @@ export async function GET(req: NextRequest) {
       topCustomers: topCustomersThisWeek.length,
     };
     log.info(result, 'cron/admin-weekly-digest ran');
-    void pingCronHealthcheck('admin-weekly-digest', 'success', { sent, recipients: adminEmails.length });
-    void recordCronRun({
+    await pingCronHealthcheck('admin-weekly-digest', 'success', { sent, recipients: adminEmails.length });
+    await recordCronRun({
       name: 'admin-weekly-digest',
       status: 'success',
       latencyMs: Date.now() - startTs,
@@ -207,8 +207,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/admin-weekly-digest failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('admin-weekly-digest', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('admin-weekly-digest', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'admin-weekly-digest',
       status: 'fail',
       latencyMs: Date.now() - startTs,

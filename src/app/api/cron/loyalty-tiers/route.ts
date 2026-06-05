@@ -99,8 +99,8 @@ export async function GET(req: NextRequest) {
       unchanged,
     };
     log.info(result, 'cron/loyalty-tiers ran');
-    void pingCronHealthcheck('loyalty-tiers', 'success', { upgraded, downgraded });
-    void recordCronRun({
+    await pingCronHealthcheck('loyalty-tiers', 'success', { upgraded, downgraded });
+    await recordCronRun({
       name: 'loyalty-tiers',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -110,8 +110,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/loyalty-tiers failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('loyalty-tiers', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('loyalty-tiers', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'loyalty-tiers',
       status: 'fail',
       latencyMs: Date.now() - start,
