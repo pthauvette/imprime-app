@@ -35,6 +35,7 @@ vi.mock('@/lib/db', () => ({
     newsletterSubscriber: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     emailDelivery: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     customQuoteRequest: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    resellerApplication: { updateMany: vi.fn(async () => ({ count: 0 })) },
     deleteAccountRequest: { update: vi.fn(async () => ({})) },
   },
 }));
@@ -204,6 +205,27 @@ describe('POST /api/admin/users/[id]/delete-pipeda (Round 39 #1)', () => {
         name: '[PIPEDA-DELETED]',
         phone: null,
         companyName: null,
+        requestIp: null,
+        requestUa: null,
+      }),
+    );
+  });
+
+  it('Loi 25 — ResellerApplication PII anonymisé (email/contact/entreprise/tél/site/IP/UA/message)', async () => {
+    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
+    await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
+
+    expect(prisma.resellerApplication.updateMany).toHaveBeenCalledOnce();
+    const args = vi.mocked(prisma.resellerApplication.updateMany).mock.calls[0]![0];
+    expect(args?.where).toEqual({ email: 'doomed@plio.ca' });
+    expect(args?.data.email).toMatch(/^deleted-/);
+    expect(args?.data).toEqual(
+      expect.objectContaining({
+        contactName: '[PIPEDA-DELETED]',
+        companyName: '[PIPEDA-DELETED]',
+        phone: null,
+        website: null,
+        message: null,
         requestIp: null,
         requestUa: null,
       }),
