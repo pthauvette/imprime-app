@@ -42,7 +42,9 @@ function parsePendingProfileCookie(cookieValue: string): UserUpdateData {
     updateData.name = [pending.firstName, pending.lastName]
       .filter(Boolean).join(' ').slice(0, 200);
   }
-  if (pending.emailMarketing === false) updateData.emailMarketing = false;
+  // Loi 25 — opt-in affirmatif : on n'écrit emailMarketing que sur consentement
+  // explicite (=== true). Sinon omis → défaut schéma false (opt-out).
+  if (pending.emailMarketing === true) updateData.emailMarketing = true;
   return updateData;
 }
 
@@ -67,20 +69,21 @@ describe('parsePendingProfileCookie (auth.ts signIn snippet)', () => {
     expect(out.name).toBe('Solo');
   });
 
-  it('emailMarketing=false → opt-out marqué', () => {
+  it('emailMarketing=false → field omis (Loi 25 : défaut schéma false = opt-out)', () => {
     const cookie = encodeURIComponent(JSON.stringify({
       firstName: 'X',
       emailMarketing: false,
     }));
-    expect(parsePendingProfileCookie(cookie).emailMarketing).toBe(false);
+    // On n'écrit plus l'opt-out : le défaut schéma false s'en charge.
+    expect(parsePendingProfileCookie(cookie).emailMarketing).toBeUndefined();
   });
 
-  it('emailMarketing=true → field omis (default reste true)', () => {
+  it('emailMarketing=true → field SET true (Loi 25 : opt-in affirmatif explicite)', () => {
     const cookie = encodeURIComponent(JSON.stringify({
       firstName: 'X',
       emailMarketing: true,
     }));
-    expect(parsePendingProfileCookie(cookie).emailMarketing).toBeUndefined();
+    expect(parsePendingProfileCookie(cookie).emailMarketing).toBe(true);
   });
 
   it('slice firstName/lastName à 100 chars (defense XSS / overflow)', () => {

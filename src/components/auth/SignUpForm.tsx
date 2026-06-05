@@ -23,7 +23,8 @@ export default function SignUpForm() {
   const [lastName, setLastName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [marketingOptIn, setMarketingOptIn] = useState(true);
+  // Loi 25 — opt-in marketing AFFIRMATIF : case DÉCOCHÉE par défaut.
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
