@@ -100,10 +100,10 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     },
   });
 
-  // Round 26 #3 — historique détaillé. Fail-soft : si le insert plante,
-  // on log mais on ne casse pas la réponse au caller (l'aggregate count
-  // ci-dessus est déjà à jour).
-  void prisma.webhookReplay.create({
+  // Round 26 #3 — historique détaillé. Fail-soft : le .catch ci-dessous log
+  // sans casser la réponse. On AWAIT (au lieu de void) : un `void` gèlerait
+  // l'insert sur Lambda → historique de replay perdu (suite #322/#323).
+  await prisma.webhookReplay.create({
     data: {
       webhookEventId: event.id,
       replayedBy: guard.userId,

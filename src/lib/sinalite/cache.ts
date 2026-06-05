@@ -87,7 +87,9 @@ export async function withSinaliteCache<T>(
     if (!options.readOnly) {
       // Best-effort : si l'écriture cache fail (DB down), on log mais on
       // retourne quand même les fresh data — c'est le success path normal.
-      void writeCache(key, fresh).catch((err) => {
+      // On AWAIT (le .catch garde le fail-soft) : un `void` gèlerait l'écriture
+      // sur Lambda → cache jamais peuplé → re-fetch Sinalite à chaque hit.
+      await writeCache(key, fresh).catch((err) => {
         logSinalite.warn({ err, key }, 'cache write failed (data fresh OK)');
       });
     }

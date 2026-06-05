@@ -99,8 +99,10 @@ export const POST = withErrorHandler(async (req: Request) => {
       },
     });
 
-    // Round 26 #3 — historique détaillé (fail-soft).
-    void prisma.webhookReplay.create({
+    // Round 26 #3 — historique détaillé (fail-soft via .catch). On AWAIT (au
+    // lieu de void) : un `void` gèlerait l'insert sur Lambda → historique perdu
+    // (suite #322/#323). Op admin batch → la latence séquentielle est OK.
+    await prisma.webhookReplay.create({
       data: {
         webhookEventId: event.id,
         replayedBy: guard.userId,
