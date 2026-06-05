@@ -180,7 +180,7 @@ export const GET = withErrorHandler(async (req: Request) => {
     walletTransactions,
   };
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_DATA_EXPORT',
     adminId: userId,
     adminEmail: userEmail,

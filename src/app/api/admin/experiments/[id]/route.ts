@@ -89,7 +89,7 @@ export const PATCH = withErrorHandler(
       },
     });
 
-    void recordAdminAudit({
+    await recordAdminAudit({
       kind: 'ADMIN_EXPERIMENT_TOGGLE',
       adminId: guard.userId,
       adminEmail: guard.user.email,

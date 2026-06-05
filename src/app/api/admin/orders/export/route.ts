@@ -135,7 +135,7 @@ export const GET = withErrorHandler(async (req: Request) => {
   }
 
   // Audit log (best-effort, ne fail pas l'export)
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_DATA_EXPORT',
     adminId: guard.userId,
     adminEmail: guard.user.email,

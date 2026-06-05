@@ -111,7 +111,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     refundAmountCents: refund ? refund.amount : 0,
   });
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_MANUAL_CANCEL',
     adminId: guard.userId,
     adminEmail: guard.user.email,

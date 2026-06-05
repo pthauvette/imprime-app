@@ -146,7 +146,7 @@ export async function POST(req: Request) {
       { err, sinaliteOrderId: payload.orderId, status: payload.status, orderId: dbOrderId },
       'handler error',
     );
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'warning',
       title: `Sinalite webhook handler error (${payload.status})`,
       body: 'Le webhook Sinalite a échoué — Sinalite va probablement retry mais vérifie qu\'il n\'y a pas un bug persistent.',

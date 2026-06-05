@@ -118,7 +118,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   });
 
   // Audit log — admin action sensible, on trace
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_WEBHOOK_REPLAY', // Round 1 audit — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,

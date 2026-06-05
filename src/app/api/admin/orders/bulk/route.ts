@@ -153,7 +153,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     count = eligible.length;
   }
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_BULK_STATUS_UPDATE',
     adminId: guard.userId,
     adminEmail: guard.user.email,

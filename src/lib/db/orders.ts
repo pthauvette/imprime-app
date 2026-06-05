@@ -385,7 +385,7 @@ export async function markOrderPaidWithWalletDebit(input: {
   // Stripe est honoré, l'order complétée, mais le solde réel était < appliqué).
   if (walletShortfallCents > 0) {
     const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'warning',
       title: 'Wallet insuffisant au débit — clampé',
       body: `Order ${order.id} : le wallet appliqué dépassait le solde réel (concurrent spend ?). Le paiement Stripe a été honoré et l'order complétée, mais ${(walletShortfallCents / 100).toFixed(2)} $ n'ont pas pu être débités. Vérifie le ledger /admin/users/${order.userId}.`,

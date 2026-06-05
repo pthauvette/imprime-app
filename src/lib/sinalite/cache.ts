@@ -117,7 +117,7 @@ export async function withSinaliteCache<T>(
     const now = Date.now();
     if (now - stats.lastAlertAt > ALERT_THROTTLE_MS) {
       stats.lastAlertAt = now;
-      void sendCriticalAlert({
+      await sendCriticalAlert({
         severity: 'warning',
         title: 'Sinalite API down — serving stale cache',
         body: `Les requêtes Sinalite échouent. On sert des data cachées (ok pour le checkout, prix potentiellement périmés). Investigue.`,

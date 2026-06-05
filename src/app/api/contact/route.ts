@@ -128,7 +128,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   );
 
   // Audit log pour traçabilité + détection abus
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_RESEND_EMAIL', // reuse — generic email kind
     adminId: 'system',
     adminEmail: 'system@plio.ca',
@@ -146,7 +146,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Slack notification (info-level) — best-effort, doublon avec l'email
   // admin mais utile pour les admins qui vivent dans Slack (réponse plus
   // rapide). Pas de detail PII dans le titre — juste sender + subject preview.
-  void sendCriticalAlert({
+  await sendCriticalAlert({
     severity: 'info',
     title: `💬 Nouveau message · ${body.name}`,
     body: `Sujet : ${body.subject}\n\n${body.message.slice(0, 200)}${body.message.length > 200 ? '…' : ''}`,

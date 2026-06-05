@@ -174,7 +174,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   // (cf. self-audit Round 37 — own bug introduit par Round 37 #1).
   if (!isFullRefund && order.walletCreditAppliedCents > 0) {
     const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'warning',
       title: 'Refund partial — wallet credit NON restauré',
       body: `Admin a refund ${(refundAmount / 100).toFixed(2)} $ partiel sur order avec wallet credit ${(order.walletCreditAppliedCents / 100).toFixed(2)} $ appliqué. Le wallet reste débité côté customer. Vérifie si c'est intentionnel (full refund tape EXACT order.amountCents = ${(order.amountCents / 100).toFixed(2)} $).`,
@@ -215,7 +215,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     reason: body.reason ?? 'Remboursement émis par notre équipe',
   });
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_MANUAL_REFUND',
     adminId: guard.userId,
     adminEmail: guard.user.email,

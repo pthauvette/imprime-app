@@ -61,7 +61,7 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
     if (fresh) {
       await sendOrderConfirmationEmail({ order: fresh, user: fresh.user });
     }
-    void recordAdminAudit({
+    await recordAdminAudit({
       kind: 'ADMIN_REPLAY_SINALITE',
       adminId: guard.userId,
       adminEmail: guard.user.email,
@@ -82,7 +82,7 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
       reason,
       data: { adminUserId: guard.userId, action: 'replay-sinalite' },
     });
-    void recordAdminAudit({
+    await recordAdminAudit({
       kind: 'ADMIN_REPLAY_SINALITE',
       adminId: guard.userId,
       adminEmail: guard.user.email,

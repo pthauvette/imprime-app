@@ -122,7 +122,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   }
 
   // Slack notification info-level — application reseller à modérer
-  void sendCriticalAlert({
+  await sendCriticalAlert({
     severity: 'info',
     title: `🎯 Nouvelle demande reseller · ${body.companyName}`,
     body: `Contact : ${body.contactName} (${body.email})${body.website ? `\nSite : ${body.website}` : ''}${body.estimatedMonthlyCents ? `\nVolume estimé : ${(body.estimatedMonthlyCents / 100).toFixed(2)} $ / mois` : ''}`,

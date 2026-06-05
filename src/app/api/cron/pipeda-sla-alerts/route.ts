@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
 
     // Slack alert si critical présents (escalation pour les ≥ 30j)
     if (critical.length > 0) {
-      void sendCriticalAlert({
+      await sendCriticalAlert({
         severity: 'critical',
         title: `⚠ ${critical.length} demande${critical.length > 1 ? 's' : ''} PIPEDA délai dépassé (30j+)`,
         body: `Risque CAI Québec. ${critical.length} request${critical.length > 1 ? 's' : ''} à traiter immédiatement.`,

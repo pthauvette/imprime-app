@@ -72,7 +72,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Slack alert pour les detractors (0-6) avec commentaire — feedback
   // critique qui mérite une intervention admin rapide.
   if (body.score <= 6 && trimmed) {
-    void sendCriticalAlert({
+    await sendCriticalAlert({
       severity: 'warning',
       title: `🚨 NPS detractor (${body.score}/10) avec feedback`,
       body: trimmed.slice(0, 500) + (trimmed.length > 500 ? '…' : ''),

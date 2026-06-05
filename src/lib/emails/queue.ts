@@ -335,7 +335,7 @@ export async function processDelivery(deliveryId: string): Promise<{
 
     // Slack alert si DEAD — l'email est définitivement perdu, manual action requise
     if (reachedMax) {
-      void sendCriticalAlert({
+      await sendCriticalAlert({
         severity: 'critical',
         title: `Email DEAD après ${delivery.maxAttempts} retries — ${delivery.template}`,
         body: `L'email ${delivery.template} à ${delivery.to} a échoué ${newAttempts}× et ne sera plus retenté. Investiguer SES ou contacter le client manuellement.`,

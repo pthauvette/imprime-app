@@ -141,7 +141,7 @@ export async function processSinaliteEvent(
                 'Sinalite CANCELLED — refund Stripe FAILED',
               );
               const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-              void sendCriticalAlert({
+              await sendCriticalAlert({
                 severity: 'critical',
                 title: 'Sinalite CANCELLED — refund Stripe ÉCHOUÉ',
                 body: `Commande annulée par Sinalite mais le refund automatique a échoué. Rembourse manuellement le client.`,

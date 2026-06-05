@@ -65,7 +65,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     },
   });
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_RESELLER_STATUS_CHANGE',
     adminId: guard.userId,
     adminEmail: guard.user.email,

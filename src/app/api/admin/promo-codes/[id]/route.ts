@@ -50,7 +50,7 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
 
   // Audit : ADMIN_PROMO_TOGGLE si c'est juste un on/off, sinon ADMIN_PROMO_UPDATE
   const isJustToggle = Object.keys(body).length === 1 && 'active' in body;
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: isJustToggle ? 'ADMIN_PROMO_TOGGLE' : 'ADMIN_PROMO_UPDATE',
     adminId: guard.userId,
     adminEmail: guard.user.email,

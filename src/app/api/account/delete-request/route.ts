@@ -100,7 +100,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   }
 
   // Slack notification critical-level — PIPEDA compliance, on doit traiter sous 30j max
-  void sendCriticalAlert({
+  await sendCriticalAlert({
     severity: 'warning',
     title: `🗑 Demande suppression compte (PIPEDA) · ${userEmail}`,
     body: `Un user a demandé la suppression de son compte. PIPEDA donne 30 j max pour traiter. Check commandes en cours, crédit parrainage, statut reseller avant d'approuver.${body.reason ? `\n\nRaison : ${body.reason.slice(0, 200)}` : ''}`,

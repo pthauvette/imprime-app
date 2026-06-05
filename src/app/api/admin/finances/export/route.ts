@@ -270,7 +270,7 @@ export const GET = withErrorHandler(async (req: Request) => {
   // ─── Output ─────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_DATA_EXPORT',
     adminId: guard.userId,
     adminEmail: guard.user.email,

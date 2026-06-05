@@ -50,7 +50,7 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
     data: { adminNotes: normalized },
   });
 
-  void recordAdminAudit({
+  await recordAdminAudit({
     kind: 'ADMIN_TEMPLATE_EDIT', // generic edit — `data` discrimine
     adminId: guard.userId,
     adminEmail: guard.user.email,
