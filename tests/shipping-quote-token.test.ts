@@ -35,6 +35,16 @@ describe('shippingQuoteToken', () => {
     expect(verifyShippingQuoteToken({ ...base, productIds: [7, 3, 19, 99] }, t)).toBe(false); // ajout produit
   });
 
+  it('multi-items : une sig émise pour 1 produit NE valide PAS un panier élargi', () => {
+    // /api/shipping/estimate ne signe que le produit en cours ; un panier
+    // multi-items soumet tous les productIds. La sig (1 produit) ne matche donc
+    // pas l'ensemble → c'est ce faux-rejet structurel qui justifie de n'enforcer
+    // ENFORCE_SHIPPING_SIG que sur les commandes mono-produit (orders/create).
+    const singleProductSig = shippingQuoteToken({ ...base, productIds: [7] });
+    expect(verifyShippingQuoteToken({ ...base, productIds: [7] }, singleProductSig)).toBe(true);
+    expect(verifyShippingQuoteToken({ ...base, productIds: [7, 8] }, singleProductSig)).toBe(false);
+  });
+
   it('rejette une sig absente / vide', () => {
     expect(verifyShippingQuoteToken(base, undefined)).toBe(false);
     expect(verifyShippingQuoteToken(base, '')).toBe(false);
