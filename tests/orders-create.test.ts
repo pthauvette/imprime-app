@@ -7,7 +7,7 @@
  * validatePromo, buildItemsSnapshot) sont déjà testés ailleurs.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@/auth', () => ({
   auth: vi.fn(async () => null), // default : guest
@@ -101,6 +101,7 @@ vi.mock('stripe', () => {
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
+import { shippingQuoteToken } from '@/lib/shipping/quote-token';
 
 const URL = 'http://localhost/api/orders/create';
 
@@ -410,5 +411,58 @@ describe('/api/orders/create — DesignDraft ownership (Audit v2 #5.3)', () => {
     );
     // l'ancien update brut (sans garde) n'est plus utilisé
     expect(prisma.designDraft.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('/api/orders/create — enforce du devis signé (ENFORCE_SHIPPING_SIG, audit v3 M6)', () => {
+  // Sig valide pour le validPayload (UPS Standard, 20 $, QC, H2X 1Y4, produit 1).
+  const validSig = () =>
+    shippingQuoteToken({
+      method: 'UPS Standard',
+      price: 20,
+      country: 'CA',
+      province: 'QC',
+      postal: 'H2X 1Y4',
+      productIds: [1],
+    });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('ENFORCE=1 + sig absente → 409 SHIPPING_QUOTE_INVALID', async () => {
+    vi.stubEnv('ENFORCE_SHIPPING_SIG', '1');
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload)); // pas de shippingQuoteSig
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe('SHIPPING_QUOTE_INVALID');
+  });
+
+  it('ENFORCE=1 + sig valide → 200', async () => {
+    vi.stubEnv('ENFORCE_SHIPPING_SIG', '1');
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({ ...validPayload, shippingQuoteSig: validSig() }));
+    expect(res.status).toBe(200);
+  });
+
+  it('ENFORCE=1 + sig valide mais prix altéré après signature → 409', async () => {
+    vi.stubEnv('ENFORCE_SHIPPING_SIG', '1');
+    const { POST } = await import('@/app/api/orders/create/route');
+    // sig signe price=20, on poste 19 → canonical diverge → rejet.
+    const res = await POST(makeReq({ ...validPayload, shippingPrice: 19, shippingQuoteSig: validSig() }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe('SHIPPING_QUOTE_INVALID');
+  });
+
+  it('M1 — ENFORCE=1 + shippingPrice=0 sans sig → 409 (le bypass ne survit plus)', async () => {
+    vi.stubEnv('ENFORCE_SHIPPING_SIG', '1');
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({ ...validPayload, shippingPrice: 0 }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe('SHIPPING_QUOTE_INVALID');
+  });
+
+  it('var absente (log-only) + sig absente → 200 (comportement par défaut inchangé)', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
   });
 });
