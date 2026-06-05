@@ -1,14 +1,13 @@
 /**
- * Happy-path E2E : full wizard de commande step 1 → 7.
+ * Happy-path E2E : full wizard de commande (6 étapes depuis la fusion #303).
  *
  * Couvre :
- *   1. /order/start : category picker
- *   2. /order/product : choisir un produit dans la famille
- *   3. /order/configure : pick options
- *   4. /order/quantity : choisir quantité
- *   5. /order/upload : upload un PDF de test
- *   6. /order/shipping : remplir contact + address
- *   7. /order/review : vérifier le breakdown + payer via Stripe test card
+ *   1. /order/start : category picker (la tuile cartes → /order/cards)
+ *   2. /order/product (ou /order/cards pour les cartes) : choisir le produit
+ *   3. /order/configure : options + QUANTITÉ (slider) + prix live → upload
+ *   4. /order/upload : upload un PDF de test
+ *   5. /order/shipping : remplir contact + address
+ *   6. /order/review : vérifier le breakdown + payer via Stripe test card
  *
  * Stratégie : on tape contre un serveur dev local (pnpm dev) avec les
  * vraies intégrations en STAGE (Sinalite stage + Stripe test mode + S3
@@ -61,8 +60,26 @@ test.describe('Wizard navigation (steps 1-4, no upload/payment)', () => {
     await firstProduct.click();
     await page.waitForURL(/\/order\/configure/);
 
-    // Doit montrer au moins un groupe d'options
-    await expect(page.locator('body')).toContainText(/Stock|qté|qty|Quantit/i);
+    // Config FUSIONNÉE (#303) : slider quantité + prix live + bouton vers upload.
+    await expect(page.locator('input[type="range"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Sous-total/i).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Téléverser le design/i })).toBeVisible();
+  });
+
+  test('parcours cartes : start → /order/cards → configure (produit virtuel #304)', async ({ page }) => {
+    await page.goto('/order/start');
+    const cardsTile = page.locator('a[href="/order/cards"]');
+    await expect(cardsTile).toBeVisible({ timeout: 15_000 });
+    await cardsTile.click();
+    await page.waitForURL(/\/order\/cards/);
+
+    // Papier 14pt (défaut) + finition « Mat » (exact) → résout productId 8.
+    // (Le rendu de la config fusionnée elle-même — slider + prix Sinalite — est
+    // couvert par le test « navigation jusqu'à configure » ci-dessus ; ici on
+    // vérifie uniquement le HANDOFF déterministe cartes → bon productId.)
+    await page.getByRole('tab', { name: 'Mat', exact: true }).click();
+    await page.getByRole('button', { name: /Configurer ma carte/i }).click();
+    await expect(page).toHaveURL(/\/order\/configure\?productId=8(?:\b|&|$)/);
   });
 });
 
@@ -80,19 +97,15 @@ test.describe('Happy path complet : visit → wizard → paye → confirme', () 
     const firstProduct = page.locator('a[href*="/order/configure"]').first();
     await firstProduct.click();
 
-    // ── Step 3 : Configure (accept defaults)
+    // ── Step 3 : Configure (options + quantité fusionnées #303) — accept defaults
     await page.waitForURL(/\/order\/configure/);
-    // Click le bouton continuer / next
-    const nextBtn = page.getByRole('button', { name: /Suivant|Continuer/i }).first();
-    await expect(nextBtn).toBeVisible({ timeout: 10_000 });
+    // Le bouton de config va DIRECTEMENT à l'upload : la quantité (slider) + le
+    // prix live sont sur ce même écran. Plus d'étape /order/quantity séparée.
+    const nextBtn = page.getByRole('button', { name: /Téléverser le design/i });
+    await expect(nextBtn).toBeVisible({ timeout: 15_000 });
     await nextBtn.click();
 
-    // ── Step 4 : Quantity (accept default)
-    await page.waitForURL(/\/order\/quantity/);
-    const qtyNextBtn = page.getByRole('link', { name: /Suivant|Continuer|Téléverse/i }).first();
-    await qtyNextBtn.click();
-
-    // ── Step 5 : Upload PDF
+    // ── Step 4 : Upload PDF
     await page.waitForURL(/\/order\/upload/);
     if (!existsSync(TEST_PDF_PATH)) {
       test.skip(true, `Fixture PDF manquante : ${TEST_PDF_PATH}. Run le helper pour la générer.`);

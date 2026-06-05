@@ -27,7 +27,7 @@ test.describe('/track public order tracking', () => {
     await page.getByPlaceholder(/email/i).fill('random@nobody.ca');
     await page.getByRole('button', { name: /Suivre ma commande/i }).click();
 
-    // L'API doit retourner 404 (générique pour éviter le leak) → error block
+    // L'API doit retourner 404 (générique pour éviter le leak) → error block.
     await expect(page.locator('body')).toContainText(/Aucune commande trouvée/i);
   });
 
@@ -71,15 +71,11 @@ test.describe('Cookie consent banner', () => {
   });
 
   test('si plio_consent cookie déjà set, banner ne s\'affiche pas', async ({ page, context }) => {
-    await context.addCookies([
-      {
-        name: 'plio_consent',
-        value: 'ok',
-        domain: new URL(page.url() || 'http://localhost:3000').hostname,
-        path: '/',
-      },
-    ]);
+    // Navigue d'abord pour établir l'origine, PUIS pose le cookie via son url
+    // (avant le goto, page.url() = about:blank → domaine vide → addCookies throw).
     await page.goto('/');
+    await context.addCookies([{ name: 'plio_consent', value: 'ok', url: page.url() }]);
+    await page.reload();
     // Attente plus que le delay 1.5s pour être sûr
     await page.waitForTimeout(2000);
     await expect(page.getByRole('region', { name: /cookies/i })).not.toBeVisible();
