@@ -279,19 +279,26 @@ export function getVirtualProduct(slug: string): VirtualProduct | undefined {
   return VIRTUAL_PRODUCTS[slug];
 }
 
-/** Papiers disponibles d'un produit virtuel (ceux qui ont ≥ 1 variant). */
-export function virtualPapers(slug: string): VirtualPaper[] {
+/**
+ * Papiers disponibles d'un produit virtuel (ceux qui ont ≥ 1 variant).
+ * Audit v3 L1 — si `allowed` est fourni (productId réellement actifs côté
+ * Sinalite + overrides admin), on ne garde que les papiers ayant ≥ 1 variant
+ * ACTIF, pour ne pas proposer un papier/finition désactivé (rejeté au paiement).
+ */
+export function virtualPapers(slug: string, allowed?: ReadonlySet<number>): VirtualPaper[] {
   const vp = VIRTUAL_PRODUCTS[slug];
   if (!vp) return [];
-  const present = new Set(vp.variants.map((v) => v.paper));
+  const present = new Set(
+    vp.variants.filter((v) => !allowed || allowed.has(v.productId)).map((v) => v.paper),
+  );
   return vp.papers.filter((p) => present.has(p.key));
 }
 
-/** Finitions disponibles pour un papier donné d'un produit virtuel. */
-export function virtualFinishes(slug: string, paper: string): VirtualVariant[] {
+/** Finitions disponibles pour un papier donné d'un produit virtuel (filtrables). */
+export function virtualFinishes(slug: string, paper: string, allowed?: ReadonlySet<number>): VirtualVariant[] {
   const vp = VIRTUAL_PRODUCTS[slug];
   if (!vp) return [];
-  return vp.variants.filter((v) => v.paper === paper);
+  return vp.variants.filter((v) => v.paper === paper && (!allowed || allowed.has(v.productId)));
 }
 
 /** Résout (slug, papier, finition) → productId Sinalite, ou null. */

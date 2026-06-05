@@ -43,6 +43,21 @@ describe('produits virtuels — résolution', () => {
     expect(resolveVirtualProductId('cartes-postales', '18pt', 'matte')).toBeNull(); // pas de vrai 18pt postale
     expect(resolveVirtualProductId('inconnu', '14pt', 'uv')).toBeNull();
   });
+
+  it('L1 — `allowed` filtre papiers + finitions aux productId actifs', () => {
+    // Sans filtre : plusieurs papiers + ≥ 2 finitions sur 14pt.
+    expect(virtualPapers('cartes-de-visite').length).toBeGreaterThan(1);
+    expect(virtualFinishes('cartes-de-visite', '14pt').length).toBeGreaterThan(1);
+
+    // allowed = seulement 14pt/uv (productId 7) actif → 14pt seul papier, uv seule finition.
+    const allowed = new Set([7]);
+    expect(virtualPapers('cartes-de-visite', allowed).map((p) => p.key)).toEqual(['14pt']);
+    const finishes = virtualFinishes('cartes-de-visite', '14pt', allowed);
+    expect(finishes.map((f) => f.finish)).toEqual(['uv']);
+
+    // allowed vide → aucun papier (produit entièrement désactivé).
+    expect(virtualPapers('cartes-de-visite', new Set<number>())).toEqual([]);
+  });
 });
 
 describe('produits virtuels — intégrité du mapping', () => {
