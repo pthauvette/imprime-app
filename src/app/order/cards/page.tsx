@@ -1,23 +1,23 @@
 /**
- * /order/cards — sélecteur Papier × Finition du PRODUIT VIRTUEL « Carte de visite ».
+ * /order/cards — REDIRECT (back-compat).
  *
- * Remplace l'étape « product » (qui listait 25 productId Sinalite quasi-identiques)
- * pour la famille cartes. Le choix papier+finition résout vers un productId réel,
- * puis renvoie au wizard de configuration normal (/order/configure?productId=…).
- *
- * Pilote (demande user) ; généralisable aux autres form-factors plats ensuite.
+ * Le sélecteur de cartes est devenu le produit virtuel générique
+ * /order/v/cartes-de-visite. On garde cette route pour les liens hérités
+ * (le pilote initial, signets, E2E historiques), en préservant designId.
  */
 
-import CardPickerClient from '@/components/wizard/CardPickerClient';
+import { redirect } from 'next/navigation';
+import type { Route } from 'next';
 
-export const metadata = { title: 'Carte de visite — papier & finition' };
 export const dynamic = 'force-dynamic';
 
-export default async function CardsPage({
+export default async function CardsRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ designId?: string }>;
 }) {
   const { designId } = await searchParams;
-  return <CardPickerClient designId={designId ?? null} />;
+  // Cast : /order/v/[slug] est une route dynamique → le path concret n'est pas
+  // inféré par les typed-routes Next.
+  redirect((`/order/v/cartes-de-visite${designId ? `?designId=${designId}` : ''}`) as Route);
 }

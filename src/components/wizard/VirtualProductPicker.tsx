@@ -5,29 +5,36 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo, useState } from 'react';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
-import { cardPapers, cardFinishes, resolveCardProductId } from '@/lib/products/virtual-products';
+import {
+  getVirtualProduct,
+  virtualPapers,
+  virtualFinishes,
+  resolveVirtualProductId,
+} from '@/lib/products/virtual-products';
 
 /**
- * Sélecteur du produit virtuel « Carte de visite » : Papier (axe 1) puis Finition
- * (axe 2, dépendante du papier). Le couple choisi résout un productId Sinalite et
- * renvoie au wizard de config normal. Remplace la liste des 25 cartes redondantes.
+ * Sélecteur GÉNÉRIQUE d'un produit virtuel : Papier (axe 1) puis Finition (axe 2,
+ * dépendante du papier). Le couple choisi résout un productId Sinalite et renvoie
+ * au wizard de config normal. Remplace la liste des productId redondants d'une
+ * famille (cartes de visite, cartes postales, …).
  */
-export default function CardPickerClient({ designId }: { designId: string | null }) {
+export default function VirtualProductPicker({ slug, designId }: { slug: string; designId: string | null }) {
   const router = useRouter();
-  const papers = useMemo(() => cardPapers(), []);
+  const vp = getVirtualProduct(slug)!; // la route valide l'existence en amont
+  const papers = useMemo(() => virtualPapers(slug), [slug]);
 
-  const [paper, setPaper] = useState<string>(papers[0]?.key ?? '14pt');
-  const finishes = useMemo(() => cardFinishes(paper), [paper]);
+  const [paper, setPaper] = useState<string>(papers[0]?.key ?? '');
+  const finishes = useMemo(() => virtualFinishes(slug, paper), [slug, paper]);
   const [finish, setFinish] = useState<string>(finishes[0]?.finish ?? '');
 
   // Changer de papier → reset la finition sur la 1re dispo de ce papier.
   function pickPaper(key: string) {
     setPaper(key);
-    const first = cardFinishes(key)[0];
+    const first = virtualFinishes(slug, key)[0];
     setFinish(first?.finish ?? '');
   }
 
-  const resolvedId = resolveCardProductId(paper, finish);
+  const resolvedId = resolveVirtualProductId(slug, paper, finish);
   const designSuffix = designId ? `&designId=${designId}` : '';
   const nextHref = resolvedId
     ? (`/order/configure?productId=${resolvedId}${designSuffix}` as Route)
@@ -44,7 +51,7 @@ export default function CardPickerClient({ designId }: { designId: string | null
           <span className="breadcrumb-sep">/</span>
           <span className="breadcrumb">
             <Link href={'/order/start' as Route} style={{ color: 'var(--text-muted)' }}>Commander</Link>
-            <span className="breadcrumb-sep">›</span> Carte de visite
+            <span className="breadcrumb-sep">›</span> {vp.name}
           </span>
         </div>
         <div className="progress-block">
@@ -66,9 +73,9 @@ export default function CardPickerClient({ designId }: { designId: string | null
 
       <main className="step-layout">
         <div className="step-content" style={{ maxWidth: 1080 }}>
-          <div className="step-eyebrow">Étape 02 — Carte de visite</div>
+          <div className="step-eyebrow">{vp.eyebrow}</div>
           <h1 className="step-question">Choisis ton <em>papier &amp; ta finition.</em></h1>
-          <p className="step-lede">On a regroupé toutes les cartes en un seul produit — pas besoin de chercher parmi 25 variantes.</p>
+          <p className="step-lede">{vp.lede}</p>
 
           {/* ── Papier ── */}
           <section style={{ padding: '40px 0' }}>
@@ -128,8 +135,12 @@ export default function CardPickerClient({ designId }: { designId: string | null
 
         <aside className="recap">
           <div>
-            <div className="recap-section-label">Ta carte</div>
+            <div className="recap-section-label">Ton choix</div>
             <div style={{ marginTop: 12 }}>
+              <div className="recap-config-row">
+                <span className="label">Produit</span>
+                <span className="value">{vp.name}</span>
+              </div>
               <div className="recap-config-row">
                 <span className="label">Papier</span>
                 <span className="value">{paperMeta?.label ?? '—'}</span>
@@ -159,7 +170,7 @@ export default function CardPickerClient({ designId }: { designId: string | null
             onClick={() => nextHref && router.push(nextHref)}
             disabled={!nextHref}
           >
-            Configurer ma carte <kbd>↵</kbd>
+            Configurer →
           </button>
         </div>
       </footer>
@@ -171,8 +182,7 @@ function swatchClass(paperKey: string): string {
   switch (paperKey) {
     case 'kraft': return 'kraft';
     case 'enviro': case 'linen': return 'matte';
-    case 'soft': case 'ultrasmooth': return 'soft';
-    case 'pearl': case 'synthetic': return 'soft';
+    case 'ultrasmooth': case 'pearl': case 'synthetic': return 'soft';
     default: return 'coated';
   }
 }

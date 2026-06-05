@@ -68,17 +68,17 @@ test.describe('Wizard navigation (steps 1-4, no upload/payment)', () => {
 
   test('parcours cartes : start → /order/cards → configure (produit virtuel #304)', async ({ page }) => {
     await page.goto('/order/start');
-    const cardsTile = page.locator('a[href="/order/cards"]');
+    const cardsTile = page.locator('a[href="/order/v/cartes-de-visite"]');
     await expect(cardsTile).toBeVisible({ timeout: 15_000 });
     await cardsTile.click();
-    await page.waitForURL(/\/order\/cards/);
+    await page.waitForURL(/\/order\/v\/cartes-de-visite/);
 
     // Papier 14pt (défaut) + finition « Mat » (exact) → résout productId 8.
     // (Le rendu de la config fusionnée elle-même — slider + prix Sinalite — est
     // couvert par le test « navigation jusqu'à configure » ci-dessus ; ici on
     // vérifie uniquement le HANDOFF déterministe cartes → bon productId.)
     await page.getByRole('tab', { name: 'Mat', exact: true }).click();
-    await page.getByRole('button', { name: /Configurer ma carte/i }).click();
+    await page.getByRole('button', { name: /Configurer/i }).click();
     await expect(page).toHaveURL(/\/order\/configure\?productId=8(?:\b|&|$)/);
   });
 });

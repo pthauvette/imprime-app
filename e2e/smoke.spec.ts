@@ -121,7 +121,7 @@ test.describe('Wizard fusionné — produit virtuel cartes (#303/#304/#305)', ()
 
     // 16pt + UV haute brillance → doit résoudre productId 16 (mapping curé).
     await page.getByRole('tab', { name: /UV haute brillance/i }).click();
-    await page.getByRole('button', { name: /Configurer ma carte/i }).click();
+    await page.getByRole('button', { name: /Configurer/i }).click();
     await expect(page).toHaveURL(/\/order\/configure\?productId=16(?:\b|&|$)/);
   });
 
@@ -132,10 +132,21 @@ test.describe('Wizard fusionné — produit virtuel cartes (#303/#304/#305)', ()
 
   test('la tuile « Cartes de visite » du start ouvre le produit virtuel', async ({ page }) => {
     await page.goto('/order/start');
-    const cardsTile = page.locator('a[href="/order/cards"]');
+    const cardsTile = page.locator('a[href="/order/v/cartes-de-visite"]');
     await expect(cardsTile).toBeVisible({ timeout: 15_000 });
     await cardsTile.click();
-    await expect(page).toHaveURL(/\/order\/cards/);
+    await expect(page).toHaveURL(/\/order\/v\/cartes-de-visite/);
     await expect(page.getByRole('heading', { name: 'Papier', exact: true })).toBeVisible();
+  });
+
+  test('produit virtuel cartes postales : papier × finition résout le bon productId', async ({ page }) => {
+    await page.goto('/order/v/cartes-postales');
+    await expect(page.getByRole('heading', { name: 'Papier', exact: true })).toBeVisible();
+
+    // 16pt postale expose « Lamination mate » (#24, absent du 14pt).
+    await page.getByRole('button', { name: /^16pt/ }).click();
+    await page.getByRole('tab', { name: /Lamination mate/i }).click();
+    await page.getByRole('button', { name: /Configurer/i }).click();
+    await expect(page).toHaveURL(/\/order\/configure\?productId=24(?:\b|&|$)/);
   });
 });
