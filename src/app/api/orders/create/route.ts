@@ -301,16 +301,42 @@ export const POST = withErrorHandler(async (req: Request) => {
       payload.shippingQuoteSig,
     );
     if (!sigValid) {
+      // PÉRIMÈTRE DE LA SIG : /api/shipping/estimate ne signe QUE le(s) productId
+      // du produit en cours (la page shipping est mono-produit dans le wizard).
+      // Or un panier multi-items soumet tous les productIds → la canonical inclut
+      // l'ensemble trié → la sig (couvrant 1 produit) ne matche pas. Donc un faux
+      // rejet est STRUCTUREL en multi-items tant que la sig ne couvre pas tout le
+      // panier (follow-up). On n'enforce donc QUE sur les commandes mono-produit,
+      // où la sig couvre l'intégralité ; le multi-items reste log-only (jamais de
+      // faux rejet) avec un log distinct pour mesurer son volume.
+      const singleItem = payload.items.length === 1;
+      const enforce = process.env.ENFORCE_SHIPPING_SIG === '1' && singleItem;
       log.warn(
         {
           shippingMethod: payload.shippingMethod,
           shippingPrice: payload.shippingPrice,
           province: payload.shippingAddress.province,
           hasSig: !!payload.shippingQuoteSig,
+          itemCount: payload.items.length,
           email: payload.contact.email,
+          enforced: enforce,
         },
-        'orders/create: devis de livraison non signé/invalide (log-only — futur reject)',
+        enforce
+          ? 'orders/create: devis de livraison non signé/invalide (REJETÉ 409)'
+          : payload.items.length > 1
+            ? 'orders/create: devis non signé/invalide — multi-items (log-only, sig hors-périmètre)'
+            : 'orders/create: devis de livraison non signé/invalide (log-only)',
       );
+      if (enforce) {
+        return NextResponse.json(
+          {
+            error:
+              'Le devis de livraison a expiré ou changé. Recharge la page de livraison pour obtenir un nouveau prix.',
+            code: 'SHIPPING_QUOTE_INVALID',
+          },
+          { status: 409 },
+        );
+      }
     }
   }
 
