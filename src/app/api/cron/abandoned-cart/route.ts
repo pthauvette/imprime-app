@@ -180,8 +180,8 @@ export async function GET(req: NextRequest) {
       failed,
     };
     log.info(result, 'cron/abandoned-cart ran');
-    void pingCronHealthcheck('abandoned-cart', 'success', { sent });
-    void recordCronRun({
+    await pingCronHealthcheck('abandoned-cart', 'success', { sent });
+    await recordCronRun({
       name: 'abandoned-cart',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -191,8 +191,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/abandoned-cart failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('abandoned-cart', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('abandoned-cart', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'abandoned-cart',
       status: 'fail',
       latencyMs: Date.now() - start,

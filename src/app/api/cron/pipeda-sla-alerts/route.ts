@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   if (!adminEmailsRaw) {
     const result = { ok: true, latencyMs: Date.now() - start, skipped: 'admin_emails_not_configured' };
     log.warn('cron/pipeda-sla-alerts: ADMIN_EMAILS not configured — skip');
-    void recordCronRun({ name: 'pipeda-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
+    await recordCronRun({ name: 'pipeda-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
     return NextResponse.json(result);
   }
   const recipients = adminEmailsRaw.split(',').map((s) => s.trim()).filter(Boolean);
@@ -73,8 +73,8 @@ export async function GET(req: NextRequest) {
     if (pending.length === 0) {
       const result = { ok: true, latencyMs: Date.now() - start, warned: 0, critical: 0 };
       log.info(result, 'cron/pipeda-sla-alerts ran (zero stuck)');
-      void pingCronHealthcheck('pipeda-sla-alerts', 'success', result);
-      void recordCronRun({ name: 'pipeda-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
+      await pingCronHealthcheck('pipeda-sla-alerts', 'success', result);
+      await recordCronRun({ name: 'pipeda-sla-alerts', status: 'success', latencyMs: Date.now() - start, data: result });
       return NextResponse.json(result);
     }
 
@@ -155,8 +155,8 @@ export async function GET(req: NextRequest) {
       sent,
     };
     log.info(result, 'cron/pipeda-sla-alerts ran');
-    void pingCronHealthcheck('pipeda-sla-alerts', 'success', { pending: pending.length, critical: critical.length });
-    void recordCronRun({
+    await pingCronHealthcheck('pipeda-sla-alerts', 'success', { pending: pending.length, critical: critical.length });
+    await recordCronRun({
       name: 'pipeda-sla-alerts',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -166,8 +166,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/pipeda-sla-alerts failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('pipeda-sla-alerts', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('pipeda-sla-alerts', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'pipeda-sla-alerts',
       status: 'fail',
       latencyMs: Date.now() - start,

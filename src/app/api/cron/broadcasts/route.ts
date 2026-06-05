@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
 
     if (due.length === 0) {
       const result = { ok: true, latencyMs: Date.now() - start, processed: 0, reaped: reaped.count };
-      void pingCronHealthcheck('broadcasts', 'success', { processed: 0 });
-      void recordCronRun({ name: 'broadcasts', status: 'success', latencyMs: Date.now() - start, data: { processed: 0, reaped: reaped.count } });
+      await pingCronHealthcheck('broadcasts', 'success', { processed: 0 });
+      await recordCronRun({ name: 'broadcasts', status: 'success', latencyMs: Date.now() - start, data: { processed: 0, reaped: reaped.count } });
       return NextResponse.json(result);
     }
 
@@ -110,8 +110,8 @@ export async function GET(req: NextRequest) {
       reaped: reaped.count,
     };
     log.info(result, 'cron/broadcasts ran');
-    void pingCronHealthcheck('broadcasts', 'success', { processed, totalEnqueued });
-    void recordCronRun({
+    await pingCronHealthcheck('broadcasts', 'success', { processed, totalEnqueued });
+    await recordCronRun({
       name: 'broadcasts',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -121,8 +121,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/broadcasts failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('broadcasts', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('broadcasts', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'broadcasts',
       status: 'fail',
       latencyMs: Date.now() - start,

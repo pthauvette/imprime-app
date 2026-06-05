@@ -97,8 +97,8 @@ export async function GET(req: NextRequest) {
       throttled,
     };
     log.info(result, 'cron/webhook-deadletter-alert ran');
-    void pingCronHealthcheck('webhook-deadletter-alert', 'success', { total, alerted });
-    void recordCronRun({
+    await pingCronHealthcheck('webhook-deadletter-alert', 'success', { total, alerted });
+    await recordCronRun({
       name: 'webhook-deadletter-alert',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -108,8 +108,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/webhook-deadletter-alert failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('webhook-deadletter-alert', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('webhook-deadletter-alert', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'webhook-deadletter-alert',
       status: 'fail',
       latencyMs: Date.now() - start,

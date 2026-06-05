@@ -70,8 +70,8 @@ export async function GET(req: NextRequest) {
     };
 
     log.info(result, 'cron/cleanup ran');
-    void pingCronHealthcheck('cleanup', 'success');
-    void recordCronRun({
+    await pingCronHealthcheck('cleanup', 'success');
+    await recordCronRun({
       name: 'cleanup',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     log.error({ err }, 'cron/cleanup failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('cleanup', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('cleanup', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'cleanup',
       status: 'fail',
       latencyMs: Date.now() - start,

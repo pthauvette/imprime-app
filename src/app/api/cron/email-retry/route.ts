@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
   const ready = await getEmailsReadyForRetry(BATCH_SIZE);
 
   if (ready.length === 0) {
-    void pingCronHealthcheck('email-retry', 'success', { processed: 0 });
-    void recordCronRun({
+    await pingCronHealthcheck('email-retry', 'success', { processed: 0 });
+    await recordCronRun({
       name: 'email-retry',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -75,8 +75,8 @@ export async function GET(req: NextRequest) {
   };
 
     log.info(result, 'cron/email-retry ran');
-    void pingCronHealthcheck('email-retry', 'success', { sent, stillFailed });
-    void recordCronRun({
+    await pingCronHealthcheck('email-retry', 'success', { sent, stillFailed });
+    await recordCronRun({
       name: 'email-retry',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -88,8 +88,8 @@ export async function GET(req: NextRequest) {
     // recordCronRun('fail') + healthcheck fail.
     log.error({ err }, 'cron/email-retry failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('email-retry', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('email-retry', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 'email-retry',
       status: 'fail',
       latencyMs: Date.now() - start,

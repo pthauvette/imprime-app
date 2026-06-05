@@ -41,12 +41,18 @@ function parseEnv(raw: string | undefined): Map<string, string> {
 export type CronStatus = 'success' | 'fail' | 'start';
 
 /**
- * Ping un healthcheck pour un cron donné. Async best-effort : on n'attend
- * pas si HC est down, mais on log si fail. Status 'start' utile pour
- * deux checks (heartbeat + post-success) avec un timeout court.
+ * Ping un healthcheck pour un cron donné. Best-effort : ne throw jamais (try/
+ * catch interne), borné par AbortSignal.timeout(5000ms).
  *
- * Body : optionnel — détails du run (count emails envoyés, etc.) sera
- * affiché dans le dashboard HC pour debug rapide.
+ * ⚠️ DOIT être AWAITÉ dans les handlers cron — surtout PAS `void pingCronHealthcheck(...)`.
+ * En serverless (Lambda Amplify), dès que le handler renvoie sa réponse, AWS GÈLE
+ * le conteneur : une promesse flottante ne reprend qu'au dégel de la prochaine
+ * invocation (parfois des minutes plus tard) ou est PERDUE si le conteneur est
+ * recyclé → ping en retard/jamais = fausses alertes « cron down ». (Audit prod
+ * 2026-06-05 : `void` ici donnait des fetch « aborted by timeout » au dégel.)
+ *
+ * Body : optionnel — détails du run (count emails envoyés, etc.) affichés dans
+ * le dashboard HC pour debug rapide.
  */
 export async function pingCronHealthcheck(
   name: string,

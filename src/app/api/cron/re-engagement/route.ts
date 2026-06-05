@@ -199,11 +199,11 @@ export async function GET(req: NextRequest) {
 
     summary.durationMs = Date.now() - start;
     log.info({ summary }, 'cron/re-engagement done');
-    void pingCronHealthcheck('re-engagement', 'success', {
+    await pingCronHealthcheck('re-engagement', 'success', {
       followUpSent: summary.followUp.sent,
       winbackSent: summary.winback.sent,
     });
-    void recordCronRun({
+    await recordCronRun({
       name: 're-engagement',
       status: 'success',
       latencyMs: Date.now() - start,
@@ -220,8 +220,8 @@ export async function GET(req: NextRequest) {
     // query initiale skip recordCronRun('fail') + healthcheck.
     log.error({ err }, 'cron/re-engagement failed');
     const errMsg = err instanceof Error ? err.message : 'unknown';
-    void pingCronHealthcheck('re-engagement', 'fail', { error: errMsg });
-    void recordCronRun({
+    await pingCronHealthcheck('re-engagement', 'fail', { error: errMsg });
+    await recordCronRun({
       name: 're-engagement',
       status: 'fail',
       latencyMs: Date.now() - start,

@@ -37,7 +37,16 @@ export interface RecordCronRunInput {
   data?: Record<string, unknown>;
 }
 
-/** Insère une row CronRun. Best-effort — ne throw jamais. */
+/**
+ * Insère une row CronRun. Best-effort — ne throw jamais.
+ *
+ * ⚠️ DOIT être AWAITÉ dans les handlers cron (PAS `void recordCronRun(...)`).
+ * Serverless : une promesse flottante est gelée quand le handler retourne →
+ * l'audit /admin/crons arrive en retard de plusieurs minutes (ou est perdu si le
+ * conteneur Lambda est recyclé), masquant un cron mort. Audit prod 2026-06-05 :
+ * un `void` ici a produit un faux « slow query: CronRun.create took 138636ms »
+ * (= temps GELÉ, pas du temps DB).
+ */
 export async function recordCronRun(input: RecordCronRunInput): Promise<void> {
   try {
     await prisma.cronRun.create({
