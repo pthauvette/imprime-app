@@ -257,6 +257,18 @@ function ReviewPageInner() {
     }
     let cancelled = false;
     (async () => {
+      // H2 audit v3 — reset au début de CHAQUE run. L'effet re-tourne à chaque
+      // mutation du panier (« Retirer » → dep allItemsKey) ou de promo. Sans ce
+      // reset, un re-create qui ÉCHOUE (ré-estimation shipping full-cart qui throw,
+      // méthode disparue, 409 serveur) laissait l'ANCIEN clientSecret/breakdown
+      // montés → le formulaire de paiement restait payable sur l'ancien panier/
+      // montant, avec un bandeau d'erreur périmé à côté. On masque donc le
+      // formulaire (clientSecret/breakdown = null) tant qu'un nouveau devis valide
+      // n'est pas obtenu, et on efface l'erreur périmée.
+      setLoading(true);
+      setError(null);
+      setClientSecret(null);
+      setBreakdown(null);
       try {
         // Pour le anti-tampering check, on doit envoyer un expectedSubtotal
         // proche du compute serveur. On loop tous les items + appelle
