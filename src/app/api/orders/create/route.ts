@@ -284,11 +284,16 @@ export const POST = withErrorHandler(async (req: Request) => {
   // est déjà recomputé/vérifié (PRICE_MISMATCH) ; le shipping ne l'était pas →
   // un client pouvait sous-payer la livraison. On vérifie la sig HMAC émise par
   // /api/shipping/estimate, qui lie prix+méthode+destination+produits.
-  // ROLLOUT : log-only pour l'instant (on ne peut pas tester le funnel E2E en
-  // local ; un bug de plomberie rejetterait TOUS les checkouts). Une fois les
-  // logs prod confirmant que le trafic légitime envoie une sig valide → flip
-  // vers un reject 409 ici (suivi).
-  if (payload.shippingPrice > 0) {
+  // ROLLOUT : log-only par défaut ; reject 409 quand ENFORCE_SHIPPING_SIG=1.
+  //
+  // Audit v3 M1 — la vérif tourne pour TOUTE valeur de shippingPrice, Y COMPRIS
+  // 0. Avant, le `if (> 0)` laissait un POST direct `shippingPrice: 0` sauter
+  // entièrement la sig + l'enforce + le log → livraison facturée 0 $ (le bypass
+  // SURVIVAIT à ENFORCE_SHIPPING_SIG). Aucun chemin légitime n'envoie 0 côté
+  // client : le GOLD free-shipping est un perk calculé SERVER-SIDE plus bas
+  // (applyShippingPerks), à partir d'un prix client > 0 et signé. Donc un 0 sans
+  // sig valide = tampering.
+  {
     const sigValid = verifyShippingQuoteToken(
       {
         method: payload.shippingMethod,
