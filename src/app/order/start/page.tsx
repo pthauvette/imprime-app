@@ -12,6 +12,7 @@ import type { Route } from 'next';
 import { sinalite, SinaliteError } from '@/lib/sinalite/client';
 import { applyProductOverrides } from '@/lib/products/overrides';
 import { groupProductsByFamily } from '@/lib/catalogue';
+import { VIRTUAL_PRODUCT_SLUGS } from '@/lib/products/virtual-products';
 import CategoryIcon from '@/components/wizard/CategoryIcon';
 import { formatNumber } from '@/lib/format';
 import { auth } from '@/auth';
@@ -278,10 +279,11 @@ export default async function OrderStartPage({
             {families.map((family, i) => (
               <Link
                 key={family.slug}
-                // Produit virtuel (pilote) : la famille cartes ouvre le sélecteur
-                // Papier × Finition (/order/cards) au lieu de lister 25 productId
-                // Sinalite quasi-identiques. Les autres familles : flow normal.
-                href={(family.slug === 'cartes-de-visite' ? '/order/cards' : `/order/product?category=${family.slug}`) as Route}
+                // Produit virtuel : les familles « flat-print » (cartes de visite,
+                // cartes postales, …) ouvrent le sélecteur Papier × Finition
+                // (/order/v/<slug>) au lieu de lister N productId Sinalite
+                // quasi-identiques. Les autres familles : flow normal /order/product.
+                href={(VIRTUAL_PRODUCT_SLUGS.has(family.slug) ? `/order/v/${family.slug}` : `/order/product?category=${family.slug}`) as Route}
                 className="cat-card"
                 style={{ '--i': String(i) } as React.CSSProperties}
               >
