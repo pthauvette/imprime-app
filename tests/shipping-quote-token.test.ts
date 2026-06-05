@@ -45,6 +45,16 @@ describe('shippingQuoteToken', () => {
     expect(verifyShippingQuoteToken({ ...base, productIds: [7, 8] }, singleProductSig)).toBe(false);
   });
 
+  it('multi-items : une sig émise pour le PANIER COMPLET valide ce panier (ordre indifférent)', () => {
+    // Depuis la ré-estimation full-cart à /order/review, la sig couvre TOUS les
+    // productIds → l'enforce multi-items ne produit plus de faux rejet.
+    const cartSig = shippingQuoteToken({ ...base, productIds: [7, 8] });
+    expect(verifyShippingQuoteToken({ ...base, productIds: [7, 8] }, cartSig)).toBe(true);
+    expect(verifyShippingQuoteToken({ ...base, productIds: [8, 7] }, cartSig)).toBe(true); // canonical trie
+    expect(verifyShippingQuoteToken({ ...base, productIds: [7] }, cartSig)).toBe(false); // sous-ensemble
+    expect(verifyShippingQuoteToken({ ...base, productIds: [7, 8, 9] }, cartSig)).toBe(false); // sur-ensemble
+  });
+
   it('rejette une sig absente / vide', () => {
     expect(verifyShippingQuoteToken(base, undefined)).toBe(false);
     expect(verifyShippingQuoteToken(base, '')).toBe(false);
