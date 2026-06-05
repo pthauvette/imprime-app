@@ -1,15 +1,17 @@
 /**
- * /settings — Server Component lisant le profil user pour affichage read-only.
+ * /settings — Server Component : profil user + rectification self-serve.
  *
- * MVP : on affiche les infos (nom, email, téléphone) sans formulaire d'édition.
- * La page /settings/email-preferences existe déjà pour gérer les opt-ins email.
+ * Édition du profil (prénom/nom/téléphone) via <EditProfileForm> → Server Action
+ * updateProfile (Loi 25 art. 27, droit de rectification). Le courriel reste
+ * read-only ici (identité d'auth magic-link). Les opt-ins email vivent dans
+ * /settings/email-preferences.
  *
  * Suppression GDPR/Loi 25 : gérée par le flux dédié /settings/privacy
  * (<DeleteAccountRequest> → POST /api/account/delete-request). Le bouton
  * « Supprimer mon compte » de cette page y renvoie (pas de duplication).
  *
  * Out of scope MVP :
- *   - Édition inline du profil (firstName/lastName/phone) — bouton désactivé
+ *   - Changement de courriel (= re-vérification du magic-link)
  *   - Gestion des sessions actives
  *   - 2FA / TOTP / FIDO2
  */
@@ -18,6 +20,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import EditProfileForm from '@/components/account/EditProfileForm';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatDate } from '@/lib/format';
@@ -44,9 +47,6 @@ export default async function SettingsPage() {
 
   if (!user) redirect('/sign-in?callbackUrl=/settings' as Route);
 
-  const fullName =
-    [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || '—';
-
   return (
     <div className="acct-shell">
       <Sidebar active="/settings" />
@@ -65,23 +65,27 @@ export default async function SettingsPage() {
         <div className="panel" style={{ marginBottom: 24 }}>
           <div className="panel-header">
             <h2 className="panel-title">Informations personnelles</h2>
-            {/* Round 9 — bouton « Modifier » disabled retiré : il n'y a pas
-                encore d'édition de profil, et un bouton désactivé sans
-                alternative est un faux signal. À réintroduire quand l'édition
-                inline existera. */}
           </div>
-          <div
-            style={{
-              display: 'grid',
-              gap: 16,
-              padding: '16px 0',
+
+          {/* Rectification self-serve (Loi 25 art. 27) — prénom/nom/téléphone. */}
+          <EditProfileForm
+            initial={{
+              firstName: user.firstName ?? '',
+              lastName: user.lastName ?? '',
+              phone: user.phone ?? '',
             }}
-          >
-            <KV label="Nom complet" value={fullName} />
+          />
+
+          {/* Lecture seule : le courriel = identité d'auth (non éditable ici). */}
+          <div style={{ display: 'grid', gap: 16, padding: '20px 0 0' }}>
             <KV label="Courriel" value={user.email} />
-            <KV label="Téléphone" value={user.phone ?? '—'} />
             <KV label="Membre depuis" value={formatDate(user.createdAt)} />
           </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0', lineHeight: 1.5 }}>
+            Pour changer ton courriel, écris-nous à{' '}
+            <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>bonjour@plio.ca</a>{' '}
+            (il sert d&apos;identifiant de connexion).
+          </p>
         </div>
 
         {/* Préférences email */}
