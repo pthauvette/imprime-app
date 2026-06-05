@@ -274,6 +274,44 @@ function ReviewPageInner() {
         );
         const expectedSubtotal = prices.reduce((sum, p) => sum + (typeof p === 'number' ? p : 0), 0);
 
+        // Devis de livraison — périmètre de la sig. /api/shipping/estimate (étape
+        // shipping) ne signe que le DERNIER produit (page mono-produit). En
+        // multi-items, on ré-estime ici le panier COMPLET → prix correct (sinon
+        // sous-facturation : un seul produit tarifé pour tout le panier) + sig
+        // couvrant tous les productIds (sinon faux rejet de la vérif anti-tamper
+        // server-side). Recalculé à chaque mutation du panier (dep allItemsKey),
+        // donc cohérent même après un « Retirer » à review. Mono-produit : la sig
+        // du shipping step couvre déjà tout → on la réutilise telle quelle.
+        let effectiveShipPrice = ship.price;
+        let effectiveShipSig = ship.sig;
+        if (allItems.length > 1) {
+          const estRes = await fetch('/api/shipping/estimate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items: allItems.map((it) => ({
+                productId: it.productId,
+                options: Object.fromEntries(it.optionIds.map((id, i) => [`opt_${i}`, String(id)])),
+              })),
+              shippingInfo: { ShipState: ship.province, ShipZip: ship.postalCode, ShipCountry: 'CA' },
+            }),
+          });
+          if (!estRes.ok) {
+            throw new Error('Impossible de recalculer la livraison pour ce panier. Réessaie dans un instant.');
+          }
+          const estData = await estRes.json();
+          const match = (estData.methods ?? []).find(
+            (m: { method: string; price: number; sig: string }) => m.method === ship.method,
+          );
+          if (!match) {
+            throw new Error(
+              'La méthode de livraison choisie n’est plus disponible pour ce panier. Retourne à l’étape Livraison pour la re-sélectionner.',
+            );
+          }
+          effectiveShipPrice = match.price;
+          effectiveShipSig = match.sig;
+        }
+
         const createRes = await fetch('/api/orders/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -287,9 +325,10 @@ function ReviewPageInner() {
             contact: { firstName: ship.firstName, lastName: ship.lastName, email: ship.email, phone: ship.phone },
             shippingAddress: { line1: ship.line1, line2: ship.line2, city: ship.city, province: ship.province, postalCode: ship.postalCode },
             shippingMethod: ship.method,
-            shippingPrice: ship.price,
-            // Round 1 audit — sig du devis de livraison (vérifiée server-side)
-            ...(ship.sig ? { shippingQuoteSig: ship.sig } : {}),
+            shippingPrice: effectiveShipPrice,
+            // Round 1 audit — sig du devis de livraison (vérifiée server-side).
+            // En multi-items = sig ré-émise pour le panier complet (ci-dessus).
+            ...(effectiveShipSig ? { shippingQuoteSig: effectiveShipSig } : {}),
             // Round 26 #2 — instructions livraison customer (optional)
             ...(ship.note ? { shippingNote: ship.note } : {}),
             expectedSubtotal,
@@ -396,7 +435,7 @@ function ReviewPageInner() {
               <div style={{ marginTop: 12 }}>
                 <Row label="Destinataire" value={`${ship.firstName} ${ship.lastName}`} />
                 <Row label="Adresse" value={`${ship.line1}, ${ship.city} ${ship.province} ${ship.postalCode}`} />
-                <Row label="Livraison" value={`${ship.method} · ${ship.price.toFixed(2)} $`} />
+                <Row label="Livraison" value={`${ship.method} · ${(breakdown?.shipping ?? ship.price).toFixed(2)} $`} />
               </div>
 
               {/* "Ajouter un autre produit" — visible si pas full */}
