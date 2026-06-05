@@ -13,13 +13,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Public pages render', () => {
-  test('landing page loads avec le hero "Imprime ce que tu veux"', async ({ page }) => {
+  test('landing page loads avec le hero + CTA commande', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/Plio/);
-    // Hero principal
-    await expect(page.getByRole('heading', { name: /Imprime ce que tu veux/i })).toBeVisible();
-    // CTA principal
-    await expect(page.getByRole('link', { name: /Démarrer un devis/i }).first()).toBeVisible();
+    // Hero principal (le H1 réel — « Imprime ce que tu veux » n'est que le <title>)
+    await expect(page.getByRole('heading', { name: /Imprime tes cartes/i })).toBeVisible();
+    // CTA principal vers le wizard de commande
+    await expect(page.getByRole('link', { name: /Démarrer une commande|Commencer ma commande/i }).first()).toBeVisible();
   });
 
   test('pricing page affiche les tiers', async ({ page }) => {
@@ -105,5 +105,37 @@ test.describe('SEO + accessibility basics', () => {
       const res = await page.goto(path);
       expect(res?.status(), `${path} should be 200`).toBe(200);
     }
+  });
+});
+
+test.describe('Wizard fusionné — produit virtuel cartes (#303/#304/#305)', () => {
+  test('produit virtuel cartes : papier × finition résout le bon productId', async ({ page }) => {
+    await page.goto('/order/cards');
+    await expect(page.getByRole('heading', { name: 'Papier', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Finition', exact: true })).toBeVisible();
+
+    // 16pt expose une finition « Soft touch » (absente du 14pt par défaut) →
+    // prouve que l'axe finition est bien dépendant du papier.
+    await page.getByRole('button', { name: /^16pt/ }).click();
+    await expect(page.getByRole('tab', { name: /Soft touch/i })).toBeVisible();
+
+    // 16pt + UV haute brillance → doit résoudre productId 16 (mapping curé).
+    await page.getByRole('tab', { name: /UV haute brillance/i }).click();
+    await page.getByRole('button', { name: /Configurer ma carte/i }).click();
+    await expect(page).toHaveURL(/\/order\/configure\?productId=16(?:\b|&|$)/);
+  });
+
+  test('ancienne route /order/quantity redirige vers /order/configure (fusion #303)', async ({ page }) => {
+    await page.goto('/order/quantity?productId=7&options=4');
+    await expect(page).toHaveURL(/\/order\/configure/);
+  });
+
+  test('la tuile « Cartes de visite » du start ouvre le produit virtuel', async ({ page }) => {
+    await page.goto('/order/start');
+    const cardsTile = page.locator('a[href="/order/cards"]');
+    await expect(cardsTile).toBeVisible({ timeout: 15_000 });
+    await cardsTile.click();
+    await expect(page).toHaveURL(/\/order\/cards/);
+    await expect(page.getByRole('heading', { name: 'Papier', exact: true })).toBeVisible();
   });
 });
