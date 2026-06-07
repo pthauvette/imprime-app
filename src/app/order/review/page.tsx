@@ -560,7 +560,11 @@ function ReviewPageInner() {
           )}
         </div>
 
-        <aside className="recap" style={{ padding: 0 }}>
+        {/* Audit mobile — `recap-payment` : sur les AUTRES étapes le `.recap`
+            (résumé) est masqué <1100px ; ici il contient le PAIEMENT, qui DOIT
+            rester visible sur mobile (sinon checkout impossible). Override CSS
+            ciblé dans globals.css (.recap.recap-payment). */}
+        <aside className="recap recap-payment" style={{ padding: 0 }}>
           <div style={{ padding: 32, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-md)', margin: 32 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '-0.02em', fontWeight: 400, margin: 0 }}>Paiement</h2>
