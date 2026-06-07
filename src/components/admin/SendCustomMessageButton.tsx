@@ -101,7 +101,7 @@ export default function SendCustomMessageButton({
           <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400 }}>
             Message à <span style={{ color: 'var(--accent-primary)' }}>{customerEmail}</span>
           </h3>
-          <button onClick={() => setOpen(false)} style={{ fontSize: 18, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+          <button onClick={() => setOpen(false)} aria-label="Fermer" style={{ fontSize: 18, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', width: 44, height: 44, display: 'grid', placeItems: 'center', lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>

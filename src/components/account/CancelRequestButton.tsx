@@ -102,7 +102,7 @@ export default function CancelRequestButton({
           <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400 }}>
             Demander l&apos;annulation
           </h3>
-          <button onClick={() => setOpen(false)} style={{ fontSize: 22, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+          <button onClick={() => setOpen(false)} aria-label="Fermer" style={{ fontSize: 22, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', width: 44, height: 44, display: 'grid', placeItems: 'center', lineHeight: 1 }}>×</button>
         </div>
 
         {!feedback?.ok && (
