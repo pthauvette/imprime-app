@@ -206,12 +206,12 @@ function ShippingPageInner() {
             {/* Round 40 #2 — auto-fit columns stack to 1-col under 400px (was forced 2-col) */}
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-                <Field label="Prénom" value={firstName} onChange={setFirstName} />
-                <Field label="Nom" value={lastName} onChange={setLastName} />
+                <Field label="Prénom" value={firstName} onChange={setFirstName} autoComplete="given-name" />
+                <Field label="Nom" value={lastName} onChange={setLastName} autoComplete="family-name" />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                <Field label="Email" value={email} onChange={setEmail} type="email" invalid={email.trim().length > 0 && !emailValid} />
-                <Field label="Téléphone" value={phone} onChange={setPhone} type="tel" />
+                <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" inputMode="email" invalid={email.trim().length > 0 && !emailValid} />
+                <Field label="Téléphone" value={phone} onChange={setPhone} type="tel" autoComplete="tel" inputMode="tel" />
               </div>
             </div>
           </Section>
@@ -234,9 +234,9 @@ function ShippingPageInner() {
                   }}
                 />
               </FieldWrapper>
-              <Field label="Adresse 2 (suite, app, unité — optionnel)" value={line2} onChange={setLine2} />
+              <Field label="Adresse 2 (suite, app, unité — optionnel)" value={line2} onChange={setLine2} autoComplete="address-line2" />
               <div className="ship-addr-grid">
-                <Field label="Ville" value={city} onChange={setCity} />
+                <Field label="Ville" value={city} onChange={setCity} autoComplete="address-level2" />
                 <FieldWrapper label="Province">
                   <select
                     value={province}
@@ -257,6 +257,7 @@ function ShippingPageInner() {
                     onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                     placeholder="A1A 1A1"
                     maxLength={7}
+                    autoComplete="postal-code"
                     style={{ width: '100%', border: 0, background: 'transparent', font: 'inherit', color: 'var(--text-primary)', outline: 'none', textTransform: 'uppercase' }}
                   />
                 </FieldWrapper>
@@ -448,13 +449,18 @@ function Section({ roman, title, children }: { roman: string; title: string; chi
   );
 }
 
-function Field({ label, value, onChange, type = 'text', invalid }: { label: string; value: string; onChange: (v: string) => void; type?: string; invalid?: boolean }) {
+function Field({ label, value, onChange, type = 'text', invalid, autoComplete, inputMode }: { label: string; value: string; onChange: (v: string) => void; type?: string; invalid?: boolean; autoComplete?: string; inputMode?: React.InputHTMLAttributes<HTMLInputElement>['inputMode'] }) {
   return (
     <FieldWrapper label={label}>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        // Audit mobile 3.7 — forwarder autoComplete/inputMode : sans ça, l'étape
+        // livraison (point de conversion) n'a aucun autofill Keychain/Contacts ni
+        // le bon clavier → friction max au pouce.
+        autoComplete={autoComplete}
+        inputMode={inputMode}
         // Round 7 #5 — le <label> de FieldWrapper n'est pas associé à l'input
         // (pas de htmlFor/id) → on donne un nom accessible + l'état de validité.
         aria-label={label}
