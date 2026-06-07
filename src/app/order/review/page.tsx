@@ -901,7 +901,7 @@ function PromoCodeField({
             placeholder="Ex. BIENVENUE10"
             disabled={checking}
             autoComplete="off"
-            style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 13, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+            style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 16, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}
           />
           <button
             onClick={() => void handleApply()}

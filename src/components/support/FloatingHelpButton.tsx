@@ -14,6 +14,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
@@ -38,6 +39,7 @@ export default function FloatingHelpButton({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const pathname = usePathname();
   // Round 7 #1 — focus-trap + restore (le modal a déjà Escape ci-dessous).
   useFocusTrap(dialogRef, open);
 
@@ -103,6 +105,11 @@ export default function FloatingHelpButton({
     }
   }
 
+  // Audit mobile 5.5 — masquer le FAB sur la page de PAIEMENT : un bouton flottant
+  // bottom-right chevauche le bouton « payer » (full-width en bas du recap sur
+  // mobile). Sur un CTA aussi critique, l'overlay nuit > il n'aide.
+  if (pathname === '/order/review') return null;
+
   return (
     <>
       <button
@@ -112,7 +119,8 @@ export default function FloatingHelpButton({
         className="help-fab"
         style={{
           position: 'fixed',
-          bottom: 24,
+          // Safe-area iOS (home indicator) — le repo déclare viewportFit:cover.
+          bottom: 'calc(24px + env(safe-area-inset-bottom))',
           right: 24,
           zIndex: 100,
           display: 'inline-flex',
