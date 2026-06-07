@@ -16166,3 +16166,28 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
     }
+
+/* ═══════════════════════════════════════════════════════════════════
+   AUDIT UI/UX MOBILE (2026-06) — overrides tardifs (dernier en cascade →
+   gagnent sur les définitions dupliquées de même spécificité plus haut).
+═══════════════════════════════════════════════════════════════════ */
+
+/* 5.2 — `.step-content` est défini 4× dans ce fichier (même spécificité 0,1,0) ;
+   la dernière def (section review) n'avait PAS d'override mobile et, étant en
+   dernier, battait les @media antérieurs → 64px de padding horizontal sur 375px
+   (≈128px mangés). On borne le padding sur petit écran, en dernier. */
+@media (max-width: 700px) {
+  .step-content { padding: 40px 20px; }
+}
+
+/* 2.1 / 2.2 — `.shell-footer` (CTA sticky du wizard) : grille 3 colonnes figée +
+   pas de safe-area malgré viewportFit:cover. Sur mobile on retire le hint clavier
+   central (inutile au tactile), on resserre, et on respecte le home indicator iOS. */
+@media (max-width: 700px) {
+  .shell-footer {
+    grid-template-columns: auto 1fr;
+    padding: 10px 16px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  .shell-footer-center { display: none; }
+}

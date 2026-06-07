@@ -310,7 +310,7 @@ function ShippingPageInner() {
                 style={{
                   width: '100%',
                   padding: 12,
-                  fontSize: 14,
+                  fontSize: 16, // ≥16px : évite le zoom auto iOS au focus (audit mobile 3.2)
                   lineHeight: 1.5,
                   fontFamily: 'inherit',
                   border: '1px solid var(--border-default)',
