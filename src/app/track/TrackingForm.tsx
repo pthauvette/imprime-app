@@ -129,7 +129,7 @@ export default function TrackingForm() {
               padding: '10px 12px',
               border: '1px solid var(--border-default)',
               borderRadius: 'var(--r-sm)',
-              fontSize: 14,
+              fontSize: 16, // ≥16px : anti-zoom iOS (audit mobile 3.3)
               fontFamily: 'var(--font-mono)',
             }}
           />
