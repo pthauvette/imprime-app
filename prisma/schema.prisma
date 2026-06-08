@@ -146,6 +146,7 @@ model User {
   designDrafts      DesignDraft[]
   savedConfigs      SavedConfig[]
   apiKeys           ApiKey[]
+  mcpOrderIntents   McpOrderIntent[]
   referralsEarned   ReferralReward[] @relation("ReferralReferrer")
   referralReceived  ReferralReward?  @relation("ReferralReferee")
   deleteRequests    DeleteAccountRequest[]
@@ -868,6 +869,36 @@ model ApiKey {
   updatedAt   DateTime  @updatedAt
 
   @@index([userId, createdAt])
+}
+
+// ─── MCP ORDER INTENT ─────────────────────────────────────────────────────
+// Idempotence des commandes passées via le MCP (Mode B, paiement headless).
+// CLAIM pessimiste (success=false) AVANT toute écriture Order/Stripe ; flippé à
+// true seulement quand l'Order + la Checkout Session sont créés. Un retry de
+// l'agent (même idempKey dérivée de données STABLES — cf. deriveIdempKey) tombe
+// sur la contrainte @@unique → on renvoie le 1er résultat (orderId + checkoutUrl)
+// au lieu de créer une 2e commande/charge. orderId écrit AU claim (pas en post)
+// pour qu'un crash entre create et complete reste rejouable. Calqué sur
+// WebhookEvent (claim+success). Keyé par userId → pas de collision cross-tenant.
+model McpOrderIntent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Hash stable (sha256) de (nonce agent + userId + items + shipping + promo). Voir deriveIdempKey.
+  idempKey    String
+  /// Order créé (écrit au claim, AVANT la Checkout Session, pour la reprise sur crash).
+  orderId     String?
+  /// URL de paiement Stripe Checkout hébergée (renvoyée telle quelle sur replay complété).
+  checkoutUrl String?
+  /// false = claim en cours / échoué ; true = Order + Session créés (dedup légitime).
+  success     Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, idempKey])
+  @@index([success, createdAt])
 }
 
 // ─── REFERRAL ─────────────────────────────────────────────────────────────

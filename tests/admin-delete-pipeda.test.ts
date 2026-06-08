@@ -29,6 +29,7 @@ vi.mock('@/lib/db', () => ({
     designDraft: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     savedConfig: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     apiKey: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    mcpOrderIntent: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     order: {
       updateMany: vi.fn(async () => ({ count: 0 })),
       findMany: vi.fn(async () => [
@@ -199,6 +200,9 @@ describe('POST /api/admin/users/[id]/delete-pipeda (Round 39 #1)', () => {
     expect(prisma.apiKey.deleteMany).toHaveBeenCalledOnce();
     const args = vi.mocked(prisma.apiKey.deleteMany).mock.calls[0]![0];
     expect(args?.where).toEqual({ userId: 'u_doomed' });
+    // Idempotence MCP : purgée aussi (FK Cascade ne se déclenche pas sur anonymisation).
+    expect(prisma.mcpOrderIntent.deleteMany).toHaveBeenCalledOnce();
+    expect(vi.mocked(prisma.mcpOrderIntent.deleteMany).mock.calls[0]![0]?.where).toEqual({ userId: 'u_doomed' });
   });
 
   it('Round 39 #1 — NewsletterSubscriber DELETED par email match', async () => {
