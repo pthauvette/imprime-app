@@ -47,7 +47,9 @@ export default function CookieConsent() {
       aria-label="Avis sur les cookies"
       style={{
         position: 'fixed',
-        bottom: 16,
+        // Audit mobile (thème safe-area) — respecter le home indicator iOS
+        // (viewportFit:cover déclaré) : la bannière ne colle plus au bord bas.
+        bottom: 'calc(16px + env(safe-area-inset-bottom))',
         left: 16,
         right: 16,
         maxWidth: 720,
