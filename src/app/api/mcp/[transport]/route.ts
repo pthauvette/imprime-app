@@ -15,8 +15,10 @@
  * À venir : get_product_options, get_print_quote, estimate_shipping (read-only),
  * puis create_order (mutation, derrière auth).
  */
-import { createMcpHandler } from 'mcp-handler';
+import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 import { z } from 'zod';
+import { mcpVerifyToken } from '@/lib/mcp/verify-token';
+import { requireUser } from '@/lib/mcp/auth';
 import { listPrintProducts, formatProductsText } from '@/lib/mcp/tools/list-products';
 import {
   getProductOptions,
@@ -91,18 +93,41 @@ const handler = createMcpHandler(
         };
       },
     );
+
+    // ── Tool AUTHENTIFIÉ (démo du socle d'auth) ──────────────────────────────
+    // Les 4 tools ci-dessus restent PUBLICS (ils n'inspectent pas extra.authInfo).
+    // whoami EXIGE une clé API valide via requireUser → preuve E2E que l'auth marche.
+    server.tool(
+      'whoami',
+      "Renvoie l'identité associée à la clé API fournie. Nécessite une clé API (en-tête Authorization: Bearer plio_sk_live_…).",
+      {},
+      async (_args, extra) => {
+        const u = requireUser(extra);
+        if (!u.ok) return u.error;
+        return { content: [{ type: 'text', text: `Authentifié comme user ${u.userId} (rôle ${u.role}). Clé ${u.keyId}, scopes: ${u.scopes.join(', ') || '(aucun)'}.` }] };
+      },
+    );
   },
   {
     // ServerOptions (SDK) — instructions affichées à l'agent au handshake.
     instructions:
-      "Serveur MCP de Plio, imprimerie québécoise. Permet de parcourir le catalogue d'impression et (bientôt) d'obtenir des devis et passer commande. Tous les prix sont en CAD, taxes en sus. Commence par list_print_products.",
+      "Serveur MCP de Plio, imprimerie québécoise. Permet de parcourir le catalogue d'impression, d'obtenir des devis et (bientôt) de passer commande. Tous les prix sont en CAD, taxes en sus. Commence par list_print_products. Pour les actions authentifiées, fournis une clé API dans Authorization: Bearer.",
   },
   {
     basePath: '/api/mcp',
-    verboseLogs: process.env.NODE_ENV !== 'production',
+    // verboseLogs DÉSACTIVÉ : mcp-handler pourrait sérialiser l'objet AuthInfo
+    // dans ses logs verbeux ; on évite toute fuite de contexte d'auth (même si
+    // AuthInfo.token ne contient plus le secret — défense en profondeur).
+    verboseLogs: false,
     maxDuration: 60,
   },
 );
+
+// Auth par clés API (Bearer). required:false → les 4 tools read-only restent
+// PUBLICS ; seuls les tools qui appellent requireUser/requireScope (whoami,
+// futur create_order) exigent une clé. mcpVerifyToken est TOTAL (ne throw jamais)
+// pour ne pas transformer un cold-start Neon en 401 qui casserait les read-only.
+const authHandler = withMcpAuth(handler, mcpVerifyToken, { required: false });
 
 // Fail-open silencieux du rate-limit = coût Sinalite non borné. En prod, si
 // Upstash est absent, on le SIGNALE au chargement (sans bloquer l'endpoint public).
@@ -123,7 +148,10 @@ async function gated(req: Request): Promise<Response> {
   if (!perIp.ok) return perIp.response;
   const global = await rateLimit('mcpGlobal', 'all');
   if (!global.ok) return global.response;
-  return handler(req);
+  // authHandler (pas handler) : le rate-limit s'applique AVANT la vérif de clé,
+  // ce qui borne aussi le coût DB de verifyApiKey (findUnique) — anti-DoS du
+  // chemin d'auth.
+  return authHandler(req);
 }
 
 export { gated as GET, gated as POST };

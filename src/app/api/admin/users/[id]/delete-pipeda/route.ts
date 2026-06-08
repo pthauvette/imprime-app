@@ -115,6 +115,12 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     prisma.draft.deleteMany({ where: { userId } }),
     prisma.designDraft.deleteMany({ where: { userId } }),
     prisma.savedConfig.deleteMany({ where: { userId } }),
+    // Clés API : la suppression est une ANONYMISATION par allowlist (le User
+    // survit), PAS un hard-delete → onDelete:Cascade ne se déclenche jamais. On
+    // DOIT purger les clés explicitement, sinon un credential live survit à un
+    // compte « supprimé » (faille sécu + non-conformité Loi 25). Toute nouvelle
+    // table possédée par User doit être ajoutée ici.
+    prisma.apiKey.deleteMany({ where: { userId } }),
 
     // Round 39 #1 — anonymize Order.ship* (kept rows pour LIR 6 ans
     // mais shipping address customer-identifiable doit être wipée).
