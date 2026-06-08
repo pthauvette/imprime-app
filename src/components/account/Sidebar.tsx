@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Route } from 'next';
+import ScrollActiveNavIntoView from './ScrollActiveNavIntoView';
 
 type Item = {
   href: Route;
@@ -46,6 +47,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
 export default function Sidebar({ active }: { active: string }) {
   return (
     <aside className="acct-nav">
+      <ScrollActiveNavIntoView />
       <div className="acct-nav-brand">
         <Link href={'/' as Route} style={{ color: 'inherit' }}>Plio.</Link>
       </div>
