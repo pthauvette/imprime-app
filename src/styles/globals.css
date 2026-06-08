@@ -1930,7 +1930,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
     .pc-header { display: grid; gap: 8px; }
     .pc-name { font-family: var(--font-display); font-size: 32px; letter-spacing: -0.02em; font-weight: 400; line-height: 1; color: var(--text-primary); }
-    .pc-desc { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+    .pc-desc { font-size: 14px; color: var(--text-muted); line-height: 1.4; }
 
     .pc-price {
       display: flex;
@@ -2385,7 +2385,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       font-weight: 400;
       margin: 0 0 4px;
     }
-    .tier-desc { font-size: 13px; color: var(--text-muted); margin: 0 0 16px; }
+    .tier-desc { font-size: 14px; color: var(--text-muted); margin: 0 0 16px; }
     .tier-spend {
       font-family: var(--font-mono);
       font-size: 11px;
@@ -4741,7 +4741,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     }
     .stock-body { padding: 20px; display: grid; gap: 8px; }
     .stock-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
-    .stock-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+    .stock-desc { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
     .stock-meta {
       display: flex;
       justify-content: space-between;
