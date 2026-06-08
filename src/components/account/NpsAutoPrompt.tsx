@@ -55,6 +55,15 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
     }
   }, [orderId]);
 
+  // Audit mobile 5.4 — verrouille le scroll du body quand la modale est ouverte
+  // (sinon le fond scrolle derrière la modale sur mobile).
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = original; };
+  }, [open]);
+
   function snoozeAndClose() {
     const cookies = document.cookie.split('; ').reduce<Record<string, string>>((acc, c) => {
       const [k, v] = c.split('=');
@@ -122,6 +131,11 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
           padding: 32,
           maxWidth: 520,
           width: '100%',
+          // Audit mobile 5.3 — borne la hauteur + scroll interne : sur petit écran
+          // (paysage, ou contenu long) la modale dépassait le viewport et le bas
+          // (score + textarea + bouton) était coupé/inaccessible.
+          maxHeight: 'calc(100dvh - 40px)',
+          overflowY: 'auto',
           boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
           border: '1px solid var(--border-subtle)',
         }}
@@ -191,7 +205,7 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
             </p>
 
             {/* Score grid 0-10 — Round 30 #4 : min cell 36px + overflow scroll mobile */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(11, minmax(36px, 1fr))', gap: 4, marginBottom: 8, overflowX: 'auto', paddingBottom: 4 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(11, minmax(40px, 1fr))', gap: 4, marginBottom: 8, overflowX: 'auto', paddingBottom: 4 }}>
               {Array.from({ length: 11 }, (_, n) => (
                 <button
                   key={n}
@@ -200,6 +214,7 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
                   aria-pressed={score === n}
                   style={{
                     padding: '10px 0',
+                    minHeight: 44, // cible tactile (audit mobile 4.8)
                     borderRadius: 'var(--r-sm, 6px)',
                     border: '1px solid',
                     borderColor: score === n ? 'var(--accent-primary)' : 'var(--border-default)',
