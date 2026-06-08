@@ -18,7 +18,8 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 import { z } from 'zod';
 import { mcpVerifyToken } from '@/lib/mcp/verify-token';
-import { requireUser } from '@/lib/mcp/auth';
+import { requireUser, requireScope } from '@/lib/mcp/auth';
+import { prepareOrderHandoff, formatOrderHandoffText } from '@/lib/mcp/tools/create-order';
 import { listPrintProducts, formatProductsText } from '@/lib/mcp/tools/list-products';
 import {
   getProductOptions,
@@ -105,6 +106,30 @@ const handler = createMcpHandler(
         const u = requireUser(extra);
         if (!u.ok) return u.error;
         return { content: [{ type: 'text', text: `Authentifié comme user ${u.userId} (rôle ${u.role}). Clé ${u.keyId}, scopes: ${u.scopes.join(', ') || '(aucun)'}.` }] };
+      },
+    );
+
+    server.tool(
+      'create_order',
+      "Configure une commande d'impression et renvoie un récapitulatif + un lien de finalisation par produit (téléverser le fichier print-ready, confirmer la livraison et payer sur plio.ca). NE débite RIEN et NE crée PAS encore la commande : la finalisation (fichier + paiement) se fait par l'humain via le lien. Nécessite une clé API avec le scope orders:write.",
+      {
+        items: z.array(z.object({
+          slug: z.string().describe("Slug produit (list_print_products)"),
+          paper: z.string().describe("Clé papier (get_product_options)"),
+          finish: z.string().describe("Clé finition (get_product_options)"),
+          quantity: z.number().int().positive().describe("Quantité (cf. get_product_options)"),
+        })).min(1).max(10).describe("Articles à commander (1 à 10)"),
+      },
+      async ({ items }, extra) => {
+        // Scope orders:write requis : une clé 'lecture seule' ne déclenche pas le flux commande.
+        const u = requireScope(extra, 'orders:write');
+        if (!u.ok) return u.error;
+        const handoff = await prepareOrderHandoff(items);
+        return {
+          content: [{ type: 'text', text: formatOrderHandoffText(handoff) }],
+          // Erreur seulement si AUCUN item n'a pu être résolu.
+          isError: handoff.anyError && handoff.items.every((r) => !r.ok),
+        };
       },
     );
   },
