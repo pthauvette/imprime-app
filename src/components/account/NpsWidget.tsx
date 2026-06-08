@@ -13,7 +13,7 @@
  * existant + option de modifier ("Tu as donné X/10 · modifier").
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Props {
   orderId: string;
@@ -28,6 +28,14 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
   const [submitting, setSubmitting] = useState(false);
   const [submittedScore, setSubmittedScore] = useState<number | null>(existingScore);
   const [error, setError] = useState<string | null>(null);
+
+  // Audit mobile 5.4 — verrouille le scroll du body quand la modale est ouverte.
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = original; };
+  }, [open]);
 
   async function submit() {
     if (score === null) return;
@@ -93,6 +101,10 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
               padding: 32,
               maxWidth: 520,
               width: '100%',
+              // Audit mobile 5.3 — borne hauteur + scroll interne (sinon coupé sur
+              // petit écran / paysage).
+              maxHeight: 'calc(100dvh - 32px)',
+              overflowY: 'auto',
               boxShadow: 'var(--shadow-xl)',
             }}
           >
@@ -119,7 +131,7 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(11, minmax(36px, 1fr))',
+                gridTemplateColumns: 'repeat(11, minmax(40px, 1fr))',
                 gap: 4,
                 marginBottom: 8,
                 overflowX: 'auto',
@@ -149,6 +161,7 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
                     aria-label={`Score ${i} sur 10`}
                     style={{
                       padding: '12px 0',
+                      minHeight: 44, // cible tactile (audit mobile 4.8)
                       background: selected ? colorVar : bgVar,
                       color: selected ? 'white' : colorVar,
                       border: `1px solid ${colorVar}`,
@@ -202,7 +215,7 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
                   padding: '10px 12px',
                   border: '1px solid var(--border-default)',
                   borderRadius: 'var(--r-sm)',
-                  fontSize: 13,
+                  fontSize: 16, // ≥16px : anti-zoom iOS (audit mobile)
                   fontFamily: 'inherit',
                   lineHeight: 1.5,
                   resize: 'vertical',
