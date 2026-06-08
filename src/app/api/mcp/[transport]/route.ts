@@ -24,6 +24,8 @@ import {
   formatProductOptionsText,
   formatQuoteText,
 } from '@/lib/mcp/tools/quote';
+import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipping';
+import { CaProvince } from '@/lib/sinalite/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,6 +67,26 @@ const handler = createMcpHandler(
         return {
           content: [{ type: 'text', text: formatQuoteText(slug, paper, finish, quote) }],
           isError: !quote.ok,
+        };
+      },
+    );
+
+    server.tool(
+      'estimate_shipping',
+      "Estime le coût de livraison (CAD) pour un produit configuré vers une destination au Canada. Avec get_print_quote, donne le coût TOTAL (produit + port). Quantité = même valeur que le devis.",
+      {
+        slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
+        paper: z.string().describe("Clé du papier, ex. '14pt'"),
+        finish: z.string().describe("Clé de la finition, ex. 'aq'"),
+        quantity: z.number().int().positive().describe('Quantité, ex. 500'),
+        province: CaProvince.describe('Province canadienne (2 lettres), ex. QC'),
+        postalCode: z.string().describe('Code postal, ex. H2X 1Y7'),
+      },
+      async ({ slug, paper, finish, quantity, province, postalCode }) => {
+        const r = await estimatePrintShipping(slug, paper, finish, quantity, province, postalCode);
+        return {
+          content: [{ type: 'text', text: formatShippingText(slug, province, postalCode, r) }],
+          isError: !r.ok,
         };
       },
     );
