@@ -16237,3 +16237,14 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     padding: 6px 8px;
   }
 }
+
+/* 2.3 — burger admin (nav <1024px) : 40×40 (sous 44px) + colle au notch (pas de
+   safe-area-inset-top). La def vit dans une section GÉNÉRÉE de globals.css ; on
+   override en fin de fichier (gagne par ordre source, sans toucher le généré). */
+@media (max-width: 1024px) {
+  .adm-nav-burger {
+    width: 44px;
+    height: 44px;
+    top: calc(12px + env(safe-area-inset-top));
+  }
+}
