@@ -121,6 +121,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     // compte « supprimé » (faille sécu + non-conformité Loi 25). Toute nouvelle
     // table possédée par User doit être ajoutée ici.
     prisma.apiKey.deleteMany({ where: { userId } }),
+    prisma.mcpOrderIntent.deleteMany({ where: { userId } }),
 
     // Round 39 #1 — anonymize Order.ship* (kept rows pour LIR 6 ans
     // mais shipping address customer-identifiable doit être wipée).

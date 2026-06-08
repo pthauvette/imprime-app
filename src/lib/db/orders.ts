@@ -747,7 +747,7 @@ export async function recordWebhookOutcome(input: {
   }
 }
 
-function isPrismaUniqueError(err: unknown): boolean {
+export function isPrismaUniqueError(err: unknown): boolean {
   return (
     typeof err === 'object' &&
     err !== null &&
