@@ -72,6 +72,13 @@ describe('POST /api/account/api-keys', () => {
     expect(create.mock.calls[0]![0].data.scopes).toBe('');
   });
 
+  it('un user ne peut PAS s\'auto-octroyer orders:write:headless → 400 (z.enum SELF_SERVE_SCOPES)', async () => {
+    authMock.mockResolvedValue(SESSION);
+    const res = await POST(postReq({ name: 'evil', scopes: ['orders:write:headless'] }));
+    expect(res.status).toBe(400);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('cap de clés actives atteint → 409', async () => {
     authMock.mockResolvedValue(SESSION);
     count.mockResolvedValue(20);

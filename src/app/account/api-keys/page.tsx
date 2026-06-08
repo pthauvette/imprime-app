@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
-import { API_KEY_SCOPES } from '@/lib/mcp/auth';
+import { SELF_SERVE_SCOPES } from '@/lib/mcp/auth';
 import Sidebar from '@/components/account/Sidebar';
 import ApiKeysClient from './ApiKeysClient';
 
@@ -35,7 +35,7 @@ export default async function ApiKeysPage() {
     revokedAt: k.revokedAt?.toISOString() ?? null,
   }));
 
-  const availableScopes = API_KEY_SCOPES.map((value) => ({ value, label: SCOPE_LABELS[value] ?? value }));
+  const availableScopes = SELF_SERVE_SCOPES.map((value) => ({ value, label: SCOPE_LABELS[value] ?? value }));
 
   return (
     <div className="acct-shell">

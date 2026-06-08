@@ -34,6 +34,7 @@ describe('MCP auth — parseScopes (whitelist + normalisation)', () => {
     expect(parseScopes(' Orders:Write ')).toEqual(['orders:write']);
     expect(parseScopes('orders:write,orders:write')).toEqual(['orders:write']); // dédup
     expect(parseScopes('bogus,catalog:read')).toEqual(['catalog:read']); // inconnu filtré
+    expect(parseScopes('orders:write:headless')).toEqual(['orders:write:headless']); // scope sensible connu
     expect(parseScopes('')).toEqual([]);
     expect(parseScopes(null)).toEqual([]);
   });
