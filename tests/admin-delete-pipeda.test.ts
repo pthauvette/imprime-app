@@ -28,6 +28,7 @@ vi.mock('@/lib/db', () => ({
     draft: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     designDraft: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     savedConfig: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    apiKey: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     order: {
       updateMany: vi.fn(async () => ({ count: 0 })),
       findMany: vi.fn(async () => [
@@ -189,6 +190,15 @@ describe('POST /api/admin/users/[id]/delete-pipeda (Round 39 #1)', () => {
     expect(prisma.abandonedCart.deleteMany).toHaveBeenCalledOnce();
     const args = vi.mocked(prisma.abandonedCart.deleteMany).mock.calls[0]![0];
     expect(args?.where).toEqual({ email: 'doomed@plio.ca' });
+  });
+
+  it('Sécu MCP — clés API PURGÉES (anonymisation ≠ cascade : un credential ne survit pas au compte)', async () => {
+    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
+    await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
+
+    expect(prisma.apiKey.deleteMany).toHaveBeenCalledOnce();
+    const args = vi.mocked(prisma.apiKey.deleteMany).mock.calls[0]![0];
+    expect(args?.where).toEqual({ userId: 'u_doomed' });
   });
 
   it('Round 39 #1 — NewsletterSubscriber DELETED par email match', async () => {

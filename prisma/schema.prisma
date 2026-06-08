@@ -145,6 +145,7 @@ model User {
   drafts            Draft[]
   designDrafts      DesignDraft[]
   savedConfigs      SavedConfig[]
+  apiKeys           ApiKey[]
   referralsEarned   ReferralReward[] @relation("ReferralReferrer")
   referralReceived  ReferralReward?  @relation("ReferralReferee")
   deleteRequests    DeleteAccountRequest[]
@@ -832,6 +833,41 @@ model SavedConfig {
   @@index([userId, lastUsedAt])
   @@index([userId, createdAt])
   @@index([userId, folder])
+}
+
+// ─── API KEY ──────────────────────────────────────────────────────────────
+// Clés API pour l'accès programmatique au MCP (mutations type create_order).
+// On ne stocke JAMAIS le secret en clair : `keyHash` = SHA-256 hex du token
+// complet, vérifié par lookup indexé (pas par comparaison → pas de timing-safe
+// requis : l'attaquant ne contrôle pas la préimage d'un hash de 256 bits).
+// `keyPrefix` = début affichable (ex: "plio_sk_live_a1b2c3") pour repérer la clé
+// dans une liste — PAS @unique (collision sur peu de chars ferait planter le
+// minting ; l'unicité d'auth est garantie par keyHash). scopes = CSV lowercase
+// contraint app-side (parseScopes, whitelist API_KEY_SCOPES — pas d'enum Prisma).
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /** Label donné par l'user (ex: "Agent Claude", "Script export n8n"). */
+  name        String
+  /** Préfixe affichable (préfixe fixe + qq chars du secret). Repère visuel, non secret. */
+  keyPrefix   String
+  /** SHA-256 hex (64 chars lowercase) du token complet. Index de lookup d'auth. */
+  keyHash     String    @unique
+  /** Scopes CSV lowercase (ex: "orders:write"). "" = aucun. Contraint via parseScopes. */
+  scopes      String    @default("")
+  /** Dernière présentation valide de la clé (throttlé : maj si > 60 s). NULL = jamais. */
+  lastUsedAt  DateTime?
+  /** Expiration optionnelle. NULL = pas d'expiration. */
+  expiresAt   DateTime?
+  /** Révocation manuelle (soft). NULL = active. Filtré à la vérif ET à la suppression Loi 25. */
+  revokedAt   DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, createdAt])
 }
 
 // ─── REFERRAL ─────────────────────────────────────────────────────────────
