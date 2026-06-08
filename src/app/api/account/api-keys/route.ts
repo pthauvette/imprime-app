@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { rateLimit } from '@/lib/ratelimit';
-import { generateApiKey, parseScopes, API_KEY_SCOPES } from '@/lib/mcp/auth';
+import { generateApiKey, parseScopes, SELF_SERVE_SCOPES } from '@/lib/mcp/auth';
 
 /**
  * POST /api/account/api-keys — crée une clé API pour l'user connecté.
@@ -18,7 +18,9 @@ const MAX_ACTIVE_KEYS = 20;
 
 const CreateSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  scopes: z.array(z.enum(API_KEY_SCOPES)).max(API_KEY_SCOPES.length).default([]),
+  // SELF_SERVE_SCOPES (pas API_KEY_SCOPES) : un user ne peut PAS s'auto-octroyer
+  // orders:write:headless (privilège sensible réservé au CLI admin).
+  scopes: z.array(z.enum(SELF_SERVE_SCOPES)).max(SELF_SERVE_SCOPES.length).default([]),
 });
 
 export const POST = withErrorHandler(async (req: Request) => {

@@ -13,7 +13,10 @@ import { randomBytes, createHash } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 
 const KEY_PREFIX_LIVE = 'plio_sk_live_';
-const API_KEY_SCOPES = ['orders:write', 'catalog:read'];
+// Le CLI admin peut octroyer TOUS les scopes, dont orders:write:headless
+// (paiement headless Mode B) — non self-grantable côté /account/api-keys.
+// Garder en phase avec API_KEY_SCOPES de src/lib/mcp/auth.ts.
+const API_KEY_SCOPES = ['orders:write', 'catalog:read', 'orders:write:headless'];
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);

@@ -25,9 +25,19 @@ import { logAuth } from '@/lib/logger';
 const KEY_PREFIX_GENERIC = 'plio_sk_';
 const KEY_PREFIX_LIVE = 'plio_sk_live_';
 
-/** Whitelist des scopes connus. parseScopes filtre tout le reste. */
-export const API_KEY_SCOPES = ['orders:write', 'catalog:read'] as const;
+/**
+ * Whitelist des scopes connus. parseScopes filtre tout le reste.
+ * `orders:write:headless` = autorise create_order Mode B (paiement headless, le
+ * MCP crée la commande + un lien Stripe sans humain dans la boucle). C'est un
+ * privilège SENSIBLE : il N'est PAS self-grantable (absent de SELF_SERVE_SCOPES),
+ * seul le CLI admin (scripts/mint-api-key.mjs) peut l'octroyer à une clé de confiance.
+ */
+export const API_KEY_SCOPES = ['orders:write', 'catalog:read', 'orders:write:headless'] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
+
+/** Sous-ensemble que l'user peut s'auto-octroyer via /account/api-keys. JAMAIS headless. */
+export const SELF_SERVE_SCOPES = ['orders:write', 'catalog:read'] as const satisfies readonly ApiKeyScope[];
+export type SelfServeScope = (typeof SELF_SERVE_SCOPES)[number];
 
 /** Normalise un CSV de scopes : trim + lowercase + whitelist + dédup. Source unique
  *  utilisée par la vérif, le script de minting et les routes self-serve. */
