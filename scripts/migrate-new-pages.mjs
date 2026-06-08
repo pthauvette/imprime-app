@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 /**
+ * ⚠️ DÉPRÉCIÉ — NE PAS RELANCER. Outil de migration ONE-TIME (terminé). Les
+ *    maquettes HTML source n'existent plus dans le repo → ce script ne peut plus
+ *    tourner. Surtout : il RÉ-ÉMET le migrated-pages.css PLEIN (6k lignes dont
+ *    ~5500 dupliquées de globals). Or migrated-pages.css a été DÉDUPLIQUÉ
+ *    (slim, ~550 lignes, cf. scripts/css-dedup-analysis.mjs + git #339) avec
+ *    preuve de rendu identique. Le relancer écraserait la dédup. Conservé pour
+ *    référence historique uniquement.
+ *
  * Migration des 23 nouvelles pages Open Design (admin + onboarding + marketing + legal).
  *
  * Different from migrate-from-od.mjs :
