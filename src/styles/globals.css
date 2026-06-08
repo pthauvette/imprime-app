@@ -183,7 +183,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .shell {
   display: grid;
   grid-template-rows: 72px 1fr 80px;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Header */
@@ -591,7 +591,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   position: sticky;
   top: 72px; /* hauteur shell-header sticky */
   align-self: start;
-  max-height: calc(100vh - 72px);
+  max-height: calc(100dvh - 72px);
   overflow-y: auto;
 }
 .recap-section-label {
@@ -674,7 +674,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .acct-shell {
       display: grid;
       grid-template-columns: 240px 1fr;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
     /* Round 30 #2 — Mobile fix : avant `display: none` sous 900px → user
        stranded (pas de moyen d'atteindre /account, /wallet, /addresses…).
@@ -718,7 +718,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       padding: 32px 20px;
       position: sticky;
       top: 0;
-      height: 100vh;
+      height: 100dvh;
       overflow-y: auto;
     }
     .acct-nav-brand {
@@ -2786,7 +2786,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .auth-shell {
       display: grid;
       grid-template-columns: 1fr 560px;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
     @media (max-width: 900px) { .auth-shell { grid-template-columns: 1fr; } .auth-side { display: none; } }
 
@@ -3110,7 +3110,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .auth-shell {
       display: grid;
       grid-template-columns: 560px 1fr;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
 
     /* Form on LEFT this time (mirror of signin) */
@@ -3368,7 +3368,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 /* ─── magic-link-sent.html ─────────────────────────── */
 
     .ml-shell {
-      min-height: 100vh;
+      min-height: 100dvh;
       display: grid;
       grid-template-rows: auto 1fr auto;
       background: linear-gradient(180deg, var(--bg-canvas) 0%, var(--accent-soft) 50%, var(--bg-canvas) 100%);
@@ -3655,7 +3655,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 /* ─── not-found.html ─────────────────────────── */
 
     .err-shell {
-      min-height: 100vh;
+      min-height: 100dvh;
       display: grid;
       grid-template-rows: auto 1fr auto;
       background: var(--bg-canvas);
@@ -3935,7 +3935,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .step-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 400px;
-      min-height: calc(100vh - 152px);
+      min-height: calc(100dvh - 152px);
     }
     @media (max-width: 1100px) {
       .step-layout { grid-template-columns: 1fr; }
@@ -4989,7 +4989,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .qty-shell {
       display: grid;
       grid-template-rows: 72px 1fr 80px 80px;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
 
     .qty-content {
@@ -5973,7 +5973,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .step-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 440px;
-      min-height: calc(100vh - 152px);
+      min-height: calc(100dvh - 152px);
     }
     @media (max-width: 1100px) {
       .step-layout { grid-template-columns: 1fr; }
@@ -6419,7 +6419,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .conf-shell {
       display: grid;
       grid-template-rows: 72px 1fr 64px;
-      min-height: 100vh;
+      min-height: 100dvh;
       background: linear-gradient(180deg, var(--bg-canvas) 0%, var(--accent-soft) 50%, var(--bg-canvas) 100%);
     }
     .conf-header {
@@ -6770,7 +6770,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .acct-shell {
       display: grid;
       grid-template-columns: 240px 1fr;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
     /* Round 30 #2 — Mobile fix : avant `display: none` sous 900px → user
        stranded (pas de moyen d'atteindre /account, /wallet, /addresses…).
@@ -6814,7 +6814,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       padding: 32px 20px;
       position: sticky;
       top: 0;
-      height: 100vh;
+      height: 100dvh;
       overflow-y: auto;
     }
     .acct-nav-brand { font-family: var(--font-display); font-size: 24px; color: var(--accent-primary); letter-spacing: -0.02em; margin-bottom: 32px; }
@@ -9556,13 +9556,13 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .app {
       display: grid;
       grid-template-columns: 240px 1fr;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
     .nav {
       position: sticky;
       top: 0;
       align-self: start;
-      height: 100vh;
+      height: 100dvh;
       padding: 32px 24px;
       border-right: 1px solid var(--border-subtle);
       background: var(--bg-canvas);
@@ -10276,7 +10276,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .adm-shell {
       display: grid;
       grid-template-columns: 260px 1fr;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
     /* Burger nav admin : caché par défaut (desktop ≥1024px). Déclaré AVANT le
        media query pour que la règle conditionnelle ci-dessous l'emporte. */
@@ -10335,7 +10335,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       padding: 24px 16px;
       position: sticky;
       top: 0;
-      height: 100vh;
+      height: 100dvh;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
@@ -12471,7 +12471,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .ed-shell {
       display: grid;
       grid-template-rows: 56px 1fr;
-      height: 100vh;
+      height: 100dvh;
     }
 
     /* ─── Top bar ─────────────────────────────────────────────────── */
@@ -12579,7 +12579,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .ed-main {
       display: grid;
       grid-template-columns: 240px 1fr 280px;
-      height: calc(100vh - 56px);
+      height: calc(100dvh - 56px);
       overflow: hidden;
     }
 
@@ -14078,7 +14078,7 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
 
     /* ───────── Layout ───────── */
     .onb {
-      min-height: 100vh;
+      min-height: 100dvh;
       display: grid;
       grid-template-rows: 72px 1fr auto;
     }
