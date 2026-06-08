@@ -134,6 +134,8 @@ const handler = createMcpHandler(
     );
   },
   {
+    // Identité du serveur (sinon mcp-handler met « mcp-typescript server on vercel »).
+    serverInfo: { name: 'plio', version: '1.0.0' },
     // ServerOptions (SDK) — instructions affichées à l'agent au handshake.
     instructions:
       "Serveur MCP de Plio, imprimerie québécoise. Permet de parcourir le catalogue d'impression, d'obtenir des devis et (bientôt) de passer commande. Tous les prix sont en CAD, taxes en sus. Commence par list_print_products. Pour les actions authentifiées, fournis une clé API dans Authorization: Bearer.",
