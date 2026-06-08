@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
-import { withErrorHandler, assertSameOrigin } from '@/lib/api-helpers';
+import { withErrorHandler } from '@/lib/api-helpers';
 
 /**
  * DELETE /api/account/api-keys/[id] — révoque (soft) une clé de l'user connecté.
@@ -13,10 +13,8 @@ import { withErrorHandler, assertSameOrigin } from '@/lib/api-helpers';
  */
 type RouteCtx = { params: Promise<{ id: string }> };
 
-export const DELETE = withErrorHandler(async (req: Request, ctx: RouteCtx) => {
-  const csrf = assertSameOrigin(req); // défense en profondeur (route credential)
-  if (csrf) return csrf;
-
+export const DELETE = withErrorHandler(async (_req: Request, ctx: RouteCtx) => {
+  // CSRF (assertSameOrigin) appliqué en amont par withErrorHandler sur les mutations.
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   const { id } = await ctx.params;

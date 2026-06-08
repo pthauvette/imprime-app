@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
-import { withErrorHandler, parseBody, assertSameOrigin } from '@/lib/api-helpers';
+import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { rateLimit } from '@/lib/ratelimit';
 import { generateApiKey, parseScopes, API_KEY_SCOPES } from '@/lib/mcp/auth';
 
@@ -22,9 +22,7 @@ const CreateSchema = z.object({
 });
 
 export const POST = withErrorHandler(async (req: Request) => {
-  const csrf = assertSameOrigin(req); // défense en profondeur (route credential)
-  if (csrf) return csrf;
-
+  // CSRF (assertSameOrigin) appliqué en amont par withErrorHandler sur les mutations.
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   const userId = session.user.id;
