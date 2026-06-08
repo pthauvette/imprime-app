@@ -16191,3 +16191,14 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
   }
   .shell-footer-center { display: none; }
 }
+
+/* 4.6 — finish-pills (papier/finition du wizard) ~30px de haut → trop petites au
+   doigt. On les passe à ≥44px UNIQUEMENT sur appareil tactile (pointer:coarse)
+   pour ne pas grossir l'UI au desktop. */
+@media (hover: none) and (pointer: coarse) {
+  .finish-pill {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}

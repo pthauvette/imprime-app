@@ -427,7 +427,8 @@ function ReviewPageInner() {
                   <button
                     onClick={() => cart.remove(it.id)}
                     title="Retirer cet article"
-                    style={{ background: 'transparent', border: 'none', color: 'var(--danger)', fontSize: 11, fontFamily: 'var(--font-mono)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+                    aria-label={`Retirer l'article ${i + 1}`}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--danger)', fontSize: 11, fontFamily: 'var(--font-mono)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase', minHeight: 44, padding: '0 8px', display: 'inline-flex', alignItems: 'center' }}
                   >
                     Retirer
                   </button>
@@ -879,7 +880,7 @@ function PromoCodeField({
         <span>
           <strong style={{ color: 'var(--success, #16a34a)' }}>✓ {appliedPromo}</strong> appliqué
         </span>
-        <button onClick={handleRemove} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+        <button onClick={handleRemove} aria-label="Retirer le code promo" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', minHeight: 44, padding: '0 8px', display: 'inline-flex', alignItems: 'center' }}>
           Retirer
         </button>
       </div>
