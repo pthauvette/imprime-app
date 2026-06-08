@@ -16248,3 +16248,30 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     top: calc(12px + env(safe-area-inset-top));
   }
 }
+
+/* 5.6 / 3.5 — derniers items admin (staff). Defs dans migrated-pages.css (GÉNÉRÉ,
+   importé après globals → gagne). On bat par SPÉCIFICITÉ DOUBLÉE `.X.X` (0,2,0 >
+   0,1,0) sans dépendre du parent/DOM, plutôt que de toucher le généré. */
+
+/* 5.6 — grilles de stats admin figées à 2 colonnes → 1 colonne sous 600px. */
+@media (max-width: 600px) {
+  .adm-quick.adm-quick,
+  .ord-stats.ord-stats,
+  .usr-stats.usr-stats,
+  .ud-quickstats.ud-quickstats,
+  .adm-health.adm-health {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3.5 — inputs de recherche admin <16px → 16px sur mobile (anti-zoom iOS).
+   `.ed-input-wrap` est le wrapper : l'input hérite la taille. */
+@media (max-width: 700px) {
+  .usr-search.usr-search,
+  .ord-search.ord-search,
+  .adm-search-input.adm-search-input,
+  .tpl-search.tpl-search,
+  .ed-input-wrap.ed-input-wrap {
+    font-size: 16px;
+  }
+}
