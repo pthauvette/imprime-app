@@ -25,6 +25,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { href: '/account/referrals' as Route, label: '🎁 Parrainage' },
       { href: '/settings' as Route, label: 'Paramètres' },
       { href: '/settings/privacy' as Route, label: '🔒 Confidentialité' },
+      { href: '/account/api-keys' as Route, label: '🔑 Clés API' },
     ],
   },
   {
