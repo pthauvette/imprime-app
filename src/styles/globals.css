@@ -3940,12 +3940,15 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     @media (max-width: 1100px) {
       .step-layout { grid-template-columns: 1fr; }
       .recap { display: none; }
-      /* Audit mobile (critical) — le `.recap` qui porte le PAIEMENT (étape review)
-         doit rester visible sur mobile, sinon le checkout est impossible. On le
-         ré-affiche, empilé sous le résumé (grille déjà en 1 colonne), et on annule
-         le sticky + le plafond de hauteur du `.recap` de base (sinon le formulaire
-         de paiement scrollerait dans une boîte cappée à 100vh). */
-      .recap.recap-payment {
+      /* Audit mobile — `.recap` masqué sur mobile = correct pour les RÉSUMÉS, mais
+         deux recaps portent du contenu ESSENTIEL qui doit rester visible :
+         `recap-payment` (review : le PAIEMENT — sinon checkout impossible, critical)
+         et `recap-config` (configure : le PRIX LIVE — sinon la feature « prix temps
+         réel » est invisible, 5.1). On les ré-affiche, empilés sous le contenu
+         (grille déjà en 1 colonne), en annulant le sticky + le plafond de hauteur du
+         `.recap` de base (sinon le contenu scrollerait dans une boîte cappée à 100vh). */
+      .recap.recap-payment,
+      .recap.recap-config {
         display: block;
         position: static;
         max-height: none;
