@@ -16,7 +16,14 @@
  * puis create_order (mutation, derrière auth).
  */
 import { createMcpHandler } from 'mcp-handler';
+import { z } from 'zod';
 import { listPrintProducts, formatProductsText } from '@/lib/mcp/tools/list-products';
+import {
+  getProductOptions,
+  getPrintQuote,
+  formatProductOptionsText,
+  formatQuoteText,
+} from '@/lib/mcp/tools/quote';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +36,37 @@ const handler = createMcpHandler(
       async () => ({
         content: [{ type: 'text', text: formatProductsText(listPrintProducts()) }],
       }),
+    );
+
+    server.tool(
+      'get_product_options',
+      "Pour un produit (slug de list_print_products), retourne les papiers, les finitions par papier, et les quantités disponibles. À appeler avant get_print_quote pour connaître les valeurs valides.",
+      { slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'") },
+      async ({ slug }) => {
+        const opts = await getProductOptions(slug);
+        if (!opts) {
+          return { content: [{ type: 'text', text: `Produit inconnu : ${slug}. Utilise list_print_products.` }], isError: true };
+        }
+        return { content: [{ type: 'text', text: formatProductOptionsText(opts) }] };
+      },
+    );
+
+    server.tool(
+      'get_print_quote',
+      "Calcule le prix CAD (taxes en sus) pour un produit + papier + finition + quantité. Le prix correspond exactement à celui du checkout. Utilise get_product_options pour les valeurs valides.",
+      {
+        slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
+        paper: z.string().describe("Clé du papier, ex. '14pt' (cf. get_product_options)"),
+        finish: z.string().describe("Clé de la finition, ex. 'aq' (cf. get_product_options)"),
+        quantity: z.number().int().positive().describe('Quantité voulue, ex. 500'),
+      },
+      async ({ slug, paper, finish, quantity }) => {
+        const quote = await getPrintQuote(slug, paper, finish, quantity);
+        return {
+          content: [{ type: 'text', text: formatQuoteText(slug, paper, finish, quote) }],
+          isError: !quote.ok,
+        };
+      },
     );
   },
   {
