@@ -691,15 +691,24 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
         overflow-x: auto;
         overflow-y: hidden;
         white-space: nowrap;
+        /* Audit mobile 4.1 — indicateur de scroll : estompe le bord droit pour
+           signaler qu'il reste des liens (sinon la bande paraît complète). */
+        mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+        scroll-snap-type: x proximity;
       }
       .acct-nav-brand { margin-bottom: 8px; font-size: 18px; display: inline-block; }
       .acct-nav-section { display: none; }
       .acct-nav-list { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
       .acct-nav-link {
+        /* Audit mobile 4.1 — cible tactile ≥44px (avant ~30px). */
         display: inline-flex;
-        padding: 8px 12px;
+        align-items: center;
+        min-height: 44px;
+        padding: 10px 14px;
         font-size: 13px;
         border-radius: var(--r-md);
+        scroll-snap-align: start;
       }
     }
 
@@ -6775,15 +6784,24 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
         overflow-x: auto;
         overflow-y: hidden;
         white-space: nowrap;
+        /* Audit mobile 4.1 — indicateur de scroll : estompe le bord droit pour
+           signaler qu'il reste des liens (sinon la bande paraît complète). */
+        mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+        scroll-snap-type: x proximity;
       }
       .acct-nav-brand { margin-bottom: 8px; font-size: 18px; display: inline-block; }
       .acct-nav-section { display: none; }
       .acct-nav-list { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
       .acct-nav-link {
+        /* Audit mobile 4.1 — cible tactile ≥44px (avant ~30px). */
         display: inline-flex;
-        padding: 8px 12px;
+        align-items: center;
+        min-height: 44px;
+        padding: 10px 14px;
         font-size: 13px;
         border-radius: var(--r-md);
+        scroll-snap-align: start;
       }
     }
 
