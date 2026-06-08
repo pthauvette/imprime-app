@@ -16223,3 +16223,17 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     align-items: center;
   }
 }
+
+/* 4.5 — nav marketing mobile : liens 13px à 6px de row-gap → cibles tactiles
+   serrées. Les `.mkt-nav-*` vivent dans migrated-pages.css (GÉNÉRÉ, importé
+   APRÈS globals → gagne à spécificité égale). On les corrige par SPÉCIFICITÉ
+   SUPÉRIEURE (2 classes > 1) au lieu de toucher le fichier généré. */
+@media (max-width: 700px) {
+  .mkt-nav .mkt-nav-links { row-gap: 12px; }
+  .mkt-nav-links .mkt-nav-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 6px 8px;
+  }
+}
