@@ -51,7 +51,20 @@ export const limiters = {
   // emailSentAt → re-éligible recovery → spam CASL). 5/h/email couvre le va-et-
   // vient légitime dans le wizard tout en bloquant l'abus multi-IP.
   abandonedCart: makeLimiter(5, '1 h', 'abcart'),
+  // MCP — endpoint public (/api/mcp) dont les tools proxient Sinalite (API
+  // payante, get_print_quote/estimate_shipping NON cachés). Pas d'auth sur les
+  // read-only → DEUX gardes complémentaires :
+  //   - mcp (60/min/IP)      : borne l'abus d'une IP donnée.
+  //   - mcpGlobal (600/min)  : plafond AGRÉGÉ, keyé sur une constante. Indispensable
+  //     car clientIp() lit X-Forwarded-For (spoofable) : un attaquant qui fait
+  //     tourner les IP contourne le bucket-IP, mais reste borné par le plafond
+  //     global → le coût Sinalite total est plafonné quoi qu'il arrive.
+  mcp: makeLimiter(60, '1 m', 'mcp'),
+  mcpGlobal: makeLimiter(600, '1 m', 'mcp-global'),
 };
+
+/** True si le rate-limit est réellement actif (Upstash configuré). Sinon fail-open. */
+export const rateLimitEnabled = enabled;
 
 export type LimiterKey = keyof typeof limiters;
 

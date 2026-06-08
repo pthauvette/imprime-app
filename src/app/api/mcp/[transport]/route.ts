@@ -26,6 +26,7 @@ import {
 } from '@/lib/mcp/tools/quote';
 import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipping';
 import { CaProvince } from '@/lib/sinalite/types';
+import { rateLimit, clientIp, rateLimitEnabled } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -103,4 +104,26 @@ const handler = createMcpHandler(
   },
 );
 
-export { handler as GET, handler as POST };
+// Fail-open silencieux du rate-limit = coût Sinalite non borné. En prod, si
+// Upstash est absent, on le SIGNALE au chargement (sans bloquer l'endpoint public).
+if (process.env.NODE_ENV === 'production' && !rateLimitEnabled) {
+  console.warn('[mcp] RATE LIMIT INACTIF en production (UPSTASH_REDIS_REST_* absent) — coût Sinalite NON borné.');
+}
+
+/**
+ * Gate rate-limit (niveau HTTP, AVANT le handler MCP). Deux bornes complémentaires :
+ *  - par IP (best-effort ; clientIp lit X-Forwarded-For, spoofable) ;
+ *  - plafond GLOBAL agrégé → borne le coût Sinalite même si un attaquant fait
+ *    tourner les IP (cf. ratelimit.ts). C'est le vrai rempart.
+ * Chaque appel MCP (initialize, tools/list, tools/call) est un POST distinct
+ * (stateless) → une vérif par message.
+ */
+async function gated(req: Request): Promise<Response> {
+  const perIp = await rateLimit('mcp', clientIp(req));
+  if (!perIp.ok) return perIp.response;
+  const global = await rateLimit('mcpGlobal', 'all');
+  if (!global.ok) return global.response;
+  return handler(req);
+}
+
+export { gated as GET, gated as POST };
