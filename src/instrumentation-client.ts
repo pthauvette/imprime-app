@@ -7,6 +7,7 @@
 
 import * as Sentry from '@sentry/nextjs';
 import { routeSentryEvent } from '@/lib/sentry/routing';
+import { scrubApiKeysDeep } from '@/lib/sentry/scrub-secrets';
 
 const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 const ENV = process.env.NODE_ENV ?? 'development';
@@ -33,6 +34,9 @@ if (DSN) {
     // Apply alert routing : drop noise, tag severity, mute warnings.
     // Côté browser : AbortError des fetch annulés est le gros consommateur.
     beforeSend(event, hint) {
+      // Défense en profondeur : scrub une clé API (plio_sk_…) qui aurait fui dans
+      // un event (ex. la page /account/api-keys garde le token en state au mint).
+      scrubApiKeysDeep(event);
       return routeSentryEvent(event, hint);
     },
   });
