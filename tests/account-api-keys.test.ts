@@ -35,6 +35,19 @@ describe('POST /api/account/api-keys', () => {
     expect(res.status).toBe(401);
   });
 
+  it('Origin cross-site → 403 (garde CSRF de withErrorHandler, AVANT auth)', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://www.plio.ca');
+    const req = new Request('https://www.plio.ca/api/account/api-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', origin: 'https://evil.example' },
+      body: JSON.stringify({ name: 'x', scopes: [] }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+    expect(authMock).not.toHaveBeenCalled(); // rejeté avant tout traitement
+    vi.unstubAllEnvs();
+  });
+
   it('valide → 201 + token en clair retourné UNE fois + hash stocké (pas le secret)', async () => {
     authMock.mockResolvedValue(SESSION);
     create.mockImplementation(async ({ data, select }: any) => ({ id: 'k1', name: data.name, keyPrefix: data.keyPrefix, scopes: data.scopes, createdAt: new Date() }));

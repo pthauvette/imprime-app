@@ -14,12 +14,19 @@ export interface ApiError {
 }
 
 /**
- * Garde CSRF best-effort : rejette une requête dont l'en-tête `Origin` est
- * cross-site. Défense en profondeur pour les routes sensibles (ex. minting de
- * credentials) en plus de SameSite=Lax. Comparé au host canonique de
- * NEXT_PUBLIC_APP_URL (robuste derrière CloudFront/Amplify), fallback `Host`.
- * Origin ABSENT = toléré (curl, app native, certains proxys l'omettent) — on
- * s'appuie alors sur SameSite=Lax. Retourne une 403 à renvoyer, ou null si OK.
+ * Garde CSRF best-effort : rejette une MUTATION dont l'en-tête `Origin` est
+ * cross-site. Défense en profondeur en plus de SameSite=Lax (ferme le vecteur
+ * form-POST top-level cross-site + sous-domaine compromis).
+ *
+ * Robuste multi-host (apex + www + preview + CloudFront/Amplify) : on accepte si
+ * l'Origin correspond à L'UN des signaux de host fiables — `x-forwarded-host`
+ * (posé par l'edge, = host public réel), le `Host` de la requête, ou le host
+ * canonique `NEXT_PUBLIC_APP_URL`. On ne rejette que si l'Origin ne matche AUCUN.
+ * L'attaquant CSRF ne contrôle pas l'en-tête Origin (posé par le navigateur), ni
+ * `x-forwarded-host` (posé par l'edge) → il ne peut pas les faire coïncider.
+ *
+ * Origin ABSENT = toléré (server-to-server, app native, curl l'omettent) → on
+ * s'appuie sur SameSite=Lax. Retourne une 403 à renvoyer, ou null si OK.
  */
 export function assertSameOrigin(req: Request): NextResponse | null {
   const origin = req.headers.get('origin');
@@ -30,24 +37,40 @@ export function assertSameOrigin(req: Request): NextResponse | null {
   } catch {
     return NextResponse.json<ApiError>({ error: 'Origine invalide', code: 'BAD_ORIGIN' }, { status: 403 });
   }
+  const accepted = new Set<string>();
+  const xfh = req.headers.get('x-forwarded-host');
+  if (xfh) accepted.add(xfh.split(',')[0].trim());
+  const host = req.headers.get('host');
+  if (host) accepted.add(host);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  let expectedHost: string | null = null;
-  try {
-    expectedHost = appUrl ? new URL(appUrl).host : req.headers.get('host');
-  } catch {
-    expectedHost = req.headers.get('host');
+  if (appUrl) {
+    try { accepted.add(new URL(appUrl).host); } catch { /* ignore */ }
   }
-  if (expectedHost && originHost !== expectedHost) {
-    return NextResponse.json<ApiError>({ error: 'Origine non autorisée', code: 'CROSS_ORIGIN' }, { status: 403 });
-  }
-  return null;
+  // Aucun host de référence (cas dégradé) → tolère plutôt que casser.
+  if (accepted.size === 0 || accepted.has(originHost)) return null;
+  return NextResponse.json<ApiError>({ error: 'Origine non autorisée', code: 'CROSS_ORIGIN' }, { status: 403 });
 }
 
-/** Wrap un handler async avec error handling unifié. */
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/**
+ * Wrap un handler async avec error handling unifié + garde CSRF best-effort.
+ *
+ * CSRF : sur les MUTATIONS (POST/PUT/PATCH/DELETE), rejette un Origin cross-site
+ * (assertSameOrigin) — défense en profondeur pour TOUTES les routes wrappées, en
+ * plus de SameSite=Lax. Les lectures (GET/HEAD) sont exemptées. Les webhooks
+ * (export async function POST, signature vérifiée) et le MCP (Bearer) N'utilisent
+ * PAS withErrorHandler → ils restent cross-origin, comme requis.
+ */
 export function withErrorHandler<Args extends unknown[]>(
   handler: (...args: Args) => Promise<NextResponse>,
 ) {
   return async (...args: Args): Promise<NextResponse> => {
+    const req = args[0];
+    if (req instanceof Request && MUTATION_METHODS.has(req.method)) {
+      const csrf = assertSameOrigin(req);
+      if (csrf) return csrf;
+    }
     try {
       return await handler(...args);
     } catch (err) {
