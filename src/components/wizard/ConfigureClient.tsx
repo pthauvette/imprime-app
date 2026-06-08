@@ -224,7 +224,11 @@ export default function ConfigureClient({
           {metadata.includes('custom_size') && <CustomSizeHint />}
         </div>
 
-        <aside className="recap">
+        {/* Audit mobile 5.1 — `recap-config` : ce recap porte le PRIX LIVE ; le
+            `.recap` global est masqué <1100px, ce qui rendait la feature « prix
+            en temps réel » invisible sur mobile (le lede la promet pourtant).
+            Override CSS ciblé (.recap.recap-config) le ré-affiche, empilé. */}
+        <aside className="recap recap-config">
           <div>
             <div className="recap-section-label">Configuration courante</div>
             <div style={{ marginTop: 12 }}>
