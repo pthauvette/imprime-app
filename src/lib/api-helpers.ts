@@ -13,6 +13,36 @@ export interface ApiError {
   details?: unknown;
 }
 
+/**
+ * Garde CSRF best-effort : rejette une requête dont l'en-tête `Origin` est
+ * cross-site. Défense en profondeur pour les routes sensibles (ex. minting de
+ * credentials) en plus de SameSite=Lax. Comparé au host canonique de
+ * NEXT_PUBLIC_APP_URL (robuste derrière CloudFront/Amplify), fallback `Host`.
+ * Origin ABSENT = toléré (curl, app native, certains proxys l'omettent) — on
+ * s'appuie alors sur SameSite=Lax. Retourne une 403 à renvoyer, ou null si OK.
+ */
+export function assertSameOrigin(req: Request): NextResponse | null {
+  const origin = req.headers.get('origin');
+  if (!origin) return null;
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return NextResponse.json<ApiError>({ error: 'Origine invalide', code: 'BAD_ORIGIN' }, { status: 403 });
+  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  let expectedHost: string | null = null;
+  try {
+    expectedHost = appUrl ? new URL(appUrl).host : req.headers.get('host');
+  } catch {
+    expectedHost = req.headers.get('host');
+  }
+  if (expectedHost && originHost !== expectedHost) {
+    return NextResponse.json<ApiError>({ error: 'Origine non autorisée', code: 'CROSS_ORIGIN' }, { status: 403 });
+  }
+  return null;
+}
+
 /** Wrap un handler async avec error handling unifié. */
 export function withErrorHandler<Args extends unknown[]>(
   handler: (...args: Args) => Promise<NextResponse>,

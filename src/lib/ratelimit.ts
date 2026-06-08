@@ -61,6 +61,9 @@ export const limiters = {
   //     global → le coût Sinalite total est plafonné quoi qu'il arrive.
   mcp: makeLimiter(60, '1 m', 'mcp'),
   mcpGlobal: makeLimiter(600, '1 m', 'mcp-global'),
+  // Création de clés API self-serve — keyé par USER (action authentifiée), pas IP.
+  // Borne l'abus (un compromis de session ne mint pas 1000 clés).
+  apiKeyMint: makeLimiter(10, '1 h', 'apikey-mint'),
 };
 
 /** True si le rate-limit est réellement actif (Upstash configuré). Sinon fail-open. */
