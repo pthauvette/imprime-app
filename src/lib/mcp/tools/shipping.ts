@@ -71,12 +71,30 @@ export async function estimatePrintShipping(
     return { ok: false, reason: 'quantity_unavailable', message: `Quantité ${quantityValue} indisponible.`, availableQuantities: sel.availableQuantities };
   }
 
+  return reestimateShipping([{ productId, optionIds: sel.optionIds }], province, postalCode);
+}
+
+/**
+ * Ré-estime la livraison pour des items DÉJÀ résolus (productId + optionIds).
+ * Réutilisé par estimate_shipping ET (Mode B) create_order : le port est
+ * recalculé côté SERVEUR via Sinalite pour la config exacte → on ne fait JAMAIS
+ * confiance au prix de port fourni par l'agent (correctif #1 de la revue : le HMAC
+ * ne signe pas la quantité, donc la seule défense fiable headless = re-estimer).
+ */
+export async function reestimateShipping(
+  items: { productId: number; optionIds: number[] }[],
+  province: CaProvince,
+  postalCode: string,
+): Promise<ShippingResult> {
+  if (items.length === 0) {
+    return { ok: false, reason: 'no_methods', message: 'Aucun article à livrer.' };
+  }
   const result = await sinalite.estimateShipping({
-    items: [{ productId, options: buildSinaliteOptionsMap(sel.optionIds) }],
+    items: items.map((it) => ({ productId: it.productId, options: buildSinaliteOptionsMap(it.optionIds) })),
     shippingInfo: { ShipState: province, ShipZip: postalCode, ShipCountry: 'CA' },
   });
 
-  const productIds = [productId];
+  const productIds = items.map((i) => i.productId);
   const methods: ShippingMethodResult[] = result.body
     .map(([carrier, method, price, days]) => ({
       carrier,
@@ -91,6 +109,13 @@ export async function estimatePrintShipping(
     return { ok: false, reason: 'no_methods', message: 'Aucune méthode de livraison pour cette destination.' };
   }
   return { ok: true, methods, cheapest: methods[0] };
+}
+
+/** Sélectionne la méthode choisie par l'agent dans une ré-estimation serveur.
+ *  Mode B : on prend le PRIX SERVEUR de cette méthode, jamais celui de l'agent. */
+export function selectShippingMethod(result: ShippingResult, methodName: string): ShippingMethodResult | null {
+  if (!result.ok) return null;
+  return result.methods.find((m) => m.method === methodName) ?? null;
 }
 
 export function formatShippingText(
