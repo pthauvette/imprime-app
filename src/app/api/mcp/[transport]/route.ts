@@ -28,7 +28,8 @@ import {
   formatQuoteText,
 } from '@/lib/mcp/tools/quote';
 import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipping';
-import { CaProvince } from '@/lib/sinalite/types';
+import { placeHeadlessOrder, formatHeadlessResult } from '@/lib/mcp/place-order';
+import { CaProvince, ShipMethod } from '@/lib/sinalite/types';
 import { rateLimit, clientIp, rateLimitEnabled } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
@@ -111,23 +112,62 @@ const handler = createMcpHandler(
 
     server.tool(
       'create_order',
-      "Configure une commande d'impression et renvoie un récapitulatif + un lien de finalisation par produit (téléverser le fichier print-ready, confirmer la livraison et payer sur plio.ca). NE débite RIEN et NE crée PAS encore la commande : la finalisation (fichier + paiement) se fait par l'humain via le lien. Nécessite une clé API avec le scope orders:write.",
+      "Passe une commande d'impression. DEUX modes : (A, défaut) sans fileUrl → renvoie un récap + un lien pour téléverser le fichier et payer sur plio.ca (scope orders:write). (B, headless) avec fileUrl sur chaque article (URL S3 Plio) + contact/livraison/expectedGrossCents/idempotencyKey → crée la commande et renvoie un lien de paiement Stripe (scope orders:write:headless, activé sur clés de confiance). Le prix et le port sont TOUJOURS recalculés côté serveur.",
       {
         items: z.array(z.object({
           slug: z.string().describe("Slug produit (list_print_products)"),
           paper: z.string().describe("Clé papier (get_product_options)"),
           finish: z.string().describe("Clé finition (get_product_options)"),
           quantity: z.number().int().positive().describe("Quantité (cf. get_product_options)"),
+          fileUrl: z.string().url().optional().describe("URL S3 Plio du fichier print-ready. Présent → mode headless (scope orders:write:headless)."),
+          internalRef: z.string().max(120).optional().describe("Référence interne (PO, etc.)."),
         })).min(1).max(10).describe("Articles à commander (1 à 10)"),
+        // Champs du mode HEADLESS (requis seulement si fileUrl présent) :
+        contact: z.object({
+          firstName: z.string().min(1), lastName: z.string().min(1),
+          email: z.string().email().describe("Courriel de LIVRAISON (le paiement/confirmation vont au compte de la clé)."),
+          phone: z.string().min(7),
+        }).optional(),
+        shippingAddress: z.object({
+          line1: z.string().min(1), line2: z.string().optional(),
+          city: z.string().min(1), province: CaProvince, postalCode: z.string().min(3),
+        }).optional(),
+        shippingMethod: ShipMethod.optional().describe("Méthode (cf. estimate_shipping). Le PRIX est recalculé serveur."),
+        expectedGrossCents: z.number().int().nonnegative().optional().describe("Total CAD AVANT crédits, en cents. Garde-fou anti-tamper."),
+        idempotencyKey: z.string().min(8).max(64).optional().describe("Nonce stable, réutilisé À L'IDENTIQUE sur retry (évite la double commande)."),
+        promoCode: z.string().max(64).optional(),
+        shippingNote: z.string().max(200).optional(),
       },
-      async ({ items }, extra) => {
-        // Scope orders:write requis : une clé 'lecture seule' ne déclenche pas le flux commande.
+      async (args, extra) => {
+        const headless = args.items.some((i) => i.fileUrl);
+        if (headless) {
+          // Mode B : scope SENSIBLE (clés de confiance only) + tous les champs requis.
+          const u = requireScope(extra, 'orders:write:headless');
+          if (!u.ok) return u.error;
+          if (!args.items.every((i) => i.fileUrl)) {
+            return { content: [{ type: 'text', text: 'Mode headless : TOUS les articles doivent avoir un fileUrl.' }], isError: true };
+          }
+          if (!args.contact || !args.shippingAddress || !args.shippingMethod || args.expectedGrossCents === undefined || !args.idempotencyKey) {
+            return { content: [{ type: 'text', text: 'Mode headless : fournis contact, shippingAddress, shippingMethod, expectedGrossCents et idempotencyKey.' }], isError: true };
+          }
+          const r = await placeHeadlessOrder(
+            {
+              items: args.items.map((i) => ({ slug: i.slug, paper: i.paper, finish: i.finish, quantity: i.quantity, fileUrl: i.fileUrl as string, internalRef: i.internalRef })),
+              contact: args.contact, shippingAddress: args.shippingAddress, shippingMethod: args.shippingMethod,
+              expectedGrossCents: args.expectedGrossCents, idempotencyKey: args.idempotencyKey,
+              promoCode: args.promoCode, shippingNote: args.shippingNote,
+            },
+            { userId: u.userId },
+            Date.now(),
+          );
+          return { content: [{ type: 'text', text: formatHeadlessResult(r) }], isError: !r.ok };
+        }
+        // Mode A (défaut) : récap + lien de finalisation. Scope orders:write.
         const u = requireScope(extra, 'orders:write');
         if (!u.ok) return u.error;
-        const handoff = await prepareOrderHandoff(items);
+        const handoff = await prepareOrderHandoff(args.items);
         return {
           content: [{ type: 'text', text: formatOrderHandoffText(handoff) }],
-          // Erreur seulement si AUCUN item n'a pu être résolu.
           isError: handoff.anyError && handoff.items.every((r) => !r.ok),
         };
       },

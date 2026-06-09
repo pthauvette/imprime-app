@@ -72,6 +72,17 @@ export async function claimMcpOrderIntent(userId: string, idempKey: string): Pro
   }
 }
 
+/** Relâche un claim (delete) — SÛR uniquement AVANT toute création d'Order (ex.
+ *  rejet par rate-limit après le claim). Permet à un retry de re-claim au lieu de
+ *  rester bloqué sur 'pending'. NE PAS appeler après createPendingOrder. */
+export async function releaseMcpOrderIntent(userId: string, idempKey: string): Promise<void> {
+  try {
+    await prisma.mcpOrderIntent.delete({ where: { userId_idempKey: { userId, idempKey } } });
+  } catch {
+    /* déjà supprimé / jamais créé — best-effort */
+  }
+}
+
 /** Attache l'Order au claim AVANT la Checkout Session (reprise sur crash). */
 export async function attachOrderToIntent(userId: string, idempKey: string, orderId: string): Promise<void> {
   await prisma.mcpOrderIntent.update({
