@@ -13,6 +13,13 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     draft: { deleteMany: vi.fn(async () => ({ count: 3 })) },
     designDraft: { deleteMany: vi.fn(async () => ({ count: 7 })) },
+    // Mode B #3c — cleanup des Orders/claims headless orphelins.
+    order: { updateMany: vi.fn(async () => ({ count: 0 })), findMany: vi.fn(async () => []) },
+    mcpOrderIntent: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      findMany: vi.fn(async () => []),
+      updateMany: vi.fn(async () => ({ count: 0 })),
+    },
   },
 }));
 
