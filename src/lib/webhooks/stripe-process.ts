@@ -268,6 +268,36 @@ async function handlePaymentSucceeded(
     return;
   }
 
+  // Revue Mode B (C1) — INVARIANT SÉCURITÉ : le montant RÉELLEMENT encaissé par
+  // Stripe DOIT égaler le montant dû de l'Order. Sans ça, le fallback
+  // metadata.orderId (ci-dessus) finaliserait un Order CHER avec un PaymentIntent
+  // MOINS CHER (substitution cross-order : on livre/débite sur order.amountCents en
+  // n'ayant encaissé que amount_received). Tous les flux légitimes matchent par
+  // construction — web (PI créé à totalCents=amountCents), retry + Mode B (Checkout
+  // Session unit_amount=amountCents) — donc zéro faux positif. Un écart = anomalie
+  // ou abus → on NE finalise PAS (l'Order reste PENDING). On THROW : Stripe retente
+  // (visible) et l'event n'est pas marqué traité ; un opérateur investigue.
+  if (intent.amount_received !== order.amountCents) {
+    logStripe.error(
+      { orderId: order.id, owedCents: order.amountCents, receivedCents: intent.amount_received, intentId: intent.id },
+      'SECURITY: Stripe amount_received != order.amountCents — refus de finaliser',
+    );
+    await sendCriticalAlert({
+      severity: 'critical',
+      title: 'Webhook : montant Stripe ≠ montant commande — finalisation refusée',
+      body: `Un paiement encaissé ne correspond PAS au montant dû de la commande. Commande laissée en PENDING. Vérifie une éventuelle substitution cross-order (metadata.orderId) ou un bug de pricing.`,
+      context: {
+        orderId: order.id,
+        owedCents: order.amountCents,
+        receivedCents: intent.amount_received ?? null,
+        paymentIntentId: intent.id,
+      },
+      actionUrl: `/admin/orders/${order.id}`,
+      actionLabel: 'Voir la commande',
+    });
+    throw new Error(`amount mismatch on order ${order.id}: owed ${order.amountCents}, received ${intent.amount_received}`);
+  }
+
   // Round 36 #1 — wallet debit + mark paid maintenant DANS LA MÊME
   // $transaction. Avant : 2 transactions séparées → si le process crashait
   // entre les 2, l'order était PAID mais wallet pas débité = customer
