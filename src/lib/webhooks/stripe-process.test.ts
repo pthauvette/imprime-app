@@ -63,6 +63,8 @@ function succeededEvent(amountReceived: number): Stripe.Event {
 beforeEach(() => {
   vi.clearAllMocks();
   m.createOrder.mockResolvedValue({ orderId: 999, message: 'ok', status: 'success' });
+  // Par défaut, cet appel GAGNE la transition atomique PENDING→PAID.
+  m.markOrderPaidWithWalletDebit.mockResolvedValue({ order: { id: 'ord_1' }, transitioned: true });
 });
 
 describe('webhook payment_intent.succeeded — garde montant (C1)', () => {
@@ -87,5 +89,25 @@ describe('webhook payment_intent.succeeded — garde montant (C1)', () => {
     m.findUnique.mockResolvedValue(pendingOrder(5000));
     await expect(processStripeEvent(succeededEvent(9999), {})).rejects.toThrow(/amount mismatch/);
     expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
+  });
+});
+
+describe('webhook payment_intent.succeeded — garde transitioned (#3a, anti double-production)', () => {
+  it('event qui GAGNE la transition (transitioned=true) → soumet à Sinalite', async () => {
+    m.findUnique.mockResolvedValue(pendingOrder(5000));
+    m.markOrderPaidWithWalletDebit.mockResolvedValue({ order: { id: 'ord_1' }, transitioned: true });
+    await processStripeEvent(succeededEvent(5000), {});
+    expect(m.createOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('event concurrent qui PERD la course (transitioned=false) → AUCUNE soumission Sinalite ni referral', async () => {
+    m.findUnique.mockResolvedValue(pendingOrder(5000));
+    // L'updateMany atomique a déjà été gagné par l'autre event → count=0 → false.
+    m.markOrderPaidWithWalletDebit.mockResolvedValue({ order: { id: 'ord_1' }, transitioned: false });
+    await processStripeEvent(succeededEvent(5000), {});
+    expect(m.markOrderPaidWithWalletDebit).toHaveBeenCalledTimes(1); // l'appel a bien eu lieu
+    expect(m.createOrder).not.toHaveBeenCalled(); // mais PAS de double production
+    expect(m.awardReferral).not.toHaveBeenCalled();
+    expect(m.sendOrderConfirmationEmail).not.toHaveBeenCalled();
   });
 });
