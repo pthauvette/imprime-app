@@ -154,7 +154,9 @@ function paymentSucceededEvent(intentId = 'pi_test_123', extra: Record<string, u
   return {
     id: `evt_${intentId}`,
     type: 'payment_intent.succeeded' as const,
-    data: { object: { id: intentId, ...extra } },
+    // amount_received doit matcher order.amountCents (garde sécurité C1 du webhook) ;
+    // overridable via extra pour tester explicitement un mismatch.
+    data: { object: { id: intentId, amount_received: baseOrder.amountCents, ...extra } },
   };
 }
 
