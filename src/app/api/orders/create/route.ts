@@ -120,6 +120,13 @@ const CreateOrderSchema = z.object({
 export const POST = withErrorHandler(async (req: Request) => {
   const payload = await parseBody(req, CreateOrderSchema);
 
+  // ⚠️ SYNC : cette logique de prix (Phases 1-2) est désormais EXTRAITE à
+  // l'identique dans src/lib/orders/price-order.ts (priceOrder), utilisée par le
+  // MCP create_order Mode B. Tant que cette route n'est pas rewirée pour consommer
+  // priceOrder (rewire prévu, behavior-preserving), TOUTE modif ici DOIT être
+  // répliquée dans price-order.ts (sinon divergence web/MCP). price-order.ts est
+  // couvert par price-order.test.ts (mêmes scénarios que orders-create.test.ts).
+  //
   // Phase 1: server-side price computation (anti-tampering).
   // Variants-index first (O(1) après le premier lookup grâce au cache 10 min),
   // fallback à POST /price/... pour les combos avec exclusions ou custom_size.
