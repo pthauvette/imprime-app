@@ -5,6 +5,9 @@ import type Stripe from 'stripe';
 const m = vi.hoisted(() => ({
   findUnique: vi.fn(),
   update: vi.fn(),
+  updateMany: vi.fn(),
+  orderEventCreate: vi.fn(),
+  mcpIntentDeleteMany: vi.fn(),
   markOrderPaid: vi.fn(),
   markOrderPaidWithWalletDebit: vi.fn(),
   markOrderSubmitted: vi.fn(),
@@ -15,7 +18,11 @@ const m = vi.hoisted(() => ({
   sendCriticalAlert: vi.fn(),
   awardReferral: vi.fn(),
 }));
-vi.mock('@/lib/db', () => ({ prisma: { order: { findUnique: m.findUnique, update: m.update } } }));
+vi.mock('@/lib/db', () => ({ prisma: {
+  order: { findUnique: m.findUnique, update: m.update, updateMany: m.updateMany },
+  orderEvent: { create: m.orderEventCreate },
+  mcpOrderIntent: { deleteMany: m.mcpIntentDeleteMany },
+} }));
 vi.mock('@/lib/db/orders', () => ({
   markOrderPaid: m.markOrderPaid,
   markOrderPaidWithWalletDebit: m.markOrderPaidWithWalletDebit,
@@ -109,5 +116,37 @@ describe('webhook payment_intent.succeeded — garde transitioned (#3a, anti dou
     expect(m.createOrder).not.toHaveBeenCalled(); // mais PAS de double production
     expect(m.awardReferral).not.toHaveBeenCalled();
     expect(m.sendOrderConfirmationEmail).not.toHaveBeenCalled();
+  });
+});
+
+function expiredEvent(metadata: Record<string, string>): Stripe.Event {
+  return {
+    type: 'checkout.session.expired',
+    data: { object: { id: 'cs_1', metadata } },
+  } as unknown as Stripe.Event;
+}
+
+describe('webhook checkout.session.expired — Mode B (#3b)', () => {
+  it('session Mode B expirée, Order encore PENDING → annule + event + libère le claim', async () => {
+    m.updateMany.mockResolvedValue({ count: 1 });
+    await processStripeEvent(expiredEvent({ kind: 'mcp-order', orderId: 'ord_1' }), {});
+    expect(m.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'ord_1', status: 'PENDING' },
+      data: { status: 'CANCELLED' },
+    }));
+    expect(m.orderEventCreate).toHaveBeenCalledTimes(1);
+    expect(m.mcpIntentDeleteMany).toHaveBeenCalledWith({ where: { orderId: 'ord_1' } });
+  });
+
+  it('session Mode B expirée mais Order plus PENDING (payée entre-temps, count=0) → ne touche à rien', async () => {
+    m.updateMany.mockResolvedValue({ count: 0 });
+    await processStripeEvent(expiredEvent({ kind: 'mcp-order', orderId: 'ord_1' }), {});
+    expect(m.orderEventCreate).not.toHaveBeenCalled();
+    expect(m.mcpIntentDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it('session NON-Mode-B (wallet_topup) expirée → ignorée (aucune annulation d\'Order)', async () => {
+    await processStripeEvent(expiredEvent({ kind: 'wallet_topup', userId: 'u1' }), {});
+    expect(m.updateMany).not.toHaveBeenCalled();
   });
 });
