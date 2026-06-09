@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const h = vi.hoisted(() => ({
   isHeadlessOrderEnabled: vi.fn(() => true),
   createMcpCheckoutSession: vi.fn(),
-  assertPlioFileUrl: vi.fn((u: string) => ({ ok: true as const, url: u })),
+  assertPlioFileUrl: vi.fn((u: string): { ok: boolean; url?: string; reason?: string } => ({ ok: true, url: u })),
   resolveOrderItem: vi.fn(),
   getProductDetail: vi.fn(async () => ({ options: [], pricing: [], metadata: [] })),
   deriveIdempKey: vi.fn(() => 'idemphash'),
@@ -20,7 +20,7 @@ const h = vi.hoisted(() => ({
   createPendingOrder: vi.fn(),
   userFindUnique: vi.fn(),
   orderCount: vi.fn(async () => 0),
-  rateLimit: vi.fn(async () => ({ ok: true, remaining: 9 })),
+  rateLimit: vi.fn(async (): Promise<{ ok: boolean; remaining?: number; response?: unknown }> => ({ ok: true, remaining: 9 })),
 }));
 vi.mock('./checkout-session', () => ({ isHeadlessOrderEnabled: h.isHeadlessOrderEnabled, createMcpCheckoutSession: h.createMcpCheckoutSession }));
 vi.mock('./file-url-guard', () => ({ assertPlioFileUrl: h.assertPlioFileUrl }));
@@ -119,7 +119,7 @@ describe('placeHeadlessOrder', () => {
   });
 
   it('rate-limit user dépassé → refus + RELÂCHE le claim (pas d\'empoisonnement)', async () => {
-    h.rateLimit.mockResolvedValueOnce({ ok: false, response: {} as never });
+    h.rateLimit.mockResolvedValueOnce({ ok: false, response: {} });
     const r = await placeHeadlessOrder(ARGS, USER, 1_780_000_000_000);
     expect(r.ok).toBe(false);
     expect(h.releaseMcpOrderIntent).toHaveBeenCalledWith('u1', 'idemphash');
