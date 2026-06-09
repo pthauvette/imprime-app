@@ -78,6 +78,13 @@ export async function processStripeEvent(
       }
       break;
     }
+    case 'checkout.session.expired': {
+      // Durcissement Mode B #3b — une Checkout Session de commande headless expire
+      // après 60 min sans paiement → l'Order resterait PENDING orphelin avec un
+      // lien mort. On l'annule (atomique, seulement si encore PENDING).
+      await handleCheckoutSessionExpired(event.data.object as Stripe.Checkout.Session);
+      break;
+    }
     case 'invoice.paid': {
       // Round 22 #3 — recurring wallet topup. Stripe envoie invoice.paid
       // chaque mois quand la subscription est chargée.
@@ -217,6 +224,31 @@ async function handleWalletTopup(session: Stripe.Checkout.Session): Promise<void
     totalCredit: result.totalCreditCents,
     newBalance: result.balanceAfterCents,
   }, 'wallet topup processed');
+}
+
+/**
+ * Mode B #3b — Checkout Session headless expirée (60 min sans paiement). On annule
+ * l'Order PENDING orphelin (transition ATOMIQUE PENDING→CANCELLED : si payée entre
+ * temps — course expired vs payment_intent.succeeded — count=0, on ne touche rien)
+ * et on libère le claim d'idempotence (success=true au lien mort) pour qu'un
+ * nouvel essai du même achat recrée une commande/session fraîche.
+ */
+async function handleCheckoutSessionExpired(session: Stripe.Checkout.Session): Promise<void> {
+  // Seules les sessions de commande MCP Mode B ont un Order à annuler.
+  const orderId = session.metadata?.orderId;
+  if (session.metadata?.kind !== 'mcp-order' || !orderId) return;
+
+  const res = await prisma.order.updateMany({
+    where: { id: orderId, status: 'PENDING' },
+    data: { status: 'CANCELLED' },
+  });
+  if (res.count === 0) {
+    logStripe.info({ orderId, sessionId: session.id }, 'checkout.session.expired mais Order plus PENDING (payée ?) — ignoré');
+    return;
+  }
+  await prisma.orderEvent.create({ data: { orderId, kind: 'CHECKOUT_EXPIRED' } });
+  await prisma.mcpOrderIntent.deleteMany({ where: { orderId } });
+  logStripe.info({ orderId, sessionId: session.id }, 'Mode B checkout session expirée — Order annulée + claim idempotence libéré');
 }
 
 async function handlePaymentSucceeded(
