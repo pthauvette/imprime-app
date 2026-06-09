@@ -307,7 +307,7 @@ async function handlePaymentSucceeded(
   // Le webhook Stripe retry et tout repart d'un état cohérent.
   // L'idempotency reste assurée par le check order.status !== 'PENDING'
   // ci-dessus : si on a déjà fait le tour avec succès, on early-return.
-  await markOrderPaidWithWalletDebit({
+  const { transitioned } = await markOrderPaidWithWalletDebit({
     paymentIntentId: intent.id,
     walletDebit: order.walletCreditAppliedCents > 0
       ? {
@@ -317,6 +317,22 @@ async function handlePaymentSucceeded(
         }
       : undefined,
   });
+
+  // Durcissement Mode B #3a — le check order.status !== 'PENDING' (l.~266) est un
+  // READ non-atomique : DEUX events payment_intent.succeeded concurrents peuvent
+  // tous deux le passer avant qu'aucun ne commite. Seul l'updateMany atomique
+  // PENDING→PAID dans markOrderPaidWithWalletDebit désigne un gagnant unique
+  // (transitioned===true). Le perdant (transitioned===false) DOIT s'arrêter ici,
+  // sinon il (re)soumettrait la commande à Sinalite → DOUBLE PRODUCTION (le client
+  // reçoit/paie 2× la même impression). Le crédit referral + l'email sont aussi
+  // gardés (un seul award/notif).
+  if (!transitioned) {
+    logStripe.info(
+      { orderId: order.id, intentId: intent.id },
+      'order déjà finalisée par un event concurrent (transitioned=false) — skip Sinalite/referral/email',
+    );
+    return;
+  }
 
   // Best-effort referral credit award (idempotent via @unique on refereeUserId)
   try {

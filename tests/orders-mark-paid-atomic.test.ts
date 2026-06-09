@@ -127,10 +127,20 @@ describe('markOrderPaidWithWalletDebit (Round 36 #1 + Round 38 #4 optimistic loc
     const result = await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
 
     expect(result).toBeDefined();
+    // Mode B #3a — n'a PAS gagné la transition → le caller ne (re)soumettra pas.
+    expect(result.transitioned).toBe(false);
     // Aucun side effect : ni event ni wallet
     expect(txOrderEvent.create).not.toHaveBeenCalled();
     expect(txUser.updateMany).not.toHaveBeenCalled();
     expect(txWalletTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it('Mode B #3a — gagne la transition (count=1) → transitioned=true', async () => {
+    txOrder.updateMany.mockResolvedValue({ count: 1 });
+    txOrder.findUnique.mockResolvedValue({ id: 'o_test', status: 'PAID', referralCreditAppliedCents: 0, promoCodeId: null, userId: 'u1' });
+    const result = await markOrderPaidWithWalletDebit({ paymentIntentId: 'pi_123' });
+    expect(result.transitioned).toBe(true);
+    expect(result.order).toBeDefined();
   });
 
   // Audit v2 #3.3 — AVANT : overdraft → throw → order coincée PENDING alors que

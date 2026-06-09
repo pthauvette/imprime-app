@@ -199,8 +199,11 @@ export async function markOrderPaid(paymentIntentId: string) {
  * @param input.walletDebit - Si provided, debit le wallet user de N cents
  *   dans la même transaction. Throws si overdraft (wallet < amount).
  *
- * @returns L'Order updated. Le caller peut continuer avec Sinalite submit
- *   en sachant que le ledger est cohérent.
+ * @returns `{ order, transitioned }`. transitioned=true SEULEMENT si CET appel a
+ *   gagné la transition atomique PENDING→PAID. Le caller (webhook) ne doit
+ *   soumettre à Sinalite / créditer le referral / envoyer l'email QUE si
+ *   transitioned===true — sinon deux events Stripe concurrents produiraient la
+ *   commande deux fois (le guard updateMany garantit un seul gagnant).
  */
 export async function markOrderPaidWithWalletDebit(input: {
   paymentIntentId: string;
@@ -227,9 +230,11 @@ export async function markOrderPaidWithWalletDebit(input: {
       data: { status: 'PAID', paidAt: new Date() },
     });
     if (guard.count === 0) {
-      // Already paid (replay) — return existing order, no event/wallet debit
+      // Already paid (replay OU event concurrent qui a PERDU la course atomique) —
+      // pas d'event/wallet debit. transitioned:false → le caller (webhook) ne doit
+      // PAS (re)soumettre à Sinalite ni (re)créditer le referral (anti double-prod).
       const existing = await tx.order.findUnique({ where: { id: order.id } });
-      return existing!;
+      return { order: existing!, transitioned: false as const };
     }
     const updatedOrder = await tx.order.findUnique({ where: { id: order.id } });
     await tx.orderEvent.create({
@@ -378,7 +383,7 @@ export async function markOrderPaidWithWalletDebit(input: {
       }
     }
 
-    return updatedOrder;
+    return { order: updatedOrder!, transitioned: true as const };
   });
 
   // Audit v2 #3.3 — alerte APRÈS commit si le wallet a été clampé (le paiement

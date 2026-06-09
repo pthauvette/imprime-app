@@ -41,8 +41,9 @@ vi.mock('@/lib/db/orders', () => {
   }
   return {
     markOrderPaid: vi.fn(async () => undefined),
-    // Round 36 #1 — nouveau helper atomic combinant mark-paid + wallet debit
-    markOrderPaidWithWalletDebit: vi.fn(async () => ({ id: 'o_mock', status: 'PAID' })),
+    // Round 36 #1 — nouveau helper atomic combinant mark-paid + wallet debit.
+    // Mode B #3a — retourne { order, transitioned } ; true = a gagné la transition.
+    markOrderPaidWithWalletDebit: vi.fn(async () => ({ order: { id: 'o_mock', status: 'PAID' }, transitioned: true })),
     markOrderSubmitted: vi.fn(async () => undefined),
     markOrderFailed: vi.fn(async () => undefined),
     markRefundIssued: vi.fn(async () => undefined),
