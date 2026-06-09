@@ -64,6 +64,12 @@ export const limiters = {
   // Création de clés API self-serve — keyé par USER (action authentifiée), pas IP.
   // Borne l'abus (un compromis de session ne mint pas 1000 clés).
   apiKeyMint: makeLimiter(10, '1 h', 'apikey-mint'),
+  // MCP create_order Mode B (paiement headless) — keyé par USER (clé de confiance).
+  // mcpOrder borne par titulaire ; mcpOrderGlobal = plafond AGRÉGÉ (anti multi-comptes :
+  // empiler des clés/comptes ne multiplie pas le coût Stripe/DB). Pour une MUTATION
+  // à coût Stripe, ces buckets DOIVENT être fail-CLOSED en prod (cf. create_order).
+  mcpOrder: makeLimiter(10, '1 h', 'mcp-order'),
+  mcpOrderGlobal: makeLimiter(60, '1 h', 'mcp-order-global'),
 };
 
 /** True si le rate-limit est réellement actif (Upstash configuré). Sinon fail-open. */
