@@ -60,6 +60,9 @@ export async function verifyOAuthBearer(token: string, keyOverride?: JwtKey): Pr
     const expectedIssuer = process.env.MCP_OAUTH_EXPECTED_ISSUER?.trim();
     const { payload } = await jwtVerify(token, key, {
       audience: mcpResourceUri(), // H2 — aud DOIT inclure la resource canonique
+      // WorkOS AuthKit signe en RS256 ; ES256 gardé (flexibilité + tests). Restreindre
+      // la liste = défense anti alg-confusion (refuse alg:none / HS256-sur-clé-publique).
+      algorithms: ['RS256', 'ES256'],
       ...(expectedIssuer ? { issuer: expectedIssuer } : {}),
       // jose valide exp/nbf automatiquement.
     });
@@ -68,10 +71,13 @@ export async function verifyOAuthBearer(token: string, keyOverride?: JwtKey): Pr
     const email = typeof payload.email === 'string' ? payload.email.toLowerCase().trim() : '';
     if (!email || payload.email_verified !== true) return null;
 
-    // Scopes : intersection du claim `scope` avec les scopes OAuth autorisés.
-    // MCP_OAUTH_SCOPES exclut orders:write:headless → jamais octroyable ici.
-    const requested = typeof payload.scope === 'string' ? payload.scope.split(/\s+/).filter(Boolean) : [];
-    const scopes = MCP_OAUTH_SCOPES.filter((s) => requested.includes(s)) as ApiKeyScope[];
+    // Scopes : on ACCORDE l'ensemble MCP_OAUTH_SCOPES à toute identité OAuth vérifiée.
+    // WorkOS AuthKit n'émet que des scopes OIDC (openid/email/profile), pas nos scopes
+    // custom → filtrer le claim `scope` donnerait []. MCP_OAUTH_SCOPES exclut
+    // orders:write:headless (paiement) → JAMAIS octroyé via OAuth, quoi que le token
+    // demande. Capacité accordée = catalogue + devis + create_order Mode A (lien de
+    // finalisation sûr, aucun débit ni commande créée côté serveur).
+    const scopes = [...MCP_OAUTH_SCOPES] as ApiKeyScope[];
 
     // Mapping identité : JIT par email VÉRIFIÉ. Role forcé 'USER' (on n'utilise JAMAIS
     // le role DB de l'user matché → pas d'héritage ADMIN via OAuth).
