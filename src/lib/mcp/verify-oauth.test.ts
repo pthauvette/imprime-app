@@ -74,11 +74,18 @@ describe('M2 — identité anti-account-takeover', () => {
     const r = await verifyOAuthBearer(await sign({ email: undefined }), resolver(publicKey));
     expect(r).toBeNull();
   });
-  it('scope orders:write:headless demandé → JAMAIS octroyé (filtré)', async () => {
+  it('scope orders:write:headless demandé → JAMAIS octroyé (hors MCP_OAUTH_SCOPES)', async () => {
     const r = await verifyOAuthBearer(await sign({ scope: 'catalog:read orders:write:headless' }), resolver(publicKey));
     expect(r).not.toBeNull();
-    expect(r!.scopes).toEqual(['catalog:read']); // headless retiré
+    // On accorde l'ensemble MCP_OAUTH_SCOPES ; le paiement headless n'y est pas → jamais accordé.
+    expect(r!.scopes).toEqual(['catalog:read', 'orders:write']);
     expect(r!.scopes).not.toContain('orders:write:headless');
+  });
+  it('scopes accordés INDÉPENDAMMENT du claim (WorkOS n\'émet que des scopes OIDC)', async () => {
+    // Cas réel : le token WorkOS porte openid/email/profile, PAS nos scopes custom.
+    const r = await verifyOAuthBearer(await sign({ scope: 'openid email profile' }), resolver(publicKey));
+    expect(r).not.toBeNull();
+    expect(r!.scopes).toEqual(['catalog:read', 'orders:write']); // accordés quand même
   });
   it('role toujours USER même si le claim tente ADMIN', async () => {
     const r = await verifyOAuthBearer(await sign({ role: 'ADMIN' }), resolver(publicKey));
