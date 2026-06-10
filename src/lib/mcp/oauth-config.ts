@@ -30,6 +30,14 @@ export function isOAuthDiscoveryEnabled(): boolean {
   return oauthAuthorizationServer() !== null;
 }
 
+/** Kill-switch d'ACCEPTATION des access tokens OAuth dans verifyToken. OFF par
+ *  défaut → mcpVerifyToken se comporte exactement comme avant (clés statiques only).
+ *  Activer (`MCP_OAUTH=enforce`/`1`) APRÈS config WorkOS + vérif logs (PR5). */
+export function isOAuthEnabled(): boolean {
+  const v = process.env.MCP_OAUTH?.trim();
+  return v === '1' || v === 'enforce';
+}
+
 /** Document PRM (RFC 9728) — données 100 % publiques. null si OAuth non configuré. */
 export function protectedResourceMetadata(): Record<string, unknown> | null {
   const as = oauthAuthorizationServer();
