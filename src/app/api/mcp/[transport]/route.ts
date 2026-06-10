@@ -18,6 +18,7 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 import { z } from 'zod';
 import { mcpVerifyToken } from '@/lib/mcp/verify-token';
+import { mcpResourceUri } from '@/lib/mcp/oauth-config';
 import { requireUser, requireScope } from '@/lib/mcp/auth';
 import { prepareOrderHandoff, formatOrderHandoffText } from '@/lib/mcp/tools/create-order';
 import { listPrintProducts, formatProductsText } from '@/lib/mcp/tools/list-products';
@@ -190,11 +191,20 @@ const handler = createMcpHandler(
   },
 );
 
-// Auth par clés API (Bearer). required:false → les 4 tools read-only restent
-// PUBLICS ; seuls les tools qui appellent requireUser/requireScope (whoami,
-// futur create_order) exigent une clé. mcpVerifyToken est TOTAL (ne throw jamais)
-// pour ne pas transformer un cold-start Neon en 401 qui casserait les read-only.
-const authHandler = withMcpAuth(handler, mcpVerifyToken, { required: false });
+// Auth Bearer : clés API statiques (plio_sk_) + (flag) JWT OAuth — cf. mcpVerifyToken.
+// required:false → les 4 tools read-only restent PUBLICS ; seuls les tools qui
+// appellent requireUser/requireScope (whoami, create_order) exigent une identité.
+// mcpVerifyToken est TOTAL (ne throw jamais) pour ne pas transformer un cold-start
+// Neon ou une panne JWKS en 401 qui casserait les read-only.
+// resourceUrl/resourceMetadataPath FIGÉS sur la resource canonique (correctif H2) :
+// le WWW-Authenticate / la métadonnée émis par mcp-handler ne dérivent plus d'un
+// x-forwarded-host spoofable. La validation d'audience du token vit, elle, dans
+// verifyOAuthBearer (mcpResourceUri, même source).
+const authHandler = withMcpAuth(handler, mcpVerifyToken, {
+  required: false,
+  resourceUrl: mcpResourceUri(),
+  resourceMetadataPath: '/.well-known/oauth-protected-resource',
+});
 
 // Fail-open silencieux du rate-limit = coût Sinalite non borné. En prod, si
 // Upstash est absent, on le SIGNALE au chargement (sans bloquer l'endpoint public).
