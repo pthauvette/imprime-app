@@ -47,7 +47,11 @@ export default function LangSwitch() {
           onClick={() => switchTo(l)}
           aria-pressed={locale === l}
           style={{
-            padding: '4px 10px',
+            minHeight: 44, // audit mobile T1 — cible tactile (était ~24px)
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 14px',
             fontFamily: 'var(--font-mono)',
             fontSize: 11,
             fontWeight: 600,

@@ -16353,3 +16353,33 @@ a, button, [role="button"], input[type="checkbox"] {
     padding-bottom: max(32px, calc(32px + env(safe-area-inset-bottom)));
   }
 }
+
+/* ─── HOMEPAGE marketing — reflow ultra-étroit (audit mobile P1-P3) ─────────────
+   `.hero-actions` est flex-wrap → les CTA wrappent déjà ; on les passe pleine
+   largeur (empilage propre + grosse cible) sous 640px. Spécificité doublée
+   `.hero-actions .hero-cta-*` pour battre les bases (possibles doublons). */
+@media (max-width: 640px) {
+  .hero-actions .hero-cta-primary,
+  .hero-actions .hero-cta-secondary {
+    width: 100%;
+    justify-content: center;
+    height: 52px;
+    padding: 0 18px;
+    font-size: 15px;
+  }
+}
+
+/* P2 — lede hero figé à 20px → fluide. */
+@media (max-width: 700px) {
+  .hero-lede {
+    font-size: clamp(16px, 4.2vw, 20px);
+  }
+}
+
+/* P3 — cartes (product-promo / how-card) padding 24px → 16px sous 480px. */
+@media (max-width: 480px) {
+  .product-promo,
+  .how-card {
+    padding: 16px;
+  }
+}
