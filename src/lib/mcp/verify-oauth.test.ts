@@ -50,6 +50,14 @@ describe('H2 — audience binding (anti token-confusion)', () => {
     expect(r).toBeNull();
     expect(findOrCreateUserByEmail).not.toHaveBeenCalled();
   });
+  it('aud = identifiant resource (/api/mcp) → accepté', async () => {
+    const r = await verifyOAuthBearer(await sign({}, { aud: RESOURCE }), resolver(publicKey));
+    expect(r).not.toBeNull();
+  });
+  it('aud = URL endpoint (/api/mcp/mcp) → accepté aussi (les 2 formes sont notre resource)', async () => {
+    const r = await verifyOAuthBearer(await sign({}, { aud: `${RESOURCE}/mcp` }), resolver(publicKey));
+    expect(r).not.toBeNull();
+  });
 });
 
 describe('exp / iss', () => {

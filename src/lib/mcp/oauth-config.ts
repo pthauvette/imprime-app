@@ -15,6 +15,20 @@ export function mcpResourceUri(): string {
   return (process.env.MCP_RESOURCE_URI?.trim() || 'https://www.plio.ca/api/mcp').replace(/\/+$/, '');
 }
 
+/**
+ * Audiences acceptées pour un access token OAuth. On tolère DEUX formes — l'identifiant
+ * de ressource (`/api/mcp`, ce que la PRM annonce) ET l'URL d'endpoint réelle
+ * (`/api/mcp/mcp`, là où le client POSTe) — parce que les clients MCP dérivent
+ * l'indicateur `resource` (RFC 8707) de l'une OU l'autre. LES DEUX désignent NOTRE
+ * propre serveur MCP → accepter les deux ne crée AUCUNE faille de token-confusion
+ * (la défense H2 rejette les tokens destinés à un AUTRE resource server, pas ces
+ * deux variantes Plio). Évite un rejet silencieux selon l'implémentation du client.
+ */
+export function mcpAcceptedAudiences(): string[] {
+  const base = mcpResourceUri();
+  return [base, `${base}/mcp`];
+}
+
 /** Scopes qu'une identité OAuth peut obtenir. JAMAIS orders:write:headless (paiement) :
  *  correctif M2, le scope de confiance reste réservé aux clés admin. */
 export const MCP_OAUTH_SCOPES = ['catalog:read', 'orders:write'] as const;
