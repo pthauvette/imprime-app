@@ -16335,3 +16335,21 @@ a, button, [role="button"], input[type="checkbox"] {
     justify-content: center;
   }
 }
+
+/* ─── SAFE-AREA (notch / home-indicator) — viewportFit:cover est actif (layout.tsx).
+   `env(safe-area-inset-*)` vaut 0 hors appareil à encoche → purement additif, no-op
+   au desktop et sur les téléphones sans encoche. ─────────────────────────────── */
+
+/* M6 — nav sticky top:0 : sans inset, elle passe sous la barre de statut / l'encoche. */
+@media (max-width: 700px) {
+  .mkt-nav {
+    padding-top: max(16px, calc(16px + env(safe-area-inset-top)));
+  }
+}
+
+/* L9 — page auth : le bouton submit peut passer sous le home-indicator iOS. */
+@media (max-width: 700px) {
+  .auth-form-side {
+    padding-bottom: max(32px, calc(32px + env(safe-area-inset-bottom)));
+  }
+}
