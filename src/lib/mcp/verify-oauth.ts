@@ -16,7 +16,7 @@
  */
 import { jwtVerify, createRemoteJWKSet, type JWTVerifyGetKey } from 'jose';
 import { findOrCreateUserByEmail } from '@/lib/db/orders';
-import { mcpResourceUri, MCP_OAUTH_SCOPES } from './oauth-config';
+import { mcpAcceptedAudiences, MCP_OAUTH_SCOPES } from './oauth-config';
 import type { ApiKeyScope } from './auth';
 
 /** Resolver de clé pour jose.jwtVerify : JWKS distant en prod, clé locale en test. */
@@ -59,7 +59,9 @@ export async function verifyOAuthBearer(token: string, keyOverride?: JwtKey): Pr
 
     const expectedIssuer = process.env.MCP_OAUTH_EXPECTED_ISSUER?.trim();
     const { payload } = await jwtVerify(token, key, {
-      audience: mcpResourceUri(), // H2 — aud DOIT inclure la resource canonique
+      // H2 — aud DOIT correspondre à NOTRE resource. On tolère les 2 formes
+      // (/api/mcp identifiant + /api/mcp/mcp endpoint) ; jose passe si aud ∈ la liste.
+      audience: mcpAcceptedAudiences(),
       // WorkOS AuthKit signe en RS256 ; ES256 gardé (flexibilité + tests). Restreindre
       // la liste = défense anti alg-confusion (refuse alg:none / HS256-sur-clé-publique).
       algorithms: ['RS256', 'ES256'],
