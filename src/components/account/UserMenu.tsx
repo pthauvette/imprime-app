@@ -101,8 +101,8 @@ export default function UserMenu({ user }: UserMenuProps) {
         aria-label={`Menu utilisateur — ${display}`}
         title={display}
         style={{
-          width: 36,
-          height: 36,
+          width: 44, // audit mobile M2 — était 36px (sous la cible tactile 44px)
+          height: 44,
           borderRadius: '50%',
           background: 'var(--accent-soft)',
           color: 'var(--accent-primary)',

@@ -16233,8 +16233,18 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
   .mkt-nav-links .mkt-nav-link {
     display: inline-flex;
     align-items: center;
-    min-height: 40px;
-    padding: 6px 8px;
+    min-height: 44px; /* M1/M3 audit mobile — était 40px, raté de 4px */
+    padding: 8px 12px;
+  }
+  /* M1 — CTA « Commander » : le généré le réduit à `6px 12px / 12px` (~24px de
+     haut), pile sur LE bouton de conversion. `.mkt-nav .mkt-nav-cta` (2 classes)
+     bat le `.mkt-nav-cta` généré (1 classe). */
+  .mkt-nav .mkt-nav-cta {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
   }
 }
 
