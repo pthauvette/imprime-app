@@ -16285,3 +16285,53 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     font-size: 16px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   POLISH TACTILE MOBILE (audit mobile v2 — login + hygiène)
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* T2 — flash gris iOS au tap sur les liens/boutons. Inoffensif au desktop
+   (pas de tap-highlight là-bas). */
+a, button, [role="button"], input[type="checkbox"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* L4/M5 — hover « collant » sur tactile : les :hover (transform translateY)
+   restent figés après un tap jusqu'au tap suivant. Sur appareil SANS survol réel,
+   on neutralise le transform des CTA (le changement de fond reste, inoffensif). */
+@media (hover: none) {
+  .mkt-nav-cta:hover,
+  .cta-btn:hover,
+  .magic-link-cta:hover,
+  .oauth-btn:hover,
+  .auth-submit:hover,
+  .ml-provider:hover,
+  .ml-resend-btn:hover {
+    transform: none;
+  }
+}
+
+/* L5 — case à cocher conditions/infolettre à 20px : la zone-label est tappable
+   (padding) mais la case visible est petite. On la passe à 24px au doigt. */
+@media (hover: none) and (pointer: coarse) {
+  .terms-row input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* L3 — page /sign-in/sent : libellés providers (« GMAIL », « OUTLOOK »…) à 10px,
+   limite illisible sur petit écran → 12px. */
+@media (max-width: 700px) {
+  .ml-provider-name {
+    font-size: 12px;
+  }
+  /* L6 — bouton « renvoyer le lien » sous-dimensionné (~28px) → cible ≥44px. */
+  .ml-resend-btn {
+    min-height: 44px;
+    padding: 12px 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
