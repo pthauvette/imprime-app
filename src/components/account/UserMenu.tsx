@@ -140,6 +140,7 @@ export default function UserMenu({ user }: UserMenuProps) {
             right: coords.right,
             zIndex: 1000,
             minWidth: 260,
+            maxWidth: 'calc(100vw - 24px)', // audit mobile M4 — anti-débordement <360px
             background: 'var(--bg-surface)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--r-lg, 12px)',
