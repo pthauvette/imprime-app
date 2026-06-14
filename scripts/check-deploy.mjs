@@ -65,8 +65,48 @@ function migrateStatus() {
   }
 }
 
+/** SHA de origin/main (fallback si --expect-sha non fourni). '' si git indispo. */
+function gitMainSha() {
+  try {
+    return execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return '';
+  }
+}
+
+/** releaseId (= SHA déployé, 7 hex) exposé par /api/health. null si injoignable. */
+async function fetchReleaseId() {
+  try {
+    const res = await fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(15000) });
+    const j = await res.json();
+    return typeof j?.releaseId === 'string' ? j.releaseId : null;
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   console.log(`\n${C.bold}🔎 check-deploy${C.reset} ${C.dim}→ ${BASE}${C.reset}\n`);
+
+  // 0) SHA déployé vs SHA attendu — la vraie mesure « merged ≠ deployed ».
+  //    --expect-sha <sha> en CI (le commit mergé) ; sinon défaut = origin/main HEAD.
+  // Validation hex stricte : un --expect-sha mal formé (flag avalé, 'dev', vide…)
+  // → expectSha='' → on NE compare PAS (pas de faux drift), au lieu de comparer
+  // contre du garbage et d'exit 1 à tort.
+  const rawExpect = (arg('expect-sha', '') || gitMainSha()).slice(0, 7).toLowerCase();
+  const expectSha = /^[0-9a-f]{7}$/.test(rawExpect) ? rawExpect : '';
+  const deployedSha = (await fetchReleaseId())?.toLowerCase() ?? null;
+  let drift = false;
+  if (deployedSha === null) {
+    console.log(`  SHA déployé        ${warn('injoignable')}   ${C.dim}GET /api/health${C.reset}`);
+  } else if (deployedSha === 'dev') {
+    console.log(`  SHA déployé        ${warn("'dev'")}   ${C.dim}AWS_COMMIT_ID non câblé au runtime (amplify.yml whitelist)${C.reset}`);
+  } else if (expectSha) {
+    drift = deployedSha !== expectSha;
+    console.log(`  SHA déployé        ${drift ? bad(`${deployedSha} ≠ attendu ${expectSha} (DRIFT)`) : ok(`${deployedSha} (à jour)`)}`);
+  } else {
+    console.log(`  SHA déployé        ${ok(deployedSha)}   ${C.dim}(aucun SHA attendu — passe --expect-sha ou aie origin/main)${C.reset}`);
+  }
 
   // 1) Probes « marqueurs d'époque ».
   const health = await probe({ path: '/api/health' });
@@ -110,6 +150,10 @@ async function main() {
 
   // 3) Verdict.
   console.log(`\n${C.bold}Verdict${C.reset}`);
+  if (drift) {
+    console.log(`  ${bad('🔴 DRIFT : merged ≠ deployed.')} La prod sert ${deployedSha}, attendu ${expectSha}.`);
+    console.log(`     Le build Amplify du commit attendu n'a pas (encore) atterri → Console Amplify → Build history (rouge ? en cours ? branche = main ?).`);
+  }
   if (mcpLive) {
     console.log(`  ${ok('✅ Le MCP est LIVE en prod.')} Endpoint : ${BASE}/api/mcp/mcp`);
   } else if (live && !apiKeysDeployed) {
@@ -128,9 +172,14 @@ async function main() {
     console.log(`  ${warn('🟡 État mixte')} — relis les lignes ci-dessus.`);
   }
   console.log('');
+
+  // Exit 1 SEULEMENT sur un vrai drift SHA (merged ≠ deployed) → utilisable
+  // comme gate dans la sonde CI. Les états « MCP pas encore live » / « mixte »
+  // restent informatifs (exit 0) : sans --expect-sha fiable, on n'échoue pas.
+  process.exit(drift ? 1 : 0);
 }
 
 main().catch((err) => {
   console.error(err);
-  process.exit(1);
+  process.exit(2);
 });
