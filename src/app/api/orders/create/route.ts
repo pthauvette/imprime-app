@@ -315,8 +315,11 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Round 27 #1 — best-effort link au AbandonedCart si le user a cliqué
   // sur un recovery email récemment (30j) pour ce email + product. Attribue
   // l'order au cart source pour le funnel sent → clicked → recovered.
-  // Fail-soft : pas critique pour la commande.
-  void (async () => {
+  // Fail-soft : pas critique (try/catch silencieux). AWAITÉ et non `void` —
+  // sur Lambda une promesse flottante GÈLE après la réponse et l'attribution
+  // serait perdue (leçon #322-324). Le lien designDraft juste en dessous est
+  // déjà await pour la même raison.
+  await (async () => {
     try {
       const recentlyClickedCart = await prisma.abandonedCart.findFirst({
         where: {
