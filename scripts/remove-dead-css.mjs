@@ -164,8 +164,17 @@ if (APPLY && toRemove.length) {
     cursor = r.end;
   }
   out += css.slice(cursor);
-  // PAS de collapse global ni de swallow : diff CHIRURGICAL. start=segStart inclut
-  // déjà l'espace de tête de chaque règle, donc pas de ligne vide orpheline.
+  // Strip des `@media (...) {}` devenus VIDES (toutes leurs règles retirées) —
+  // transformation sûre (un media vide ne style rien). Plusieurs passes pour les
+  // @media imbriqués. `[^{}]*` garantit qu'on ne matche que des media simples,
+  // `\{\s*\}` qu'ils sont bien vides → jamais un media avec des règles.
+  for (let pass = 0; pass < 3; pass++) {
+    const next = out.replace(/^[ \t]*@media[^{}]*\{\s*\}[ \t]*\n?/gm, '');
+    if (next === out) break;
+    out = next;
+  }
+  // PAS de collapse global : diff CHIRURGICAL. start=segStart inclut déjà l'espace
+  // de tête de chaque règle, donc pas de ligne vide orpheline.
   writeFileSync(GLOBALS, out, 'utf8');
   console.log(`${C.green}✓ Écrit : ${toRemove.length} règles retirées de globals.css.${C.reset}\n`);
 }
