@@ -34,8 +34,14 @@ applications:
             # .env.production → undefined au runtime (symptôme : route OAuth PRM en 404
             # alors que la var existait côté Console). Tout nouveau préfixe d'env lu au
             # runtime DOIT être ajouté à cette whitelist.
+            # AWS_COMMIT_ID (2026-06) : SEULE var AWS_ incluse, par son NOM EXACT
+            # (jamais le préfixe AWS_, pour ne pas leak les creds AWS internes —
+            # AWS_ACCESS_KEY_ID, etc.). C'est le SHA git du commit buildé, qu'Amplify
+            # pose à l'env de build ; on l'expose au runtime pour /api/health
+            # (releaseId), socle de la sonde deploy-drift (« merged ≠ deployed »).
+            # Sans elle, releaseId tombe sur 'dev' et le drift est indétectable.
             - >-
-              env | grep -E '^(DATABASE_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_)' > .env.production || true
+              env | grep -E '^(DATABASE_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|AWS_COMMIT_ID)' > .env.production || true
             # OOM FIX (build gelé 2026-06) : `next build` dépassait la heap Node
             # par défaut (~2 Go) et mourait en `JavaScript heap out of memory`
             # (exit 134) — l'app a grossi (MCP, mcp-handler, pages). C'est ce qui
