@@ -63,6 +63,14 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: pnpm typecheck
 
+      # Garde de non-régression ciblée : aucune promesse flottante (`void asyncFn`,
+      # `.then` non-awaité, IIFE async fire-and-forget) dans le code SERVEUR —
+      # elle GÈLE sur Amplify/Lambda après la réponse (leçon #322-324). Scopée à
+      # src/app/api + src/lib (le client est exclu : le navigateur ne gèle pas).
+      # Blast radius mesuré = 0 → ce step ne bloque que les régressions futures.
+      - name: Lint — promesses flottantes serveur (anti gel Lambda)
+        run: pnpm lint:no-floating
+
       - name: Unit tests (Vitest)
         run: pnpm vitest run
 
