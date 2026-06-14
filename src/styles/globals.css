@@ -16425,3 +16425,13 @@ a, button, [role="button"], input[type="checkbox"] {
 @media (max-width: 900px) {
   .two-col { grid-template-columns: 1fr; }
 }
+
+/* /admin/* — `.adm-shell` : migrated-pages.css (importé APRÈS globals) définit
+   `grid-template-columns: 260px 1fr` SANS @media → bat le collapse globals.css:10286
+   `@media(≤1024){ .adm-shell{ 1fr } }`. Sous 1024px, `.adm-nav` bascule déjà en barre
+   horizontale (migrated) mais le grid reste 260px → contenu broyé à ~115px. On gagne
+   par SPÉCIFICITÉ DOUBLÉE `.adm-shell.adm-shell` (0,2,0 > 0,1,0) — sans toucher le
+   généré, quel que soit l'ordre d'import. (Audit multiagent ; admin = staff/tablette.) */
+@media (max-width: 1024px) {
+  .adm-shell.adm-shell { grid-template-columns: 1fr; }
+}
