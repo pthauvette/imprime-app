@@ -1,0 +1,101 @@
+name: Deploy drift (merged ≠ deployed)
+
+# Sonde post-deploy. Après chaque merge sur main, vérifie que la PROD finit par
+# servir le commit mergé : compare /api/health `releaseId` (= SHA déployé,
+# exposé via AWS_COMMIT_ID) au SHA poussé. Détecte le piège « CI verte mais prod
+# gelée » qui nous a coûté du temps (build Amplify OOM #364, env runtime #369) —
+# que ni ci.yml (build avec DB stub) ni smoke-prod.yml (liveness, pas le SHA)
+# n'attrapent.
+#
+# Échec = email GitHub automatique au repo owner (+ Slack si le secret
+# SLACK_WEBHOOK_URL est configuré). PAS un required check → ne bloque jamais un
+# merge ; c'est une alarme, pas une barrière.
+#
+# Sécurité injection : aucun input non-fiable (github.event.*) n'est utilisé en
+# run:. Seuls GITHUB_SHA (valeur fiable fournie par GitHub) et le secret (via
+# env:) sont consommés.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # Un merge plus récent annule la sonde du précédent (sinon le job de l'ancien
+  # commit timeout pour rien : la prod a sauté directement au commit suivant).
+  group: deploy-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: Verifie que la prod sert le commit merge
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Sur push : laisse Amplify démarrer, puis poll /api/health jusqu'à ce que
+      # le releaseId == le commit mergé (ou timeout). Pas de deps à installer —
+      # check-deploy.mjs et le poll sont du node/curl pur.
+      - name: Attendre que la prod serve le commit merge (push)
+        if: github.event_name == 'push'
+        env:
+          BASE: https://www.plio.ca
+        run: |
+          set -u
+          expected="${GITHUB_SHA:0:7}"
+          echo "Commit merge attendu en prod : $expected"
+          echo "Pause initiale 120s (demarrage build Amplify)..."
+          sleep 120
+          deadline=$(( SECONDS + 1800 ))   # fenetre de poll = 30 min (build post-OOM + cold start + migrate deploy)
+          rid="?"
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            # PAS -f : on garde le body meme sur 503 (DB down) pour lire releaseId
+            # -> une panne DB ne se deguise pas en faux "drift".
+            body=$(curl -sS --max-time 15 "$BASE/api/health" 2>/dev/null || true)
+            rid=$(echo "$body" | jq -r '.releaseId // empty' 2>/dev/null || echo '?')
+            [ -z "$rid" ] && rid='?'
+            echo "  deployed releaseId=$rid (attendu $expected) - t=${SECONDS}s"
+            if [ "$rid" = "dev" ]; then
+              echo "::warning::releaseId='dev' - AWS_COMMIT_ID pas (encore) cable au runtime (1er deploy apres amplify.yml ?). Pas d'alarme drift."
+              exit 0
+            fi
+            if [ "$rid" = "$expected" ]; then
+              echo "OK - La prod sert le commit merge ($expected)."
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::merged != deployed - la prod sert '$rid' apres ~32 min, attendu '$expected'. Le build Amplify du commit n'a pas atterri (rouge / OOM / migration echouee ?)."
+          exit 1
+
+      # Déclenchement manuel : check one-shot « la prod sert-elle main HEAD ? ».
+      - name: Check one-shot (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: node scripts/check-deploy.mjs --expect-sha "$GITHUB_SHA"
+
+      # En cas d'échec : diagnostic riche dans les logs.
+      - name: Diagnostic check-deploy
+        if: failure()
+        run: node scripts/check-deploy.mjs --expect-sha "$GITHUB_SHA" || true
+
+      # Alerte Slack optionnelle — no-op si le secret n'est pas configuré
+      # (l'email d'échec GitHub reste l'alerte par défaut, comme smoke-prod.yml).
+      - name: Alerte Slack (si secret configure)
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+            curl -fsS -X POST -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Plio deploy-drift : le commit ${GITHUB_SHA:0:7} n'est pas deploye en prod (merged != deployed). Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+              "$SLACK_WEBHOOK_URL" && echo "Slack notifie." || echo "Echec POST Slack (non bloquant)."
+          else
+            echo "SLACK_WEBHOOK_URL non configure -> alerte via email GitHub seulement."
+          fi
