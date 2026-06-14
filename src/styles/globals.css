@@ -16383,3 +16383,18 @@ a, button, [role="button"], input[type="checkbox"] {
     padding: 16px;
   }
 }
+
+/* ─── BUG MOBILE LOGIN/SIGNUP — la layout 2-colonnes ne s'effondrait PAS ────────
+   Deux pages (signin.html + signup.html) ont été collées dans ce fichier ; des
+   règles POSTÉRIEURES non gardées écrasaient le collapse responsive :
+   - `.auth-shell { grid-template-columns: 560px 1fr }` (~l.3110, sans @media) battait
+     le `@media(≤900){ .auth-shell{ 1fr } }` (~l.2791) → grille jamais effondrée.
+   - `.auth-side { display: flex }` (~l.2794, sans @media) battait le
+     `@media(≤900){ .auth-side{ display:none } }` → panneau latéral jamais masqué.
+   Symptôme : sur mobile, panneau latéral 560px visible + form broyé dans ~96px +
+   281px d'overflow horizontal. Fix : re-forcer le collapse EN FIN DE FICHIER (gagne
+   par ordre source sur les deux doublons). VÉRIFIÉ en preview 375px. */
+@media (max-width: 900px) {
+  .auth-shell { grid-template-columns: 1fr; }
+  .auth-side { display: none; }
+}
