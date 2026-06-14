@@ -16398,3 +16398,30 @@ a, button, [role="button"], input[type="checkbox"] {
   .auth-shell { grid-template-columns: 1fr; }
   .auth-side { display: none; }
 }
+
+/* ─── OVERFLOW MOBILE — balayage runtime 375px (mesure scrollWidth) ─────────────
+   Bugs trouvés par MESURE (pas lisibles statiquement). Tous overrides EOF = ordre
+   source. VÉRIFIÉS en preview 375px (overflow → 0). */
+
+/* HOMEPAGE #1 — `.footer-grid` : son collapse ≤700 `1fr 1fr` ne tient pas (les
+   liens longs « Politique de remboursement » ont un min-content qui gonfle un track
+   1fr → 2e colonne déborde à 453px). 1-COLONNE sur téléphone = chaque lien pleine
+   largeur, jamais d overflow. Mesuré : 60px d overflow supprimés. */
+@media (max-width: 600px) {
+  .footer-grid { grid-template-columns: 1fr; }
+}
+
+/* HOMEPAGE #2 — `.hero-visual` (cartes décoratives empilées) : `.stack-card.stack-3`
+   dépasse de 19px sur mobile quand le hero passe en 1-col. On clippe la déco (le hero
+   reste intact). Mesuré : 19px supprimés. */
+@media (max-width: 900px) {
+  .hero-visual { overflow: hidden; }
+}
+
+/* /payments + /referrals — `.two-col` : une 2e déf `globals.css:8431` `1.5fr 1fr`
+   (page referrals) SANS @media écrasait le collapse `@media(≤900){1fr}` (l.7554) par
+   ordre source (même bug que auth-shell). Re-force le collapse ici. Ratios desktop
+   distincts (1fr 1.5fr / 1.5fr 1fr) préservés ≥901px. (Audit multiagent.) */
+@media (max-width: 900px) {
+  .two-col { grid-template-columns: 1fr; }
+}

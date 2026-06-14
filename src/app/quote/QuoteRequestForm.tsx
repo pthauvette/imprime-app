@@ -86,11 +86,11 @@ export default function QuoteRequestForm() {
         gap: 16,
       }}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
         <Field label="Ton nom" name="name" required maxLength={150} />
         <Field label="Email" name="email" type="email" required maxLength={150} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
         <Field label="Téléphone (optionnel)" name="phone" type="tel" maxLength={30} />
         <Field label="Entreprise (optionnel)" name="companyName" maxLength={200} />
       </div>
@@ -103,7 +103,7 @@ export default function QuoteRequestForm() {
         maxLength={200}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
         <Field label="Quantité estimée (optionnel)" name="estimatedQuantity" placeholder="500-1000" maxLength={100} />
         <Field label="Deadline (optionnel)" name="deadline" placeholder="Mi-juillet" maxLength={100} />
       </div>
