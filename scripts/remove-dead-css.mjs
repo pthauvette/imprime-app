@@ -27,6 +27,11 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const APPLY = process.argv.includes('--apply');
+// --include-inert : retire AUSSI les règles non-pure-classe mais INERTES — un
+// sélecteur (descendant/compound/pseudo) dont chaque groupe contient une classe
+// MORTE ne matche jamais (le `.dead` requis n'existe sur aucun élément) → retrait
+// 0-impact. Garde anti `:not()/:is()/:where()/:has()` (qui INVERSENT le matching).
+const INERT = process.argv.includes('--include-inert');
 const ONLY = (() => { const i = process.argv.indexOf('--only'); return i >= 0 ? process.argv[i + 1] : null; })();
 const GLOBALS = join(ROOT, 'src/styles/globals.css');
 
@@ -64,8 +69,14 @@ function scan(css) {
   while (i < n) {
     // commentaire
     if (css[i] === '/' && css[i + 1] === '*') {
+      const before = css.slice(segStart, i);
       const j = css.indexOf('*/', i + 2);
       i = j < 0 ? n : j + 2;
+      // Un commentaire EN TÊTE de prélude (que du blanc avant lui) ne doit pas
+      // polluer le sélecteur : on avance segStart past le commentaire. Sinon
+      // `/* … */ @media {…}` était lu comme une « règle » au prélude bidon →
+      // mis-parse → sur-consommation des règles voisines (bug attrapé en batch3).
+      if (/^\s*$/.test(before)) segStart = i;
       continue;
     }
     if (css[i] === '{') {
@@ -122,6 +133,23 @@ function selectorClasses(sel) {
   return [...new Set((sel.match(/\.([\w-]+)/g) ?? []).map((c) => c.slice(1)))];
 }
 
+/**
+ * Sélecteur INERTE = chaque groupe (séparé par ,) contient ≥1 classe MORTE en
+ * position gardienne → le groupe ne matche aucun élément (le `.dead` requis
+ * n'existe pas) → la règle est inerte. Refuse les pseudos FONCTIONNELS
+ * (:not/:is/:where/:has) : `.x:not(.dead)` matche AU CONTRAIRE tout `.x` (le
+ * `.dead` absent rend le :not toujours vrai) → surtout pas « inerte ».
+ */
+function isInertSelector(sel) {
+  if (/:(?:not|is|where|has)\(/i.test(sel)) return false;
+  const groups = sel.split(',').map((s) => s.trim()).filter(Boolean);
+  if (!groups.length) return false;
+  return groups.every((g) => {
+    const cls = (g.match(/\.([\w-]+)/g) ?? []).map((c) => c.slice(1));
+    return cls.some(isDeadClass); // ≥1 classe morte dans le groupe → inerte
+  });
+}
+
 // ─── 3) Décide quelles règles retirer ────────────────────────────────────────
 const css = readFileSync(GLOBALS, 'utf8');
 const nodes = scan(css);
@@ -129,11 +157,15 @@ const toRemove = [];
 for (const node of nodes) {
   if (node.kind !== 'rule') continue;
   const sel = node.prelude;
-  if (!isPureClassSelector(sel)) continue;
-  const classes = selectorClasses(sel);
-  if (classes.length === 0) continue;
-  if (!classes.every(isDeadClass)) continue;
   if (ONLY && !sel.includes(ONLY)) continue;
+  // (a) pure-classe 100 % morte (défaut, le plus sûr) ; OU
+  // (b) --include-inert : sélecteur inerte (gardé par une classe morte).
+  const pureDead =
+    isPureClassSelector(sel) &&
+    selectorClasses(sel).length > 0 &&
+    selectorClasses(sel).every(isDeadClass);
+  const inertDead = INERT && isInertSelector(sel);
+  if (!pureDead && !inertDead) continue;
   toRemove.push(node);
 }
 
