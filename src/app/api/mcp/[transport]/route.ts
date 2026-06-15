@@ -18,7 +18,8 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 import { z } from 'zod';
 import { mcpVerifyToken } from '@/lib/mcp/verify-token';
-import { mcpResourceUri } from '@/lib/mcp/oauth-config';
+import { mcpResourceUri, isOAuthEnabled } from '@/lib/mcp/oauth-config';
+import { maybeOAuthChallenge } from '@/lib/mcp/oauth-challenge';
 import { requireUser, requireScope } from '@/lib/mcp/auth';
 import { prepareOrderHandoff, formatOrderHandoffText } from '@/lib/mcp/tools/create-order';
 import { listPrintProducts, formatProductsText } from '@/lib/mcp/tools/list-products';
@@ -225,6 +226,21 @@ async function gated(req: Request): Promise<Response> {
   if (!perIp.ok) return perIp.response;
   const global = await rateLimit('mcpGlobal', 'all');
   if (!global.ok) return global.response;
+
+  // Challenge OAuth (RFC 9728) — uniquement si le flag MCP_OAUTH est ON. Un appel
+  // ANONYME d'un tool protégé (whoami/create_order) reçoit 401 + WWW-Authenticate
+  // → le connecteur claude.ai découvre l'AS et propose « se connecter ». Les 4
+  // tools read-only restent 200/anonymes. Flag OFF (défaut) → on saute tout ce
+  // bloc → comportement byte-identique à avant (corps non lu, requête intacte).
+  if (isOAuthEnabled() && req.method === 'POST') {
+    const bodyText = await req.text();
+    const challenge = maybeOAuthChallenge(req, bodyText);
+    if (challenge) return challenge;
+    // Corps déjà consommé par .text() → on reconstruit la requête pour le handler
+    // (mêmes headers + corps bufferisé) ; le handler MCP relit le JSON-RPC.
+    return authHandler(new Request(req.url, { method: 'POST', headers: req.headers, body: bodyText }));
+  }
+
   // authHandler (pas handler) : le rate-limit s'applique AVANT la vérif de clé,
   // ce qui borne aussi le coût DB de verifyApiKey (findUnique) — anti-DoS du
   // chemin d'auth.
