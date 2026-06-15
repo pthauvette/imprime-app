@@ -33,6 +33,23 @@ export function mcpAcceptedAudiences(): string[] {
  *  correctif M2, le scope de confiance reste réservé aux clés admin. */
 export const MCP_OAUTH_SCOPES = ['catalog:read', 'orders:write'] as const;
 
+/** Chemin de la métadonnée PRM (RFC 9728). ALIGNÉ sur le resourceMetadataPath passé
+ *  à withMcpAuth → une seule valeur pour le challenge ET la config mcp-handler. */
+export const PROTECTED_RESOURCE_METADATA_PATH = '/.well-known/oauth-protected-resource';
+
+/** URL absolue de la PRM = origine de la resource canonique + chemin well-known.
+ *  (https://www.plio.ca/api/mcp → https://www.plio.ca/.well-known/oauth-protected-resource) */
+export function protectedResourceMetadataUrl(): string {
+  return `${new URL(mcpResourceUri()).origin}${PROTECTED_RESOURCE_METADATA_PATH}`;
+}
+
+/** Valeur du header `WWW-Authenticate` du challenge OAuth (RFC 9728 §5.1). Pointe
+ *  le client (Claude/ChatGPT) vers la PRM → AS → DCR. C'est l'amorce DÉCLARÉE de
+ *  la découverte qu'attend le connecteur claude.ai (strict, cf. recherche). */
+export function oauthChallengeHeader(): string {
+  return `Bearer realm="Plio MCP Server", resource_metadata="${protectedResourceMetadataUrl()}"`;
+}
+
 /** URL du serveur d'autorisation (WorkOS AuthKit). Vide → découverte OAuth OFF. */
 export function oauthAuthorizationServer(): string | null {
   const issuer = process.env.MCP_OAUTH_ISSUER?.trim();
