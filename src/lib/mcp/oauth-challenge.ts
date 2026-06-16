@@ -1,49 +1,40 @@
 /**
- * Challenge OAuth (RFC 9728 §5.1) pour le serveur MCP — pattern HYBRIDE.
+ * Challenge OAuth (RFC 9728 §5.1) pour le serveur MCP — OAuth REQUISE.
  *
- * Le serveur MCP de Plio est en `required: false` : les 4 tools read-only
- * (catalogue/options/devis/livraison) répondent 200 ANONYME. Mais un connecteur
- * claude.ai (strict) a besoin d'un `401 + WWW-Authenticate: …resource_metadata=…`
- * pour DÉCOUVRIR que l'OAuth est disponible (sinon il traite le serveur comme
- * authless et n'offre jamais « se connecter »).
+ * Pour qu'un connecteur apparaisse comme « OAuth » dans claude.ai / ChatGPT (et
+ * affiche donc un bouton « Connect »), le serveur DOIT répondre 401 +
+ * WWW-Authenticate dès le handshake — PAS seulement sur les tools protégés. Un
+ * serveur qui répond 200 en anonyme est classé « sans authentification » → aucun
+ * bouton Connect, donc impossible à lister en OAuth (constaté empiriquement
+ * 2026-06-16 : claude.ai « ce connecteur n'utilise pas l'authentification »).
  *
- * Solution : quand un tool PROTÉGÉ (whoami/create_order) est appelé SANS aucun
- * Authorization, on renvoie le challenge → Claude suit vers la PRM → AS → DCR,
- * s'authentifie, et rejoue avec un token. Les read-only restent 200/anonymes.
+ * Donc : tout appel SANS header Authorization reçoit le challenge 401 (initialize,
+ * tools/list, tools/call confondus). Les clients qui FOURNISSENT un token (clé API
+ * `plio_sk_` ou JWT OAuth) passent → mcpVerifyToken les vérifie dans le handler.
+ * L'accès ANONYME sans token disparaît — c'est le prix du listing OAuth (et il n'y
+ * a aucun utilisateur anonyme réel : le MCP n'est pas encore listé).
  *
- * GARDÉ par isOAuthEnabled() côté caller → INERTE tant que le flag MCP_OAUTH est
- * OFF (comportement byte-identique à aujourd'hui). S'active EN LOCKSTEP avec
- * l'acceptation des tokens, quand WorkOS aura activé le DCR.
+ * GARDÉ par isOAuthEnabled() côté caller (gated) → INERTE tant que MCP_OAUTH est
+ * OFF (le serveur reste public/anonyme). S'active avec le flag (enforce en prod).
  */
 import { oauthChallengeHeader } from './oauth-config';
 
-/** Tools MCP qui exigent une identité (requireUser/requireScope dans le handler). */
-export const PROTECTED_TOOLS = new Set(['whoami', 'create_order']);
-
 /**
- * Renvoie un 401 + WWW-Authenticate SI (et seulement si) : aucun header
- * Authorization ET le corps est un `tools/call` vers un tool protégé. Sinon null
- * → flux normal (read-only anonyme, ou token fourni que le handler vérifiera).
- *
- * Ne consomme PAS `req` (le corps est passé déjà bufferisé par le caller, qui
- * doit reconstruire la requête pour le handler).
+ * Renvoie un 401 + WWW-Authenticate si la requête n'a AUCUN header Authorization.
+ * Sinon null → le handler vérifie le token (clé API ou JWT). N'échoue jamais.
  */
 export function maybeOAuthChallenge(req: Request, bodyText: string): Response | null {
-  // Un token est fourni → laisser mcpVerifyToken/le tool décider (pas de challenge).
+  // Token fourni → laisser mcpVerifyToken / le tool décider (pas de challenge).
   if (req.headers.get('authorization')) return null;
 
+  // Aucun token → OAuth requise : 401 + WWW-Authenticate(resource_metadata→PRM)
+  // pour que le client (Claude/ChatGPT) découvre l'AS et affiche « Connect ».
   let id: unknown = null;
-  let name: unknown;
   try {
-    const msg = JSON.parse(bodyText) as { method?: unknown; id?: unknown; params?: { name?: unknown } };
-    if (msg?.method !== 'tools/call') return null;
-    id = msg.id ?? null;
-    name = msg.params?.name;
+    id = (JSON.parse(bodyText) as { id?: unknown })?.id ?? null;
   } catch {
-    return null; // corps non-JSON (ex. GET/SSE) → flux normal
+    // corps non-JSON (ping, GET/SSE…) → id null, on challenge quand même.
   }
-
-  if (typeof name !== 'string' || !PROTECTED_TOOLS.has(name)) return null;
 
   return new Response(
     JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32001, message: 'Authentication required' } }),

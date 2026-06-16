@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { maybeOAuthChallenge, PROTECTED_TOOLS } from './oauth-challenge';
+import { maybeOAuthChallenge } from './oauth-challenge';
 import { protectedResourceMetadataUrl, oauthChallengeHeader } from './oauth-config';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -31,41 +31,50 @@ describe('oauthChallengeHeader / protectedResourceMetadataUrl', () => {
   });
 });
 
-describe('maybeOAuthChallenge — pattern hybride (RFC 9728)', () => {
-  it('tool PROTÉGÉ + AUCUN token → 401 + WWW-Authenticate', () => {
-    const res = maybeOAuthChallenge(mcpReq(call('create_order')), JSON.stringify(call('create_order')));
-    expect(res).not.toBeNull();
-    expect(res!.status).toBe(401);
-    expect(res!.headers.get('WWW-Authenticate')).toContain('resource_metadata=');
-  });
+describe('maybeOAuthChallenge — OAuth REQUISE (RFC 9728)', () => {
+  // Le serveur doit répondre 401 dès le handshake sur TOUT appel sans token,
+  // sinon claude.ai/ChatGPT le classent « sans authentification » → pas de
+  // bouton Connect, donc impossible à lister en OAuth.
 
-  it('whoami est aussi protégé', () => {
-    const body = JSON.stringify(call('whoami'));
-    expect(maybeOAuthChallenge(mcpReq(body), body)!.status).toBe(401);
-    expect(PROTECTED_TOOLS.has('whoami')).toBe(true);
-  });
-
-  it('token FOURNI → null (le handler vérifiera) — pas de challenge', () => {
-    const body = JSON.stringify(call('create_order'));
-    expect(maybeOAuthChallenge(mcpReq(body, { auth: 'Bearer plio_sk_x' }), body)).toBeNull();
-  });
-
-  it('tool READ-ONLY anonyme → null (reste 200 anonyme)', () => {
-    for (const t of ['list_print_products', 'get_print_quote', 'estimate_shipping', 'get_product_options']) {
+  it('AUCUN token, n\'importe quel tool/call → 401 + WWW-Authenticate', () => {
+    for (const t of [
+      'create_order',
+      'whoami',
+      'list_print_products',
+      'get_print_quote',
+      'estimate_shipping',
+      'get_product_options',
+    ]) {
       const body = JSON.stringify(call(t));
-      expect(maybeOAuthChallenge(mcpReq(body), body)).toBeNull();
+      const res = maybeOAuthChallenge(mcpReq(body), body);
+      expect(res, t).not.toBeNull();
+      expect(res!.status, t).toBe(401);
+      expect(res!.headers.get('WWW-Authenticate'), t).toContain('resource_metadata=');
     }
   });
 
-  it('méthode ≠ tools/call (initialize, tools/list) → null', () => {
+  it('AUCUN token sur initialize / tools/list / ping → 401 aussi (handshake)', () => {
     for (const m of ['initialize', 'tools/list', 'ping']) {
       const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: m });
-      expect(maybeOAuthChallenge(mcpReq(body), body)).toBeNull();
+      const res = maybeOAuthChallenge(mcpReq(body), body);
+      expect(res, m).not.toBeNull();
+      expect(res!.status, m).toBe(401);
     }
   });
 
-  it('corps non-JSON → null (pas de crash)', () => {
-    expect(maybeOAuthChallenge(mcpReq('pas du json'), 'pas du json')).toBeNull();
+  it('token FOURNI → null (le handler vérifiera clé API ou JWT)', () => {
+    const body = JSON.stringify(call('create_order'));
+    expect(maybeOAuthChallenge(mcpReq(body, { auth: 'Bearer plio_sk_x' }), body)).toBeNull();
+    expect(maybeOAuthChallenge(mcpReq(body, { auth: 'Bearer eyJ.jwt.token' }), body)).toBeNull();
+  });
+
+  it('corps non-JSON sans token → 401 quand même (id null, pas de crash)', async () => {
+    const res = maybeOAuthChallenge(mcpReq('pas du json'), 'pas du json');
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(401);
+    const json = await res!.json();
+    expect(json.id).toBeNull();
+    expect(json.error.code).toBe(-32001);
   });
 
   it('le body du 401 écho l\'id de la requête (JSON-RPC propre)', async () => {
@@ -74,5 +83,6 @@ describe('maybeOAuthChallenge — pattern hybride (RFC 9728)', () => {
     const json = await res.json();
     expect(json.id).toBe('abc-42');
     expect(json.error.code).toBe(-32001);
+    expect(json.error.message).toContain('Authentication');
   });
 });

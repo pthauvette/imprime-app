@@ -120,7 +120,11 @@ async function main() {
   const cleanup = await probe({ path: '/api/cron/cleanup' }); // route ancienne (existe → 401)
 
   const live = health === 200;
-  const mcpLive = mcp === 200; // tools/list répond. 404 = route absente = pas déployé.
+  // 200 = tools/list répond en anonyme (MCP_OAUTH off). 401 = route déployée mais
+  // OAuth requise (MCP_OAUTH=enforce) → le challenge répond = serveur LIVE aussi.
+  // 404 = route absente = pas déployé.
+  const mcpLive = mcp === 200 || mcp === 401;
+  const mcpOAuthGated = mcp === 401;
   const apiKeysDeployed = apiKeys === 401 || apiKeys === 405 || apiKeys === 200;
   const interpret = (code, deployedCodes) =>
     typeof code === 'string' ? warn(code) : deployedCodes.includes(code) ? ok(`${code} (présent)`) : bad(`${code} (absent)`);
@@ -128,7 +132,8 @@ async function main() {
   console.log(`  app live           ${live ? ok('oui') : bad('NON')}        ${C.dim}GET /api/health → ${health}${C.reset}`);
   console.log(`  route ancienne     ${interpret(cleanup, [401, 405, 200])}   ${C.dim}/api/cron/cleanup${C.reset}`);
   console.log(`  clés API (#346)    ${interpret(apiKeys, [401, 405, 200])}   ${C.dim}/api/account/api-keys${C.reset}`);
-  console.log(`  MCP (#340+)        ${mcpLive ? ok('200 (LIVE ✅)') : interpret(mcp, [200])}   ${C.dim}POST /api/mcp/mcp${C.reset}`);
+  const mcpLabel = mcpOAuthGated ? '401 (LIVE + OAuth requise ✅)' : '200 (LIVE ✅)';
+  console.log(`  MCP (#340+)        ${mcpLive ? ok(mcpLabel) : interpret(mcp, [200, 401])}   ${C.dim}POST /api/mcp/mcp${C.reset}`);
 
   // 2) Migrations (optionnel — exige DATABASE_URL prod).
   let mig = null;
@@ -155,7 +160,8 @@ async function main() {
     console.log(`     Le build Amplify du commit attendu n'a pas (encore) atterri → Console Amplify → Build history (rouge ? en cours ? branche = main ?).`);
   }
   if (mcpLive) {
-    console.log(`  ${ok('✅ Le MCP est LIVE en prod.')} Endpoint : ${BASE}/api/mcp/mcp`);
+    const suffix = mcpOAuthGated ? ` ${C.dim}(OAuth requise — 401 anonyme attendu)${C.reset}` : '';
+    console.log(`  ${ok('✅ Le MCP est LIVE en prod.')} Endpoint : ${BASE}/api/mcp/mcp${suffix}`);
   } else if (live && !apiKeysDeployed) {
     console.log(`  ${bad('🔴 Prod EN RETARD')} : l'app tourne mais le travail récent (clés API #346, MCP #340+) n'est PAS déployé.`);
     if (mig?.failed) {

@@ -227,11 +227,14 @@ async function gated(req: Request): Promise<Response> {
   const global = await rateLimit('mcpGlobal', 'all');
   if (!global.ok) return global.response;
 
-  // Challenge OAuth (RFC 9728) — uniquement si le flag MCP_OAUTH est ON. Un appel
-  // ANONYME d'un tool protégé (whoami/create_order) reçoit 401 + WWW-Authenticate
-  // → le connecteur claude.ai découvre l'AS et propose « se connecter ». Les 4
-  // tools read-only restent 200/anonymes. Flag OFF (défaut) → on saute tout ce
-  // bloc → comportement byte-identique à avant (corps non lu, requête intacte).
+  // Challenge OAuth (RFC 9728) — uniquement si le flag MCP_OAUTH est ON. TOUT appel
+  // ANONYME (sans header Authorization) reçoit 401 + WWW-Authenticate → claude.ai /
+  // ChatGPT découvrent l'AS et affichent « Connect ». C'est OBLIGATOIRE pour être
+  // listé en OAuth : un serveur qui répond 200 en anonyme est classé « sans auth »
+  // (donc aucun bouton Connect). Les clients qui fournissent un token (clé API ou
+  // JWT) passent → mcpVerifyToken les vérifie. Flag OFF (défaut) → on saute tout ce
+  // bloc → comportement byte-identique à avant (corps non lu, requête intacte,
+  // serveur public/anonyme).
   if (isOAuthEnabled() && req.method === 'POST') {
     const bodyText = await req.text();
     const challenge = maybeOAuthChallenge(req, bodyText);
