@@ -81,6 +81,11 @@ export interface ValidationOptions {
    *  côté S3 (storage/s3.ts). Avant : 50 MB, qui bloquait à tort des PDFs que
    *  S3 acceptait (et qu'un PSD du même poids passait, lui, sans validation). */
   maxBytes?: number;
+  /** Si true, un MAUVAIS format (dimensions ≠ taille produit, hors tolérance et
+   *  hors bleed) devient ERROR bloquant au lieu de warning. Le bleed-missing
+   *  (bonne taille, pas de bleed) reste warning (récupérable). N'a d'effet que
+   *  si `expected` est fourni (= on connaît la taille exacte → blocage sûr). */
+  strictDimensions?: boolean;
 }
 
 const DEFAULTS: Required<Omit<ValidationOptions, 'expected'>> = {
@@ -88,6 +93,7 @@ const DEFAULTS: Required<Omit<ValidationOptions, 'expected'>> = {
   maxPages: 2,
   // Round 45 #3 — relevé de 50→150 MB pour réaligner sur la limite S3 réelle.
   maxBytes: 150 * 1024 * 1024,
+  strictDimensions: false,
 };
 
 const PT_PER_INCH = 72;
@@ -200,10 +206,12 @@ export async function validatePdf(
           message: `Dimensions du PDF (${wInches.toFixed(2)}" × ${hInches.toFixed(2)}") correspondent au format final sans bleed. Pour un bord parfait, ajoute ${bleed}" de bleed sur chaque côté (= ${targetW.toFixed(2)}" × ${targetH.toFixed(2)}").`,
         });
       } else {
+        // Vraie non-conformité : ni la bonne taille, ni la bonne taille+bleed.
+        // En mode strict (taille produit EXACTE connue) → ERROR bloquant.
         issues.push({
-          level: 'warning',
+          level: opts.strictDimensions ? 'error' : 'warning',
           code: 'dimensions-mismatch',
-          message: `Dimensions inattendues : ${wInches.toFixed(2)}" × ${hInches.toFixed(2)}" (${wMm.toFixed(0)}mm × ${hMm.toFixed(0)}mm). Attendu : ${targetW.toFixed(2)}" × ${targetH.toFixed(2)}" (avec ${bleed}" de bleed). Risque de marges blanches ou de découpe imprécise.`,
+          message: `Dimensions incorrectes : ${wInches.toFixed(2)}" × ${hInches.toFixed(2)}" (${wMm.toFixed(0)}mm × ${hMm.toFixed(0)}mm). Attendu pour ce produit : ${targetW.toFixed(2)}" × ${targetH.toFixed(2)}" (format ${opts.expected.widthInches}" × ${opts.expected.heightInches}" + ${bleed}" de bleed par côté). Réexporte ton fichier à la bonne taille.`,
         });
       }
     }

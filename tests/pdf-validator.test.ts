@@ -155,11 +155,31 @@ describe('validatePdf — expected dimensions', () => {
     expect(issue?.message).toMatch(/sans bleed/);
   });
 
-  it('WARNING dimensions-mismatch si format totalement différent', async () => {
+  it('WARNING dimensions-mismatch si format totalement différent (non strict)', async () => {
     const file = await makePdfFile({ pages: 1, widthInches: 8.5, heightInches: 11 });
     const r = await validatePdf(file, { expected: businessCard });
     expect(r.level).toBe('warning');
     expect(r.issues.some((i) => i.code === 'dimensions-mismatch')).toBe(true);
+  });
+
+  it('STRICT : format totalement différent → ERROR bloquant', async () => {
+    const file = await makePdfFile({ pages: 1, widthInches: 8.5, heightInches: 11 });
+    const r = await validatePdf(file, { expected: businessCard, strictDimensions: true });
+    expect(r.level).toBe('error');
+    expect(r.issues.some((i) => i.code === 'dimensions-mismatch' && i.level === 'error')).toBe(true);
+  });
+
+  it('STRICT : bonne taille → OK (pas de faux blocage)', async () => {
+    const file = await makePdfFile({ pages: 1, widthInches: 3.75, heightInches: 2.25 });
+    const r = await validatePdf(file, { expected: businessCard, strictDimensions: true });
+    expect(r.level).toBe('ok');
+  });
+
+  it('STRICT : bleed-missing reste WARNING (récupérable, pas bloquant)', async () => {
+    const file = await makePdfFile({ pages: 1, widthInches: 3.5, heightInches: 2 });
+    const r = await validatePdf(file, { expected: businessCard, strictDimensions: true });
+    expect(r.level).toBe('warning');
+    expect(r.issues.some((i) => i.code === 'bleed-missing')).toBe(true);
   });
 
   it('OK avec tolérance custom (1mm = 0.04")', async () => {
