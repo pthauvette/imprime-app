@@ -98,6 +98,40 @@ export const MARGIN_SPECS_BY_FAMILY: Record<string, MarginSpec> = {
     typicalTrim: { widthIn: 4, heightIn: 4 },
     overlay: { bleedPercent: 4, safePercent: 10 },
   },
+  // 2026-06 — 5 produits du catalogue curaté (VIRTUAL_PRODUCTS) qui tombaient au
+  // DEFAULT (carte de visite 3.5×2) faute de spec → overlay de marges + bleed du
+  // fallback aux mauvaises proportions. typicalTrim = 1ère option `size` réelle du
+  // produit Sinalite (id 48/69/15005/58/5528). Bleed std 0.125".
+  'cartes-de-voeux': {
+    bleedInches: 0.125,
+    safeInches: 0.125,
+    typicalTrim: { widthIn: 8.5, heightIn: 5.5 },
+    overlay: { bleedPercent: 3, safePercent: 6 },
+  },
+  'accroche-portes': {
+    bleedInches: 0.125,
+    safeInches: 0.125,
+    typicalTrim: { widthIn: 8.5, heightIn: 3.5 },
+    overlay: { bleedPercent: 4, safePercent: 8 },
+  },
+  'invitations': {
+    bleedInches: 0.125,
+    safeInches: 0.125,
+    typicalTrim: { widthIn: 5, heightIn: 7 },
+    overlay: { bleedPercent: 3, safePercent: 6 },
+  },
+  'chemises-presentation': {
+    bleedInches: 0.125,
+    safeInches: 0.25,
+    typicalTrim: { widthIn: 6, heightIn: 9 },
+    overlay: { bleedPercent: 3, safePercent: 6 },
+  },
+  'signets': {
+    bleedInches: 0.125,
+    safeInches: 0.125,
+    typicalTrim: { widthIn: 2, heightIn: 8 },
+    overlay: { bleedPercent: 6, safePercent: 12 },
+  },
 };
 
 /**
@@ -122,6 +156,13 @@ const SINALITE_TO_FAMILY: Record<string, string> = {
   'envelopes': 'enveloppes',
   'apparel': 'merchandise',
   'mugs': 'merchandise',
+  // 2026-06 — catégories des 5 produits curatés qui tombaient au DEFAULT.
+  'greeting cards': 'cartes-de-voeux',
+  'specialty greeting cards': 'cartes-de-voeux',
+  'door hangers': 'accroche-portes',
+  'invitations': 'invitations',
+  'presentation folders': 'chemises-presentation',
+  'bookmarks': 'signets',
 };
 
 /**
