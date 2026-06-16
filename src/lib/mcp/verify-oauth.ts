@@ -70,8 +70,14 @@ export async function verifyOAuthBearer(token: string, keyOverride?: JwtKey): Pr
     });
 
     // M2 — email vérifié obligatoire (le lien JIT par email = même confiance que le magic-link).
+    // ⚠️ WorkOS ne met PAS email/email_verified dans l'access token par défaut → il FAUT
+    // un JWT Template (dashboard) qui injecte `{{ user.email }}` + `{{ user.email_verified }}`.
+    // Selon le rendu du template, email_verified arrive en booléen `true` OU en chaîne "true"
+    // → on accepte les deux (le token est déjà vérifié cryptographiquement + aud-bound, donc
+    // élargir au "true" string n'ouvre aucune faille). Toute autre valeur (false/absent) → rejet.
     const email = typeof payload.email === 'string' ? payload.email.toLowerCase().trim() : '';
-    if (!email || payload.email_verified !== true) return null;
+    const emailVerified = payload.email_verified === true || payload.email_verified === 'true';
+    if (!email || !emailVerified) return null;
 
     // Scopes : on ACCORDE l'ensemble MCP_OAUTH_SCOPES à toute identité OAuth vérifiée.
     // WorkOS AuthKit n'émet que des scopes OIDC (openid/email/profile), pas nos scopes

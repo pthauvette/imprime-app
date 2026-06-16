@@ -29,9 +29,21 @@ export function mcpAcceptedAudiences(): string[] {
   return [base, `${base}/mcp`];
 }
 
-/** Scopes qu'une identité OAuth peut obtenir. JAMAIS orders:write:headless (paiement) :
- *  correctif M2, le scope de confiance reste réservé aux clés admin. */
+/** Scopes qu'une identité OAuth peut obtenir EN INTERNE (octroyés par verify-oauth
+ *  à toute identité vérifiée). JAMAIS orders:write:headless (paiement) : correctif M2,
+ *  le scope de confiance reste réservé aux clés admin. ⚠️ NE PAS confondre avec
+ *  OAUTH_DISCOVERY_SCOPES — ces scopes custom ne sont PAS demandés à WorkOS. */
 export const MCP_OAUTH_SCOPES = ['catalog:read', 'orders:write'] as const;
+
+/** Scopes ANNONCÉS dans la PRM (`scopes_supported`) = ce que le client (claude.ai)
+ *  demande au serveur d'AUTORISATION dans la requête /authorize. WorkOS AuthKit
+ *  n'accepte QUE des scopes OIDC standard ; annoncer nos scopes custom provoque
+ *  `error=invalid_scope` au callback (constaté 2026-06-16). On annonce donc les
+ *  scopes OIDC supportés par WorkOS — `openid`/`email` (claims email + email_verified
+ *  exigés par verify-oauth), `profile` (nom), `offline_access` (refresh token →
+ *  connexion persistante). L'octroi de capacité Plio (catalog:read/orders:write) se
+ *  fait APRÈS vérif, indépendamment du scope du token (cf. MCP_OAUTH_SCOPES). */
+export const OAUTH_DISCOVERY_SCOPES = ['openid', 'email', 'profile', 'offline_access'] as const;
 
 /** Chemin de la métadonnée PRM (RFC 9728). ALIGNÉ sur le resourceMetadataPath passé
  *  à withMcpAuth → une seule valeur pour le challenge ET la config mcp-handler. */
@@ -76,7 +88,9 @@ export function protectedResourceMetadata(): Record<string, unknown> | null {
   return {
     resource: mcpResourceUri(),
     authorization_servers: [as],
-    scopes_supported: [...MCP_OAUTH_SCOPES],
+    // Scopes de la requête /authorize → DOIVENT être supportés par WorkOS (OIDC),
+    // PAS nos scopes custom (sinon invalid_scope). Cf. OAUTH_DISCOVERY_SCOPES.
+    scopes_supported: [...OAUTH_DISCOVERY_SCOPES],
     bearer_methods_supported: ['header'],
     resource_name: 'Plio MCP Server',
   };
