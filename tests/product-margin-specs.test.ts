@@ -12,17 +12,22 @@ import {
 } from '@/lib/products/margin-specs';
 
 describe('MARGIN_SPECS_BY_FAMILY', () => {
-  it('couvre les 9 familles du catalogue', () => {
+  it('couvre les familles du catalogue (dont les 8 produits curatés)', () => {
     const keys = Object.keys(MARGIN_SPECS_BY_FAMILY).sort();
     expect(keys).toEqual([
+      'accroche-portes',
       'banners',
       'brochures',
       'cartes-de-visite',
+      'cartes-de-voeux',
       'cartes-postales',
+      'chemises-presentation',
       'enveloppes',
       'flyers',
+      'invitations',
       'livrets',
       'merchandise',
+      'signets',
       'stickers',
     ]);
   });
@@ -101,6 +106,20 @@ describe('getMarginSpecBySinaliteCategory', () => {
 
   it('category inconnue → default', () => {
     expect(getMarginSpecBySinaliteCategory('Quantum Decoders')).toBe(DEFAULT_MARGIN_SPEC);
+  });
+
+  // Anti-régression : les 5 produits curatés qui tombaient au DEFAULT ont
+  // maintenant leur propre spec (≠ carte de visite).
+  it.each([
+    ['Greeting Cards', 'cartes-de-voeux'],
+    ['Door Hangers', 'accroche-portes'],
+    ['Invitations', 'invitations'],
+    ['Presentation Folders', 'chemises-presentation'],
+    ['Bookmarks', 'signets'],
+  ])('%s → spec dédiée (≠ default carte de visite)', (category, slug) => {
+    const spec = getMarginSpecBySinaliteCategory(category);
+    expect(spec).toBe(MARGIN_SPECS_BY_FAMILY[slug]);
+    expect(spec).not.toBe(DEFAULT_MARGIN_SPEC);
   });
 
   it('null → default', () => {
