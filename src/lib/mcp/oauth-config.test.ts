@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   mcpResourceUri, oauthAuthorizationServer, isOAuthDiscoveryEnabled,
   protectedResourceMetadata, protectedResourceMetadataResponse, MCP_OAUTH_SCOPES,
+  OAUTH_DISCOVERY_SCOPES,
 } from './oauth-config';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -32,17 +33,28 @@ describe('découverte OAuth — gardée par MCP_OAUTH_ISSUER', () => {
 });
 
 describe('protectedResourceMetadata — PRM RFC 9728', () => {
-  it('shape correcte + scopes restreints (JAMAIS orders:write:headless)', () => {
+  it('shape correcte + scopes OIDC annoncés (PAS les scopes custom)', () => {
     vi.stubEnv('MCP_OAUTH_ISSUER', 'https://plio.authkit.app');
     vi.stubEnv('MCP_RESOURCE_URI', '');
     const prm = protectedResourceMetadata()!;
     expect(prm.resource).toBe('https://www.plio.ca/api/mcp');
     expect(prm.authorization_servers).toEqual(['https://plio.authkit.app']);
-    expect(prm.scopes_supported).toEqual(['catalog:read', 'orders:write']);
+    // La PRM annonce les scopes que claude.ai demande à WorkOS = OIDC standard,
+    // PAS nos scopes custom (sinon WorkOS rejette → invalid_scope au callback).
+    expect(prm.scopes_supported).toEqual(['openid', 'email', 'profile', 'offline_access']);
     expect(prm.bearer_methods_supported).toEqual(['header']);
-    // Garde-fou : le scope paiement n'est JAMAIS annoncé/octroyable via OAuth public.
-    expect(prm.scopes_supported as string[]).not.toContain('orders:write:headless');
+  });
+
+  it('découplage : la PRM ne fuit AUCUN scope custom (ni paiement)', () => {
+    vi.stubEnv('MCP_OAUTH_ISSUER', 'https://plio.authkit.app');
+    const advertised = (protectedResourceMetadata()!.scopes_supported as string[]);
+    // Aucun scope d'application Plio dans la requête /authorize (WorkOS ne les connaît pas).
+    for (const custom of [...MCP_OAUTH_SCOPES, 'orders:write:headless']) {
+      expect(advertised).not.toContain(custom);
+    }
+    // …et l'octroi interne n'a jamais le scope paiement.
     expect(MCP_OAUTH_SCOPES as readonly string[]).not.toContain('orders:write:headless');
+    expect(OAUTH_DISCOVERY_SCOPES as readonly string[]).toContain('email'); // claim email exigé par verify-oauth
   });
 });
 

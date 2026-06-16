@@ -78,6 +78,16 @@ describe('M2 — identité anti-account-takeover', () => {
     expect(r).toBeNull();
     expect(findOrCreateUserByEmail).not.toHaveBeenCalled();
   });
+  it('email_verified rendu en chaîne "true" (JWT template WorkOS) → accepté', async () => {
+    const r = await verifyOAuthBearer(await sign({ email_verified: 'true' }), resolver(publicKey));
+    expect(r).not.toBeNull();
+    expect(r!.userId).toBe('user_1');
+  });
+  it('email_verified chaîne "false" → null (pas de bypass)', async () => {
+    const r = await verifyOAuthBearer(await sign({ email_verified: 'false' }), resolver(publicKey));
+    expect(r).toBeNull();
+    expect(findOrCreateUserByEmail).not.toHaveBeenCalled();
+  });
   it('email absent → null', async () => {
     const r = await verifyOAuthBearer(await sign({ email: undefined }), resolver(publicKey));
     expect(r).toBeNull();
