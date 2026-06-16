@@ -23,6 +23,7 @@ import {
   DEFAULT_MARGIN_SPEC,
   type MarginSpec,
 } from '@/lib/products/margin-specs';
+import { resolveSelectedSize, type ParsedSize } from '@/lib/products/parse-size';
 import { buildFilesParam, parseFilesParam } from '@/lib/order/files-param';
 
 export default function UploadPage() {
@@ -46,6 +47,11 @@ function UploadPageInner() {
   // /api/products/[id] qui retourne la category Sinalite. Fallback default
   // safe (cartes-de-visite) si le fetch fail ou si pas de productId.
   const [marginSpec, setMarginSpec] = useState<MarginSpec>(DEFAULT_MARGIN_SPEC);
+  // Taille EXACTE sélectionnée (groupe `size` du produit ⨉ options choisies),
+  // en pouces. Permet le hard-block dimension à l'upload. null si non résolue
+  // (taille custom / label non parsable) → on retombe sur un warning, jamais un
+  // faux blocage.
+  const [expectedDims, setExpectedDims] = useState<ParsedSize | null>(null);
   // Auto-fill depuis l'éditeur de template : état de la VÉRIF du PDF (cf. effet
   // ci-dessous). Tant que ce n'est pas confirmé 200+PDF, on ne marque PAS le
   // recto « Validé ».
@@ -136,6 +142,11 @@ function UploadPageInner() {
         if (cancelled || !data) return;
         const category = data?.product?.category as string | undefined;
         if (category) setMarginSpec(getMarginSpecBySinaliteCategory(category));
+        // Taille exacte : matche les options choisies contre le groupe `size`.
+        const selectedIds = options.split(',').filter(Boolean).map(Number);
+        const sizeGroup = data?.optionGroups?.size ?? data?.optionGroups?.Size;
+        const sz = resolveSelectedSize(sizeGroup, selectedIds);
+        if (sz) setExpectedDims(sz);
       })
       .catch(() => {
         // Garde le default — overlay reste visuellement utile
@@ -143,7 +154,7 @@ function UploadPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [productId, options]);
 
   const filesParam = buildFilesParam(recto?.url, verso?.url);
 
@@ -233,6 +244,7 @@ function UploadPageInner() {
               onChange={setRecto}
               onClear={() => setRecto(null)}
               marginSpec={marginSpec}
+              expectedDims={expectedDims}
             />
             <Dropzone
               label="Verso"
@@ -242,6 +254,7 @@ function UploadPageInner() {
               onChange={setVerso}
               onClear={() => setVerso(null)}
               marginSpec={marginSpec}
+              expectedDims={expectedDims}
             />
           </div>
         </div>
@@ -315,12 +328,12 @@ interface UploadProgress {
 // Type-only import histoire que pdf-lib (~250kb) reste 100% dynamic — il
 // est chargé via `await import('@/lib/print/pdf-validator')` à la première
 // sélection d'un PDF, jamais au load de la page.
-import type { ValidationResult as PendingValidation } from '@/lib/print/pdf-validator';
+import type { ValidationIssue } from '@/lib/print/pdf-validator';
 
 // ─── Dropzone ─────────────────────────────────────────────────────────────
 
 function Dropzone({
-  label, kind, required, file, onChange, onClear, marginSpec,
+  label, kind, required, file, onChange, onClear, marginSpec, expectedDims,
 }: {
   label: string;
   kind: 'front' | 'back';
@@ -329,6 +342,7 @@ function Dropzone({
   onChange: (f: UploadedFile) => void;
   onClear: () => void;
   marginSpec: MarginSpec;
+  expectedDims: ParsedSize | null;
 }) {
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
@@ -336,7 +350,8 @@ function Dropzone({
   // Validation result : null = pas encore validé / pas un PDF, sinon
   // résultat affiché sous la dropzone. Si level=error on bloque l'upload.
   // Si level=warning on demande confirmation explicite avant upload.
-  const [pending, setPending] = useState<{ file: File; result: PendingValidation } | null>(null);
+  // Staging warning : PDF OU image (les deux exposent `issues` structurellement).
+  const [pending, setPending] = useState<{ file: File; result: { issues: ValidationIssue[] } } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isUploaded = file !== null;
@@ -346,24 +361,42 @@ function Dropzone({
     setError(null);
     setPending(null);
 
-    // PDF → validation client-side avant l'upload pour économiser bande passante
-    // + donner du feedback immédiat. Autres formats (PSD, AI, images) passent
-    // direct — Sinalite valide en production.
-    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-      // Dynamic import : pdf-lib ~250kb, on le charge seulement quand l'user
-      // choisit un PDF (pas au load de la page).
+    // Taille produit EXACTE (si résolue) → permet le hard-block dimension/DPI.
+    const expected = expectedDims
+      ? { widthInches: expectedDims.widthIn, heightInches: expectedDims.heightIn, bleedInches: marginSpec.bleedInches }
+      : undefined;
+
+    const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+    const isRaster = /^image\/(jpeg|png)$/.test(f.type) || /\.(jpe?g|png)$/i.test(f.name);
+
+    if (isPdf) {
+      // Dynamic import : pdf-lib ~250kb, chargé seulement à la sélection d'un PDF.
       const { validatePdf } = await import('@/lib/print/pdf-validator');
-      const result = await validatePdf(f);
+      // strictDimensions : bloque une MAUVAISE taille — sûr car `expected` est la
+      // taille EXACTE sélectionnée (sinon undefined → mismatch reste en warning).
+      const result = await validatePdf(f, { expected, strictDimensions: Boolean(expected) });
       if (result.level === 'error') {
         setError(result.issues.map((i) => i.message).join(' '));
         return;
       }
       if (result.level === 'warning') {
-        // Stage l'upload : l'user voit les warnings + clique pour confirmer.
         setPending({ file: f, result });
         return;
       }
-      // OK → upload direct
+    } else if (isRaster) {
+      // Images raster (JPG/PNG) : vérif résolution (DPI à la taille d'impression).
+      // AVANT : aucune validation → une image écran 72 DPI passait. Les formats pro
+      // non décodables (AI/EPS/PSD/TIFF) passent (Sinalite reste le gate final).
+      const { validateImage } = await import('@/lib/print/image-validator');
+      const result = await validateImage(f, expected);
+      if (result.level === 'error') {
+        setError(result.issues.map((i) => i.message).join(' '));
+        return;
+      }
+      if (result.level === 'warning') {
+        setPending({ file: f, result });
+        return;
+      }
     }
 
     await doUpload(f);
@@ -504,7 +537,7 @@ function Dropzone({
         >
           <div style={{ fontWeight: 600, color: 'var(--warning, #D97706)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>⚠</span>
-            <span>{pending.result.issues.length} avertissement{pending.result.issues.length > 1 ? 's' : ''} sur ton PDF</span>
+            <span>{pending.result.issues.length} avertissement{pending.result.issues.length > 1 ? 's' : ''} sur ton fichier</span>
           </div>
           <ul style={{ margin: 0, paddingLeft: 16, display: 'grid', gap: 4 }}>
             {pending.result.issues.map((issue, i) => (
