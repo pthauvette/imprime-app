@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { generateKeyPair, SignJWT, type CryptoKey, type JWTVerifyGetKey } from 'jose';
 
-const { findUserByEmail } = vi.hoisted(() => ({ findUserByEmail: vi.fn() }));
-vi.mock('@/lib/db/orders', () => ({ findUserByEmail }));
+const { findOrCreateUserByEmail } = vi.hoisted(() => ({ findOrCreateUserByEmail: vi.fn() }));
+vi.mock('@/lib/db/orders', () => ({ findOrCreateUserByEmail }));
 
 import { verifyOAuthBearer } from './verify-oauth';
 
@@ -32,7 +32,7 @@ beforeEach(async () => {
   vi.stubEnv('MCP_RESOURCE_URI', RESOURCE);
   vi.stubEnv('MCP_OAUTH_EXPECTED_ISSUER', '');
   ({ publicKey, privateKey } = await generateKeyPair('ES256'));
-  findUserByEmail.mockResolvedValue({ id: 'user_1', email: 'agent@client.ca' });
+  findOrCreateUserByEmail.mockResolvedValue({ id: 'user_1', email: 'agent@client.ca' });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -40,21 +40,7 @@ describe('verifyOAuthBearer — happy path', () => {
   it('token valide → identité (userId, scopes, role USER, subject)', async () => {
     const r = await verifyOAuthBearer(await sign(), resolver(publicKey));
     expect(r).toEqual({ userId: 'user_1', scopes: ['catalog:read', 'orders:write'], role: 'USER', subject: 'workos_user_abc' });
-    expect(findUserByEmail).toHaveBeenCalledWith('agent@client.ca');
-  });
-});
-
-describe('gating « clients Plio existants seulement »', () => {
-  it('email vérifié SANS compte Plio → null (accès refusé, AUCUNE création)', async () => {
-    findUserByEmail.mockResolvedValue(null); // pas un client
-    const r = await verifyOAuthBearer(await sign(), resolver(publicKey));
-    expect(r).toBeNull();
-    expect(findUserByEmail).toHaveBeenCalledWith('agent@client.ca');
-  });
-  it('email vérifié AVEC compte Plio existant → identité (client autorisé)', async () => {
-    findUserByEmail.mockResolvedValue({ id: 'cust_42' });
-    const r = await verifyOAuthBearer(await sign(), resolver(publicKey));
-    expect(r!.userId).toBe('cust_42');
+    expect(findOrCreateUserByEmail).toHaveBeenCalledWith({ email: 'agent@client.ca' });
   });
 });
 
@@ -62,7 +48,7 @@ describe('H2 — audience binding (anti token-confusion)', () => {
   it('aud d\'un AUTRE resource server → null', async () => {
     const r = await verifyOAuthBearer(await sign({}, { aud: 'https://evil.example/api/mcp' }), resolver(publicKey));
     expect(r).toBeNull();
-    expect(findUserByEmail).not.toHaveBeenCalled();
+    expect(findOrCreateUserByEmail).not.toHaveBeenCalled();
   });
   it('aud = identifiant resource (/api/mcp) → accepté', async () => {
     const r = await verifyOAuthBearer(await sign({}, { aud: RESOURCE }), resolver(publicKey));
@@ -90,7 +76,7 @@ describe('M2 — identité anti-account-takeover', () => {
   it('email non vérifié → null (jamais de lien JIT)', async () => {
     const r = await verifyOAuthBearer(await sign({ email_verified: false }), resolver(publicKey));
     expect(r).toBeNull();
-    expect(findUserByEmail).not.toHaveBeenCalled();
+    expect(findOrCreateUserByEmail).not.toHaveBeenCalled();
   });
   it('email_verified rendu en chaîne "true" (JWT template WorkOS) → accepté', async () => {
     const r = await verifyOAuthBearer(await sign({ email_verified: 'true' }), resolver(publicKey));
@@ -100,7 +86,7 @@ describe('M2 — identité anti-account-takeover', () => {
   it('email_verified chaîne "false" → null (pas de bypass)', async () => {
     const r = await verifyOAuthBearer(await sign({ email_verified: 'false' }), resolver(publicKey));
     expect(r).toBeNull();
-    expect(findUserByEmail).not.toHaveBeenCalled();
+    expect(findOrCreateUserByEmail).not.toHaveBeenCalled();
   });
   it('email absent → null', async () => {
     const r = await verifyOAuthBearer(await sign({ email: undefined }), resolver(publicKey));
