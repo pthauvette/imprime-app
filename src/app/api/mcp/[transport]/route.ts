@@ -193,16 +193,23 @@ const handler = createMcpHandler(
 );
 
 // Auth Bearer : clés API statiques (plio_sk_) + (flag) JWT OAuth — cf. mcpVerifyToken.
-// required:false → les 4 tools read-only restent PUBLICS ; seuls les tools qui
-// appellent requireUser/requireScope (whoami, create_order) exigent une identité.
-// mcpVerifyToken est TOTAL (ne throw jamais) pour ne pas transformer un cold-start
-// Neon ou une panne JWKS en 401 qui casserait les read-only.
+// `required` est COUPLÉ au flag OAuth :
+//   - OAuth OFF → required:false : les read-only restent PUBLICS (anonyme=200), clés
+//     API statiques inchangées ; seuls whoami/create_order exigent une identité.
+//   - OAuth ON (enforce, état prod) → required:true : « MCP réservé aux clients Plio ».
+//     Un appel SANS token est déjà challengé 401 par maybeOAuthChallenge (gated) AVANT
+//     d'arriver ici ; required:true ferme le dernier trou — un token PRÉSENT mais qui
+//     ne résout PAS en client (verify-oauth find-only → null, clé révoquée, sig/exp
+//     KO) reçoit 401 au lieu de retomber en anonyme read-only. Donc un non-client ne
+//     peut RIEN faire (même pas lister le catalogue public via le connecteur).
+// mcpVerifyToken reste TOTAL (ne throw jamais) → un cold-start Neon / panne JWKS donne
+// `undefined` (= 401 propre quand required), jamais une exception.
 // resourceUrl/resourceMetadataPath FIGÉS sur la resource canonique (correctif H2) :
 // le WWW-Authenticate / la métadonnée émis par mcp-handler ne dérivent plus d'un
 // x-forwarded-host spoofable. La validation d'audience du token vit, elle, dans
 // verifyOAuthBearer (mcpResourceUri, même source).
 const authHandler = withMcpAuth(handler, mcpVerifyToken, {
-  required: false,
+  required: isOAuthEnabled(),
   resourceUrl: mcpResourceUri(),
   resourceMetadataPath: '/.well-known/oauth-protected-resource',
 });
