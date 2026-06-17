@@ -39,6 +39,20 @@ export type OrderEventKind = (typeof ORDER_EVENT_KIND)[number];
 
 // ─── USER ─────────────────────────────────────────────────────────────────
 
+/**
+ * Trouve un user EXISTANT par email (lowercase/trim). null si aucun compte.
+ * Lecture pure — NE crée RIEN. Sert au gating OAuth « clients Plio existants
+ * seulement » (verify-oauth) : un email vérifié par WorkOS sans compte Plio
+ * (créé sur le site magic-link OU via une commande) est rejeté. À ne PAS
+ * confondre avec findOrCreateUserByEmail (checkout web = crée le compte invité).
+ */
+export async function findUserByEmail(email: string): Promise<{ id: string } | null> {
+  return prisma.user.findUnique({
+    where: { email: email.toLowerCase().trim() },
+    select: { id: true },
+  });
+}
+
 export async function findOrCreateUserByEmail(input: {
   email: string;
   firstName?: string;

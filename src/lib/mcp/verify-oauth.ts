@@ -15,7 +15,8 @@
  * PR2 : ce module n'est PAS encore câblé dans mcpVerifyToken (PR3, derrière flag).
  */
 import { jwtVerify, createRemoteJWKSet, type JWTVerifyGetKey } from 'jose';
-import { findOrCreateUserByEmail } from '@/lib/db/orders';
+import { findUserByEmail } from '@/lib/db/orders';
+import { logAuth } from '@/lib/logger';
 import { mcpAcceptedAudiences, MCP_OAUTH_SCOPES } from './oauth-config';
 import type { ApiKeyScope } from './auth';
 
@@ -87,9 +88,19 @@ export async function verifyOAuthBearer(token: string, keyOverride?: JwtKey): Pr
     // finalisation sûr, aucun débit ni commande créée côté serveur).
     const scopes = [...MCP_OAUTH_SCOPES] as ApiKeyScope[];
 
-    // Mapping identité : JIT par email VÉRIFIÉ. Role forcé 'USER' (on n'utilise JAMAIS
-    // le role DB de l'user matché → pas d'héritage ADMIN via OAuth).
-    const user = await findOrCreateUserByEmail({ email });
+    // Mapping identité : « clients Plio existants SEULEMENT » (décision produit
+    // 2026-06-16). On NE crée PAS de compte ici — find-only : un email vérifié par
+    // WorkOS qui ne correspond à AUCUN compte Plio (créé via le site magic-link OU
+    // une commande) est REJETÉ (null → token refusé). Role forcé 'USER' (on n'utilise
+    // JAMAIS le role DB de l'user matché → pas d'héritage ADMIN via OAuth).
+    const user = await findUserByEmail(email);
+    if (!user) {
+      // Diagnostic des FAUX NÉGATIFS (vrai client qui s'authentifie avec un email
+      // ≠ celui de son compte Plio). On logge le `sub` WorkOS (non-PII, cross-ref
+      // dashboard), JAMAIS l'email (Loi 25). Sans ça, un client bloqué = silence.
+      logAuth.info({ subject: String(payload.sub ?? '') }, 'OAuth: email vérifié sans compte Plio — accès MCP refusé');
+      return null; // pas un client Plio → accès MCP refusé
+    }
     return { userId: user.id, scopes, role: 'USER', subject: String(payload.sub ?? '') };
   } catch {
     return null; // H1 — TOTAL
