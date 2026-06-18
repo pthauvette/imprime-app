@@ -1,5 +1,6 @@
 <!doctype html>
 <meta charset="utf-8" />
+<meta name="color-scheme" content="light dark" />
 <style>
   :root {
     --bg: #ffffff; --surface: #f6f5f0; --text: #1c1c1a; --muted: #6b6a64;
@@ -42,7 +43,7 @@
 <div class="card" id="card"><p class="sub">Chargement du configurateur…</p></div>
 <script type="module">
 /*__EXT_APPS_BUNDLE__*/
-const { App } = globalThis.ExtApps;
+const { App, applyHostStyleVariables } = globalThis.ExtApps;
 
 const card = document.getElementById('card');
 let data = null;            // dernier ConfiguratorPayload
@@ -53,15 +54,22 @@ const money = (n) => new Intl.NumberFormat('fr-CA', { style: 'currency', currenc
 
 function applyTheme() {
   try {
-    const t = app.getHostContext()?.theme;
-    document.documentElement.classList.toggle('dark', t === 'dark');
+    const ctx = app.getHostContext();
+    document.documentElement.classList.toggle('dark', ctx?.theme === 'dark');
+    // Adopte les tokens CSS de l'hôte (--color-*, --font-*) → intégration native.
+    if (ctx?.styles?.variables && applyHostStyleVariables) applyHostStyleVariables(ctx.styles.variables);
   } catch { /* host sans theme */ }
 }
 
 function parseResult(params) {
   try {
-    const txt = params?.content?.find((c) => c.type === 'text')?.text;
-    if (txt) data = JSON.parse(txt);
+    // Double canal : structuredContent (préféré si l'hôte le pousse) OU content[0].text.
+    let payload = params?.structuredContent;
+    if (!payload) {
+      const txt = params?.content?.find((c) => c.type === 'text')?.text;
+      if (txt) payload = JSON.parse(txt);
+    }
+    if (payload) data = payload;
   } catch { /* payload non-JSON → garde l'ancien */ }
   busy = false;
   render();
@@ -189,5 +197,6 @@ function render() {
   app.onhostcontextchanged = applyTheme;
   await app.connect();
   applyTheme();
+  render(); // rendu initial GARANTI (n'attend pas ontoolresult) → l'hôte a une taille, plus d'iframe blanche
 })();
 </script>

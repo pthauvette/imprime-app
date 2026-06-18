@@ -1,5 +1,6 @@
 <!doctype html>
 <meta charset="utf-8" />
+<meta name="color-scheme" content="light dark" />
 <style>
   :root {
     --bg:#fff; --surface:#f6f5f0; --text:#1c1c1a; --muted:#6b6a64;
@@ -35,7 +36,7 @@
 <div class="card" id="card"><p class="sub">Chargement…</p></div>
 <script type="module">
 /*__EXT_APPS_BUNDLE__*/
-const { App } = globalThis.ExtApps;
+const { App, applyHostStyleVariables } = globalThis.ExtApps;
 
 const ACCEPT = 'application/pdf,.pdf,application/postscript,.ai,.eps,image/jpeg,.jpg,.jpeg,image/png,.png,image/tiff,.tif,.tiff,image/vnd.adobe.photoshop,.psd';
 const card = document.getElementById('card');
@@ -44,7 +45,11 @@ let app, slug = null, phase = 'idle', verdict = null, errMsg = null;
 const setPhase = (p, msg) => { phase = p; errMsg = msg || null; render(); };
 
 function applyTheme() {
-  try { document.documentElement.classList.toggle('dark', app.getHostContext()?.theme === 'dark'); } catch {}
+  try {
+    const ctx = app.getHostContext();
+    document.documentElement.classList.toggle('dark', ctx?.theme === 'dark');
+    if (ctx?.styles?.variables && applyHostStyleVariables) applyHostStyleVariables(ctx.styles.variables);
+  } catch {}
 }
 
 function el(tag, attrs = {}, kids = []) {
@@ -127,7 +132,7 @@ function render() {
 
 (async () => {
   app = new App({ name: 'PlioUpload', version: '1.0.0' }, {}, { autoResize: true });
-  app.ontoolresult = (p) => { try { slug = JSON.parse(toolText(p) || '{}').slug ?? null; } catch {} render(); };
+  app.ontoolresult = (p) => { try { const d = p?.structuredContent ?? JSON.parse(toolText(p) || '{}'); slug = d?.slug ?? null; } catch {} render(); };
   app.onhostcontextchanged = applyTheme;
   await app.connect();
   applyTheme();
