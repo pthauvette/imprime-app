@@ -39,18 +39,28 @@ export const dynamic = 'force-dynamic';
 
 const handler = createMcpHandler(
   (server) => {
-    server.tool(
+    server.registerTool(
       'list_print_products',
-      "Liste les familles de produits d'impression disponibles chez Plio (cartes de visite, flyers, cartes postales, etc.) avec leurs papiers. Point de départ pour configurer une commande ou demander un devis. Aucun paramètre.",
+      {
+        title: "Lister les produits d'impression",
+        description:
+          "Liste les familles de produits d'impression disponibles chez Plio (cartes de visite, flyers, cartes postales, etc.) avec leurs papiers. Point de départ pour configurer une commande ou demander un devis. Aucun paramètre.",
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
       async () => ({
         content: [{ type: 'text', text: formatProductsText(listPrintProducts()) }],
       }),
     );
 
-    server.tool(
+    server.registerTool(
       'get_product_options',
-      "Pour un produit (slug de list_print_products), retourne les papiers, les finitions par papier, et les quantités disponibles. À appeler avant get_print_quote pour connaître les valeurs valides.",
-      { slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'") },
+      {
+        title: "Options d'un produit (papiers, finitions, quantités)",
+        description:
+          "Pour un produit (slug de list_print_products), retourne les papiers, les finitions par papier, et les quantités disponibles. À appeler avant get_print_quote pour connaître les valeurs valides.",
+        inputSchema: { slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'") },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
       async ({ slug }) => {
         const opts = await getProductOptions(slug);
         if (!opts) {
@@ -60,14 +70,19 @@ const handler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'get_print_quote',
-      "Calcule le prix CAD (taxes en sus) pour un produit + papier + finition + quantité. Le prix correspond exactement à celui du checkout. Utilise get_product_options pour les valeurs valides.",
       {
-        slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
-        paper: z.string().describe("Clé du papier, ex. '14pt' (cf. get_product_options)"),
-        finish: z.string().describe("Clé de la finition, ex. 'aq' (cf. get_product_options)"),
-        quantity: z.number().int().positive().describe('Quantité voulue, ex. 500'),
+        title: 'Obtenir un devis de prix',
+        description:
+          "Calcule le prix CAD (taxes en sus) pour un produit + papier + finition + quantité. Le prix correspond exactement à celui du checkout. Utilise get_product_options pour les valeurs valides.",
+        inputSchema: {
+          slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
+          paper: z.string().describe("Clé du papier, ex. '14pt' (cf. get_product_options)"),
+          finish: z.string().describe("Clé de la finition, ex. 'aq' (cf. get_product_options)"),
+          quantity: z.number().int().positive().describe('Quantité voulue, ex. 500'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async ({ slug, paper, finish, quantity }) => {
         const quote = await getPrintQuote(slug, paper, finish, quantity);
@@ -78,16 +93,21 @@ const handler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'estimate_shipping',
-      "Estime le coût de livraison (CAD) pour un produit configuré vers une destination au Canada. Avec get_print_quote, donne le coût TOTAL (produit + port). Quantité = même valeur que le devis.",
       {
-        slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
-        paper: z.string().describe("Clé du papier, ex. '14pt'"),
-        finish: z.string().describe("Clé de la finition, ex. 'aq'"),
-        quantity: z.number().int().positive().describe('Quantité, ex. 500'),
-        province: CaProvince.describe('Province canadienne (2 lettres), ex. QC'),
-        postalCode: z.string().describe('Code postal, ex. H2X 1Y7'),
+        title: 'Estimer la livraison',
+        description:
+          "Estime le coût de livraison (CAD) pour un produit configuré vers une destination au Canada. Avec get_print_quote, donne le coût TOTAL (produit + port). Quantité = même valeur que le devis.",
+        inputSchema: {
+          slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
+          paper: z.string().describe("Clé du papier, ex. '14pt'"),
+          finish: z.string().describe("Clé de la finition, ex. 'aq'"),
+          quantity: z.number().int().positive().describe('Quantité, ex. 500'),
+          province: CaProvince.describe('Province canadienne (2 lettres), ex. QC'),
+          postalCode: z.string().describe('Code postal, ex. H2X 1Y7'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async ({ slug, paper, finish, quantity, province, postalCode }) => {
         const r = await estimatePrintShipping(slug, paper, finish, quantity, province, postalCode);
@@ -101,10 +121,15 @@ const handler = createMcpHandler(
     // ── Tool AUTHENTIFIÉ (démo du socle d'auth) ──────────────────────────────
     // Les 4 tools ci-dessus restent PUBLICS (ils n'inspectent pas extra.authInfo).
     // whoami EXIGE une clé API valide via requireUser → preuve E2E que l'auth marche.
-    server.tool(
+    server.registerTool(
       'whoami',
-      "Renvoie l'identité associée à la clé API fournie. Nécessite une clé API (en-tête Authorization: Bearer plio_sk_live_…).",
-      {},
+      {
+        title: 'Identité du compte connecté',
+        description:
+          "Renvoie l'identité associée à la connexion (OAuth ou clé API). Nécessite d'être connecté (Bearer : JWT OAuth ou clé plio_sk_live_…).",
+        inputSchema: {},
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
       async (_args, extra) => {
         const u = requireUser(extra);
         if (!u.ok) return u.error;
@@ -112,33 +137,38 @@ const handler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'create_order',
-      "Passe une commande d'impression. DEUX modes : (A, défaut) sans fileUrl → renvoie un récap + un lien pour téléverser le fichier et payer sur plio.ca (scope orders:write). (B, headless) avec fileUrl sur chaque article (URL S3 Plio) + contact/livraison/expectedGrossCents/idempotencyKey → crée la commande et renvoie un lien de paiement Stripe (scope orders:write:headless, activé sur clés de confiance). Le prix et le port sont TOUJOURS recalculés côté serveur.",
       {
-        items: z.array(z.object({
-          slug: z.string().describe("Slug produit (list_print_products)"),
-          paper: z.string().describe("Clé papier (get_product_options)"),
-          finish: z.string().describe("Clé finition (get_product_options)"),
-          quantity: z.number().int().positive().describe("Quantité (cf. get_product_options)"),
-          fileUrl: z.string().url().optional().describe("URL S3 Plio du fichier print-ready. Présent → mode headless (scope orders:write:headless)."),
-          internalRef: z.string().max(120).optional().describe("Référence interne (PO, etc.)."),
-        })).min(1).max(10).describe("Articles à commander (1 à 10)"),
-        // Champs du mode HEADLESS (requis seulement si fileUrl présent) :
-        contact: z.object({
-          firstName: z.string().min(1), lastName: z.string().min(1),
-          email: z.string().email().describe("Courriel de LIVRAISON (le paiement/confirmation vont au compte de la clé)."),
-          phone: z.string().min(7),
-        }).optional(),
-        shippingAddress: z.object({
-          line1: z.string().min(1), line2: z.string().optional(),
-          city: z.string().min(1), province: CaProvince, postalCode: z.string().min(3),
-        }).optional(),
-        shippingMethod: ShipMethod.optional().describe("Méthode (cf. estimate_shipping). Le PRIX est recalculé serveur."),
-        expectedGrossCents: z.number().int().nonnegative().optional().describe("Total CAD AVANT crédits, en cents. Garde-fou anti-tamper."),
-        idempotencyKey: z.string().min(8).max(64).optional().describe("Nonce stable, réutilisé À L'IDENTIQUE sur retry (évite la double commande)."),
-        promoCode: z.string().max(64).optional(),
-        shippingNote: z.string().max(200).optional(),
+        title: "Passer une commande d'impression",
+        description:
+          "Passe une commande d'impression. DEUX modes : (A, défaut) sans fileUrl → renvoie un récap + un lien pour téléverser le fichier et payer sur plio.ca (scope orders:write). (B, headless) avec fileUrl sur chaque article (URL S3 Plio) + contact/livraison/expectedGrossCents/idempotencyKey → crée la commande et renvoie un lien de paiement Stripe (scope orders:write:headless, activé sur clés de confiance). Le prix et le port sont TOUJOURS recalculés côté serveur.",
+        annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+        inputSchema: {
+          items: z.array(z.object({
+            slug: z.string().describe("Slug produit (list_print_products)"),
+            paper: z.string().describe("Clé papier (get_product_options)"),
+            finish: z.string().describe("Clé finition (get_product_options)"),
+            quantity: z.number().int().positive().describe("Quantité (cf. get_product_options)"),
+            fileUrl: z.string().url().optional().describe("URL S3 Plio du fichier print-ready. Présent → mode headless (scope orders:write:headless)."),
+            internalRef: z.string().max(120).optional().describe("Référence interne (PO, etc.)."),
+          })).min(1).max(10).describe("Articles à commander (1 à 10)"),
+          // Champs du mode HEADLESS (requis seulement si fileUrl présent) :
+          contact: z.object({
+            firstName: z.string().min(1), lastName: z.string().min(1),
+            email: z.string().email().describe("Courriel de LIVRAISON (le paiement/confirmation vont au compte de la clé)."),
+            phone: z.string().min(7),
+          }).optional(),
+          shippingAddress: z.object({
+            line1: z.string().min(1), line2: z.string().optional(),
+            city: z.string().min(1), province: CaProvince, postalCode: z.string().min(3),
+          }).optional(),
+          shippingMethod: ShipMethod.optional().describe("Méthode (cf. estimate_shipping). Le PRIX est recalculé serveur."),
+          expectedGrossCents: z.number().int().nonnegative().optional().describe("Total CAD AVANT crédits, en cents. Garde-fou anti-tamper."),
+          idempotencyKey: z.string().min(8).max(64).optional().describe("Nonce stable, réutilisé À L'IDENTIQUE sur retry (évite la double commande)."),
+          promoCode: z.string().max(64).optional(),
+          shippingNote: z.string().max(200).optional(),
+        },
       },
       async (args, extra) => {
         const headless = args.items.some((i) => i.fileUrl);
