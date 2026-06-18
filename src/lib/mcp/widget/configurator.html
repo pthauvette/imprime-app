@@ -1,0 +1,193 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: #ffffff; --surface: #f6f5f0; --text: #1c1c1a; --muted: #6b6a64;
+    --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.28);
+    --brand: #1f3d2b; --brand-ink: #ffffff; --accent-bg: #e6efe7; --accent-ink: #1f3d2b;
+  }
+  :root.dark {
+    --bg: #1f1f1d; --surface: #2a2a27; --text: #f3f2ec; --muted: #a6a59d;
+    --border: rgba(255,255,255,0.14); --border-strong: rgba(255,255,255,0.3);
+    --brand: #6fae86; --brand-ink: #10231a; --accent-bg: #28382e; --accent-ink: #cfe6d6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, -apple-system, sans-serif; color: var(--text); background: transparent; }
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; max-width: 520px; }
+  .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .logo { width: 34px; height: 34px; border-radius: 8px; background: var(--brand); color: var(--brand-ink); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 17px; }
+  .title { margin: 0; font-size: 15px; font-weight: 600; }
+  .sub { margin: 0; font-size: 12px; color: var(--muted); }
+  label.fld { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+  .row { margin-bottom: 16px; }
+  select { width: 100%; height: 38px; padding: 0 10px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { font-size: 13px; padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border); color: var(--muted); background: transparent; cursor: pointer; }
+  .chip.on { border-color: var(--border-strong); background: var(--surface); color: var(--text); font-weight: 500; }
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .stepper button { width: 40px; height: 38px; border: none; background: var(--bg); color: var(--text); font-size: 18px; cursor: pointer; }
+  .stepper button:disabled { opacity: .35; cursor: default; }
+  .stepper .qty { min-width: 70px; text-align: center; font-weight: 600; font-size: 15px; }
+  .pricebar { display: flex; align-items: flex-end; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
+  .price { margin: 2px 0 0; font-size: 24px; font-weight: 600; }
+  .price small { font-size: 13px; font-weight: 400; color: var(--muted); }
+  .plabel { margin: 0; font-size: 12px; color: var(--muted); }
+  .err { font-size: 13px; color: #b4451f; }
+  .actions { display: flex; gap: 8px; margin-top: 16px; }
+  .btn { flex: 1; height: 40px; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer; border: 1px solid var(--border-strong); background: transparent; color: var(--text); }
+  .btn.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  .muted-note { font-size: 11px; color: var(--muted); margin: 10px 2px 0; }
+  .loading { opacity: .55; pointer-events: none; }
+</style>
+<div class="card" id="card"><p class="sub">Chargement du configurateur…</p></div>
+<script type="module">
+/*__EXT_APPS_BUNDLE__*/
+const { App } = globalThis.ExtApps;
+
+const card = document.getElementById('card');
+let data = null;            // dernier ConfiguratorPayload
+let busy = false;
+let app;
+
+const money = (n) => new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(n);
+
+function applyTheme() {
+  try {
+    const t = app.getHostContext()?.theme;
+    document.documentElement.classList.toggle('dark', t === 'dark');
+  } catch { /* host sans theme */ }
+}
+
+function parseResult(params) {
+  try {
+    const txt = params?.content?.find((c) => c.type === 'text')?.text;
+    if (txt) data = JSON.parse(txt);
+  } catch { /* payload non-JSON → garde l'ancien */ }
+  busy = false;
+  render();
+}
+
+async function refresh(sel) {
+  if (busy) return;
+  busy = true; render();
+  try {
+    const res = await app.callServerTool({ name: 'configure_print', arguments: sel });
+    parseResult(res);
+  } catch {
+    busy = false; render();
+  }
+}
+
+function order() {
+  const s = data?.selection, sel = data?.selected;
+  if (!s || !sel) return;
+  const paper = sel.papers.find((p) => p.key === s.paper);
+  const finish = paper?.finishes.find((f) => f.key === s.finish);
+  const txt = `Je veux commander : ${s.quantity} × ${sel.name}`
+    + ` (papier ${paper?.label ?? s.paper}, finition ${finish?.label ?? s.finish}).`
+    + ` Donne-moi le lien pour téléverser mon fichier et payer sur plio.ca.`;
+  app.sendMessage({ role: 'user', content: [{ type: 'text', text: txt }] });
+}
+
+function el(tag, attrs = {}, kids = []) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined) n.setAttribute(k, v);
+  }
+  for (const c of [].concat(kids)) if (c) n.append(c);
+  return n;
+}
+
+function render() {
+  card.className = 'card' + (busy ? ' loading' : '');
+  card.innerHTML = '';
+
+  card.append(el('div', { class: 'head' }, [
+    el('div', { class: 'logo', text: 'P' }),
+    el('div', {}, [
+      el('p', { class: 'title', text: 'Configurer une commande' }),
+      el('p', { class: 'sub', text: 'Plio · impression' }),
+    ]),
+  ]));
+
+  if (!data) { card.append(el('p', { class: 'sub', text: 'Chargement…' })); return; }
+  const { products = [], selected, selection, quote } = data;
+
+  // Produit
+  const select = el('select');
+  for (const p of products) {
+    const o = el('option', { value: p.slug, text: p.name });
+    if (selection && p.slug === selection.slug) o.selected = true;
+    select.append(o);
+  }
+  select.addEventListener('change', () => refresh({ slug: select.value }));
+  card.append(el('div', { class: 'row' }, [el('label', { class: 'fld', text: 'Produit' }), select]));
+
+  if (!selected || !selection) {
+    card.append(el('p', { class: 'err', text: quote && !quote.ok ? quote.message : 'Produit indisponible.' }));
+    return;
+  }
+
+  // Papier
+  const paperChips = el('div', { class: 'chips' }, selected.papers.map((p) =>
+    el('button', { class: 'chip' + (p.key === selection.paper ? ' on' : ''), text: p.label,
+      onclick: () => refresh({ slug: selection.slug, paper: p.key, quantity: selection.quantity }) })));
+  card.append(el('div', { class: 'row' }, [el('label', { class: 'fld', text: 'Papier' }), paperChips]));
+
+  // Finition (du papier sélectionné)
+  const curPaper = selected.papers.find((p) => p.key === selection.paper);
+  if (curPaper?.finishes.length) {
+    const finishChips = el('div', { class: 'chips' }, curPaper.finishes.map((f) =>
+      el('button', { class: 'chip' + (f.key === selection.finish ? ' on' : ''), text: f.label,
+        onclick: () => refresh({ slug: selection.slug, paper: selection.paper, finish: f.key, quantity: selection.quantity }) })));
+    card.append(el('div', { class: 'row' }, [el('label', { class: 'fld', text: 'Finition' }), finishChips]));
+  }
+
+  // Quantité (navigue les quantités disponibles)
+  const qs = selected.quantities || [];
+  const idx = qs.indexOf(selection.quantity);
+  const step = (d) => { const ni = idx + d; if (ni >= 0 && ni < qs.length) refresh({ slug: selection.slug, paper: selection.paper, finish: selection.finish, quantity: qs[ni] }); };
+  const stepper = el('div', { class: 'stepper' }, [
+    el('button', { text: '−', 'aria-label': 'Diminuer', onclick: () => step(-1) }),
+    el('span', { class: 'qty', text: String(selection.quantity ?? '—') }),
+    el('button', { text: '+', 'aria-label': 'Augmenter', onclick: () => step(1) }),
+  ]);
+  if (idx <= 0) stepper.children[0].disabled = true;
+  if (idx < 0 || idx >= qs.length - 1) stepper.children[2].disabled = true;
+  card.append(el('div', { class: 'row' }, [el('label', { class: 'fld', text: 'Quantité' }), stepper]));
+
+  // Prix
+  const priceBox = el('div', {});
+  priceBox.append(el('p', { class: 'plabel', text: 'Total estimé' }));
+  if (quote?.ok) {
+    const price = el('p', { class: 'price' });
+    price.append(document.createTextNode(money(quote.totalCad) + ' '));
+    price.append(el('small', { text: 'CAD · taxes en sus' }));
+    priceBox.append(price);
+    priceBox.append(el('p', { class: 'plabel', text: `${money(quote.unitPriceCad)} l'unité · livraison estimée à part` }));
+  } else {
+    priceBox.append(el('p', { class: 'err', text: quote?.message || 'Prix indisponible pour cette combinaison.' }));
+  }
+  card.append(el('div', { class: 'pricebar' }, [priceBox]));
+
+  // Actions
+  const commander = el('button', { class: 'btn primary', text: 'Commander', onclick: order });
+  if (!quote?.ok) commander.disabled = true;
+  card.append(el('div', { class: 'actions' }, [
+    el('button', { class: 'btn', text: 'Rafraîchir le prix', onclick: () => refresh(selection) }),
+    commander,
+  ]));
+  card.append(el('p', { class: 'muted-note', text: 'Prix live · le paiement se fait en toute sécurité sur plio.ca.' }));
+}
+
+(async () => {
+  app = new App({ name: 'PlioConfigurator', version: '1.0.0' }, {}, { autoResize: true });
+  app.ontoolresult = parseResult;
+  app.onhostcontextchanged = applyTheme;
+  await app.connect();
+  applyTheme();
+})();
+</script>
