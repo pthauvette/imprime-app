@@ -31,6 +31,7 @@ import {
 } from '@/lib/mcp/tools/quote';
 import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipping';
 import { buildConfiguratorPayload } from '@/lib/mcp/tools/configure';
+import { validatePrintFile, formatValidatePrintFileText } from '@/lib/mcp/tools/validate-file';
 import { CONFIGURATOR_HTML } from '@/lib/mcp/widget/configurator-html.generated';
 import { placeHeadlessOrder, formatHeadlessResult } from '@/lib/mcp/place-order';
 import { CaProvince, ShipMethod } from '@/lib/sinalite/types';
@@ -154,6 +155,29 @@ const handler = createMcpHandler(
         return {
           content: [{ type: 'text', text: formatShippingText(slug, province, postalCode, r) }],
           isError: !r.ok,
+        };
+      },
+    );
+
+    server.registerTool(
+      'validate_print_file',
+      {
+        title: "Vérifier un fichier d'impression",
+        description:
+          "Préflight d'un fichier print-ready DÉJÀ téléversé sur Plio (URL S3 uploads/…). Pour un PDF : vérifie l'intégrité, le nombre de pages, les dimensions et le bleed vs la taille typique du produit. La COULEUR (CMYK/RGB) et le DPI restent validés par Plio à la production (non vérifiés ici). Téléverse d'abord le fichier via Plio pour obtenir l'URL.",
+        inputSchema: {
+          fileUrl: z.string().url().describe('URL S3 Plio du fichier (uploads/…), obtenue au téléversement.'),
+          slug: z.string().optional().describe('Slug produit (compare aux dimensions typiques + bleed).'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      async ({ fileUrl, slug }) => {
+        const r = await validatePrintFile({ fileUrl, slug });
+        return {
+          content: [{ type: 'text', text: formatValidatePrintFileText(r) }],
+          // isError seulement si la validation n'a PAS pu être faite (URL/fetch KO),
+          // pas si le fichier est simplement non conforme (c'est un résultat valide).
+          isError: r.fileType === 'other' && r.level === 'error',
         };
       },
     );
