@@ -110,20 +110,36 @@ export async function validatePdf(
   file: File,
   options: ValidationOptions = {},
 ): Promise<ValidationResult> {
+  return assessPdfBytes(new Uint8Array(await file.arrayBuffer()), options);
+}
+
+/**
+ * Cœur de validation, par OCTETS — utilisable côté SERVEUR (outil MCP
+ * validate_print_file) comme côté navigateur (validatePdf l'enveloppe). pdf-lib
+ * tourne en Node ; rien ici ne dépend du DOM. `sizeBytes` = bytes.length (pour un
+ * File, identique à file.size). Comportement byte-identique à l'ancien validatePdf.
+ *
+ * @throws never. Toute erreur de parse → ValidationIssue level=error.
+ */
+export async function assessPdfBytes(
+  bytes: Uint8Array,
+  options: ValidationOptions = {},
+): Promise<ValidationResult> {
   const opts = { ...DEFAULTS, ...options };
   const issues: ValidationIssue[] = [];
+  const sizeBytes = bytes.byteLength;
 
   // 1. Taille
-  if (file.size > opts.maxBytes) {
+  if (sizeBytes > opts.maxBytes) {
     issues.push({
       level: 'error',
       code: 'file-too-large',
-      message: `Fichier trop volumineux (${formatMb(file.size)}). Maximum : ${formatMb(opts.maxBytes)}.`,
+      message: `Fichier trop volumineux (${formatMb(sizeBytes)}). Maximum : ${formatMb(opts.maxBytes)}.`,
     });
     return { level: 'error', issues, meta: null };
   }
 
-  if (file.size < 100) {
+  if (sizeBytes < 100) {
     issues.push({
       level: 'error',
       code: 'file-too-small',
@@ -135,7 +151,6 @@ export async function validatePdf(
   // 2. Parse
   let pdfDoc: PDFDocument;
   try {
-    const bytes = await file.arrayBuffer();
     pdfDoc = await PDFDocument.load(bytes, {
       // ignoreEncryption=false fait planter sur les PDFs protégés. On veut
       // permettre l'utilisateur de comprendre pourquoi ça bloque.
@@ -242,7 +257,7 @@ export async function validatePdf(
     firstPagePts: { width: round(wPts, 2), height: round(hPts, 2) },
     firstPageInches: { width: round(wInches, 2), height: round(hInches, 2) },
     firstPageMm: { width: round(wMm, 1), height: round(hMm, 1) },
-    sizeBytes: file.size,
+    sizeBytes,
   };
 
   const level: ValidationLevel = issues.some((i) => i.level === 'error')
