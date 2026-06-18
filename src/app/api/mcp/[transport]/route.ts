@@ -30,6 +30,8 @@ import {
   formatQuoteText,
 } from '@/lib/mcp/tools/quote';
 import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipping';
+import { buildConfiguratorPayload } from '@/lib/mcp/tools/configure';
+import { CONFIGURATOR_HTML } from '@/lib/mcp/widget/configurator-html.generated';
 import { placeHeadlessOrder, formatHeadlessResult } from '@/lib/mcp/place-order';
 import { CaProvince, ShipMethod } from '@/lib/sinalite/types';
 import { rateLimit, clientIp, rateLimitEnabled } from '@/lib/ratelimit';
@@ -39,6 +41,44 @@ export const dynamic = 'force-dynamic';
 
 const handler = createMcpHandler(
   (server) => {
+    // ── Widget « configurateur » (MCP Apps / ressource ui://) ───────────────────
+    // Ressource HTML que le host (Claude) rend dans une iframe sandboxée ; le tool
+    // configure_print ci-dessous la référence via _meta.ui.resourceUri. Le bundle
+    // ext-apps est INLINÉ (CSP block-all → aucun fetch CDN possible). Présentation
+    // SEULEMENT : le widget rappelle configure_print (prix live) et commande via
+    // sendMessage → create_order Mode A (aucun chemin de paiement dans le widget).
+    // Hôtes sans support « Apps » : _meta.ui est ignoré → le texte JSON du tool sert
+    // de fallback (dégradation automatique).
+    server.registerResource(
+      'Configurateur Plio',
+      'ui://plio/configurator.html',
+      { mimeType: 'text/html;profile=mcp-app' },
+      async () => ({
+        contents: [{ uri: 'ui://plio/configurator.html', mimeType: 'text/html;profile=mcp-app', text: CONFIGURATOR_HTML }],
+      }),
+    );
+
+    server.registerTool(
+      'configure_print',
+      {
+        title: 'Configurateur de commande',
+        description:
+          "Ouvre un CONFIGURATEUR interactif (produit, papier, finition, quantité) avec prix live, rendu dans la conversation quand le client le supporte. Renvoie aussi les options + le devis en JSON (fallback). Le widget rappelle ce tool à chaque changement ; « Commander » mène au paiement sur plio.ca.",
+        inputSchema: {
+          slug: z.string().optional().describe('Slug produit (list_print_products). Absent → 1er produit.'),
+          paper: z.string().optional().describe('Clé papier (get_product_options). Absent → 1er papier.'),
+          finish: z.string().optional().describe('Clé finition. Absent → 1re finition du papier.'),
+          quantity: z.number().int().positive().optional().describe('Quantité. Absent → 500 ou la 1re disponible.'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+        _meta: { ui: { resourceUri: 'ui://plio/configurator.html' } },
+      },
+      async ({ slug, paper, finish, quantity }) => {
+        const payload = await buildConfiguratorPayload({ slug, paper, finish, quantity });
+        return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
+      },
+    );
+
     server.registerTool(
       'list_print_products',
       {
