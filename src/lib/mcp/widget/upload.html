@@ -1,0 +1,136 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg:#fff; --surface:#f6f5f0; --text:#1c1c1a; --muted:#6b6a64;
+    --border:rgba(0,0,0,.12); --border-strong:rgba(0,0,0,.28);
+    --brand:#1f3d2b; --brand-ink:#fff; --ok:#1d6f4f; --okbg:#e6efe7; --err:#b4451f; --errbg:#f6e7e1; --warn:#8a5a12; --warnbg:#f4ecd9;
+  }
+  :root.dark {
+    --bg:#1f1f1d; --surface:#2a2a27; --text:#f3f2ec; --muted:#a6a59d;
+    --border:rgba(255,255,255,.14); --border-strong:rgba(255,255,255,.3);
+    --brand:#6fae86; --brand-ink:#10231a; --ok:#7fc8a0; --okbg:#23362b; --err:#e8a087; --errbg:#3a2620; --warn:#e0c07a; --warnbg:#37301d;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,-apple-system,sans-serif; color:var(--text); background:transparent; }
+  .card { background:var(--bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px; max-width:520px; }
+  .head { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .logo { width:34px; height:34px; border-radius:8px; background:var(--brand); color:var(--brand-ink); display:flex; align-items:center; justify-content:center; font-weight:600; font-size:17px; }
+  .title { margin:0; font-size:15px; font-weight:600; }
+  .sub { margin:0; font-size:12px; color:var(--muted); }
+  .drop { border:1.5px dashed var(--border-strong); border-radius:12px; padding:26px 16px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop:hover { background:var(--surface); }
+  .drop strong { color:var(--text); font-weight:500; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+  .status { margin-top:14px; font-size:14px; }
+  .verdict { margin-top:14px; padding:12px 14px; border-radius:10px; white-space:pre-wrap; font-size:13px; }
+  .verdict.ok { background:var(--okbg); color:var(--ok); }
+  .verdict.warning { background:var(--warnbg); color:var(--warn); }
+  .verdict.error { background:var(--errbg); color:var(--err); }
+  .btn { margin-top:14px; height:40px; padding:0 16px; border-radius:8px; font:inherit; font-weight:500; cursor:pointer; border:1px solid var(--brand); background:var(--brand); color:var(--brand-ink); }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--border-strong); border-top-color:transparent; border-radius:50%; vertical-align:-2px; margin-right:6px; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  input[type=file] { display:none; }
+</style>
+<div class="card" id="card"><p class="sub">Chargement…</p></div>
+<script type="module">
+/*__EXT_APPS_BUNDLE__*/
+const { App } = globalThis.ExtApps;
+
+const ACCEPT = 'application/pdf,.pdf,application/postscript,.ai,.eps,image/jpeg,.jpg,.jpeg,image/png,.png,image/tiff,.tif,.tiff,image/vnd.adobe.photoshop,.psd';
+const card = document.getElementById('card');
+let app, slug = null, phase = 'idle', verdict = null, errMsg = null;
+
+const setPhase = (p, msg) => { phase = p; errMsg = msg || null; render(); };
+
+function applyTheme() {
+  try { document.documentElement.classList.toggle('dark', app.getHostContext()?.theme === 'dark'); } catch {}
+}
+
+function el(tag, attrs = {}, kids = []) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else if (v != null) n.setAttribute(k, v);
+  }
+  for (const c of [].concat(kids)) if (c) n.append(c);
+  return n;
+}
+
+function toolText(res) {
+  return res?.content?.find((c) => c.type === 'text')?.text ?? '';
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  try {
+    setPhase('signing');
+    const pres = await app.callServerTool({ name: 'get_upload_url', arguments: { filename: file.name, contentType: file.type || 'application/octet-stream', kind: 'front' } });
+    const sig = JSON.parse(toolText(pres) || '{}');
+    if (!sig.ok) return setPhase('error', sig.error || "Type de fichier non supporté.");
+
+    setPhase('uploading');
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(sig.presigned.fields)) fd.append(k, v);
+    fd.append('file', file);
+    const up = await fetch(sig.presigned.url, { method: 'POST', body: fd });
+    if (!up.ok) return setPhase('error', 'Le téléversement vers le stockage a échoué.');
+
+    setPhase('validating');
+    const val = await app.callServerTool({ name: 'validate_print_file', arguments: { fileUrl: sig.publicUrl, slug: slug || undefined } });
+    verdict = { text: toolText(val) || 'Validation indisponible.', level: (toolText(val) || '').startsWith('❌') ? 'error' : (toolText(val) || '').startsWith('⚠️') ? 'warning' : 'ok', fileUrl: sig.publicUrl };
+    setPhase('done');
+  } catch {
+    setPhase('error', 'Une erreur est survenue pendant le téléversement.');
+  }
+}
+
+function render() {
+  card.className = 'card';
+  card.innerHTML = '';
+  card.append(el('div', { class: 'head' }, [
+    el('div', { class: 'logo', text: 'P' }),
+    el('div', {}, [el('p', { class: 'title', text: 'Téléverser un fichier' }), el('p', { class: 'sub', text: 'Plio · vérification print-ready' })]),
+  ]));
+
+  const busy = phase === 'signing' || phase === 'uploading' || phase === 'validating';
+  if (busy) {
+    const label = phase === 'uploading' ? 'Téléversement…' : phase === 'validating' ? 'Vérification du fichier…' : 'Préparation…';
+    card.append(el('p', { class: 'status', html: `<span class="spin"></span> ${label}` }));
+    return;
+  }
+
+  if (phase !== 'done') {
+    const input = el('input', { type: 'file', accept: ACCEPT, onchange: (e) => handleFile(e.target.files[0]) });
+    const drop = el('div', { class: 'drop', onclick: () => input.click(),
+      ondragover: (e) => { e.preventDefault(); }, ondrop: (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); } }, [
+      el('p', { html: '<strong>Glisse ton fichier ici</strong> ou clique pour choisir' }),
+      el('p', { class: 'hint', text: 'PDF, AI, EPS, PSD, JPG, PNG, TIFF · max 150 Mo' }),
+    ]);
+    card.append(input, drop);
+    if (phase === 'error') card.append(el('div', { class: 'verdict error', text: errMsg || 'Erreur.' }));
+    return;
+  }
+
+  // done
+  card.append(el('div', { class: 'verdict ' + verdict.level, text: verdict.text }));
+  if (verdict.level !== 'error') {
+    const btn = el('button', { class: 'btn', text: 'Utiliser ce fichier pour la commande',
+      onclick: () => app.sendMessage({ role: 'user', content: [{ type: 'text', text: `J'ai téléversé et vérifié mon fichier (${verdict.fileUrl}). Continuons la commande.` }] }) });
+    card.append(btn);
+  }
+  card.append(el('button', { class: 'btn', text: 'Téléverser un autre fichier', onclick: () => { verdict = null; setPhase('idle'); } }));
+}
+
+(async () => {
+  app = new App({ name: 'PlioUpload', version: '1.0.0' }, {}, { autoResize: true });
+  app.ontoolresult = (p) => { try { slug = JSON.parse(toolText(p) || '{}').slug ?? null; } catch {} render(); };
+  app.onhostcontextchanged = applyTheme;
+  await app.connect();
+  applyTheme();
+  render();
+})();
+</script>

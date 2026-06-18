@@ -35,20 +35,27 @@ if (bundle === bundleSrc) {
   process.exit(1);
 }
 
-// 2) Inline dans le HTML du widget (function replacement → pas d'interprétation des $ du bundle).
-const widgetPath = resolve(root, 'src/lib/mcp/widget/configurator.html');
-const widget = readFileSync(widgetPath, 'utf8');
-if (!widget.includes('/*__EXT_APPS_BUNDLE__*/')) {
-  console.error('ERREUR : placeholder /*__EXT_APPS_BUNDLE__*/ absent de configurator.html.');
-  process.exit(1);
+// 2) Inline le bundle dans CHAQUE widget (function replacement → pas d'interprétation des $).
+const WIDGETS = [
+  { src: 'configurator.html', exportName: 'CONFIGURATOR_HTML' },
+  { src: 'upload.html', exportName: 'UPLOAD_HTML' },
+];
+const parts = [
+  '// AUTO-GÉNÉRÉ par scripts/build-mcp-widget.mjs — NE PAS ÉDITER À LA MAIN.',
+  '// Régénérer : node scripts/build-mcp-widget.mjs (après MAJ ext-apps ou d\'un widget).',
+  '/* eslint-disable */',
+];
+for (const w of WIDGETS) {
+  const widget = readFileSync(resolve(root, 'src/lib/mcp/widget', w.src), 'utf8');
+  if (!widget.includes('/*__EXT_APPS_BUNDLE__*/')) {
+    console.error(`ERREUR : placeholder /*__EXT_APPS_BUNDLE__*/ absent de ${w.src}.`);
+    process.exit(1);
+  }
+  const html = widget.replace('/*__EXT_APPS_BUNDLE__*/', () => bundle);
+  parts.push(`export const ${w.exportName} = ${JSON.stringify(html)};`);
+  console.log(`  ${w.src} → ${w.exportName} (${html.length} octets)`);
 }
-const html = widget.replace('/*__EXT_APPS_BUNDLE__*/', () => bundle);
 
-// 3) Écrit le .generated.ts (string TS échappée via JSON.stringify).
-const out =
-  '// AUTO-GÉNÉRÉ par scripts/build-mcp-widget.mjs — NE PAS ÉDITER À LA MAIN.\n' +
-  '// Régénérer : node scripts/build-mcp-widget.mjs (après MAJ ext-apps ou du widget).\n' +
-  '/* eslint-disable */\n' +
-  `export const CONFIGURATOR_HTML = ${JSON.stringify(html)};\n`;
-writeFileSync(resolve(root, 'src/lib/mcp/widget/configurator-html.generated.ts'), out);
-console.log(`OK — configurator-html.generated.ts écrit (${html.length} octets, bundle ${bundle.length}).`);
+// 3) Écrit le .generated.ts (strings TS échappées via JSON.stringify).
+writeFileSync(resolve(root, 'src/lib/mcp/widget/configurator-html.generated.ts'), parts.join('\n') + '\n');
+console.log(`OK — configurator-html.generated.ts écrit (${WIDGETS.length} widgets, bundle ${bundle.length}).`);

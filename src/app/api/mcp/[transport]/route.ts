@@ -32,7 +32,9 @@ import {
 import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipping';
 import { buildConfiguratorPayload } from '@/lib/mcp/tools/configure';
 import { validatePrintFile, formatValidatePrintFileText } from '@/lib/mcp/tools/validate-file';
-import { CONFIGURATOR_HTML } from '@/lib/mcp/widget/configurator-html.generated';
+import { getUploadPresign, uploadWidgetPayload } from '@/lib/mcp/tools/upload';
+import { plioFileHost } from '@/lib/mcp/file-url-guard';
+import { CONFIGURATOR_HTML, UPLOAD_HTML } from '@/lib/mcp/widget/configurator-html.generated';
 import { placeHeadlessOrder, formatHeadlessResult } from '@/lib/mcp/place-order';
 import { CaProvince, ShipMethod } from '@/lib/sinalite/types';
 import { rateLimit, clientIp, rateLimitEnabled } from '@/lib/ratelimit';
@@ -179,6 +181,63 @@ const handler = createMcpHandler(
           // pas si le fichier est simplement non conforme (c'est un résultat valide).
           isError: r.fileType === 'other' && r.level === 'error',
         };
+      },
+    );
+
+    // ── Widget d'UPLOAD (MCP Apps) ──────────────────────────────────────────
+    // Le binaire ne transite jamais par un tool (JSON only) : le widget POSTe le
+    // fichier DIRECTEMENT vers S3 (presign), d'où la CSP connectDomains = host S3.
+    // Calculée dans le read (env lu à l'appel) ; le contenu de resources/read prime
+    // sur le _meta.ui de resources/list. Puis le widget appelle validate_print_file.
+    server.registerResource(
+      'Téléversement Plio',
+      'ui://plio/upload.html',
+      { mimeType: 'text/html;profile=mcp-app' },
+      async () => {
+        const host = plioFileHost();
+        const ui = host ? { csp: { connectDomains: [`https://${host}`] } } : undefined;
+        return {
+          contents: [{
+            uri: 'ui://plio/upload.html',
+            mimeType: 'text/html;profile=mcp-app',
+            text: UPLOAD_HTML,
+            ...(ui ? { _meta: { ui } } : {}),
+          }],
+        };
+      },
+    );
+
+    server.registerTool(
+      'upload_print_file',
+      {
+        title: 'Téléverser un fichier',
+        description:
+          "Ouvre un outil pour TÉLÉVERSER un fichier print-ready directement dans la conversation, puis le vérifier (intégrité, dimensions, bleed). Sur un hôte sans widgets, dirige vers plio.ca pour téléverser. Passe le slug produit pour comparer aux dimensions.",
+        inputSchema: { slug: z.string().optional().describe('Slug produit (pour la vérification après upload).') },
+        annotations: { readOnlyHint: true, openWorldHint: false },
+        _meta: { ui: { resourceUri: 'ui://plio/upload.html' } },
+      },
+      async ({ slug }) => ({ content: [{ type: 'text', text: JSON.stringify(uploadWidgetPayload(slug)) }] }),
+    );
+
+    server.registerTool(
+      'get_upload_url',
+      {
+        title: 'Lien de téléversement (interne au widget)',
+        description:
+          "Signe un POST S3 présigné pour téléverser un fichier vers le stockage Plio. Appelé par le widget d'upload — pas destiné à un appel direct. Retourne {presigned, publicUrl}.",
+        inputSchema: {
+          filename: z.string().min(1).max(255).describe('Nom du fichier (pour l\'extension).'),
+          contentType: z.string().min(1).describe('Type MIME (ex. application/pdf).'),
+          kind: z.enum(['front', 'back', 'other']).optional().describe('Face du fichier (défaut front).'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      async ({ filename, contentType, kind }, extra) => {
+        const u = requireUser(extra);
+        const userId = u.ok ? u.userId : undefined; // signé sous le compte si connecté, sinon guest
+        const r = await getUploadPresign({ filename, contentType, kind, userId });
+        return { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok };
       },
     );
 
