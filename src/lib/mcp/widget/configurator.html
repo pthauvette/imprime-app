@@ -157,10 +157,21 @@ function render() {
     card.append(el('div', { class: 'row' }, [el('label', { class: 'fld', text: 'Finition' }), finishChips]));
   }
 
-  // Quantité (navigue les quantités disponibles)
+  // Groupes d'options multi-choix (faces recto/recto-verso, coins, délai…)
+  for (const g of (data.optionGroups || [])) {
+    const chips = el('div', { class: 'chips' }, g.options.map((o) =>
+      el('button', { class: 'chip' + (o.id === g.selectedId ? ' on' : ''), text: o.label,
+        onclick: () => {
+          const opts = (selection.options || []).filter((id) => id !== g.selectedId).concat(o.id);
+          refresh({ slug: selection.slug, paper: selection.paper, finish: selection.finish, quantity: selection.quantity, options: opts });
+        } })));
+    card.append(el('div', { class: 'row' }, [el('label', { class: 'fld', text: g.label }), chips]));
+  }
+
+  // Quantité (navigue les quantités disponibles ; garde les options choisies)
   const qs = selected.quantities || [];
   const idx = qs.indexOf(selection.quantity);
-  const step = (d) => { const ni = idx + d; if (ni >= 0 && ni < qs.length) refresh({ slug: selection.slug, paper: selection.paper, finish: selection.finish, quantity: qs[ni] }); };
+  const step = (d) => { const ni = idx + d; if (ni >= 0 && ni < qs.length) refresh({ slug: selection.slug, paper: selection.paper, finish: selection.finish, quantity: qs[ni], options: selection.options }); };
   const stepper = el('div', { class: 'stepper' }, [
     el('button', { text: '−', 'aria-label': 'Diminuer', onclick: () => step(-1) }),
     el('span', { class: 'qty', text: String(selection.quantity ?? '—') }),
