@@ -72,12 +72,13 @@ const handler = createMcpHandler(
           paper: z.string().optional().describe('Clé papier (get_product_options). Absent → 1er papier.'),
           finish: z.string().optional().describe('Clé finition. Absent → 1re finition du papier.'),
           quantity: z.number().int().positive().optional().describe('Quantité. Absent → 500 ou la 1re disponible.'),
+          options: z.array(z.number().int()).optional().describe("IDs des options choisies (faces, coins, délai…), une par groupe ; le reste = défaut. Renvoyés dans optionGroups[].selectedId."),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
         _meta: { ui: { resourceUri: 'ui://plio/configurator.html' } },
       },
-      async ({ slug, paper, finish, quantity }) => {
-        const payload = await buildConfiguratorPayload({ slug, paper, finish, quantity });
+      async ({ slug, paper, finish, quantity, options }) => {
+        const payload = await buildConfiguratorPayload({ slug, paper, finish, quantity, options });
         return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
       },
     );
