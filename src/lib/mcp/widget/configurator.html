@@ -43,6 +43,9 @@
 <div class="card" id="card"><p class="sub">Chargement du configurateur…</p></div>
 <script type="module">
 /*__EXT_APPS_BUNDLE__*/
+// IIFE : isole TOUS mes identifiants du bundle ext-apps (même script module → sinon
+// collision, ex. `el` déjà déclaré par le bundle → SyntaxError → iframe blanche).
+(() => {
 const { App, applyHostStyleVariables } = globalThis.ExtApps;
 
 const card = document.getElementById('card');
@@ -198,5 +201,6 @@ function render() {
   await app.connect();
   applyTheme();
   render(); // rendu initial GARANTI (n'attend pas ontoolresult) → l'hôte a une taille, plus d'iframe blanche
+})();
 })();
 </script>
