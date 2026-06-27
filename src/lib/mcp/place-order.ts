@@ -119,6 +119,55 @@ export async function placeHeadlessOrder(
   const rlGlobal = await rateLimit('mcpOrderGlobal', 'all');
   if (!rlGlobal.ok) { await releaseMcpOrderIntent(user.userId, idempKey); return err('Service de commande saturé. Réessaie dans un instant.'); }
 
+  // 3.b — PRÉFLIGHT FICHIER (backstop serveur money-critical). Read-only, AVANT toute
+  //   création d'Order/Session Stripe → un fichier de CONTENU non conforme (PDF corrompu/
+  //   chiffré/trop peu de pages) est refusé sans rien facturer. Placé APRÈS le rate-limit :
+  //   le téléchargement (jusqu'à 150 Mo/fichier) est ainsi protégé contre une clé fuitée
+  //   qui spammerait des fetchs. fail-OPEN infra (S3 KO) / fail-CLOSED contenu (PDF
+  //   corrompu/chiffré/pages, ou trop gros pour être parsé) — hérité de
+  //   revalidatePrintFiles (#1), une seule définition web↔Mode B.
+  //
+  //   PAS de flag séparé : le préflight ENFORCE dès que Mode B est actif (garde
+  //   isHeadlessOrderEnabled en tête). Impossible d'ouvrir le paiement headless sans cette
+  //   validation (anti faux-sentiment-de-sécurité). Mode B = OFF aujourd'hui → inerte.
+  //   Import DYNAMIQUE : ne pas tirer pdf-lib au cold-start Lambda. TOUJOURS await.
+  const { revalidatePrintFiles } = await import('@/lib/orders/revalidate-files');
+  let fileOutcomes: Awaited<ReturnType<typeof revalidatePrintFiles>>;
+  try {
+    // Chaque item Mode B = EXACTEMENT 1 fichier → l'ordre de fileOutcomes suit `resolved`
+    // (flatMap + Promise.all préservent l'ordre) → corrélation par INDEX, jamais par URL
+    // (deux items peuvent partager le même fileUrl). Le slug est re-dérivé du productId
+    // côté helper (dimensions = warning non bloquant, seul le contenu PDF bloque).
+    fileOutcomes = await revalidatePrintFiles(
+      resolved.map((r) => ({ productId: r.productId, files: [{ url: r.fileUrl }] })),
+    );
+  } catch (e) {
+    // revalidatePrintFiles ne devrait jamais throw (fetch catché en interne) ; si ça
+    // arrive, fail-OPEN — ne JAMAIS bloquer un paiement sur une panne du validateur.
+    logAuth.warn({ userId: user.userId, err: String(e) }, 'mcp: préflight fichier — erreur inattendue, fail-open');
+    fileOutcomes = [];
+  }
+  const badSlugs = fileOutcomes
+    .map((o, i) => (o.blocking ? args.items[i]?.slug ?? `article ${i + 1}` : null))
+    .filter((s): s is string => s !== null);
+  if (badSlugs.length) {
+    logAuth.warn(
+      {
+        userId: user.userId,
+        blockers: badSlugs.length,
+        codes: fileOutcomes.filter((o) => o.blocking).flatMap((o) => o.issues.map((i) => i.code)),
+      },
+      'mcp: préflight fichier — fichier(s) non conforme(s), commande refusée',
+    );
+    // On RELÂCHE le claim : aucun Order créé à ce stade (préflight avant createPendingOrder),
+    // un retry du même achat doit pouvoir repartir. Identique au pattern rate-limit ci-dessus.
+    await releaseMcpOrderIntent(user.userId, idempKey);
+    return err(
+      `Fichier non conforme (${badSlugs.join(', ')}) : corrige le PDF avant de commander ` +
+      `(vérifie-le avec validate_print_file). Aucun montant n'a été débité.`,
+    );
+  }
+
   // À partir d'ici, sur erreur on NE relâche PAS le claim (un Order a pu être créé) ;
   // un retry verra 'pending' et l'humain/cron gérera (cf. durcissement webhook).
   try {
