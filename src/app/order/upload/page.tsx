@@ -662,8 +662,7 @@ function UploadedPreview({
       <PdfMarginOverlay
         thumbnailDataUrl={file.thumbnailDataUrl}
         filename={file.name}
-        bleedPercent={marginSpec.overlay.bleedPercent}
-        safePercent={marginSpec.overlay.safePercent}
+        marginSpec={marginSpec}
       />
     );
   }
