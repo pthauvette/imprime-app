@@ -11,6 +11,9 @@ import {
   virtualFinishes,
   resolveVirtualProductId,
 } from '@/lib/products/virtual-products';
+import { getMarginSpecBySlug } from '@/lib/products/margin-specs';
+import { finishMaterial } from '@/lib/print/finish-materials';
+import FinishPreview from '@/components/finish/FinishPreview';
 
 /**
  * Sélecteur GÉNÉRIQUE d'un produit virtuel : Papier (axe 1) puis Finition (axe 2,
@@ -55,6 +58,11 @@ export default function VirtualProductPicker({
 
   const paperMeta = papers.find((p) => p.key === paper);
   const finishMeta = finishes.find((f) => f.finish === finish);
+
+  // Ratio de la carte pour l'aperçu 3D = trim typique de la famille (fallback 3.5:2).
+  const trim = getMarginSpecBySlug(slug).typicalTrim;
+  const cardAspect = trim.heightIn > 0 ? trim.widthIn / trim.heightIn : 3.5 / 2;
+  const effectLabel = finishMaterial(finish, paper).effectLabel;
 
   return (
     <div className="shell">
@@ -148,6 +156,15 @@ export default function VirtualProductPicker({
 
         <aside className="recap">
           <div>
+            {/* Aperçu 3D de la finition — montre l'EFFET (vernis/velours/foil) que le
+                libellé texte ne disait pas. Le format/quantité se choisissent après. */}
+            <div style={{ marginBottom: 20 }}>
+              <div className="recap-section-label" style={{ marginBottom: 10 }}>Aperçu de la finition</div>
+              <FinishPreview finishKey={finish} paperKey={paper} aspect={cardAspect} height={210} />
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                {effectLabel} · bouge la carte 👆
+              </div>
+            </div>
             <div className="recap-section-label">Ton choix</div>
             <div style={{ marginTop: 12 }}>
               <div className="recap-config-row">
