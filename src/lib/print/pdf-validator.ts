@@ -194,40 +194,74 @@ export async function assessPdfBytes(
     });
   }
 
-  // 4. Dimensions 1ère page
+  // 4. Dimensions 1ère page — vraies boîtes (TrimBox/BleedBox) + rotation /Rotate.
   const firstPage = pdfDoc.getPage(0);
-  const { width: wPts, height: hPts } = firstPage.getSize();
-  const wInches = wPts / PT_PER_INCH;
-  const hInches = hPts / PT_PER_INCH;
-  const wMm = wInches * MM_PER_INCH;
-  const hMm = hInches * MM_PER_INCH;
+  // /Rotate : un paysage stocké en portrait + Rotate 90 a un MediaBox « inversé » →
+  // on swap pour comparer les dimensions VISIBLES (sinon faux mismatch).
+  const rot = ((firstPage.getRotation().angle % 360) + 360) % 360;
+  const swap = rot === 90 || rot === 270;
+  const media = firstPage.getMediaBox();
+  const trimBox = firstPage.getTrimBox();
+  const bleedBox = firstPage.getBleedBox();
+  const dimsOf = (b: { width: number; height: number }) => ({
+    w: (swap ? b.height : b.width) / PT_PER_INCH,
+    h: (swap ? b.width : b.height) / PT_PER_INCH,
+  });
+  const page = dimsOf(media);
+  const wInches = page.w, hInches = page.h;
+  const wPts = wInches * PT_PER_INCH, hPts = hInches * PT_PER_INCH;
+  const wMm = wInches * MM_PER_INCH, hMm = hInches * MM_PER_INCH;
+  // Les vraies boîtes sont-elles DÉFINIES ? pdf-lib retombe sur Crop/MediaBox sinon.
+  const EPS_PT = 1;
+  const boxesDefined =
+    Math.abs(trimBox.width - media.width) > EPS_PT || Math.abs(trimBox.height - media.height) > EPS_PT ||
+    Math.abs(bleedBox.width - media.width) > EPS_PT || Math.abs(bleedBox.height - media.height) > EPS_PT;
 
   if (opts.expected) {
     const tolerance = opts.expected.toleranceInches ?? 0.05;
     const bleed = opts.expected.bleedInches ?? 0.125;
-    // Dimensions attendues = product size + bleed sur chaque côté
-    const targetW = opts.expected.widthInches + bleed * 2;
-    const targetH = opts.expected.heightInches + bleed * 2;
-    // On accepte aussi l'orientation inversée (paysage vs portrait)
-    const matchesNormal = Math.abs(wInches - targetW) <= tolerance && Math.abs(hInches - targetH) <= tolerance;
-    const matchesRotated = Math.abs(wInches - targetH) <= tolerance && Math.abs(hInches - targetW) <= tolerance;
-    if (!matchesNormal && !matchesRotated) {
-      // Check si l'utilisateur a oublié le bleed (dimensions = product size pile)
-      const matchesNoBleed = Math.abs(wInches - opts.expected.widthInches) <= tolerance && Math.abs(hInches - opts.expected.heightInches) <= tolerance;
-      if (matchesNoBleed) {
-        issues.push({
-          level: 'warning',
-          code: 'bleed-missing',
-          message: `Dimensions du PDF (${wInches.toFixed(2)}" × ${hInches.toFixed(2)}") correspondent au format final sans bleed. Pour un bord parfait, ajoute ${bleed}" de bleed sur chaque côté (= ${targetW.toFixed(2)}" × ${targetH.toFixed(2)}").`,
-        });
-      } else {
-        // Vraie non-conformité : ni la bonne taille, ni la bonne taille+bleed.
-        // En mode strict (taille produit EXACTE connue) → ERROR bloquant.
+    const pw = opts.expected.widthInches, ph = opts.expected.heightInches;
+    const f = (n: number) => n.toFixed(2);
+    const matchesSize = (w: number, h: number, tw: number, th: number) =>
+      (Math.abs(w - tw) <= tolerance && Math.abs(h - th) <= tolerance) ||
+      (Math.abs(w - th) <= tolerance && Math.abs(h - tw) <= tolerance); // orientation inversée OK
+
+    if (boxesDefined) {
+      // PDF print-ready (PDF/X, InDesign…) : valider le TrimBox (= format final coupé) et
+      // le BleedBox (= trim + fond perdu). Évite de rejeter à tort un MediaBox élargi par
+      // les marques d'imprimante, et détecte le VRAI fond perdu.
+      const t = dimsOf(trimBox), b = dimsOf(bleedBox);
+      if (!matchesSize(t.w, t.h, pw, ph)) {
         issues.push({
           level: opts.strictDimensions ? 'error' : 'warning',
           code: 'dimensions-mismatch',
-          message: `Dimensions incorrectes : ${wInches.toFixed(2)}" × ${hInches.toFixed(2)}" (${wMm.toFixed(0)}mm × ${hMm.toFixed(0)}mm). Attendu pour ce produit : ${targetW.toFixed(2)}" × ${targetH.toFixed(2)}" (format ${opts.expected.widthInches}" × ${opts.expected.heightInches}" + ${bleed}" de bleed par côté). Réexporte ton fichier à la bonne taille.`,
+          message: `Format de coupe (TrimBox) ${f(t.w)}" × ${f(t.h)}" ≠ attendu ${f(pw)}" × ${f(ph)}". Réexporte à la bonne taille.`,
         });
+      } else if ((b.w - t.w) < bleed || (b.h - t.h) < bleed) {
+        // TrimBox correct mais BleedBox ≈ TrimBox → pas de fond perdu exploitable.
+        issues.push({
+          level: 'warning',
+          code: 'bleed-missing',
+          message: `Format correct mais peu/pas de fond perdu (BleedBox ${f(b.w)}" × ${f(b.h)}"). Ajoute ${bleed}" de bleed autour du trim pour un bord parfait.`,
+        });
+      }
+    } else {
+      // Aucune boîte définie → heuristique sur la géométrie de page (MediaBox visible).
+      const targetW = pw + bleed * 2, targetH = ph + bleed * 2;
+      if (!matchesSize(wInches, hInches, targetW, targetH)) {
+        if (matchesSize(wInches, hInches, pw, ph)) {
+          issues.push({
+            level: 'warning',
+            code: 'bleed-missing',
+            message: `Le PDF fait pile le format final (${f(wInches)}" × ${f(hInches)}") sans fond perdu. Ajoute ${bleed}" de bleed par côté (= ${f(targetW)}" × ${f(targetH)}").`,
+          });
+        } else {
+          issues.push({
+            level: opts.strictDimensions ? 'error' : 'warning',
+            code: 'dimensions-mismatch',
+            message: `Dimensions ${f(wInches)}" × ${f(hInches)}" (${wMm.toFixed(0)}mm × ${hMm.toFixed(0)}mm) ≠ attendu ${f(targetW)}" × ${f(targetH)}" (format ${pw}" × ${ph}" + ${bleed}" de bleed par côté). Réexporte à la bonne taille.`,
+          });
+        }
       }
     }
   } else {

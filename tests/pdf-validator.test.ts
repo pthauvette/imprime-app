@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, degrees } from 'pdf-lib';
 import { validatePdf, isPdfMime } from '@/lib/print/pdf-validator';
 
 // ─── Helpers — fabriquent des PDFs de test ────────────────────────────────
@@ -20,11 +20,25 @@ async function makePdfFile(opts: {
   widthInches: number;
   heightInches: number;
   filename?: string;
+  /** TrimBox de la 1re page (pouces), centré dans le MediaBox. */
+  trimIn?: [number, number];
+  /** BleedBox de la 1re page (pouces), centré. */
+  bleedIn?: [number, number];
+  /** Rotation /Rotate de la 1re page (degrés). */
+  rotate?: number;
 }): Promise<File> {
   const pdf = await PDFDocument.create();
   for (let i = 0; i < opts.pages; i++) {
     pdf.addPage([opts.widthInches * PT_PER_INCH, opts.heightInches * PT_PER_INCH]);
   }
+  const p0 = pdf.getPage(0);
+  const centered = (sizeIn: [number, number]) => {
+    const [w, h] = [sizeIn[0] * PT_PER_INCH, sizeIn[1] * PT_PER_INCH];
+    return [(opts.widthInches * PT_PER_INCH - w) / 2, (opts.heightInches * PT_PER_INCH - h) / 2, w, h] as const;
+  };
+  if (opts.trimIn) { const [x, y, w, h] = centered(opts.trimIn); p0.setTrimBox(x, y, w, h); }
+  if (opts.bleedIn) { const [x, y, w, h] = centered(opts.bleedIn); p0.setBleedBox(x, y, w, h); }
+  if (opts.rotate) p0.setRotation(degrees(opts.rotate));
   const bytes = await pdf.save();
   // pdf-lib returns Uint8Array<ArrayBufferLike> ; File expects BlobPart.
   // Wrap in a fresh ArrayBuffer slice to satisfy the type (Node20+ Files
@@ -152,7 +166,7 @@ describe('validatePdf — expected dimensions', () => {
     expect(r.level).toBe('warning');
     const issue = r.issues.find((i) => i.code === 'bleed-missing');
     expect(issue).toBeDefined();
-    expect(issue?.message).toMatch(/sans bleed/);
+    expect(issue?.message).toMatch(/sans fond perdu/);
   });
 
   it('WARNING dimensions-mismatch si format totalement différent (non strict)', async () => {
@@ -226,5 +240,42 @@ describe('isPdfMime', () => {
     expect(isPdfMime('image/png')).toBe(false);
     expect(isPdfMime('image/vnd.adobe.photoshop')).toBe(false);
     expect(isPdfMime('application/postscript')).toBe(false);
+  });
+});
+
+// ─── Vraies boîtes TrimBox/BleedBox (PDF/X pro) + rotation /Rotate ───────────
+describe('validatePdf — vraies boîtes TrimBox/BleedBox', () => {
+  const CARD = { widthInches: 3.5, heightInches: 2, bleedInches: 0.125 };
+
+  it('MediaBox élargi par les marques + TrimBox=format + BleedBox=trim+bleed → conforme (plus de faux rejet)', async () => {
+    // Export InDesign typique : MediaBox 4.25×2.75 (marques), TrimBox 3.5×2, BleedBox 3.75×2.25.
+    const file = await makePdfFile({ pages: 1, widthInches: 4.25, heightInches: 2.75, trimIn: [3.5, 2], bleedIn: [3.75, 2.25] });
+    const r = await validatePdf(file, { expected: CARD, strictDimensions: true });
+    expect(r.level).toBe('ok');
+    expect(r.issues.some((i) => i.code === 'dimensions-mismatch')).toBe(false);
+  });
+
+  it('TrimBox correct mais BleedBox = TrimBox (pas de fond perdu) → bleed-missing', async () => {
+    const file = await makePdfFile({ pages: 1, widthInches: 3.5, heightInches: 2, trimIn: [3.5, 2], bleedIn: [3.5, 2] });
+    const r = await validatePdf(file, { expected: CARD, strictDimensions: true });
+    expect(r.issues.some((i) => i.code === 'bleed-missing')).toBe(true);
+  });
+
+  it('TrimBox = mauvais format (4×6) en strict → dimensions-mismatch ERROR', async () => {
+    const file = await makePdfFile({ pages: 1, widthInches: 4.5, heightInches: 6.5, trimIn: [4, 6], bleedIn: [4.25, 6.25] });
+    const r = await validatePdf(file, { expected: CARD, strictDimensions: true });
+    expect(r.level).toBe('error');
+    expect(r.issues.some((i) => i.code === 'dimensions-mismatch')).toBe(true);
+  });
+});
+
+describe('validatePdf — rotation /Rotate', () => {
+  const CARD = { widthInches: 3.5, heightInches: 2, bleedInches: 0.125 };
+  it('page correcte stockée portrait + Rotate 90 → pas de faux mismatch + dimensions VISIBLES', async () => {
+    // MediaBox 2.25×3.75 (portrait) + Rotate 90 = visible 3.75×2.25 (= format + bleed).
+    const file = await makePdfFile({ pages: 1, widthInches: 2.25, heightInches: 3.75, rotate: 90 });
+    const r = await validatePdf(file, { expected: CARD, strictDimensions: true });
+    expect(r.level).toBe('ok');
+    expect(r.meta?.firstPageInches).toEqual({ width: 3.75, height: 2.25 });
   });
 });
