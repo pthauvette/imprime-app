@@ -7,8 +7,12 @@
  * Réutilise EXACTEMENT le même cœur que le web et l'outil MCP (`validatePrintFile`
  * → `assessPdfBytes`). Deux principes de sûreté :
  *
- *  1. Fail-CLOSED sur le CONTENU confirmé (PDF corrompu/chiffré, trop peu de pages) :
- *     ces fichiers échoueraient de toute façon à la production Sinalite.
+ *  1. Fail-CLOSED sur le CONTENU non validable (PDF corrompu/chiffré, trop peu de pages,
+ *     OU trop gros pour être parsé) : ces fichiers échoueraient de toute façon à la
+ *     production Sinalite. NB : `file-too-large` reste BLOQUANT (pas fail-open) — un
+ *     fichier qu'on refuse de parser ne doit pas atteindre une production payée, et la
+ *     limite d'upload S3 (150 Mo) fait qu'aucun fichier LÉGITIME ne déclenche ce cas
+ *     (donc zéro faux blocage), tout en fermant un contournement par « padding > 150 Mo ».
  *  2. Fail-OPEN sur l'INFRASTRUCTURE (`fetch-failed` : S3 indisponible) — un hoquet
  *     réseau ne doit JAMAIS bloquer un paiement. Le fichier reste référencé sur
  *     l'Order ; s'il manque vraiment, la soumission Sinalite échouera plus tard.
@@ -26,7 +30,11 @@ import { validatePrintFile } from '@/lib/mcp/tools/validate-file';
 import { virtualSlugForProductId } from '@/lib/products/virtual-products';
 import type { ValidationIssue, ValidationLevel } from '@/lib/print/pdf-validator';
 
-/** Codes d'INFRASTRUCTURE (hors de la responsabilité du fichier) → fail-open. */
+/**
+ * Codes d'INFRASTRUCTURE (panne réseau, hors de la responsabilité du fichier) →
+ * fail-open. `file-too-large` n'EN fait PAS partie : il reste bloquant (cf. en-tête
+ * — fail-closed sur l'oversized pour fermer le contournement par padding).
+ */
 const INFRA_CODES = new Set(['fetch-failed']);
 
 export interface FileCheckOutcome {

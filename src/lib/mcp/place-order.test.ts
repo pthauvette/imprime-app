@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   userFindUnique: vi.fn(),
   orderCount: vi.fn(async () => 0),
   rateLimit: vi.fn(async (): Promise<{ ok: boolean; remaining?: number; response?: unknown }> => ({ ok: true, remaining: 9 })),
+  revalidatePrintFiles: vi.fn(async (): Promise<unknown[]> => []),
 }));
 vi.mock('./checkout-session', () => ({ isHeadlessOrderEnabled: h.isHeadlessOrderEnabled, createMcpCheckoutSession: h.createMcpCheckoutSession }));
 vi.mock('./file-url-guard', () => ({ assertPlioFileUrl: h.assertPlioFileUrl }));
@@ -34,6 +35,7 @@ vi.mock('@/lib/orders/items', () => ({ buildItemsSnapshot: h.buildItemsSnapshot 
 vi.mock('@/lib/db/orders', () => ({ createPendingOrder: h.createPendingOrder }));
 vi.mock('@/lib/db', () => ({ prisma: { user: { findUnique: h.userFindUnique }, order: { count: h.orderCount } } }));
 vi.mock('@/lib/ratelimit', () => ({ rateLimit: h.rateLimit, rateLimitEnabled: true }));
+vi.mock('@/lib/orders/revalidate-files', () => ({ revalidatePrintFiles: h.revalidatePrintFiles }));
 vi.mock('@/lib/logger', () => ({ logAuth: { warn: vi.fn(), error: vi.fn() } }));
 
 import { placeHeadlessOrder } from './place-order';
@@ -60,6 +62,8 @@ function happyMocks() {
   h.priceOrder.mockResolvedValue({ ok: true, subtotal: 21.9, discountAmount: 0, resellerDiscountAmount: 0, effectiveShippingPrice: 16.66, goldFreeShippingApplied: false, tax: { lines: [], total: 5.79, combinedRate: 0.15 }, grossTotalCents: 5000, walletCreditApplied: 0, referralCreditApplied: 0, totalCents: 5000, promoRecord: null, detailCache: new Map(), productNames: new Map(), productSummary: 'Carte' });
   h.createPendingOrder.mockResolvedValue({ id: 'ord_1' });
   h.createMcpCheckoutSession.mockResolvedValue({ sessionId: 'cs_1', url: 'https://checkout.stripe.com/c/pay/cs_1' });
+  // Préflight fichier (#6) : par défaut, fichier conforme → non bloquant.
+  h.revalidatePrintFiles.mockResolvedValue([{ url: ARGS.items[0].fileUrl, productId: 2, level: 'ok', blocking: false, issues: [] }]);
 }
 
 beforeEach(() => { vi.clearAllMocks(); happyMocks(); });
@@ -138,5 +142,95 @@ describe('placeHeadlessOrder', () => {
     const r = await placeHeadlessOrder(ARGS, USER, 1_780_000_000_000);
     expect(r.ok).toBe(false);
     expect(h.createPendingOrder).not.toHaveBeenCalled();
+  });
+});
+
+const NOW = 1_780_000_000_000;
+const okOutcome = (url: string, productId = 2) => ({ url, productId, level: 'ok' as const, blocking: false, issues: [] });
+const blockOutcome = (url: string, code = 'pdf-invalid', productId = 2) => ({
+  url, productId, level: 'error' as const, blocking: true, issues: [{ level: 'error' as const, code, message: 'x' }],
+});
+
+describe('placeHeadlessOrder — préflight fichier (audit #6)', () => {
+  it('fichier conforme → commande créée + helper appelé avec le mapping resolved→{productId,files}', async () => {
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(true);
+    expect(h.createPendingOrder).toHaveBeenCalled();
+    expect(h.revalidatePrintFiles).toHaveBeenCalledWith([{ productId: 2, files: [{ url: ARGS.items[0].fileUrl }] }]);
+  });
+
+  it('PDF corrompu (blocking) → refus, AUCUN Order/Session, claim RELÂCHÉ (placement après rate-limit)', async () => {
+    h.revalidatePrintFiles.mockResolvedValue([blockOutcome(ARGS.items[0].fileUrl)]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(false);
+    expect(h.createPendingOrder).not.toHaveBeenCalled();
+    expect(h.createMcpCheckoutSession).not.toHaveBeenCalled();
+    // Le claim a été pris (placement après rate-limit) PUIS relâché → pas d'empoisonnement.
+    expect(h.claimMcpOrderIntent).toHaveBeenCalled();
+    expect(h.releaseMcpOrderIntent).toHaveBeenCalledWith('u1', 'idemphash');
+  });
+
+  it('fetch S3 KO (fail-open : blocking false) → la commande CONTINUE (paiement non bloqué)', async () => {
+    // Le helper a déjà neutralisé l'infra (fetch-failed → blocking:false). On ne lit que .blocking.
+    h.revalidatePrintFiles.mockResolvedValue([
+      { url: ARGS.items[0].fileUrl, productId: 2, level: 'error', blocking: false, issues: [{ level: 'error', code: 'fetch-failed', message: 'x' }] },
+    ]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(true);
+    expect(h.createPendingOrder).toHaveBeenCalled();
+  });
+
+  it('image / non-PDF (blocking false) → passe (délégué Sinalite)', async () => {
+    h.revalidatePrintFiles.mockResolvedValue([okOutcome(ARGS.items[0].fileUrl)]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(true);
+    expect(h.createPendingOrder).toHaveBeenCalled();
+  });
+
+  it('warning de dimensions (blocking false) → ne bloque PAS', async () => {
+    h.revalidatePrintFiles.mockResolvedValue([
+      { url: ARGS.items[0].fileUrl, productId: 2, level: 'warning', blocking: false, issues: [{ level: 'warning', code: 'dimensions-mismatch', message: 'x' }] },
+    ]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(true);
+    expect(h.createPendingOrder).toHaveBeenCalled();
+  });
+
+  it('multi-items, 1 seul mauvais → refus de TOUTE la commande, aucune écriture', async () => {
+    h.resolveOrderItem.mockReset();
+    h.resolveOrderItem.mockResolvedValueOnce({ ok: true, productId: 2, optionIds: [5, 30], name: 'Carte', slug: 'cartes-de-visite', paper: '14pt', finish: 'aq', quantity: 500, subtotalCents: 2190, uploadUrl: 'x' });
+    h.resolveOrderItem.mockResolvedValueOnce({ ok: true, productId: 100, optionIds: [1], name: 'Flyer', slug: 'flyers', paper: 'x', finish: 'y', quantity: 100, subtotalCents: 5000, uploadUrl: 'x' });
+    const twoItems = { ...ARGS, items: [ARGS.items[0], { slug: 'flyers', paper: 'x', finish: 'y', quantity: 100, fileUrl: 'https://plio-uploads.s3.ca-central-1.amazonaws.com/uploads/u1/b.pdf' }] };
+    h.revalidatePrintFiles.mockResolvedValue([okOutcome(ARGS.items[0].fileUrl), blockOutcome('https://plio-uploads.s3.ca-central-1.amazonaws.com/uploads/u1/b.pdf', 'pdf-encrypted', 100)]);
+    const r = await placeHeadlessOrder(twoItems, USER, NOW);
+    expect(r.ok).toBe(false);
+    expect(h.createPendingOrder).not.toHaveBeenCalled();
+    if (!r.ok) expect(r.message).toContain('flyers'); // l'item fautif (index 1) est nommé
+  });
+
+  it('H2 — deux items MÊME fileUrl, seul l\'index 1 bloque → nomme le slug par INDEX (pas par URL)', async () => {
+    h.resolveOrderItem.mockReset();
+    h.resolveOrderItem.mockResolvedValueOnce({ ok: true, productId: 100, optionIds: [1], name: 'Flyer', slug: 'flyers', paper: 'x', finish: 'y', quantity: 100, subtotalCents: 5000, uploadUrl: 'x' });
+    h.resolveOrderItem.mockResolvedValueOnce({ ok: true, productId: 2, optionIds: [5, 30], name: 'Carte', slug: 'cartes-de-visite', paper: '14pt', finish: 'aq', quantity: 500, subtotalCents: 2190, uploadUrl: 'x' });
+    const sameUrl = ARGS.items[0].fileUrl;
+    const twoSameUrl = { ...ARGS, items: [
+      { slug: 'flyers', paper: 'x', finish: 'y', quantity: 100, fileUrl: sameUrl },
+      { slug: 'cartes-de-visite', paper: '14pt', finish: 'aq', quantity: 500, fileUrl: sameUrl },
+    ] };
+    // index 0 OK, index 1 bloque — MÊME url pour les deux.
+    h.revalidatePrintFiles.mockResolvedValue([okOutcome(sameUrl, 100), blockOutcome(sameUrl, 'pdf-invalid', 2)]);
+    const r = await placeHeadlessOrder(twoSameUrl, USER, NOW);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.message).toContain('cartes-de-visite'); // index 1 = le vrai fautif
+      expect(r.message).not.toContain('flyers');        // attribution par URL aurait nommé l'index 0
+    }
+  });
+
+  it('Mode B OFF → préflight JAMAIS exécuté (sortie avant la boucle)', async () => {
+    h.isHeadlessOrderEnabled.mockReturnValue(false);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(false);
+    expect(h.revalidatePrintFiles).not.toHaveBeenCalled();
   });
 });

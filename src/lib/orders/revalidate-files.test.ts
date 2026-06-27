@@ -17,7 +17,7 @@ async function pdfBytes(widthIn: number, heightIn: number): Promise<Uint8Array> 
   return doc.save();
 }
 
-type Entry = { bytes?: Uint8Array; ct?: string; fail?: boolean };
+type Entry = { bytes?: Uint8Array; ct?: string; fail?: boolean; len?: number };
 /** fetch moqué par URL — chaque fichier peut avoir une issue différente. */
 function mockFetchByUrl(map: Record<string, Entry>) {
   vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
@@ -30,7 +30,7 @@ function mockFetchByUrl(map: Record<string, Entry>) {
     return {
       ok: true,
       status: 200,
-      headers: new Headers({ 'content-type': e.ct ?? 'application/pdf', 'content-length': String(bytes.byteLength) }),
+      headers: new Headers({ 'content-type': e.ct ?? 'application/pdf', 'content-length': String(e.len ?? bytes.byteLength) }),
       arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
     };
   }));
@@ -57,6 +57,17 @@ describe('revalidatePrintFiles', () => {
     expect(out[0].level).toBe('error');
     expect(out[0].blocking).toBe(true);
     expect(out[0].issues[0].code).toBe('pdf-invalid');
+  });
+
+  it('fichier trop gros (>150MB via content-length) → BLOQUANT (fail-closed, audit #6)', async () => {
+    // Décision money-critical : un fichier qu'on refuse de parser ne doit PAS atteindre une
+    // production payée. La limite d'upload S3 (150 Mo) fait qu'aucun fichier LÉGITIME ne
+    // déclenche ce cas → zéro faux blocage, et ça ferme le contournement par « padding >150 Mo »
+    // (sinon un PDF corrompu gonflé sauterait le parse via le header content-length).
+    mockFetchByUrl({ [u('huge.pdf')]: { bytes: new Uint8Array(300).fill(0x01), len: 200 * 1024 * 1024 } });
+    const out = await revalidatePrintFiles([{ productId: PID_UNMAPPED, files: [{ url: u('huge.pdf') }] }]);
+    expect(out[0].issues[0].code).toBe('file-too-large');
+    expect(out[0].blocking).toBe(true);
   });
 
   it('échec de fetch S3 (infra) → fail-OPEN : level error MAIS blocking false', async () => {
