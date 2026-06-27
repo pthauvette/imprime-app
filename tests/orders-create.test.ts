@@ -80,6 +80,13 @@ vi.mock('@/lib/orders/items', async () => {
   };
 });
 
+// Audit #1 — revalidation fichiers serveur. On mocke le helper (testé à part dans
+// src/lib/orders/revalidate-files.test.ts) pour piloter le résultat depuis la route.
+const revalidateMock = vi.hoisted(() => ({ fn: vi.fn(async () => [] as unknown[]) }));
+vi.mock('@/lib/orders/revalidate-files', () => ({
+  revalidatePrintFiles: revalidateMock.fn,
+}));
+
 // Mock Stripe via vi.hoisted pour qu'il soit dispo dans le mock factory
 const stripeMock = vi.hoisted(() => ({
   paymentIntents: {
@@ -141,6 +148,8 @@ beforeEach(() => {
   vi.mocked(prisma.user.findUnique).mockReset();
   vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
   stripeMock.paymentIntents.create.mockClear();
+  revalidateMock.fn.mockReset();
+  revalidateMock.fn.mockResolvedValue([]);
   vi.resetModules();
 });
 
@@ -491,5 +500,54 @@ describe('/api/orders/create — enforce du devis signé (ENFORCE_SHIPPING_SIG, 
     const { POST } = await import('@/app/api/orders/create/route');
     const res = await POST(makeReq(validPayload));
     expect(res.status).toBe(200);
+  });
+});
+
+describe('/api/orders/create — revalidation fichiers serveur (audit #1)', () => {
+  const blocker = [{
+    url: validPayload.items[0].files[0].url,
+    productId: 1,
+    level: 'error' as const,
+    blocking: true,
+    issues: [{ level: 'error' as const, code: 'pdf-invalid', message: 'PDF corrompu.' }],
+  }];
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('var absente (défaut) → helper PAS appelé, 200 (inerte, aucune latence)', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+    expect(revalidateMock.fn).not.toHaveBeenCalled();
+  });
+
+  it('FILE_REVALIDATION=enforce + fichier non conforme → 422 + Stripe NON appelé', async () => {
+    vi.stubEnv('FILE_REVALIDATION', 'enforce');
+    revalidateMock.fn.mockResolvedValueOnce(blocker);
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe('FILE_NOT_CONFORMING');
+    expect(body.details[0].code).toBe('pdf-invalid');
+    expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  it('FILE_REVALIDATION=log + fichier non conforme → 200 (log seulement, ne bloque pas)', async () => {
+    vi.stubEnv('FILE_REVALIDATION', 'log');
+    revalidateMock.fn.mockResolvedValueOnce(blocker);
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+    expect(revalidateMock.fn).toHaveBeenCalledOnce();
+  });
+
+  it('FILE_REVALIDATION=enforce + fichiers conformes → 200', async () => {
+    vi.stubEnv('FILE_REVALIDATION', 'enforce');
+    revalidateMock.fn.mockResolvedValueOnce([]);
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+    expect(revalidateMock.fn).toHaveBeenCalledOnce();
   });
 });
