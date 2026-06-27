@@ -116,6 +116,40 @@ const CreateOrderSchema = z.object({
 export const POST = withErrorHandler(async (req: Request) => {
   const payload = await parseBody(req, CreateOrderSchema);
 
+  // Phase 1b — REVALIDATION SERVEUR des fichiers print (backstop anti-bypass du
+  // contrôle client). On rejette AVANT tout appel Stripe/Sinalite (au plus tôt).
+  // Bloque uniquement sur les erreurs de CONTENU confirmées (corrompu/chiffré/
+  // pages) — pas les dimensions (warning) ni un échec d'infra S3 (fail-open).
+  // Rollout off → log → enforce (flag FILE_REVALIDATION), comme ENFORCE_SHIPPING_SIG.
+  // Le flag est lu inline (trivial) pour NE PAS tirer pdf-lib dans le graphe de
+  // module de la route au cold-start ; le helper lourd reste en import dynamique.
+  const fileMode = (process.env.FILE_REVALIDATION ?? '').trim().toLowerCase();
+  if (fileMode === 'log' || fileMode === 'enforce') {
+    const { revalidatePrintFiles } = await import('@/lib/orders/revalidate-files');
+    const outcomes = await revalidatePrintFiles(payload.items);
+    const blockers = outcomes.filter((o) => o.blocking);
+    const warnings = outcomes.filter((o) => !o.blocking && o.level === 'warning');
+    if (blockers.length || warnings.length) {
+      console.warn('[orders/create] revalidation fichiers', {
+        mode: fileMode,
+        items: payload.items.length,
+        blockers: blockers.length,
+        warnings: warnings.length,
+        codes: outcomes.flatMap((o) => o.issues.map((i) => i.code)),
+      });
+    }
+    if (fileMode === 'enforce' && blockers.length) {
+      return NextResponse.json(
+        {
+          error: 'Un ou plusieurs fichiers ne sont pas conformes et doivent être corrigés avant de commander.',
+          code: 'FILE_NOT_CONFORMING',
+          details: blockers.flatMap((b) => b.issues.map((i) => ({ code: i.code, message: i.message }))),
+        },
+        { status: 422 },
+      );
+    }
+  }
+
   // Prix serveur — UNE seule source de vérité, partagée avec le MCP create_order
   // Mode B : src/lib/orders/price-order.ts (priceOrder). Le caller (cette route)
   // fournit les prefs user (DB) + orderCount ; priceOrder fait subtotal
