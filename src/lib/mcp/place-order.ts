@@ -31,6 +31,11 @@ import { buildMcpSinalitePayload } from './sinalite-payload';
 /** Plafond dur d'une commande passée via IA (anti-clé fuitée / erreur d'agent). */
 const MAX_TOTAL_CENTS = 500_000; // 5000 $
 
+/** Anti régression SILENCIEUSE : on signale UNE seule fois par cold-start Lambda qu'un
+ *  paiement headless tourne avec le préflight fichier affaibli (off/log). 1 seul thread
+ *  JS par conteneur → pas de course ; reset à chaque cold-start (= ce qu'on veut). */
+let warnedPreflightWeakened = false;
+
 export interface HeadlessOrderArgs {
   items: { slug: string; paper: string; finish: string; quantity: number; fileUrl: string; internalRef?: string }[];
   contact: { firstName: string; lastName: string; email: string; phone: string };
@@ -127,45 +132,64 @@ export async function placeHeadlessOrder(
   //   corrompu/chiffré/pages, ou trop gros pour être parsé) — hérité de
   //   revalidatePrintFiles (#1), une seule définition web↔Mode B.
   //
-  //   PAS de flag séparé : le préflight ENFORCE dès que Mode B est actif (garde
-  //   isHeadlessOrderEnabled en tête). Impossible d'ouvrir le paiement headless sans cette
-  //   validation (anti faux-sentiment-de-sécurité). Mode B = OFF aujourd'hui → inerte.
+  //   KILL-SWITCH `MCP_FILE_PREFLIGHT`, DÉFAUT = enforce (fail-closed sur l'oubli de
+  //   config : oublier la var en activant Mode B → on valide quand même). Seul un
+  //   `off` EXPLICITE désactive (urgence : faux-positif du validateur), sans couper
+  //   tout Mode B. `log` = tourne + journalise sans bloquer (1re activation prudente).
   //   Import DYNAMIQUE : ne pas tirer pdf-lib au cold-start Lambda. TOUJOURS await.
-  const { revalidatePrintFiles } = await import('@/lib/orders/revalidate-files');
-  let fileOutcomes: Awaited<ReturnType<typeof revalidatePrintFiles>>;
-  try {
-    // Chaque item Mode B = EXACTEMENT 1 fichier → l'ordre de fileOutcomes suit `resolved`
-    // (flatMap + Promise.all préservent l'ordre) → corrélation par INDEX, jamais par URL
-    // (deux items peuvent partager le même fileUrl). Le slug est re-dérivé du productId
-    // côté helper (dimensions = warning non bloquant, seul le contenu PDF bloque).
-    fileOutcomes = await revalidatePrintFiles(
-      resolved.map((r) => ({ productId: r.productId, files: [{ url: r.fileUrl }] })),
-    );
-  } catch (e) {
-    // revalidatePrintFiles ne devrait jamais throw (fetch catché en interne) ; si ça
-    // arrive, fail-OPEN — ne JAMAIS bloquer un paiement sur une panne du validateur.
-    logAuth.warn({ userId: user.userId, err: String(e) }, 'mcp: préflight fichier — erreur inattendue, fail-open');
-    fileOutcomes = [];
-  }
-  const badSlugs = fileOutcomes
-    .map((o, i) => (o.blocking ? args.items[i]?.slug ?? `article ${i + 1}` : null))
-    .filter((s): s is string => s !== null);
-  if (badSlugs.length) {
+  const preflightMode = (process.env.MCP_FILE_PREFLIGHT ?? '').trim().toLowerCase();
+  // Dérogation = backstop intentionnellement absent (off) ou passif (log) ALORS que Mode B
+  // est actif (on a passé la garde isHeadlessOrderEnabled). État de régression silencieuse
+  // → on le rend visible UNE fois par cold-start (CloudWatch), avec rappel de re-basculer.
+  if ((preflightMode === 'off' || preflightMode === 'log') && !warnedPreflightWeakened) {
+    warnedPreflightWeakened = true;
     logAuth.warn(
-      {
-        userId: user.userId,
-        blockers: badSlugs.length,
-        codes: fileOutcomes.filter((o) => o.blocking).flatMap((o) => o.issues.map((i) => i.code)),
-      },
-      'mcp: préflight fichier — fichier(s) non conforme(s), commande refusée',
+      { mode: preflightMode },
+      'mcp: ⚠️ paiement headless ACTIF avec préflight fichier affaibli (dérogation) — repasser en enforce dès que possible',
     );
-    // On RELÂCHE le claim : aucun Order créé à ce stade (préflight avant createPendingOrder),
-    // un retry du même achat doit pouvoir repartir. Identique au pattern rate-limit ci-dessus.
-    await releaseMcpOrderIntent(user.userId, idempKey);
-    return err(
-      `Fichier non conforme (${badSlugs.join(', ')}) : corrige le PDF avant de commander ` +
-      `(vérifie-le avec validate_print_file). Aucun montant n'a été débité.`,
-    );
+  }
+  if (preflightMode !== 'off') {
+    const { revalidatePrintFiles } = await import('@/lib/orders/revalidate-files');
+    let fileOutcomes: Awaited<ReturnType<typeof revalidatePrintFiles>>;
+    try {
+      // Chaque item Mode B = EXACTEMENT 1 fichier → l'ordre de fileOutcomes suit `resolved`
+      // (flatMap + Promise.all préservent l'ordre) → corrélation par INDEX, jamais par URL
+      // (deux items peuvent partager le même fileUrl). Le slug est re-dérivé du productId
+      // côté helper (dimensions = warning non bloquant, seul le contenu PDF bloque).
+      fileOutcomes = await revalidatePrintFiles(
+        resolved.map((r) => ({ productId: r.productId, files: [{ url: r.fileUrl }] })),
+      );
+    } catch (e) {
+      // revalidatePrintFiles ne devrait jamais throw (fetch catché en interne) ; si ça
+      // arrive, fail-OPEN — ne JAMAIS bloquer un paiement sur une panne du validateur.
+      logAuth.warn({ userId: user.userId, err: String(e) }, 'mcp: préflight fichier — erreur inattendue, fail-open');
+      fileOutcomes = [];
+    }
+    const badSlugs = fileOutcomes
+      .map((o, i) => (o.blocking ? args.items[i]?.slug ?? `article ${i + 1}` : null))
+      .filter((s): s is string => s !== null);
+    if (badSlugs.length) {
+      logAuth.warn(
+        {
+          userId: user.userId,
+          mode: preflightMode || 'enforce',
+          blockers: badSlugs.length,
+          codes: fileOutcomes.filter((o) => o.blocking).flatMap((o) => o.issues.map((i) => i.code)),
+        },
+        `mcp: préflight fichier — fichier(s) non conforme(s)${preflightMode === 'log' ? ' (log, non bloqué)' : ', commande refusée'}`,
+      );
+      if (preflightMode !== 'log') {
+        // ENFORCE (défaut) : on RELÂCHE le claim — aucun Order créé à ce stade (préflight
+        // avant createPendingOrder), un retry du même achat doit pouvoir repartir.
+        // Identique au pattern rate-limit ci-dessus.
+        await releaseMcpOrderIntent(user.userId, idempKey);
+        return err(
+          `Fichier non conforme (${badSlugs.join(', ')}) : corrige le PDF avant de commander ` +
+          `(vérifie-le avec validate_print_file). Aucun montant n'a été débité.`,
+        );
+      }
+      // 'log' : on a journalisé, on NE bloque PAS → la commande continue.
+    }
   }
 
   // À partir d'ici, sur erreur on NE relâche PAS le claim (un Order a pu être créé) ;

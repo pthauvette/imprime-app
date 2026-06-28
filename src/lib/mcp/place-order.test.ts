@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── Mocks des frontières I/O ────────────────────────────────────────────────
 const h = vi.hoisted(() => ({
@@ -232,5 +232,45 @@ describe('placeHeadlessOrder — préflight fichier (audit #6)', () => {
     const r = await placeHeadlessOrder(ARGS, USER, NOW);
     expect(r.ok).toBe(false);
     expect(h.revalidatePrintFiles).not.toHaveBeenCalled();
+  });
+});
+
+describe('placeHeadlessOrder — kill-switch MCP_FILE_PREFLIGHT (audit #6)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('var ABSENTE → enforce par défaut (fail-closed) : fichier corrompu refusé', async () => {
+    // Aucun stubEnv → MCP_FILE_PREFLIGHT absent → on valide quand même (oubli de config sûr).
+    h.revalidatePrintFiles.mockResolvedValue([blockOutcome(ARGS.items[0].fileUrl)]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(false);
+    expect(h.createPendingOrder).not.toHaveBeenCalled();
+  });
+
+  it('=off → kill-switch : préflight SAUTÉ (helper non appelé), fichier corrompu passe', async () => {
+    vi.stubEnv('MCP_FILE_PREFLIGHT', 'off');
+    h.revalidatePrintFiles.mockResolvedValue([blockOutcome(ARGS.items[0].fileUrl)]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(true);
+    expect(h.revalidatePrintFiles).not.toHaveBeenCalled();
+    expect(h.createPendingOrder).toHaveBeenCalled();
+  });
+
+  it('=log → tourne + journalise mais NE bloque PAS (commande créée, claim non relâché)', async () => {
+    vi.stubEnv('MCP_FILE_PREFLIGHT', 'log');
+    h.revalidatePrintFiles.mockResolvedValue([blockOutcome(ARGS.items[0].fileUrl)]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(true);
+    expect(h.revalidatePrintFiles).toHaveBeenCalled();
+    expect(h.releaseMcpOrderIntent).not.toHaveBeenCalled();
+    expect(h.createPendingOrder).toHaveBeenCalled();
+  });
+
+  it('=enforce explicite → fichier corrompu refusé (claim relâché)', async () => {
+    vi.stubEnv('MCP_FILE_PREFLIGHT', 'enforce');
+    h.revalidatePrintFiles.mockResolvedValue([blockOutcome(ARGS.items[0].fileUrl)]);
+    const r = await placeHeadlessOrder(ARGS, USER, NOW);
+    expect(r.ok).toBe(false);
+    expect(h.releaseMcpOrderIntent).toHaveBeenCalledWith('u1', 'idemphash');
+    expect(h.createPendingOrder).not.toHaveBeenCalled();
   });
 });
