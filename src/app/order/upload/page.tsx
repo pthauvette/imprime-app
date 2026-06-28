@@ -379,8 +379,13 @@ function Dropzone({
         setError(result.issues.map((i) => i.message).join(' '));
         return;
       }
-      if (result.level === 'warning') {
-        setPending({ file: f, result });
+      // Audit #4 — DPI des images EMBARQUÉES (pdfjs getOperatorList). Warning-only,
+      // best-effort (ne throw/bloque jamais) : on ajoute aux avertissements affichés.
+      const { assessPdfImageDpi } = await import('@/lib/print/pdf-image-dpi');
+      const dpi = await assessPdfImageDpi(f);
+      const issues = [...result.issues, ...dpi.issues];
+      if (issues.length > 0) {
+        setPending({ file: f, result: { issues } });
         return;
       }
     } else if (isRaster) {
