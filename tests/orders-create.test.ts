@@ -36,6 +36,14 @@ vi.mock('@/lib/db/orders', () => ({
   createPendingOrder: vi.fn(async () => ({ id: 'order_test' })),
 }));
 
+// M2/M3 — la route utilise createReservedOrder (réserve + order.create atomiques).
+const reservedMock = vi.hoisted(() => ({ fn: vi.fn(async () => ({ order: { id: 'order_test' }, replay: false })) }));
+class InsufficientCreditErrorMock extends Error {}
+vi.mock('@/lib/orders/credit-reservation', () => ({
+  createReservedOrder: reservedMock.fn,
+  InsufficientCreditError: InsufficientCreditErrorMock,
+}));
+
 vi.mock('@/lib/sinalite/client', () => ({
   sinalite: {
     getProductDetail: vi.fn(async () => ({
@@ -549,5 +557,25 @@ describe('/api/orders/create — revalidation fichiers serveur (audit #1)', () =
     const res = await POST(makeReq(validPayload));
     expect(res.status).toBe(200);
     expect(revalidateMock.fn).toHaveBeenCalledOnce();
+  });
+});
+
+describe('/api/orders/create — réservation crédit M2/M3', () => {
+  it('solde crédit insuffisant (concurrent) → 409 CREDIT_BALANCE_CHANGED', async () => {
+    reservedMock.fn.mockRejectedValueOnce(new InsufficientCreditErrorMock('wallet'));
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe('CREDIT_BALANCE_CHANGED');
+    // Aucune commande finalisée (Stripe PI abandonné, non confirmé).
+    expect(stripeMock.paymentIntents.create).toHaveBeenCalled(); // le PI a été créé AVANT la réservation
+  });
+
+  it('réservation OK → 200 (createReservedOrder appelé)', async () => {
+    reservedMock.fn.mockResolvedValueOnce({ order: { id: 'order_test' }, replay: false });
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+    expect(res.status).toBe(200);
+    expect(reservedMock.fn).toHaveBeenCalled();
   });
 });

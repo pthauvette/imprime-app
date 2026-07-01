@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   sendOrderConfirmationEmail: vi.fn(),
   sendCriticalAlert: vi.fn(),
   awardReferral: vi.fn(),
+  releaseReservedCreditsOnCancel: vi.fn(),
 }));
 vi.mock('@/lib/db', () => ({ prisma: {
   order: { findUnique: m.findUnique, update: m.update, updateMany: m.updateMany },
@@ -42,6 +43,7 @@ vi.mock('@/lib/logger', () => ({ logStripe: { info: vi.fn(), error: vi.fn(), war
 vi.mock('@/lib/alerting/slack', () => ({ sendCriticalAlert: m.sendCriticalAlert }));
 vi.mock('@/lib/stripe/client', () => ({ getStripe: () => ({}) }));
 vi.mock('@/lib/referrals/award', () => ({ awardReferralCreditIfEligible: m.awardReferral }));
+vi.mock('@/lib/orders/credit-reservation', () => ({ releaseReservedCreditsOnCancel: m.releaseReservedCreditsOnCancel }));
 
 import { processStripeEvent } from './stripe-process';
 
@@ -127,19 +129,17 @@ function expiredEvent(metadata: Record<string, string>): Stripe.Event {
 }
 
 describe('webhook checkout.session.expired — Mode B (#3b)', () => {
-  it('session Mode B expirée, Order encore PENDING → annule + event + libère le claim', async () => {
-    m.updateMany.mockResolvedValue({ count: 1 });
+  it('session Mode B expirée, Order encore PENDING → release crédits + event + libère le claim', async () => {
+    // M2/M3 — releaseReservedCreditsOnCancel fait la transition PENDING→CANCELLED + restore.
+    m.releaseReservedCreditsOnCancel.mockResolvedValue({ released: true, walletCents: 0, referralCents: 0 });
     await processStripeEvent(expiredEvent({ kind: 'mcp-order', orderId: 'ord_1' }), {});
-    expect(m.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'ord_1', status: 'PENDING' },
-      data: { status: 'CANCELLED' },
-    }));
+    expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'ord_1' }));
     expect(m.orderEventCreate).toHaveBeenCalledTimes(1);
     expect(m.mcpIntentDeleteMany).toHaveBeenCalledWith({ where: { orderId: 'ord_1' } });
   });
 
-  it('session Mode B expirée mais Order plus PENDING (payée entre-temps, count=0) → ne touche à rien', async () => {
-    m.updateMany.mockResolvedValue({ count: 0 });
+  it('session Mode B expirée mais Order plus PENDING (payée entre-temps, released=false) → ne touche à rien', async () => {
+    m.releaseReservedCreditsOnCancel.mockResolvedValue({ released: false, walletCents: 0, referralCents: 0 });
     await processStripeEvent(expiredEvent({ kind: 'mcp-order', orderId: 'ord_1' }), {});
     expect(m.orderEventCreate).not.toHaveBeenCalled();
     expect(m.mcpIntentDeleteMany).not.toHaveBeenCalled();
@@ -147,6 +147,6 @@ describe('webhook checkout.session.expired — Mode B (#3b)', () => {
 
   it('session NON-Mode-B (wallet_topup) expirée → ignorée (aucune annulation d\'Order)', async () => {
     await processStripeEvent(expiredEvent({ kind: 'wallet_topup', userId: 'u1' }), {});
-    expect(m.updateMany).not.toHaveBeenCalled();
+    expect(m.releaseReservedCreditsOnCancel).not.toHaveBeenCalled();
   });
 });

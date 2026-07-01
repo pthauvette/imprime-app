@@ -238,11 +238,11 @@ async function handleCheckoutSessionExpired(session: Stripe.Checkout.Session): P
   const orderId = session.metadata?.orderId;
   if (session.metadata?.kind !== 'mcp-order' || !orderId) return;
 
-  const res = await prisma.order.updateMany({
-    where: { id: orderId, status: 'PENDING' },
-    data: { status: 'CANCELLED' },
-  });
-  if (res.count === 0) {
+  // M2/M3 — releaseReservedCreditsOnCancel fait la transition PENDING→CANCELLED
+  //   ATOMIQUE (count===1) ET restaure les crédits wallet/referral réservés au create.
+  const { releaseReservedCreditsOnCancel } = await import('@/lib/orders/credit-reservation');
+  const rel = await releaseReservedCreditsOnCancel({ orderId, reason: 'checkout.session.expired' });
+  if (!rel.released) {
     logStripe.info({ orderId, sessionId: session.id }, 'checkout.session.expired mais Order plus PENDING (payée ?) — ignoré');
     return;
   }

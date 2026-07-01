@@ -217,10 +217,6 @@ export async function markOrderPaidWithWalletDebit(input: {
   const order = await prisma.order.findUnique({ where: { paymentIntentId: input.paymentIntentId } });
   if (!order) throw new OrderNotFoundError(input.paymentIntentId);
 
-  // Audit v2 #3.3 — manque wallet capturé dans la tx, alerté APRÈS commit (pas
-  // de side-effect réseau pendant la transaction).
-  let walletShortfallCents = 0;
-
   const result = await prisma.$transaction(async (tx) => {
     // Round 38 #4 — Optimistic guard PENDING → PAID. Si déjà past
     // PENDING (Stripe webhook replay), skip cleanly (caller's 'already
@@ -241,125 +237,15 @@ export async function markOrderPaidWithWalletDebit(input: {
       data: { orderId: order.id, kind: 'PAYMENT_SUCCEEDED' },
     });
 
-    // 2. Wallet debit dans la MÊME transaction si applicable
-    if (input.walletDebit && input.walletDebit.amountCents > 0) {
-      // Round 38 #4 — atomic wallet decrement avec WHERE guard (cf.
-      // recordWalletTx Round 38 #3).
-      const walletGuard = await tx.user.updateMany({
-        where: {
-          id: input.walletDebit.userId,
-          walletCents: { gte: input.walletDebit.amountCents },
-        },
-        data: {
-          walletCents: { decrement: input.walletDebit.amountCents },
-          walletLastActivityAt: new Date(),
-        },
-      });
-      if (walletGuard.count === 0) {
-        const user = await tx.user.findUnique({
-          where: { id: input.walletDebit.userId },
-          select: { walletCents: true },
-        });
-        if (!user) {
-          throw new Error(`User ${input.walletDebit.userId} introuvable pour wallet debit`);
-        }
-        // Audit v2 #3.3 — solde insuffisant à la confirmation : deux PI
-        // concurrents ont planifié le même solde wallet. AVANT : on throwait →
-        // tx rollback → l'order restait PENDING alors que Stripe a DÉJÀ capturé
-        // le paiement → client chargé sans commande (et, depuis #2.2, retry en
-        // boucle jusqu'au dead-letter). MAINTENANT : on débite le DISPONIBLE
-        // (clamp ≥ 0), on complète l'order, et on alerte le manque APRÈS commit
-        // pour réconciliation. Même pattern que le crédit referral (#3.1).
-        const avail = Math.max(0, user.walletCents);
-        if (avail > 0) {
-          await tx.user.update({
-            where: { id: input.walletDebit.userId },
-            data: {
-              walletCents: { decrement: avail },
-              walletLastActivityAt: new Date(),
-            },
-          });
-          await tx.walletTransaction.create({
-            data: {
-              userId: input.walletDebit.userId,
-              kind: 'ORDER_SPEND',
-              amountCents: -avail,
-              balanceAfterCents: 0, // on a vidé le disponible
-              orderId: order.id,
-              description: `${input.walletDebit.description} (clampé ${avail}/${input.walletDebit.amountCents}¢)`.slice(0, 500),
-            },
-          });
-        }
-        walletShortfallCents = input.walletDebit.amountCents - avail;
-        logWebhook.warn(
-          {
-            orderId: order.id,
-            userId: input.walletDebit.userId,
-            applied: input.walletDebit.amountCents,
-            debited: avail,
-            shortfall: walletShortfallCents,
-          },
-          'wallet insuffisant au débit — clampé (concurrent spend, reconcile manuel)',
-        );
-      } else {
-        const userAfter = await tx.user.findUnique({
-          where: { id: input.walletDebit.userId },
-          select: { walletCents: true },
-        });
-        const newBalance = userAfter!.walletCents;
-
-        await tx.walletTransaction.create({
-          data: {
-            userId: input.walletDebit.userId,
-            kind: 'ORDER_SPEND',
-            amountCents: -input.walletDebit.amountCents,
-            balanceAfterCents: newBalance,
-            orderId: order.id,
-            description: input.walletDebit.description.slice(0, 500),
-          },
-        });
-      }
-    }
-
-    // 3. Audit v2 #3.1 — débit du crédit REFERRAL à la confirmation (déplacé
-    // depuis la création de l'order). Même tx, protégé par le guard PENDING→PAID
-    // ci-dessus (count===0 → early-return) → débité exactement une fois, jamais
-    // sur un order non payé. Garde `gte` = plancher (jamais de balance négative).
-    if (order.referralCreditAppliedCents > 0) {
-      const refGuard = await tx.user.updateMany({
-        where: {
-          id: order.userId,
-          referralCreditCents: { gte: order.referralCreditAppliedCents },
-        },
-        data: { referralCreditCents: { decrement: order.referralCreditAppliedCents } },
-      });
-      if (refGuard.count === 0) {
-        // Solde insuffisant (rare : 2 checkouts concurrents ont consommé le même
-        // crédit). On NE throw PAS — sinon l'order resterait PENDING alors que le
-        // client a déjà payé la part Stripe. On débite le restant (clamp ≥ 0) et
-        // on logge le manque pour réconciliation manuelle.
-        const u = await tx.user.findUnique({
-          where: { id: order.userId },
-          select: { referralCreditCents: true },
-        });
-        const avail = Math.max(0, u?.referralCreditCents ?? 0);
-        if (avail > 0) {
-          await tx.user.update({
-            where: { id: order.userId },
-            data: { referralCreditCents: { decrement: avail } },
-          });
-        }
-        logWebhook.warn(
-          {
-            orderId: order.id,
-            userId: order.userId,
-            applied: order.referralCreditAppliedCents,
-            debited: avail,
-          },
-          'referral credit insuffisant au débit — clampé (rabais > solde, reconcile manuel)',
-        );
-      }
-    }
+    // 2+3. Crédits wallet/referral — PLUS AUCUN DÉBIT ICI (correctif M2/M3).
+    //   Depuis reserve-at-create (credit-reservation.ts), le solde wallet ET referral est
+    //   décrémenté ATOMIQUEMENT à la création de l'Order (réservation), pas au paiement.
+    //   Re-débiter ici double-décrémenterait. Le webhook ne fait que CONFIRMER l'order
+    //   (transitioned-guard ci-dessus → exactement une fois). Le ledger ORDER_SPEND est
+    //   écrit au create ; la restauration sur abandon/annulation vit dans
+    //   releaseReservedCreditsOnCancel, gardée par la transition PENDING→CANCELLED.
+    //   `input.walletDebit` est conservé pour compat de signature mais N'EST PLUS UTILISÉ.
+    void input.walletDebit;
 
     // 4. Audit v2 #5.2 — increment du compteur d'usage promo à la CONFIRMATION,
     // gardé `usesCount < maxUses` (comparaison colonne-à-colonne → SQL brut,
@@ -386,21 +272,9 @@ export async function markOrderPaidWithWalletDebit(input: {
     return { order: updatedOrder!, transitioned: true as const };
   });
 
-  // Audit v2 #3.3 — alerte APRÈS commit si le wallet a été clampé (le paiement
-  // Stripe est honoré, l'order complétée, mais le solde réel était < appliqué).
-  if (walletShortfallCents > 0) {
-    const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-    await sendCriticalAlert({
-      severity: 'warning',
-      title: 'Wallet insuffisant au débit — clampé',
-      body: `Order ${order.id} : le wallet appliqué dépassait le solde réel (concurrent spend ?). Le paiement Stripe a été honoré et l'order complétée, mais ${(walletShortfallCents / 100).toFixed(2)} $ n'ont pas pu être débités. Vérifie le ledger /admin/users/${order.userId}.`,
-      context: {
-        orderId: order.id,
-        userId: order.userId,
-        shortfallCents: walletShortfallCents,
-      },
-    });
-  }
+  // (L'ancienne alerte « wallet clampé au débit » n'a plus lieu d'être : le débit
+  //  a disparu du webhook — le solde est réservé/garanti au create. Une insuffisance
+  //  concurrente est désormais refusée EN AMONT au create, 409, cf. createReservedOrder.)
 
   return result;
 }

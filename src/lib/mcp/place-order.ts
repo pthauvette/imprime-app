@@ -12,7 +12,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/db';
-import { createPendingOrder } from '@/lib/db/orders';
+import { createReservedOrder, InsufficientCreditError } from '@/lib/orders/credit-reservation';
 import { buildItemsSnapshot } from '@/lib/orders/items';
 import { sinalite } from '@/lib/sinalite/client';
 import { priceOrder, type ResellerStatus } from '@/lib/orders/price-order';
@@ -251,8 +251,13 @@ export async function placeHeadlessOrder(
     });
     const itemsSnapshot = buildItemsSnapshot(sinalitePayload, detailCache, productNames);
 
-    // 9. Order PENDING (paymentIntentId placeholder ; le webhook le patche au vrai pi_).
-    const order = await createPendingOrder({
+    // 9. Order PENDING + RÉSERVATION atomique des crédits (M2/M3). paymentIntentId
+    //    placeholder unique (le webhook le patche au vrai pi_). Si un checkout concurrent
+    //    a épuisé le solde → InsufficientCreditError → on RELÂCHE le claim (aucun Order
+    //    créé, tx rollback) et on renvoie une err « recharge » (FORK 1).
+    let order;
+    try {
+      ({ order } = await createReservedOrder({
       userId: user.userId,
       paymentIntentId: `mcp_${randomUUID()}`,
       amountCents: priced.totalCents,
@@ -278,7 +283,14 @@ export async function placeHeadlessOrder(
       sinalitePayload,
       productSummary: priced.productSummary,
       itemsSnapshot,
-    });
+      }));
+    } catch (e) {
+      if (e instanceof InsufficientCreditError) {
+        await releaseMcpOrderIntent(user.userId, idempKey);
+        return err('Ton solde de crédit a changé depuis ton devis (utilisé sur une autre commande). Recommence pour recalculer le total.');
+      }
+      throw e; // → catch principal (log + err générique)
+    }
 
     // 10. Attache l'orderId au claim AVANT la Session (reprise sur crash).
     await attachOrderToIntent(user.userId, idempKey, order.id);

@@ -12,6 +12,7 @@ const m = vi.hoisted(() => ({
   cleanupOldCronRuns: vi.fn(async () => 0),
   recordCronRun: vi.fn(),
   pingCronHealthcheck: vi.fn(),
+  releaseReservedCreditsOnCancel: vi.fn(),
 }));
 vi.mock('@/lib/cron/auth', () => ({ requireCronAuth: m.requireCronAuth }));
 vi.mock('@/lib/db', () => ({ prisma: {
@@ -23,6 +24,7 @@ vi.mock('@/lib/db', () => ({ prisma: {
 vi.mock('@/lib/logger', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/cron/healthcheck', () => ({ pingCronHealthcheck: m.pingCronHealthcheck }));
 vi.mock('@/lib/cron/runs', () => ({ recordCronRun: m.recordCronRun, cleanupOldCronRuns: m.cleanupOldCronRuns }));
+vi.mock('@/lib/orders/credit-reservation', () => ({ releaseReservedCreditsOnCancel: m.releaseReservedCreditsOnCancel }));
 
 import { GET } from './route';
 import { NextRequest } from 'next/server';
@@ -40,18 +42,23 @@ beforeEach(() => {
   m.intentFindMany.mockResolvedValue([]);
   m.orderFindMany.mockResolvedValue([]);
   m.cleanupOldCronRuns.mockResolvedValue(0);
+  m.releaseReservedCreditsOnCancel.mockResolvedValue({ released: false, walletCents: 0, referralCents: 0 });
 });
 
 describe('cron/cleanup — nettoyage Mode B (#3c)', () => {
-  it('annule les Orders mcp_ PENDING > 2h (filet au-delà de session.expired)', async () => {
+  it('M2/M3 — libère (annule + restaure crédits) les Orders mcp_ PENDING > 2h ET web PENDING > 24h', async () => {
+    // 1er findMany = filtre mcp_ ; 2e = filtre web (not mcp_). Per-order release.
+    m.orderFindMany.mockResolvedValueOnce([{ id: 'oMcp' }]).mockResolvedValueOnce([{ id: 'oWeb' }]);
+    m.releaseReservedCreditsOnCancel.mockResolvedValue({ released: true, walletCents: 0, referralCents: 0 });
     await GET(req());
-    expect(m.orderUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        paymentIntentId: { startsWith: 'mcp_' },
-        status: 'PENDING',
-      }),
-      data: { status: 'CANCELLED' },
+    expect(m.orderFindMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: expect.objectContaining({ paymentIntentId: { startsWith: 'mcp_' }, status: 'PENDING' }),
     }));
+    expect(m.orderFindMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: expect.objectContaining({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: 'PENDING' }),
+    }));
+    expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'oMcp' }));
+    expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'oWeb' }));
   });
 
   it('supprime les claims success=false SANS Order (poisoned, sûr)', async () => {
@@ -66,10 +73,14 @@ describe('cron/cleanup — nettoyage Mode B (#3c)', () => {
       { id: 'cPaid', orderId: 'oPaid' },
       { id: 'cCancelled', orderId: 'oCancelled' },
     ]);
-    m.orderFindMany.mockResolvedValue([
-      { id: 'oPaid', status: 'PAID' },
-      { id: 'oCancelled', status: 'CANCELLED' },
-    ]);
+    // orderFindMany : call 1 (release mcp)=[], call 2 (release web)=[], call 3 (claim check)=[…].
+    m.orderFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 'oPaid', status: 'PAID' },
+        { id: 'oCancelled', status: 'CANCELLED' },
+      ]);
     const res = await GET(req());
     const body = await res.json();
 
@@ -86,6 +97,6 @@ describe('cron/cleanup — nettoyage Mode B (#3c)', () => {
     m.requireCronAuth.mockReturnValue(denied as never);
     const res = await GET(req());
     expect(res.status).toBe(401);
-    expect(m.orderUpdateMany).not.toHaveBeenCalled();
+    expect(m.orderFindMany).not.toHaveBeenCalled();
   });
 });

@@ -25,6 +25,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { requireCronAuth } from '@/lib/cron/auth';
 import { prisma } from '@/lib/db';
 import { log } from '@/lib/logger';
@@ -37,6 +38,9 @@ export const dynamic = 'force-dynamic';
 const DESIGN_DRAFT_TTL_DAYS = 30;
 /** Au-delà, un Order Mode B PENDING (Session expire à 60 min) est un orphelin sûr à annuler. */
 const MCP_ORPHAN_TTL_HOURS = 2;
+/** M2/M3 — au-delà, un Order WEB PENDING (PI jamais confirmé) est abandonné → on libère
+ *  les crédits réservés au create. 24h = ne coupe pas un paiement lent légitime (FORK 3). */
+const WEB_ORDER_ABANDON_TTL_HOURS = 24;
 /** Statuts où l'achat a RÉUSSI → ne JAMAIS supprimer le claim (sinon retry = double commande). */
 const PAID_LIKE_STATUSES = ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'];
 
@@ -49,9 +53,10 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const designCutoff = new Date(now.getTime() - DESIGN_DRAFT_TTL_DAYS * 24 * 3600 * 1000);
   const mcpCutoff = new Date(now.getTime() - MCP_ORPHAN_TTL_HOURS * 3600 * 1000);
+  const webCutoff = new Date(now.getTime() - WEB_ORDER_ABANDON_TTL_HOURS * 3600 * 1000);
 
   try {
-    const [drafts, designs, oldCronRuns, mcpOrphanOrders, mcpNullClaims] = await Promise.all([
+    const [drafts, designs, oldCronRuns, mcpNullClaims] = await Promise.all([
       prisma.draft.deleteMany({
         where: { expiresAt: { lt: now } },
       }),
@@ -64,17 +69,29 @@ export async function GET(req: NextRequest) {
       // Aussi : cleanup les rows CronRun > 30 jours pour pas que la table
       // grossisse à l'infini (~120 rows/jour × 30 = 3600 max).
       cleanupOldCronRuns(30).catch(() => 0),
-      // Mode B (a) : annule les Orders headless restées PENDING > 2h (Session
-      // expirée à 60 min, filet au-delà du webhook checkout.session.expired #3b).
-      prisma.order.updateMany({
-        where: { paymentIntentId: { startsWith: 'mcp_' }, status: 'PENDING', createdAt: { lt: mcpCutoff } },
-        data: { status: 'CANCELLED' },
-      }),
-      // Mode B (b-1) : claims poisoned SANS Order (crash avant createPendingOrder) → delete (sûr).
+      // Mode B (b-1) : claims poisoned SANS Order (crash avant createReservedOrder) → delete (sûr).
       prisma.mcpOrderIntent.deleteMany({
         where: { success: false, orderId: null, createdAt: { lt: mcpCutoff } },
       }),
     ]);
+
+    // M2/M3 — libère (restaure) les crédits wallet/referral RÉSERVÉS au create des Orders
+    //   abandonnées. Per-order (pas de updateMany bulk) : releaseReservedCreditsOnCancel fait
+    //   la transition PENDING→CANCELLED gardée (count===1) ET la restauration, exactement-une-fois.
+    //   Mode B : PENDING mcp_ > 2h (filet au-delà de checkout.session.expired). Web : PENDING
+    //   > 24h (PI jamais confirmé) — le SEUL chemin qui libère un abandon web (aucun event Stripe).
+    const { releaseReservedCreditsOnCancel } = await import('@/lib/orders/credit-reservation');
+    const releaseAbandoned = async (where: Prisma.OrderWhereInput): Promise<number> => {
+      const abandoned = await prisma.order.findMany({ where, select: { id: true } });
+      let n = 0;
+      for (const o of abandoned) {
+        const r = await releaseReservedCreditsOnCancel({ orderId: o.id, reason: 'cron-cleanup' });
+        if (r.released) n++;
+      }
+      return n;
+    };
+    const mcpOrphanOrders = await releaseAbandoned({ paymentIntentId: { startsWith: 'mcp_' }, status: 'PENDING', createdAt: { lt: mcpCutoff } });
+    const webOrphanOrders = await releaseAbandoned({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: 'PENDING', createdAt: { lt: webCutoff } });
 
     // Mode B (b-2) : claims success=false AVEC un orderId. On distingue selon le
     // statut de l'Order pour ne JAMAIS supprimer le claim d'une Order payée.
@@ -118,10 +135,12 @@ export async function GET(req: NextRequest) {
         mcpClaims: mcpClaimsDeleted,
       },
       mcp: {
-        orphanOrdersCancelled: mcpOrphanOrders.count,
+        orphanOrdersCancelled: mcpOrphanOrders,
         claimsDeleted: mcpClaimsDeleted,
         claimsResolvedPaid: mcpClaimsResolvedPaid,
       },
+      // M2/M3 — Orders WEB abandonnées (PENDING > 24h) annulées + crédits restaurés.
+      webOrdersReleased: webOrphanOrders,
       cutoffs: {
         drafts: 'expiresAt < now',
         designDrafts: `updatedAt < now - ${DESIGN_DRAFT_TTL_DAYS}d AND orderId is null`,
