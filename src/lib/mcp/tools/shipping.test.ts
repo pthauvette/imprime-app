@@ -49,11 +49,11 @@ describe('MCP estimate_shipping — helpers purs', () => {
 
 describe('reestimateShipping — port recalculé serveur (Mode B)', () => {
   it('mappe + trie les méthodes par prix, chacune signée', async () => {
-    estimateShipping.mockResolvedValue({ body: [['FedEx', 'FedEx Express', 22, 2], ['UPS', 'UPS Standard', 16.66, 4]] });
+    estimateShipping.mockResolvedValue({ body: [['FedEx', 'FedEx Standard Overnight', 22, 2], ['UPS', 'UPS Standard', 16.66, 4]] });
     const r = await reestimateShipping([{ productId: 2, optionIds: [5, 30] }], 'QC', 'H2X1Y7');
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.methods.map((m) => m.method)).toEqual(['UPS Standard', 'FedEx Express']); // trié par prix
+    expect(r.methods.map((m) => m.method)).toEqual(['UPS Standard', 'FedEx Standard Overnight']); // trié par prix
     expect(r.cheapest.price).toBe(16.66);
     expect(r.methods[0].sig).toBeTruthy();
     // Vérifie qu'on a bien envoyé les items résolus à Sinalite.
