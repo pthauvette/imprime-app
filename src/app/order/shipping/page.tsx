@@ -137,8 +137,14 @@ function ShippingPageInner() {
         }
         const data = await res.json();
         if (!cancelled) {
-          setMethods(data.methods);
-          if (data.methods[0]) setSelectedMethod(data.methods[0].method);
+          // Défense en profondeur : ne JAMAIS setMethods(undefined) — sinon
+          // methods.find(...) plante au rendu (écran blanc, checkout bloqué).
+          // Si la réponse n'expose pas un tableau `methods` (réponse malformée
+          // ou erreur renvoyée à tort en 2xx), on retombe sur []. Le vrai
+          // correctif du 2xx-sur-erreur est côté API (cf. withErrorHandler).
+          const list: ShippingMethod[] = Array.isArray(data?.methods) ? data.methods : [];
+          setMethods(list);
+          if (list[0]) setSelectedMethod(list[0].method);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Erreur inconnue');
