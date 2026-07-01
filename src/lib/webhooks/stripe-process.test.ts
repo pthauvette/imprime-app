@@ -18,6 +18,7 @@ const m = vi.hoisted(() => ({
   sendCriticalAlert: vi.fn(),
   awardReferral: vi.fn(),
   releaseReservedCreditsOnCancel: vi.fn(),
+  refundsCreate: vi.fn(),
 }));
 vi.mock('@/lib/db', () => ({ prisma: {
   order: { findUnique: m.findUnique, update: m.update, updateMany: m.updateMany },
@@ -41,7 +42,7 @@ vi.mock('@/lib/emails/send', () => ({
 vi.mock('@/lib/sinalite/client', () => ({ sinalite: { createOrder: m.createOrder }, SinaliteError: class extends Error {} }));
 vi.mock('@/lib/logger', () => ({ logStripe: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), fatal: vi.fn() } }));
 vi.mock('@/lib/alerting/slack', () => ({ sendCriticalAlert: m.sendCriticalAlert }));
-vi.mock('@/lib/stripe/client', () => ({ getStripe: () => ({}) }));
+vi.mock('@/lib/stripe/client', () => ({ getStripe: () => ({ refunds: { create: m.refundsCreate } }) }));
 vi.mock('@/lib/referrals/award', () => ({ awardReferralCreditIfEligible: m.awardReferral }));
 vi.mock('@/lib/orders/credit-reservation', () => ({ releaseReservedCreditsOnCancel: m.releaseReservedCreditsOnCancel }));
 
@@ -98,6 +99,22 @@ describe('webhook payment_intent.succeeded — garde montant (C1)', () => {
     m.findUnique.mockResolvedValue(pendingOrder(5000));
     await expect(processStripeEvent(succeededEvent(9999), {})).rejects.toThrow(/amount mismatch/);
     expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
+  });
+});
+
+describe('webhook payment_intent.succeeded — FAILLE D (charge orphelin M2/M3)', () => {
+  it('Order ANNULÉE avant paiement (retry payé après le cron) → refund auto, pas de finalisation', async () => {
+    // 1er findUnique (par PI) → null ; 2e (par metadata.orderId) → Order CANCELLED (cron l'a libérée).
+    m.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ord_1', status: 'CANCELLED', userId: 'u1' });
+    const event = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_new', amount_received: 3000, metadata: { orderId: 'ord_1' } } } } as unknown as Stripe.Event;
+    await processStripeEvent(event, {});
+    // Charge orphelin remboursé automatiquement (idempotent), AUCUNE commande finalisée.
+    expect(m.refundsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_new' }),
+      expect.objectContaining({ idempotencyKey: 'orphan_pi_new' }),
+    );
+    expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
+    expect(m.createOrder).not.toHaveBeenCalled();
   });
 });
 

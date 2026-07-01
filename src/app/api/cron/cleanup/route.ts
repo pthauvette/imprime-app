@@ -97,11 +97,11 @@ export async function GET(req: NextRequest) {
       return n;
     };
     const mcpOrphanOrders = await releaseAbandoned({ paymentIntentId: { startsWith: 'mcp_' }, status: 'PENDING', createdAt: { lt: mcpCutoff } });
-    // Web : PENDING (jamais payé) OU FAILED (paiement échoué jamais retenté) > 24h. Sinon un
-    //   crédit réservé sur un checkout raté serait gelé à vie (le webhook ne restaure pas au
-    //   payment_failed = B1). La page retry rejette les Orders CANCELLED → pas de charge après
-    //   annulation sur un retry tardif.
-    const webOrphanOrders = await releaseAbandoned({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: { in: ['PENDING', 'FAILED'] }, createdAt: { lt: webCutoff } });
+    // Web : PENDING (jamais payé) OU FAILED (paiement échoué jamais retenté) > 24h, `paidAt:null`.
+    //   Le crédit réservé au create serait sinon gelé à vie (le webhook ne restaure pas au
+    //   payment_failed = B1). ⚠️ `paidAt: null` EXCLUT les Orders payées-puis-remboursées (qui
+    //   retombent en FAILED avec le crédit DÉJÀ restauré par le refund) → pas de double-restore.
+    const webOrphanOrders = await releaseAbandoned({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: { in: ['PENDING', 'FAILED'] }, paidAt: null, createdAt: { lt: webCutoff } });
 
     // Mode B (b-2) : claims success=false AVEC un orderId. On distingue selon le
     // statut de l'Order pour ne JAMAIS supprimer le claim d'une Order payée.

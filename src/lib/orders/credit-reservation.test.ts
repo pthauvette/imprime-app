@@ -127,10 +127,13 @@ describe('releaseReservedCreditsOnCancel', () => {
     expect(h.userUpdate).not.toHaveBeenCalled();
   });
 
-  it('FAILLE B — la garde accepte PENDING OU FAILED (le cron libère les Orders FAILED gelées)', async () => {
+  it('FAILLE B/C — garde {PENDING|FAILED} + paidAt:null (libère les FAILED gelées, JAMAIS un remboursé)', async () => {
     await releaseReservedCreditsOnCancel({ orderId: 'ord_1' });
     const arg = h.txOrderUpdateMany.mock.calls[0]![0];
     expect(arg.where.status).toEqual({ in: ['PENDING', 'FAILED'] });
+    // FAILLE C — paidAt:null exclut les Orders payées-puis-remboursées (crédit déjà rendu) →
+    // pas de double-restore inverse.
+    expect(arg.where.paidAt).toBeNull();
     expect(arg.data.status).toBe('CANCELLED'); // terminal → pas de re-restore
   });
 });
