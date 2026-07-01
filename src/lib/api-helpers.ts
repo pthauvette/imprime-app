@@ -81,7 +81,15 @@ export function withErrorHandler<Args extends unknown[]>(
         );
       }
       if (err instanceof SinaliteError) {
-        const status = err.status >= 500 ? 502 : err.status;
+        // Un SinaliteError ne DOIT jamais ressortir en 2xx. Sinalite répond
+        // parfois HTTP 200 avec un body « erreur » non conforme au schéma
+        // (ex. combo invalide, ou drift de l'API) → err.status vaut alors 200.
+        // Sans garde, le client voit res.ok=true et plante en lisant une
+        // réponse d'erreur (régression checkout /order/shipping : setMethods
+        // (undefined) → methods.find crash). On ne laisse passer que les vraies
+        // erreurs client (4xx) ; tout le reste (5xx, ou un statut non-erreur
+        // comme 200) devient 502 Bad Gateway (upstream inutilisable).
+        const status = err.status >= 400 && err.status < 500 ? err.status : 502;
         // Audit v2 #6.6 — NE PAS exposer endpoint/body Sinalite (détails internes
         // de l'API imprimeur) ni le message brut au client. Tout est loggé côté
         // serveur ; le client reçoit un message générique.
