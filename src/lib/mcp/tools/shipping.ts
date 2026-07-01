@@ -13,6 +13,7 @@ import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import { sinalite } from '@/lib/sinalite/client';
 import { shippingQuoteToken } from '@/lib/shipping/quote-token';
 import type { CaProvince } from '@/lib/sinalite/types';
+import { isSupportedShipMethod } from '@/lib/sinalite/types';
 import { groupVisibleOptions, selectQuoteOptionIds } from './quote';
 
 /**
@@ -96,6 +97,8 @@ export async function reestimateShipping(
 
   const productIds = items.map((i) => i.productId);
   const methods: ShippingMethodResult[] = result.body
+    // Écarte les transporteurs hors pipeline (ex. Canpar) — cf. types.ts / estimate route.
+    .filter(([, method]) => isSupportedShipMethod(method))
     .map(([carrier, method, price, days]) => ({
       carrier,
       method,

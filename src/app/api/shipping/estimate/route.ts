@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sinalite } from '@/lib/sinalite/client';
-import { SinaliteShippingEstimateRequest } from '@/lib/sinalite/types';
+import { SinaliteShippingEstimateRequest, isSupportedShipMethod } from '@/lib/sinalite/types';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { shippingQuoteToken } from '@/lib/shipping/quote-token';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
@@ -29,7 +29,11 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   const productIds = payload.items.map((i) => i.productId);
   const today = new Date();
-  const methods = result.body.map(([carrier, method, price, days]) => ({
+  const methods = result.body
+    // Écarte les transporteurs que le pipeline create ne sait pas traiter (ex. Canpar) :
+    // les offrir crasherait au create (ShipMethod strict). Cf. types.ts.
+    .filter(([, method]) => isSupportedShipMethod(method))
+    .map(([carrier, method, price, days]) => ({
     carrier,
     method,
     price,

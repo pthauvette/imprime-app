@@ -209,10 +209,23 @@ export type SinaliteShippingEstimateRequest = z.infer<
 /** Response is array of [carrier, method, price, days]. */
 export const SinaliteShippingMethod = z.tuple([
   z.string(),  // carrier
-  ShipMethod,
+  // Méthode TOLÉRANTE (z.string, pas l'enum ShipMethod strict). Sinalite a commencé
+  // à renvoyer des transporteurs hors UPS/FedEx (ex. « CANPAR GROUND », 2026-07) ;
+  // avec l'enum strict, UN transporteur inconnu faisait échouer le parse de TOUTE la
+  // réponse → SinaliteError(200) → crash checkout. On parse tout, puis on FILTRE aux
+  // méthodes supportées par le reste du pipeline (ShipMethod) dans les consommateurs
+  // (estimate route + reestimateShipping) — le create-order ne valide QUE ShipMethod.
+  z.string(),  // method (filtré côté consommateur vs ShipMethod)
   z.number(),  // price in CAD
   z.number(),  // shipping days
 ]);
+
+/** Méthodes réellement offrables : celles que tout le pipeline (jusqu'au create) sait
+ *  traiter. Sinalite peut en renvoyer d'autres → on les écarte plutôt que crasher. */
+export const SUPPORTED_SHIP_METHODS: ReadonlySet<string> = new Set(ShipMethod.options);
+export function isSupportedShipMethod(method: string): boolean {
+  return SUPPORTED_SHIP_METHODS.has(method);
+}
 
 export const SinaliteShippingEstimateResponse = z.object({
   statusCode: z.number(),
