@@ -55,7 +55,9 @@ describe('cron/cleanup — nettoyage Mode B (#3c)', () => {
       where: expect.objectContaining({ paymentIntentId: { startsWith: 'mcp_' }, status: 'PENDING' }),
     }));
     expect(m.orderFindMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      where: expect.objectContaining({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: { in: ['PENDING', 'FAILED'] } }),
+      // FAILLE C — paidAt:null : le cron ne libère JAMAIS un Order payé-puis-remboursé
+      // (dont le crédit a déjà été restauré par le refund) → pas de double-restore.
+      where: expect.objectContaining({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: { in: ['PENDING', 'FAILED'] }, paidAt: null }),
     }));
     expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'oMcp' }));
     expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'oWeb' }));
