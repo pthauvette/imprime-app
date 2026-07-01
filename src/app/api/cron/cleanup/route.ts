@@ -85,13 +85,23 @@ export async function GET(req: NextRequest) {
       const abandoned = await prisma.order.findMany({ where, select: { id: true } });
       let n = 0;
       for (const o of abandoned) {
-        const r = await releaseReservedCreditsOnCancel({ orderId: o.id, reason: 'cron-cleanup' });
-        if (r.released) n++;
+        try {
+          const r = await releaseReservedCreditsOnCancel({ orderId: o.id, reason: 'cron-cleanup' });
+          if (r.released) n++;
+        } catch (err) {
+          // Un échec isolé (ex. user supprimé) ne doit PAS priver les Orders SUIVANTES de
+          // libération — c'est le SEUL chemin automatique qui libère un abandon web.
+          log.error({ orderId: o.id, err: String(err) }, 'cron: release crédit réservé échoué (les suivants continuent)');
+        }
       }
       return n;
     };
     const mcpOrphanOrders = await releaseAbandoned({ paymentIntentId: { startsWith: 'mcp_' }, status: 'PENDING', createdAt: { lt: mcpCutoff } });
-    const webOrphanOrders = await releaseAbandoned({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: 'PENDING', createdAt: { lt: webCutoff } });
+    // Web : PENDING (jamais payé) OU FAILED (paiement échoué jamais retenté) > 24h. Sinon un
+    //   crédit réservé sur un checkout raté serait gelé à vie (le webhook ne restaure pas au
+    //   payment_failed = B1). La page retry rejette les Orders CANCELLED → pas de charge après
+    //   annulation sur un retry tardif.
+    const webOrphanOrders = await releaseAbandoned({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: { in: ['PENDING', 'FAILED'] }, createdAt: { lt: webCutoff } });
 
     // Mode B (b-2) : claims success=false AVEC un orderId. On distingue selon le
     // statut de l'Order pour ne JAMAIS supprimer le claim d'une Order payée.

@@ -126,4 +126,11 @@ describe('releaseReservedCreditsOnCancel', () => {
     expect(r.released).toBe(true);
     expect(h.userUpdate).not.toHaveBeenCalled();
   });
+
+  it('FAILLE B — la garde accepte PENDING OU FAILED (le cron libère les Orders FAILED gelées)', async () => {
+    await releaseReservedCreditsOnCancel({ orderId: 'ord_1' });
+    const arg = h.txOrderUpdateMany.mock.calls[0]![0];
+    expect(arg.where.status).toEqual({ in: ['PENDING', 'FAILED'] });
+    expect(arg.data.status).toBe('CANCELLED'); // terminal → pas de re-restore
+  });
 });

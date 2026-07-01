@@ -55,7 +55,7 @@ describe('cron/cleanup — nettoyage Mode B (#3c)', () => {
       where: expect.objectContaining({ paymentIntentId: { startsWith: 'mcp_' }, status: 'PENDING' }),
     }));
     expect(m.orderFindMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      where: expect.objectContaining({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: 'PENDING' }),
+      where: expect.objectContaining({ paymentIntentId: { not: { startsWith: 'mcp_' } }, status: { in: ['PENDING', 'FAILED'] } }),
     }));
     expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'oMcp' }));
     expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'oWeb' }));

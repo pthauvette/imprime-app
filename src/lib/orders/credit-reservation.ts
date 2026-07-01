@@ -147,9 +147,12 @@ export async function releaseReservedCreditsOnCancel(input: {
   reason?: string;
 }): Promise<{ released: boolean; walletCents: number; referralCents: number }> {
   return prisma.$transaction(async (tx) => {
-    // Garde atomique : gagne la transition PENDING→CANCELLED, ou no-op.
+    // Garde atomique : gagne la transition {PENDING|FAILED}→CANCELLED, ou no-op.
+    //   PENDING = abandon/annulation ; FAILED = paiement échoué jamais retenté (libéré par
+    //   le cron après TTL). CANCELLED est TERMINAL → un Order déjà CANCELLED n'est jamais
+    //   re-restauré (count===0), ce qui exclut le double-restore avec le chemin refund (PAID).
     const t = await tx.order.updateMany({
-      where: { id: input.orderId, status: 'PENDING' },
+      where: { id: input.orderId, status: { in: ['PENDING', 'FAILED'] } },
       data: { status: 'CANCELLED' },
     });
     if (t.count === 0) return { released: false, walletCents: 0, referralCents: 0 };
