@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import ScrollActiveNavIntoView from './ScrollActiveNavIntoView';
+import SignOutButton from './SignOutButton';
 
 type Item = {
   href: Route;
@@ -72,6 +73,17 @@ export default function Sidebar({ active }: { active: string }) {
           </ul>
         </div>
       ))}
+
+      {/* Session — le seul contrôle de déconnexion des pages de compte (l'acct-shell
+          n'a pas le UserMenu du header marketing). */}
+      <div>
+        <div className="acct-nav-section">Session</div>
+        <ul className="acct-nav-list">
+          <li>
+            <SignOutButton />
+          </li>
+        </ul>
+      </div>
     </aside>
   );
 }

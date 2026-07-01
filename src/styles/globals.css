@@ -9729,3 +9729,49 @@ a, button, [role="button"], input[type="checkbox"] {
 @media (max-width: 1024px) {
   .adm-shell.adm-shell { grid-template-columns: 1fr; }
 }
+
+/* ─── OVERFLOW MOBILE — vérif post-déploiement 996273b (Claude-in-Chrome + mesure) ──── */
+
+/* WIZARD FOOTER — `.shell-footer` (grid `1fr auto 1fr`, padding 0 32px) n'avait AUCUN
+   traitement mobile (contrairement au header, cf. l.174). Le bouton primaire large
+   (« Récapitulatif & paiement », min-content ~239px) forçait la colonne unique de la
+   grille `.shell` à ~396px → 21px d'overflow horizontal sur TOUT le wizard (mesuré à
+   375px sur /order/shipping). Fix : padding réduit, hint clavier masqué (inutile au
+   doigt), 2 colonnes `auto 1fr`, boutons compacts. MESURÉ : 21px → 0. */
+@media (max-width: 700px) {
+  .shell-footer {
+    grid-template-columns: auto 1fr;
+    padding: 0 16px;
+    column-gap: 12px;
+  }
+  .shell-footer-center { display: none; }
+  .shell-footer .btn {
+    padding: 10px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}
+
+/* COMPTE — `.acct-nav` : une 2e déf `globals.css:3800` (position:sticky, height:100dvh)
+   SANS @media, POSTÉRIEURE au collapse `@media(≤900){ .acct-nav{ position:static;
+   overflow-x:auto; barre horizontale } }` (l.3770), écrase ce collapse par ordre source
+   → sur mobile la sidebar reste en colonne verticale et déborde (mesuré 481px sur un
+   viewport 375 = ~106px d'overflow, rapporté par Claude-in-Chrome). Même bug de doublon
+   que auth-shell/two-col/adm-shell. On RE-force le collapse EOF (gagne par ordre source)
+   → barre horizontale scrollable auto-contenue (`overflow-x:auto`) = zéro overflow de page.
+   /account est auth-gated (non mesurable en dev) → à re-vérifier sur mobile après deploy. */
+@media (max-width: 900px) {
+  .acct-shell { grid-template-columns: 1fr; }
+  .acct-nav {
+    position: static;
+    height: auto;
+    padding: 12px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+  .acct-nav-list { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+  .acct-nav-section { display: none; }
+}
