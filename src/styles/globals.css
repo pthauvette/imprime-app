@@ -8226,6 +8226,14 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .footer-col ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
     .footer-col a { font-size: 14px; color: var(--text-secondary); transition: color var(--dur-fast) var(--ease-out); }
     .footer-col a:hover { color: var(--accent-primary); }
+    /* Cible tactile mobile : les liens de footer faisaient ~17px de haut (< 44px min).
+       Sur mobile on leur donne une hauteur de 44px (cible tactile) — le gap de liste
+       passe à 0 car chaque lien porte désormais sa propre hauteur. (Vérif post-deploy
+       996273b : mesuré 17→44px.) */
+    @media (max-width: 700px) {
+      .footer-col ul { gap: 0; }
+      .footer-col a { display: inline-flex; align-items: center; min-height: 44px; }
+    }
     .footer-bottom {
       padding-top: 24px;
       border-top: 1px solid var(--border-subtle);
