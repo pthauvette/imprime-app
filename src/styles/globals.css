@@ -8233,6 +8233,10 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     @media (max-width: 700px) {
       .footer-col ul { gap: 0; }
       .footer-col a { display: inline-flex; align-items: center; min-height: 44px; }
+      /* Correctif #2 : les liens LÉGAUX de la barre copyright (.footer-bottom : Confidentialité,
+         Conditions, Remboursement) sont inline dans un <span>, hors .footer-col → non couverts
+         par la règle ci-dessus. Ils restaient ~15px. Même cible tactile 44px. */
+      .footer-bottom a { display: inline-flex; align-items: center; min-height: 44px; }
     }
     .footer-bottom {
       padding-top: 24px;
@@ -9759,11 +9763,17 @@ a, button, [role="button"], input[type="checkbox"] {
    viewport 375 = ~106px d'overflow, rapporté par Claude-in-Chrome). Même bug de doublon
    que auth-shell/two-col/adm-shell. On RE-force le collapse EOF (gagne par ordre source)
    → barre horizontale scrollable auto-contenue (`overflow-x:auto`) = zéro overflow de page.
-   /account est auth-gated (non mesurable en dev) → à re-vérifier sur mobile après deploy. */
+   DURCISSEMENT (défense en profondeur) : `overflow-x:auto` fait DÉJÀ de `.acct-nav` un scroll
+   container → sa `min-width:auto` se résout à 0 → mesuré à un VRAI 375px (Playwright + CSS prod
+   + markup acct-shell), l'aside = 375px, aucun overflow. Un rapport Claude-in-Chrome a mesuré
+   912px, mais dans un viewport bridé à ~256px (artefact — « la largeur mobile se mesure à un
+   vrai 375px », cf. mémoire). On rend néanmoins le shrink EXPLICITE, sans dépendre de la règle
+   scroll-container : `minmax(0,1fr)` (piste rétrécissable à 0) + `min-width:0` sur `.acct-nav`. */
 @media (max-width: 900px) {
-  .acct-shell { grid-template-columns: 1fr; }
+  .acct-shell { grid-template-columns: minmax(0, 1fr); }
   .acct-nav {
     position: static;
+    min-width: 0; /* autorise l'item à rétrécir sous son min-content → overflow-x clippe */
     height: auto;
     padding: 12px 16px;
     border-right: none;
