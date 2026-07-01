@@ -82,17 +82,29 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
         { status: 502 },
       );
     }
+    // Order NON-PENDING (déjà payée) : refund émis ci-dessus → marque FAILED.
+    await markOrderFailed({
+      orderId: order.id,
+      reason: body.reason,
+      data: {
+        refundId: refund?.id,
+        adminUserId: guard.userId,
+        action: 'manual-cancel',
+      },
+    });
+  } else {
+    // M2/M3 — Order PENDING (jamais payée) : le crédit wallet/referral a été RÉSERVÉ
+    //   (décrémenté) au create. On le restaure via releaseReservedCreditsOnCancel (transition
+    //   ATOMIQUE PENDING→CANCELLED, exactement-une-fois). SANS ça le crédit serait perdu à vie
+    //   (avant, l'Order finissait FAILED, jamais rattrapée par le cron qui ne libère que
+    //   PENDING/FAILED). Statut final = CANCELLED → le cron de libération FAILED ne le
+    //   re-restaure jamais (pas de double-restore inverse).
+    const { releaseReservedCreditsOnCancel } = await import('@/lib/orders/credit-reservation');
+    const rel = await releaseReservedCreditsOnCancel({ orderId: order.id, reason: 'admin-cancel' });
+    if (!rel.released) {
+      return NextResponse.json({ error: 'Order déjà transitionnée (annulation/paiement concurrent).' }, { status: 409 });
+    }
   }
-
-  await markOrderFailed({
-    orderId: order.id,
-    reason: body.reason,
-    data: {
-      refundId: refund?.id,
-      adminUserId: guard.userId,
-      action: 'manual-cancel',
-    },
-  });
 
   // TODO: si l'order avait été SUBMITTED à Sinalite, faudrait aussi notifier
   // Sinalite pour annuler la production. Pour MVP on assume que c'est avant

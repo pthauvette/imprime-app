@@ -19,7 +19,8 @@ import { z } from 'zod';
 import { sinalite } from '@/lib/sinalite/client';
 import { CaProvince, CaPostalCode, ShipMethod, type SinaliteOrderRequest } from '@/lib/sinalite/types';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
-import { findOrCreateUserByEmail, createPendingOrder } from '@/lib/db/orders';
+import { findOrCreateUserByEmail } from '@/lib/db/orders';
+import { createReservedOrder, InsufficientCreditError } from '@/lib/orders/credit-reservation';
 import { buildItemsSnapshot } from '@/lib/orders/items';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
@@ -317,7 +318,14 @@ export const POST = withErrorHandler(async (req: Request) => {
         })
       ).id;
 
-  const newOrder = await createPendingOrder({
+  // M2/M3 — createReservedOrder RÉSERVE (décrémente) atomiquement le crédit wallet/referral
+  //   dans la MÊME tx que la création de l'Order. Le PaymentIntent est déjà créé (idempotency
+  //   Stripe stable) → order.create porte son id unique (P2002 = double-submit → replay).
+  //   Si un checkout concurrent a épuisé le solde → InsufficientCreditError → 409 (FORK 1).
+  //   Le PI (non confirmé) est abandonné ; le client recharge et re-price.
+  let newOrder;
+  try {
+    ({ order: newOrder } = await createReservedOrder({
     userId,
     paymentIntentId: paymentIntent.id,
     amountCents: totalCents,
@@ -344,7 +352,19 @@ export const POST = withErrorHandler(async (req: Request) => {
     sinalitePayload,
     productSummary,
     itemsSnapshot,
-  });
+    }));
+  } catch (e) {
+    if (e instanceof InsufficientCreditError) {
+      return NextResponse.json(
+        {
+          error: 'Ton solde de crédit a changé depuis ton devis (utilisé sur une autre commande en parallèle). Recharge la page pour recalculer le total.',
+          code: 'CREDIT_BALANCE_CHANGED',
+        },
+        { status: 409 },
+      );
+    }
+    throw e; // autre erreur → gérée par withErrorHandler
+  }
 
   // Round 27 #1 — best-effort link au AbandonedCart si le user a cliqué
   // sur un recovery email récemment (30j) pour ce email + product. Attribue

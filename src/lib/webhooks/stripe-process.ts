@@ -238,11 +238,11 @@ async function handleCheckoutSessionExpired(session: Stripe.Checkout.Session): P
   const orderId = session.metadata?.orderId;
   if (session.metadata?.kind !== 'mcp-order' || !orderId) return;
 
-  const res = await prisma.order.updateMany({
-    where: { id: orderId, status: 'PENDING' },
-    data: { status: 'CANCELLED' },
-  });
-  if (res.count === 0) {
+  // M2/M3 — releaseReservedCreditsOnCancel fait la transition PENDING→CANCELLED
+  //   ATOMIQUE (count===1) ET restaure les crédits wallet/referral réservés au create.
+  const { releaseReservedCreditsOnCancel } = await import('@/lib/orders/credit-reservation');
+  const rel = await releaseReservedCreditsOnCancel({ orderId, reason: 'checkout.session.expired' });
+  if (!rel.released) {
     logStripe.info({ orderId, sessionId: session.id }, 'checkout.session.expired mais Order plus PENDING (payée ?) — ignoré');
     return;
   }
@@ -286,6 +286,30 @@ async function handlePaymentSucceeded(
         { orderId: order.id, oldStatus: candidate.status, newIntentId: intent.id },
         'payment-retry: matched Order via intent.metadata.orderId fallback',
       );
+    } else if (candidate && candidate.status === 'CANCELLED') {
+      // FAILLE D (M2/M3) — COURSE : l'Order a été ANNULÉE (cron de libération des crédits
+      //   réservés) entre l'ouverture de la session de retry et son paiement. Le client vient
+      //   d'être débité pour une commande qui n'existe plus → charge-SANS-commande. Filet :
+      //   REMBOURSER automatiquement (idempotent). Le crédit réservé a déjà été restauré par le
+      //   cron → le client est rendu entier (refund Stripe + crédit déjà rendu).
+      logStripe.error(
+        { orderId: candidate.id, intentId: intent.id, receivedCents: intent.amount_received },
+        'payment-retry: Order ANNULÉE avant paiement — refund automatique du charge orphelin',
+      );
+      try {
+        await getStripe().refunds.create(
+          { payment_intent: intent.id, reason: 'requested_by_customer', metadata: { orderId: candidate.id, reason: 'order-cancelled-before-payment' } },
+          { idempotencyKey: `orphan_${intent.id}` },
+        );
+      } catch (err) {
+        await sendCriticalAlert({
+          severity: 'critical',
+          title: 'Charge orphelin non remboursé (Order annulée avant paiement)',
+          body: `PI ${intent.id} payé sur l'Order ${candidate.id} déjà ANNULÉE — le refund automatique a échoué. Rembourser à la main.`,
+          context: { intentId: intent.id, orderId: candidate.id, err: String(err) },
+        });
+      }
+      return; // order reste null → aucune finalisation
     }
   }
 

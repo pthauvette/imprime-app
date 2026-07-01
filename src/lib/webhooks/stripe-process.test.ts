@@ -17,6 +17,8 @@ const m = vi.hoisted(() => ({
   sendOrderConfirmationEmail: vi.fn(),
   sendCriticalAlert: vi.fn(),
   awardReferral: vi.fn(),
+  releaseReservedCreditsOnCancel: vi.fn(),
+  refundsCreate: vi.fn(),
 }));
 vi.mock('@/lib/db', () => ({ prisma: {
   order: { findUnique: m.findUnique, update: m.update, updateMany: m.updateMany },
@@ -40,8 +42,9 @@ vi.mock('@/lib/emails/send', () => ({
 vi.mock('@/lib/sinalite/client', () => ({ sinalite: { createOrder: m.createOrder }, SinaliteError: class extends Error {} }));
 vi.mock('@/lib/logger', () => ({ logStripe: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), fatal: vi.fn() } }));
 vi.mock('@/lib/alerting/slack', () => ({ sendCriticalAlert: m.sendCriticalAlert }));
-vi.mock('@/lib/stripe/client', () => ({ getStripe: () => ({}) }));
+vi.mock('@/lib/stripe/client', () => ({ getStripe: () => ({ refunds: { create: m.refundsCreate } }) }));
 vi.mock('@/lib/referrals/award', () => ({ awardReferralCreditIfEligible: m.awardReferral }));
+vi.mock('@/lib/orders/credit-reservation', () => ({ releaseReservedCreditsOnCancel: m.releaseReservedCreditsOnCancel }));
 
 import { processStripeEvent } from './stripe-process';
 
@@ -99,6 +102,22 @@ describe('webhook payment_intent.succeeded — garde montant (C1)', () => {
   });
 });
 
+describe('webhook payment_intent.succeeded — FAILLE D (charge orphelin M2/M3)', () => {
+  it('Order ANNULÉE avant paiement (retry payé après le cron) → refund auto, pas de finalisation', async () => {
+    // 1er findUnique (par PI) → null ; 2e (par metadata.orderId) → Order CANCELLED (cron l'a libérée).
+    m.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ord_1', status: 'CANCELLED', userId: 'u1' });
+    const event = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_new', amount_received: 3000, metadata: { orderId: 'ord_1' } } } } as unknown as Stripe.Event;
+    await processStripeEvent(event, {});
+    // Charge orphelin remboursé automatiquement (idempotent), AUCUNE commande finalisée.
+    expect(m.refundsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_new' }),
+      expect.objectContaining({ idempotencyKey: 'orphan_pi_new' }),
+    );
+    expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
+    expect(m.createOrder).not.toHaveBeenCalled();
+  });
+});
+
 describe('webhook payment_intent.succeeded — garde transitioned (#3a, anti double-production)', () => {
   it('event qui GAGNE la transition (transitioned=true) → soumet à Sinalite', async () => {
     m.findUnique.mockResolvedValue(pendingOrder(5000));
@@ -127,19 +146,17 @@ function expiredEvent(metadata: Record<string, string>): Stripe.Event {
 }
 
 describe('webhook checkout.session.expired — Mode B (#3b)', () => {
-  it('session Mode B expirée, Order encore PENDING → annule + event + libère le claim', async () => {
-    m.updateMany.mockResolvedValue({ count: 1 });
+  it('session Mode B expirée, Order encore PENDING → release crédits + event + libère le claim', async () => {
+    // M2/M3 — releaseReservedCreditsOnCancel fait la transition PENDING→CANCELLED + restore.
+    m.releaseReservedCreditsOnCancel.mockResolvedValue({ released: true, walletCents: 0, referralCents: 0 });
     await processStripeEvent(expiredEvent({ kind: 'mcp-order', orderId: 'ord_1' }), {});
-    expect(m.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'ord_1', status: 'PENDING' },
-      data: { status: 'CANCELLED' },
-    }));
+    expect(m.releaseReservedCreditsOnCancel).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'ord_1' }));
     expect(m.orderEventCreate).toHaveBeenCalledTimes(1);
     expect(m.mcpIntentDeleteMany).toHaveBeenCalledWith({ where: { orderId: 'ord_1' } });
   });
 
-  it('session Mode B expirée mais Order plus PENDING (payée entre-temps, count=0) → ne touche à rien', async () => {
-    m.updateMany.mockResolvedValue({ count: 0 });
+  it('session Mode B expirée mais Order plus PENDING (payée entre-temps, released=false) → ne touche à rien', async () => {
+    m.releaseReservedCreditsOnCancel.mockResolvedValue({ released: false, walletCents: 0, referralCents: 0 });
     await processStripeEvent(expiredEvent({ kind: 'mcp-order', orderId: 'ord_1' }), {});
     expect(m.orderEventCreate).not.toHaveBeenCalled();
     expect(m.mcpIntentDeleteMany).not.toHaveBeenCalled();
@@ -147,6 +164,6 @@ describe('webhook checkout.session.expired — Mode B (#3b)', () => {
 
   it('session NON-Mode-B (wallet_topup) expirée → ignorée (aucune annulation d\'Order)', async () => {
     await processStripeEvent(expiredEvent({ kind: 'wallet_topup', userId: 'u1' }), {});
-    expect(m.updateMany).not.toHaveBeenCalled();
+    expect(m.releaseReservedCreditsOnCancel).not.toHaveBeenCalled();
   });
 });
