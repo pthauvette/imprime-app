@@ -41,6 +41,27 @@ describe('withErrorHandler — #6.6 anti-fuite', () => {
     expect(JSON.stringify(json)).not.toContain('secretHint'); // body interne jamais sérialisé
   });
 
+  it('SinaliteError status 200 (Sinalite 200 + body non conforme) → JAMAIS 2xx, remappé en 502', async () => {
+    // Régression checkout /order/shipping (2026-07) : Sinalite répond HTTP 200
+    // avec un body erreur/non conforme → le client throw SinaliteError(status=200).
+    // Sans garde, withErrorHandler renvoyait 200 → res.ok=true côté front →
+    // setMethods(undefined) → methods.find() crash (écran blanc, checkout bloqué).
+    const handler = withErrorHandler(async () => {
+      throw new SinaliteError('shippingEstimate → schema mismatch', 200, '/order/shippingEstimate', {});
+    });
+    const res = await handler();
+    expect(res.status).toBe(502);
+    expect(res.status).toBeGreaterThanOrEqual(400); // une erreur n'est JAMAIS un succès
+    expect((await res.json()).code).toBe('SINALITE_ERROR');
+  });
+
+  it('SinaliteError status 4xx (combo invalide) → conservé tel quel (le client peut distinguer)', async () => {
+    const handler = withErrorHandler(async () => {
+      throw new SinaliteError('bad combo', 400, '/order/shippingEstimate');
+    });
+    expect((await handler()).status).toBe(400);
+  });
+
   it('Error générique en PROD → message brut masqué', async () => {
     setNodeEnv('production');
     const handler = withErrorHandler(async () => {
