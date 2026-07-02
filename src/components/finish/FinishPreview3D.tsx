@@ -18,7 +18,7 @@ import { useMemo, useRef } from 'react';
 import { Canvas, useFrame, type ThreeElements } from '@react-three/fiber';
 import { Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
-import { finishMaterial, type FinishMaterial } from '@/lib/print/finish-materials';
+import { finishMaterial, fitCardDimensions, type FinishMaterial } from '@/lib/print/finish-materials';
 
 export interface FinishPreview3DProps {
   finishKey: string | null;
@@ -29,59 +29,80 @@ export interface FinishPreview3DProps {
   height?: number;
 }
 
-const CARD_W = 3.5;
-
-/** Dessine la face démo + le masque de vernis sélectif (Spot UV) en CanvasTexture. */
+/** Dessine la face démo + le masque de vernis sélectif (Spot UV) en CanvasTexture.
+ *  Layout ADAPTÉ à l'orientation : paysage (carte de visite…) = cluster à gauche ;
+ *  portrait (flyer, signet, invitation, carte postale…) = composition centrée verticale.
+ *  La texture est CAPÉE à 1024 px sur le grand côté (un signet 2×8 ne crée plus un
+ *  canvas de 4096 px de haut). */
 function makeCardTextures(mat: FinishMaterial, aspect: number): { map: THREE.CanvasTexture; mask: THREE.CanvasTexture } {
-  const W = 1024;
-  const H = Math.round(W / aspect);
+  const LONG = 1024;
+  const W = aspect >= 1 ? LONG : Math.max(180, Math.round(LONG * aspect));
+  const H = aspect >= 1 ? Math.max(180, Math.round(LONG / aspect)) : LONG;
+  const portrait = aspect < 0.95;
+  const S = Math.min(W, H); // échelle sur le petit côté (lisible à toute proportion)
+  const GREEN = '#1f3d2b';
+  const CREAM = '#fbfaf7';
+
+  // Pastille ronde « P » (cible du Spot UV) + bande verte — positionnées par orientation.
+  const r = S * (portrait ? 0.15 : 0.11);
+  const cx = portrait ? W * 0.5 : W * 0.16;
+  const cy = portrait ? H * 0.22 : H * 0.30;
+  const band = Math.round(H * (portrait ? 0.14 : 0.28));
+  const drawMark = (ctx: CanvasRenderingContext2D) => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); };
 
   // ── Face ──
   const face = document.createElement('canvas');
   face.width = W; face.height = H;
   const c = face.getContext('2d')!;
-  c.fillStyle = mat.baseTint ?? '#fbfaf7';
+  c.fillStyle = mat.baseTint ?? CREAM;
   c.fillRect(0, 0, W, H);
-
-  // Bande de marque (vert Plio) en bas.
-  const band = Math.round(H * 0.28);
-  c.fillStyle = '#1f3d2b';
-  c.fillRect(0, H - band, W, band);
-
-  // Marque ronde « P » (la zone qui reçoit le Spot UV).
-  const cx = W * 0.16, cy = H * 0.30, r = Math.min(W, H) * 0.11;
-  c.fillStyle = '#1f3d2b';
-  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
-  c.fillStyle = '#fbfaf7';
+  c.fillStyle = GREEN; c.fillRect(0, H - band, W, band);          // bande de marque (bas)
+  c.fillStyle = GREEN; drawMark(c);                                // pastille « P »
+  c.fillStyle = CREAM;
   c.font = `700 ${Math.round(r * 1.3)}px Georgia, serif`;
   c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillText('P', cx, cy + r * 0.04);
 
-  // Nom + titre.
-  c.fillStyle = '#1c1c1a';
-  c.font = `600 ${Math.round(H * 0.085)}px Georgia, serif`;
-  c.textAlign = 'left'; c.textBaseline = 'alphabetic';
-  c.fillText('Claire Tremblay', W * 0.30, H * 0.30);
-  c.fillStyle = '#6b6a64';
-  c.font = `400 ${Math.round(H * 0.05)}px system-ui, sans-serif`;
-  c.fillText('Designer · Atelier Plio', W * 0.30, H * 0.30 + H * 0.085);
+  c.textBaseline = 'alphabetic';
+  if (portrait) {
+    // Composition centrée (flyer / affiche / signet / invitation).
+    c.textAlign = 'center';
+    c.fillStyle = '#1c1c1a';
+    c.font = `600 ${Math.round(S * 0.12)}px Georgia, serif`;
+    c.fillText('Atelier Plio', W * 0.5, cy + r + S * 0.20);
+    c.fillStyle = '#6b6a64';
+    c.font = `400 ${Math.round(S * 0.065)}px system-ui, sans-serif`;
+    c.fillText('Aperçu de finition', W * 0.5, cy + r + S * 0.20 + S * 0.12);
+  } else {
+    // Cluster à gauche (carte de visite / accroche-porte).
+    c.textAlign = 'left';
+    c.fillStyle = '#1c1c1a';
+    c.font = `600 ${Math.round(H * 0.085)}px Georgia, serif`;
+    c.fillText('Claire Tremblay', W * 0.30, H * 0.30);
+    c.fillStyle = '#6b6a64';
+    c.font = `400 ${Math.round(H * 0.05)}px system-ui, sans-serif`;
+    c.fillText('Designer · Atelier Plio', W * 0.30, H * 0.30 + H * 0.085);
+    c.fillStyle = '#cfe6d6';
+    c.font = `400 ${Math.round(H * 0.045)}px system-ui, sans-serif`;
+    c.fillText('claire@plio.ca   ·   514 555 0123', W * 0.06, H - band * 0.42);
+  }
 
-  // Coordonnées sur la bande.
-  c.fillStyle = '#cfe6d6';
-  c.font = `400 ${Math.round(H * 0.045)}px system-ui, sans-serif`;
-  c.fillText('claire@plio.ca   ·   514 555 0123', W * 0.06, H - band * 0.42);
-
-  // ── Masque de vernis sélectif (blanc = vernis) ──
+  // ── Masque de vernis sélectif (blanc = vernis) : la pastille + le titre brillent ──
   const maskCanvas = document.createElement('canvas');
   maskCanvas.width = W; maskCanvas.height = H;
   const m = maskCanvas.getContext('2d')!;
   m.fillStyle = '#000000'; m.fillRect(0, 0, W, H);
-  m.fillStyle = '#ffffff';
-  // Le « P » + le nom brillent (usage typique du Spot UV).
-  m.beginPath(); m.arc(cx, cy, r, 0, Math.PI * 2); m.fill();
-  m.font = `600 ${Math.round(H * 0.085)}px Georgia, serif`;
-  m.textAlign = 'left'; m.textBaseline = 'alphabetic';
-  m.fillText('Claire Tremblay', W * 0.30, H * 0.30);
+  m.fillStyle = '#ffffff'; drawMark(m);
+  m.textBaseline = 'alphabetic';
+  if (portrait) {
+    m.textAlign = 'center';
+    m.font = `600 ${Math.round(S * 0.12)}px Georgia, serif`;
+    m.fillText('Atelier Plio', W * 0.5, cy + r + S * 0.20);
+  } else {
+    m.textAlign = 'left';
+    m.font = `600 ${Math.round(H * 0.085)}px Georgia, serif`;
+    m.fillText('Claire Tremblay', W * 0.30, H * 0.30);
+  }
 
   const map = new THREE.CanvasTexture(face);
   map.colorSpace = THREE.SRGBColorSpace;
@@ -110,7 +131,8 @@ function Card({ finishKey, paperKey, aspect }: { finishKey: string | null; paper
     mesh.rotation.x = THREE.MathUtils.lerp(mesh.rotation.x, targetX, 0.07);
   });
 
-  const h = CARD_W / aspect;
+  // Boîte normalisée : le grand côté tient dans le cadre, ratio réel préservé.
+  const { w, h } = fitCardDimensions(aspect);
   // Foil = carte métallique teintée ; sinon couleur de base (teinte papier) ou blanc.
   const color = mat.foilColor ?? mat.baseTint ?? '#ffffff';
 
@@ -133,7 +155,7 @@ function Card({ finishKey, paperKey, aspect }: { finishKey: string | null; paper
 
   return (
     <mesh ref={ref} castShadow>
-      <boxGeometry args={[CARD_W, h, 0.05]} />
+      <boxGeometry args={[w, h, 0.05]} />
       <meshPhysicalMaterial {...materialProps} />
     </mesh>
   );
