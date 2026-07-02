@@ -132,6 +132,24 @@ export const MARGIN_SPECS_BY_FAMILY: Record<string, MarginSpec> = {
     typicalTrim: { widthIn: 2, heightIn: 8 },
     overlay: { bleedPercent: 6, safePercent: 12 },
   },
+  // 2026-07 — grand format RIGIDE (coroplaste, foam board, sintra, aluminium, yard
+  // signs, A-frame, H-stand, POP, canvas). Découpé à la taille : bleed modéré, safe
+  // généreux (œillets/bords/pied). typicalTrim = fallback (la vraie taille vient de la
+  // sélection). overlay % petit (grand format → un bleed 0.125" est ~0.5 % → on l'agrandit).
+  'affiches-rigides': {
+    bleedInches: 0.125,
+    safeInches: 0.25,
+    typicalTrim: { widthIn: 24, heightIn: 18 },
+    overlay: { bleedPercent: 4, safePercent: 8 },
+  },
+  // 2026-07 — papeterie papier (letterhead, bloc-notes, NCR, billets numérotés,
+  // calendriers, tent cards). Format lettre par défaut, bleed standard.
+  'papeterie': {
+    bleedInches: 0.125,
+    safeInches: 0.25,
+    typicalTrim: { widthIn: 8.5, heightIn: 11 },
+    overlay: { bleedPercent: 3, safePercent: 6 },
+  },
 };
 
 /**
@@ -142,27 +160,86 @@ export const MARGIN_SPECS_BY_FAMILY: Record<string, MarginSpec> = {
  * Si pas de match : retombe sur un default safe (cartes-de-visite,
  * insets visibles).
  */
-const SINALITE_TO_FAMILY: Record<string, string> = {
+// Exporté pour le test de couverture (margin-specs-coverage.test.ts) : chaque
+// catégorie de CATEGORY_GROUPS (catalogue.ts) DOIT être une clé ici, sinon elle
+// tombe au défaut carte de visite (bleed 0.125" + overlay 3.5×2 → faux grand format).
+// Clés en minuscules (getMarginSpecBySinaliteCategory fait .trim().toLowerCase()).
+export const SINALITE_TO_FAMILY: Record<string, string> = {
+  // Cartes de visite
   'business cards': 'cartes-de-visite',
   'specialty business cards': 'cartes-de-visite',
   'folded business cards': 'cartes-de-visite',
-  'postcards': 'cartes-postales',
+  // Flyers & dépliants
   'flyers': 'flyers',
+  'unaddressed admail': 'flyers',
+  // Cartes postales
+  'postcards': 'cartes-postales',
+  'specialty post cards': 'cartes-postales',
+  'postcard addressed': 'cartes-postales',
+  'postcard enveloped and addressed': 'cartes-postales',
+  // Brochures & livrets (dépliants avec pli / agrafage)
   'brochures': 'brochures',
+  'brochure enveloped and addressed': 'brochures',
+  'tear cards': 'brochures',
   'booklets': 'livrets',
+  // Bannières grand format SOUPLE (vinyle, pull-up rétractable, table covers, affiches)
   'banners': 'banners',
+  'vinyl banners': 'banners',
+  'pull up banners': 'banners',
+  'pull up banners-': 'banners',
+  'x-frame banners': 'banners',
+  'table covers': 'banners',
+  'large format posters': 'banners',
   'posters': 'banners',
-  'stickers': 'stickers',
+  // Grand format RIGIDE (coroplaste, foam, sintra, aluminium, yard signs, A-frame, POP)
+  'coroplast signs & yard signs': 'affiches-rigides',
+  'coroplast signs & yard signs-': 'affiches-rigides',
+  'yard sign': 'affiches-rigides',
+  'foam board': 'affiches-rigides',
+  'sintra/rigid board': 'affiches-rigides',
+  'aluminum signs': 'affiches-rigides',
+  'styrene signs': 'affiches-rigides',
+  'plastics': 'affiches-rigides',
+  'a-frame signs': 'affiches-rigides',
+  'a frame stands': 'affiches-rigides',
+  'h stands for signs': 'affiches-rigides',
+  'display board / pop': 'affiches-rigides',
+  'canvas': 'affiches-rigides',
+  // Stationnerie
   'envelopes': 'enveloppes',
-  'apparel': 'merchandise',
-  'mugs': 'merchandise',
-  // 2026-06 — catégories des 5 produits curatés qui tombaient au DEFAULT.
+  'presentation folders': 'chemises-presentation',
   'greeting cards': 'cartes-de-voeux',
   'specialty greeting cards': 'cartes-de-voeux',
-  'door hangers': 'accroche-portes',
   'invitations': 'invitations',
-  'presentation folders': 'chemises-presentation',
+  'door hangers': 'accroche-portes',
   'bookmarks': 'signets',
+  'letterhead': 'papeterie',
+  'notepads': 'papeterie',
+  'ncr forms': 'papeterie',
+  'numbered tickets': 'papeterie',
+  'wall calendars': 'papeterie',
+  'tent cards': 'papeterie',
+  'variable printing': 'papeterie',
+  'digital sheets': 'papeterie',
+  // Étiquettes & stickers (labels, decals, vinyle, aimants)
+  'stickers': 'stickers',
+  'roll labels / stickers': 'stickers',
+  'square cut labels / stickers': 'stickers',
+  'clings': 'stickers',
+  'floor graphics': 'stickers',
+  'window graphics': 'stickers',
+  'wall decals': 'stickers',
+  'adhesive vinyl': 'stickers',
+  'white vinyl': 'stickers',
+  'magnets': 'stickers',
+  'car magnets': 'stickers',
+  'covid-19-decals': 'stickers',
+  'covid-19-decals-': 'stickers',
+  // Divers / merchandise
+  'apparel': 'merchandise',
+  'mugs': 'merchandise',
+  'sample kits': 'merchandise',
+  'supply boxes': 'merchandise',
 };
 
 /**
