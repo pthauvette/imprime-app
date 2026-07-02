@@ -110,6 +110,10 @@ const PAPER_OVERRIDES: Record<string, Partial<FinishMaterial>> = {
   pearl: { iridescence: 0.55, baseTint: '#f6f3ef', roughness: 0.45 },
   synthetic: { roughness: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.35 },
   ultrasmooth: { roughness: 0.6 },
+  // Stock métallique (papier « foil doré ») : reflet métallique chaud, MAIS le design
+  // reste visible (pas de foilColor → la texture n'est pas masquée, contrairement à la
+  // FINITION foil qui, elle, démontre le métal plein). Distingue le stock du papier blanc.
+  foil: { baseTint: '#e4d3a1', metalness: 0.5, roughness: 0.28, clearcoat: 0.4, clearcoatRoughness: 0.22 },
 };
 
 /**
@@ -136,3 +140,22 @@ export function finishMaterial(finishKey: string | null | undefined, paperKey?: 
 
 /** Toutes les clés de finition connues (pour itérer en démo/test). */
 export const KNOWN_FINISH_KEYS = Object.keys(FINISH_OVERRIDES);
+
+/** Toutes les clés de papier connues (surcharges de base). */
+export const KNOWN_PAPER_KEYS = Object.keys(PAPER_OVERRIDES);
+
+/** Le plus grand côté de l'aperçu 3D tient dans MAX_EXTENT unités-monde (portrait
+ *  comme paysage) → un signet 2×8, un flyer 8,5×11 ou une invitation 5×7 rendent à
+ *  leur VRAIE forme sans déborder du cadre. */
+const MAX_EXTENT = 2.3;
+
+/**
+ * Dimensions de la boîte 3D (unités-monde) normalisées pour tenir dans le cadre tout
+ * en préservant le ratio RÉEL du produit (aspect = largeur/hauteur). PUR → testable
+ * sans WebGL. Avant : largeur figée + hauteur = 3.5/aspect → les formats hauts (jusqu'à
+ * 14 unités pour un signet) étaient rognés hors cadre.
+ */
+export function fitCardDimensions(aspect: number, maxExtent = MAX_EXTENT): { w: number; h: number } {
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 3.5 / 2;
+  return a >= 1 ? { w: maxExtent, h: maxExtent / a } : { w: maxExtent * a, h: maxExtent };
+}
