@@ -8,6 +8,10 @@ import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import SaveConfigButton from '@/components/wizard/SaveConfigButton';
+import FormatPreview from '@/components/wizard/FormatPreview';
+import { previewKindForSinaliteCategory } from '@/lib/products/format-preview';
+import { getMarginSpecBySinaliteCategory } from '@/lib/products/margin-specs';
+import { parseSizeLabel } from '@/lib/products/parse-size';
 
 type OptionGroupMap = Record<string, SinaliteOption[]>;
 
@@ -119,6 +123,16 @@ export default function ConfigureClient({
   const nextHref = `/order/upload?productId=${product.id}&options=${allOptionIds.join(',')}${designSuffix}` as Route;
   const prevHref = `/order/product?category=${guessCategorySlug(product.category)}` as Route;
 
+  // Aperçu 2D du format : nature du substrat (souple/rigide/étiquette/plié) + taille
+  // RÉELLE sélectionnée (fallback typicalTrim) + marges de la famille. Réactif au choix
+  // de taille. C'est l'équivalent, pour les produits génériques, de l'aperçu 3D des 8 curatés.
+  const marginSpec = getMarginSpecBySinaliteCategory(product.category);
+  const previewKind = previewKindForSinaliteCategory(product.category);
+  const sizeKey = orderedGroups.find((g) => g.toLowerCase() === 'size');
+  const sizeOpt = sizeKey ? optionGroups[sizeKey]?.find((o) => o.id === selection[sizeKey]) : undefined;
+  const previewDims = parseSizeLabel(sizeOpt?.name) ?? marginSpec.typicalTrim;
+  const previewSizeLabel = `${previewDims.widthIn} × ${previewDims.heightIn} po`;
+
   return (
     <div className="shell">
       <header className="shell-header">
@@ -153,6 +167,20 @@ export default function ConfigureClient({
           <div className="step-eyebrow">Étape 03 — {product.name.trim()}</div>
           <h1 className="step-question">Configure ta <em>commande.</em></h1>
           <p className="step-lede">Le prix s'ajuste en temps réel à droite — change une option pour voir l'impact.</p>
+
+          {/* Aperçu 2D du format (substrat + vraie dimension + marges) — pour les
+              produits sans aperçu 3D (grand format, étiquettes, dépliants…). */}
+          <div style={{ margin: '20px 0 8px', maxWidth: 520 }}>
+            <FormatPreview
+              widthIn={previewDims.widthIn}
+              heightIn={previewDims.heightIn}
+              kind={previewKind}
+              bleedInches={marginSpec.bleedInches}
+              safeInches={marginSpec.safeInches}
+              sizeLabel={previewSizeLabel}
+              height={240}
+            />
+          </div>
 
           {orderedGroups.map((groupName, idx) => (
             <ConfigSection
