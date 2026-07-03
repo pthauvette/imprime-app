@@ -773,13 +773,15 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       height: 180px;
       background: white;
       border-radius: 6px;
-      box-shadow: var(--shadow-xl);
+      /* Ombres multi-couches teintées vert-noir (jamais gris plat, cf. charte). */
+      box-shadow: 0 34px 64px -24px rgba(20, 28, 22, 0.44), 0 12px 26px -14px rgba(20, 28, 22, 0.30);
       transform-style: preserve-3d;
       padding: 24px 28px;
       display: grid;
       align-content: center;
       gap: 6px;
       transition: transform var(--dur-slower) var(--ease-spring);
+      z-index: 1;
     }
     .stack-card .scn { font-family: var(--font-display); font-size: 28px; color: var(--text-primary); letter-spacing: -0.02em; line-height: 1; }
     .stack-card .scd { width: 18px; height: 1px; background: var(--accent-primary); margin: 3px 0; }
@@ -805,9 +807,11 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       opacity: 0.95;
     }
     .stack-3 {
-      background: linear-gradient(135deg, #d4af37 0%, #f4e5b1 50%, #d4af37 100%);
+      background: linear-gradient(135deg, #caa233 0%, #f4e5b1 46%, #d4af37 62%, #b8901f 100%);
+      background-size: 220% 100%;
       transform: translateX(60px) translateY(40px) rotate(-3deg) rotateX(8deg);
-      animation: float-3 7s var(--ease-in-out) infinite;
+      /* Flottement + miroitement de la dorure (la lumière « accroche » le foil). */
+      animation: float-3 7s var(--ease-in-out) infinite, foil-shimmer 6.5s var(--ease-in-out) infinite;
       width: 280px;
     }
     .stack-3 .scn { color: #2a1f0a; }
@@ -822,6 +826,43 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       height: 150px;
     }
     .stack-4 .scn { font-size: 22px; }
+
+    /* ── Push esthétique : matières « vivantes » sur les cartes du hero ── */
+    /* Reflet gloss qui balaie la carte blanche (finition UV/brillante). */
+    .stack-1 { overflow: hidden; }
+    .stack-1::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(116deg, transparent 34%, rgba(255, 255, 255, 0.72) 47%, rgba(232, 232, 232, 0.18) 53%, transparent 66%);
+      animation: card-sheen 5.5s var(--ease-in-out) infinite;
+    }
+    /* Spot-UV brillant sur la pastille de la carte verte. */
+    .stack-2 .logo-circle {
+      background: radial-gradient(circle at 35% 30%, #ffffff, #e8ede9 72%);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(20, 28, 22, 0.25);
+    }
+    /* Voile soft-touch sur la carte crème. */
+    .stack-4 { overflow: hidden; }
+    .stack-4::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(120% 90% at 20% 8%, rgba(255, 255, 255, 0.5), transparent 55%);
+    }
+    /* Halo d'ambiance vert sapin derrière la pile (profondeur). */
+    .hero-visual::before {
+      content: ""; position: absolute; inset: -8% 4%; pointer-events: none; z-index: 0;
+      background: radial-gradient(58% 52% at 52% 44%, rgba(31, 61, 43, 0.10), transparent 72%);
+    }
+    @keyframes foil-shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    @keyframes card-sheen {
+      0% { transform: translateX(-38%); }
+      50% { transform: translateX(38%); }
+      100% { transform: translateX(-38%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stack-1, .stack-2, .stack-3, .stack-4, .stack-1::after, .floating-badge { animation: none; }
+    }
 
     @keyframes float-1 {
       0%, 100% { transform: translateX(-40px) translateY(20px) rotate(-9deg) rotateY(8deg); }
