@@ -8,6 +8,7 @@ import ReviewsWidget from '@/components/marketing/ReviewsWidget';
 import LangSwitch from '@/components/i18n/LangSwitch';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
+import ProductMockup from '@/components/wizard/ProductMockup';
 import { getServerLocale } from '@/lib/i18n/locale';
 import { translate } from '@/lib/i18n/messages';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
@@ -153,7 +154,7 @@ export default async function LandingPage() {
               <p className="section-lede">Du basique au spécialité — papier, finition, format, le tout configurable.</p>
               <div className="products-grid">
                 <a href="/order/start" className="product-promo">
-                  <div className="product-promo-visual"><div className="promo-mockup-card gloss"></div></div>
+                  <div className="product-promo-visual"><ProductMockup shape="card" finish="gloss" title="Cartes de visite UV" /></div>
                   <div className="product-promo-info">
                     <div className="product-promo-name">Cartes de visite UV</div>
                     <div className="product-promo-meta">14pt · brillant · 4/4 couleurs</div>
@@ -161,7 +162,7 @@ export default async function LandingPage() {
                   <div className="product-promo-price">à partir de 24,80 $</div>
                 </a>
                 <a href="/order/start" className="product-promo">
-                  <div className="product-promo-visual"><div className="promo-mockup-card soft"></div></div>
+                  <div className="product-promo-visual"><ProductMockup shape="card" finish="soft" title="Cartes Soft Touch" /></div>
                   <div className="product-promo-info">
                     <div className="product-promo-name">Cartes Soft Touch</div>
                     <div className="product-promo-meta">18pt · velouté · premium</div>
@@ -169,7 +170,7 @@ export default async function LandingPage() {
                   <div className="product-promo-price">à partir de 58,40 $</div>
                 </a>
                 <a href="/order/start" className="product-promo">
-                  <div className="product-promo-visual"><div className="promo-mockup-card foil"></div></div>
+                  <div className="product-promo-visual"><ProductMockup shape="card" finish="foil" title="Cartes Foil métallique" /></div>
                   <div className="product-promo-info">
                     <div className="product-promo-name">Cartes Foil métallique</div>
                     <div className="product-promo-meta">or · argent · cuivre</div>
@@ -177,7 +178,7 @@ export default async function LandingPage() {
                   <div className="product-promo-price">à partir de 128,00 $</div>
                 </a>
                 <a href="/order/start" className="product-promo">
-                  <div className="product-promo-visual"><div className="promo-mockup-card matte"></div></div>
+                  <div className="product-promo-visual"><ProductMockup shape="flyer" finish="matte" title="Flyers et dépliants" /></div>
                   <div className="product-promo-info">
                     <div className="product-promo-name">Flyers &amp; dépliants</div>
                     <div className="product-promo-meta">8,5 × 11" · couché mat</div>
@@ -185,7 +186,7 @@ export default async function LandingPage() {
                   <div className="product-promo-price">à partir de 38,00 $</div>
                 </a>
                 <a href="/order/start" className="product-promo">
-                  <div className="product-promo-visual"><div className="promo-mockup-poster"></div></div>
+                  <div className="product-promo-visual"><ProductMockup shape="banner" finish="matte" title="Bannières grand format" /></div>
                   <div className="product-promo-info">
                     <div className="product-promo-name">Bannières grand format</div>
                     <div className="product-promo-meta">vinyle · coroplast · pull-up</div>
@@ -193,7 +194,7 @@ export default async function LandingPage() {
                   <div className="product-promo-price">à partir de 45,00 $</div>
                 </a>
                 <a href="/order/start" className="product-promo">
-                  <div className="product-promo-visual"><div className="promo-mockup-card kraft"></div></div>
+                  <div className="product-promo-visual"><ProductMockup shape="card" finish="kraft" title="Cartes Kraft eco" /></div>
                   <div className="product-promo-info">
                     <div className="product-promo-name">Cartes Kraft (eco)</div>
                     <div className="product-promo-meta">recyclé · 100 % canadien</div>
