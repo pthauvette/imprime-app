@@ -44,6 +44,29 @@ export function mockupForIcon(icon: keyof typeof MOCKUP_BY_ICON): { shape: Mocku
   return MOCKUP_BY_ICON[icon] ?? MOCKUP_BY_ICON.card;
 }
 
+/**
+ * Devine forme + finition d'un produit depuis son NOM (quand la catégorie n'est pas
+ * dispo — ex. items du panier `CartItem`, qui ne portent pas la catégorie). Heuristique
+ * par mots-clés, fallback carte de visite plate. PUR → testable.
+ */
+export function mockupForProductName(name: string | null | undefined): { shape: MockupShape; finish: MockupFinish } {
+  const n = (name ?? '').toLowerCase();
+  let shape: MockupShape = 'card';
+  if (/(banner|banni|pull ?up|vinyl|vinyle|coroplast|foam|sintra|yard|\bsign|rigid|aluminum|styrene|plastic|table cover|poster|affiche)/.test(n)) shape = 'banner';
+  else if (/(flyer|d[ée]plian|admail)/.test(n)) shape = 'flyer';
+  else if (/(postcard|carte postale|greeting|v[oœ]ux|invitation)/.test(n)) shape = 'postcard';
+  else if (/(sticker|label|[ée]tiquette|decal|magnet|aimant)/.test(n)) shape = 'sticker';
+  else if (/(brochure|booklet|livret|folded|folder|pr[ée]sentation|chemise)/.test(n)) shape = 'folded';
+
+  let finish: MockupFinish = 'plain';
+  if (/(uv|gloss|brillant)/.test(n)) finish = 'gloss';
+  else if (/(foil|dorure|m[ée]tallique|metallic)/.test(n)) finish = 'foil';
+  else if (/(soft ?touch|velours)/.test(n)) finish = 'soft';
+  else if (/(matte|\bmat\b)/.test(n)) finish = 'matte';
+  else if (/(kraft|recycl|\beco\b)/.test(n)) finish = 'kraft';
+  return { shape, finish };
+}
+
 /** Normalise le `finishClass` dérivé du nom produit (ProductListClient) en MockupFinish. */
 export function toMockupFinish(finishClass: string | null | undefined, fallback: MockupFinish): MockupFinish {
   const f = (finishClass ?? '').trim();
