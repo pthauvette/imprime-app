@@ -14,6 +14,8 @@ import { findCategoryGroup } from '@/lib/catalogue';
 import JsonLd, { breadcrumbSchema, itemListSchema } from '@/components/seo/JsonLd';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import ProductListClient from '@/components/wizard/ProductListClient';
+import ProductMockup from '@/components/wizard/ProductMockup';
+import { mockupForIcon } from '@/lib/products/product-mockup';
 import HeaderUserSlot from '@/components/account/HeaderUserSlot';
 import {
   ALL_VIRTUAL_PRODUCT_IDS,
@@ -34,6 +36,7 @@ export default async function ProductPickerPage({
 
   const family = findCategoryGroup(slug);
   if (!family) notFound();
+  const mock = mockupForIcon(family.icon);
 
   const allProducts = await sinalite.listProducts();
   // Filtre Sinalite-enabled, puis applique les overrides admin (qui peuvent
@@ -146,7 +149,7 @@ export default async function ProductPickerPage({
           {entryCount === 0 ? (
             <EmptyProducts familyName={family.name} />
           ) : rawProducts.length > 0 ? (
-            <ProductListClient products={rawProducts} />
+            <ProductListClient products={rawProducts} mockupShape={mock.shape} mockupFinish={mock.finish} />
           ) : null}
         </div>
 
@@ -156,7 +159,7 @@ export default async function ProductPickerPage({
             <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
               <div className="recap-card-mini">
                 <div className="recap-card-mini-img">
-                  <div className="recap-card-mini-img-inner" />
+                  <ProductMockup shape={mock.shape} finish={mock.finish} height={40} />
                 </div>
                 <div className="recap-card-mini-text">
                   <div className="recap-card-mini-name">{family.name}</div>
