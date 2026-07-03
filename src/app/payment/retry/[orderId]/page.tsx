@@ -115,6 +115,16 @@ export default async function PaymentRetryPage({
       },
       success_url: `${APP_URL}/orders/${order.id}?retry=success`,
       cancel_url: `${APP_URL}/payment/retry/${order.id}?t=${token}&cancelled=1`,
+    }, {
+      // Audit 2026-07 #1 (HIGH, money-path) — idempotencyKey déterministe dérivé de
+      // l'orderId. Cette page est un Server Component : CHAQUE GET (double-clic sur le
+      // lien, bouton retour, retry réseau) rappelait ce create → N sessions/PI
+      // facturables distinctes → 2e charge encaissé et JAMAIS remboursé. Avec cette clé,
+      // les rechargements collapsent vers UNE seule Session → une seule surface de
+      // paiement. Params déterministes (montant immuable) → pas de mismatch Stripe. La
+      // fenêtre d'idempotence Stripe (24 h) s'aligne sur l'expiration par défaut de la
+      // Session. Le patron correct vit déjà dans mcp/checkout-session.ts (`mcp_cs_…`).
+      idempotencyKey: `retry_cs_${order.id}`,
     });
   } catch (err) {
     log.error({ err, orderId }, 'payment-retry: Stripe checkout session create failed');
