@@ -308,8 +308,47 @@ async function handlePaymentSucceeded(
           body: `PI ${intent.id} payé sur l'Order ${candidate.id} déjà ANNULÉE — le refund automatique a échoué. Rembourser à la main.`,
           context: { intentId: intent.id, orderId: candidate.id, err: String(err) },
         });
+        // Audit 2026-07 #2 — THROW (pas return) : les deux autres chemins de refund du
+        // fichier (garde montant l.~354, Sinalite-fail l.~536) THROW pour forcer un rejeu
+        // Stripe. Ici, un `return` marquait l'event 200 → Stripe ne retentait JAMAIS →
+        // course cancel/retry + panne API refund = client débité sans rattrapage auto.
+        // On aligne : rejeu Stripe (l'idempotencyKey `orphan_${intent.id}` empêche tout
+        // double-remboursement lors du retry).
+        throw err;
       }
       return; // order reste null → aucune finalisation
+    } else if (candidate) {
+      // Audit 2026-07 #1 (HIGH, money-path) — DOUBLE-CHARGE sur retry de paiement.
+      //   `candidate` existe mais n'est NI PENDING/FAILED (finalisation) NI CANCELLED
+      //   (FAILLE D) → il est donc déjà payé (PAID/SUBMITTED/IN_PRODUCTION/SHIPPED/
+      //   DELIVERED) par un AUTRE PaymentIntent : le lookup par paymentIntentId en tête a
+      //   échoué, donc CE PI n'est pas celui enregistré sur l'Order. Un 2e paiement du
+      //   même lien de retry a été encaissé en trop → charge en double. Sans ce garde, on
+      //   tombait dans `if (!order) return` plus bas : charge retenu, jamais remboursé,
+      //   sans alerte. On REMBOURSE automatiquement (idempotent, `reason: 'duplicate'`),
+      //   symétrique à FAILLE D. La commande déjà finalisée reste intacte (un seul PI
+      //   enregistré, une seule production Sinalite — l'invariant anti-double-production
+      //   tient). L'idempotencyKey sur le retry (page.tsx) rend ce chemin rarissime ; il
+      //   reste le filet de défense en profondeur si une course échappe à l'idempotence.
+      logStripe.error(
+        { orderId: candidate.id, intentId: intent.id, status: candidate.status, receivedCents: intent.amount_received },
+        'payment-retry: DOUBLE-CHARGE (Order déjà payée par un autre PI) — refund automatique du charge en double',
+      );
+      try {
+        await getStripe().refunds.create(
+          { payment_intent: intent.id, reason: 'duplicate', metadata: { orderId: candidate.id, reason: 'duplicate-charge-order-already-paid' } },
+          { idempotencyKey: `dup_${intent.id}` },
+        );
+      } catch (err) {
+        await sendCriticalAlert({
+          severity: 'critical',
+          title: 'Charge en double non remboursé (Order déjà payée)',
+          body: `PI ${intent.id} encaissé en double sur l'Order ${candidate.id} déjà payée (statut ${candidate.status}) — le refund automatique a échoué. Rembourser à la main.`,
+          context: { intentId: intent.id, orderId: candidate.id, status: candidate.status, err: String(err) },
+        });
+        throw err; // idempotencyKey `dup_${intent.id}` empêche le double-remboursement au rejeu Stripe
+      }
+      return; // order reste null → aucune finalisation (l'autre PI a déjà finalisé)
     }
   }
 

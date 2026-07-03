@@ -116,6 +116,51 @@ describe('webhook payment_intent.succeeded — FAILLE D (charge orphelin M2/M3)'
     expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
     expect(m.createOrder).not.toHaveBeenCalled();
   });
+
+  it('Order ANNULÉE + refund Stripe échoue → THROW (Stripe rejoue) + alerte critique (Audit 2026-07 #2)', async () => {
+    m.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ord_1', status: 'CANCELLED', userId: 'u1' });
+    m.refundsCreate.mockRejectedValueOnce(new Error('stripe 500 refund'));
+    const event = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_x', amount_received: 3000, metadata: { orderId: 'ord_1' } } } } as unknown as Stripe.Event;
+    // AVANT le fix : return silencieux (event 200, jamais rejoué). APRÈS : throw → Stripe retente.
+    await expect(processStripeEvent(event, {})).rejects.toThrow(/stripe 500 refund/);
+    expect(m.sendCriticalAlert).toHaveBeenCalledTimes(1);
+    expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
+  });
+});
+
+describe('webhook payment_intent.succeeded — DOUBLE-CHARGE sur retry (Order déjà payée, Audit 2026-07 #1)', () => {
+  it('2e PI encaissé sur une Order déjà PAID → refund `dup_` auto, aucune finalisation', async () => {
+    // 1er findUnique (par PI) → null (ce PI n'est pas celui enregistré) ; 2e (par
+    // metadata.orderId) → Order déjà PAID par un AUTRE PI. Ce charge est un doublon.
+    m.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ord_1', status: 'PAID', userId: 'u1' });
+    const event = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_dup', amount_received: 5000, metadata: { orderId: 'ord_1' } } } } as unknown as Stripe.Event;
+    await processStripeEvent(event, {});
+    expect(m.refundsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_dup', reason: 'duplicate' }),
+      expect.objectContaining({ idempotencyKey: 'dup_pi_dup' }),
+    );
+    // La commande déjà finalisée n'est PAS retouchée (aucune double-production Sinalite).
+    expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
+    expect(m.createOrder).not.toHaveBeenCalled();
+  });
+
+  it('catch-all des états payés : Order IN_PRODUCTION → refund `dup_` aussi', async () => {
+    m.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ord_1', status: 'IN_PRODUCTION', userId: 'u1' });
+    const event = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_dup2', amount_received: 5000, metadata: { orderId: 'ord_1' } } } } as unknown as Stripe.Event;
+    await processStripeEvent(event, {});
+    expect(m.refundsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_dup2', reason: 'duplicate' }),
+      expect.objectContaining({ idempotencyKey: 'dup_pi_dup2' }),
+    );
+  });
+
+  it('double-charge + refund échoue → THROW (Stripe rejoue) + alerte critique', async () => {
+    m.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ord_1', status: 'PAID', userId: 'u1' });
+    m.refundsCreate.mockRejectedValueOnce(new Error('stripe boom dup'));
+    const event = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_dup3', amount_received: 5000, metadata: { orderId: 'ord_1' } } } } as unknown as Stripe.Event;
+    await expect(processStripeEvent(event, {})).rejects.toThrow(/stripe boom dup/);
+    expect(m.sendCriticalAlert).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('webhook payment_intent.succeeded — garde transitioned (#3a, anti double-production)', () => {
