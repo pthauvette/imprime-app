@@ -5,19 +5,22 @@
  * (markOrderPaidWithWalletDebit). Symétriquement, un full refund/cancel doit le
  * restaurer. Verrouille : (1) no-op si pas de crédit, (2) IDEMPOTENT via le
  * marqueur OrderEvent REFERRAL_CREDIT_RESTORED, (3) restore (increment positif
- * + event), (4) non-fatal (échec → 0 + alerte critique, ne throw pas).
+ * + event), (4) non-fatal (échec → 0 + alerte critique, ne throw pas),
+ * (5) Audit 2026-07 #3 ATOMIQUE sous verrou (FOR UPDATE) → anti double-crédit
+ * sous concurrence (cron restore-compensation en overlap / double-clic admin).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const txMock = {
+  $queryRaw: vi.fn(async () => [{ id: 'u_1' }]),
+  orderEvent: { findFirst: vi.fn(async () => null), create: vi.fn(async () => ({ id: 'oe_1' })) },
   user: { update: vi.fn(async () => ({})) },
-  orderEvent: { create: vi.fn(async () => ({ id: 'oe_1' })) },
 };
 
 vi.mock('@/lib/db', () => ({
   prisma: {
-    orderEvent: { findFirst: vi.fn() },
+    orderEvent: { findFirst: vi.fn(), create: vi.fn(async () => ({})) },
     $transaction: vi.fn(async (cb: (tx: typeof txMock) => unknown) => cb(txMock)),
   },
 }));
@@ -36,8 +39,11 @@ const ORDER = { id: 'o_1', userId: 'u_1', referralCreditAppliedCents: 2500 };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  txMock.user.update.mockResolvedValue({} as never);
+  vi.mocked(prisma.orderEvent.findFirst).mockResolvedValue(null as never);
+  txMock.$queryRaw.mockResolvedValue([{ id: 'u_1' }] as never);
+  txMock.orderEvent.findFirst.mockResolvedValue(null as never);
   txMock.orderEvent.create.mockResolvedValue({ id: 'oe_1' } as never);
+  txMock.user.update.mockResolvedValue({} as never);
 });
 
 describe('restoreReferralCreditOnFullRefund', () => {
@@ -48,7 +54,7 @@ describe('restoreReferralCreditOnFullRefund', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('IDEMPOTENT : un OrderEvent REFERRAL_CREDIT_RESTORED existe déjà → no-op (0)', async () => {
+  it('IDEMPOTENT (fast-path hors verrou) : un OrderEvent REFERRAL_CREDIT_RESTORED existe déjà → no-op (0)', async () => {
     vi.mocked(prisma.orderEvent.findFirst).mockResolvedValueOnce({ id: 'existing' } as never);
     const r = await restoreReferralCreditOnFullRefund({ order: ORDER });
     expect(r).toBe(0);
@@ -58,10 +64,10 @@ describe('restoreReferralCreditOnFullRefund', () => {
     );
   });
 
-  it('restaure le crédit (increment POSITIF) + marque l\'OrderEvent', async () => {
-    vi.mocked(prisma.orderEvent.findFirst).mockResolvedValueOnce(null as never);
+  it('restaure le crédit SOUS VERROU (increment POSITIF) + marque l\'OrderEvent', async () => {
     const r = await restoreReferralCreditOnFullRefund({ order: ORDER, actorId: 'admin_1', refundId: 're_1' });
     expect(r).toBe(2500);
+    expect(txMock.$queryRaw).toHaveBeenCalledTimes(1); // verrou pessimiste pris
     expect(txMock.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'u_1' },
@@ -73,14 +79,27 @@ describe('restoreReferralCreditOnFullRefund', () => {
     );
   });
 
+  it('ANTI-COURSE : le crédit est apparu SOUS verrou (run concurrent) → no-op, AUCUN double-crédit', async () => {
+    txMock.orderEvent.findFirst.mockResolvedValueOnce({ id: 'raced' } as never);
+    const r = await restoreReferralCreditOnFullRefund({ order: ORDER, refundId: 're_1' });
+    expect(r).toBe(0);
+    expect(txMock.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(txMock.user.update).not.toHaveBeenCalled();
+    expect(txMock.orderEvent.create).not.toHaveBeenCalled();
+  });
+
   it('NON-FATAL : si la restauration throw → retourne 0 + alerte critique (ne throw pas)', async () => {
-    vi.mocked(prisma.orderEvent.findFirst).mockResolvedValueOnce(null as never);
     txMock.user.update.mockRejectedValueOnce(new Error('DB down') as never);
     const r = await restoreReferralCreditOnFullRefund({ order: ORDER, refundId: 're_x' });
     expect(r).toBe(0);
     expect(sendCriticalAlert).toHaveBeenCalledTimes(1);
-    expect(sendCriticalAlert).toHaveBeenCalledWith(
-      expect.objectContaining({ severity: 'critical' }),
-    );
+    expect(sendCriticalAlert).toHaveBeenCalledWith(expect.objectContaining({ severity: 'critical' }));
+  });
+
+  it('cron (suppressAlert) : échec → PAS d\'alerte par-appel (le cron escalade lui-même)', async () => {
+    txMock.user.update.mockRejectedValueOnce(new Error('DB down') as never);
+    const r = await restoreReferralCreditOnFullRefund({ order: ORDER, refundId: 're_x', suppressAlert: true });
+    expect(r).toBe(0);
+    expect(sendCriticalAlert).not.toHaveBeenCalled();
   });
 });

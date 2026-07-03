@@ -162,47 +162,91 @@ export async function restoreWalletCreditOnFullRefund(input: {
   actorId?: string;
   /** ID du refund Stripe, pour le contexte d'alerte. */
   refundId?: string;
+  /** Cron restore-compensation : supprime l'alerte critique par-appel (le cron
+   *  escalade lui-même, une seule fois, après N heures d'échecs). */
+  suppressAlert?: boolean;
 }): Promise<number> {
   const { order } = input;
   if (order.walletCreditAppliedCents <= 0) return 0;
 
-  // Idempotence : si un REFUND wallet existe déjà pour cette commande, ne pas
-  // re-créditer (retry webhook, double-clic admin). Une commande n'est
-  // entièrement remboursée qu'une fois.
-  const existing = await prisma.walletTransaction.findFirst({
+  // Fast-path idempotence (HORS verrou) : si un REFUND wallet existe déjà pour
+  // cette commande, no-op sans ouvrir de transaction. La garde AUTORITAIRE est
+  // re-vérifiée SOUS verrou dans la tx ci-dessous (anti-course).
+  const pre = await prisma.walletTransaction.findFirst({
     where: { orderId: order.id, kind: 'REFUND' },
     select: { id: true },
   });
-  if (existing) return 0;
+  if (pre) return 0;
 
   try {
-    await recordWalletTx({
-      userId: order.userId,
-      kind: 'REFUND',
-      amountCents: order.walletCreditAppliedCents, // POSITIF — credit back
-      orderId: order.id,
-      adminId: input.actorId,
-      description: `Refund order #${order.id.slice(-6)} — wallet credit restored`,
+    return await prisma.$transaction(async (tx) => {
+      // Anti-double-crédit sous concurrence (Audit 2026-07 #3 — le cron
+      // restore-compensation peut rejouer en overlap ; l'admin peut double-cliquer
+      // refund+cancel). Verrou pessimiste sur la row User (pattern processWalletTopup)
+      // → sérialise les restaurations concurrentes du même user, rendant le couple
+      // findFirst→create ATOMIQUE. Sans ça, deux appels lisant « pas de REFUND » avant
+      // le commit de l'autre créditeraient 2× (double-dip cash).
+      const locked = await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT id FROM "User" WHERE id = ${order.userId} FOR UPDATE`,
+      );
+      if (locked.length === 0) return 0; // user supprimé → rien à restaurer
+      // Re-check AUTORITAIRE sous verrou : un run concurrent a pu committer entre-temps.
+      const existing = await tx.walletTransaction.findFirst({
+        where: { orderId: order.id, kind: 'REFUND' },
+        select: { id: true },
+      });
+      if (existing) return 0;
+      const after = await tx.user.update({
+        where: { id: order.userId },
+        data: {
+          walletCents: { increment: order.walletCreditAppliedCents },
+          walletLastActivityAt: new Date(),
+        },
+        select: { walletCents: true },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          userId: order.userId,
+          kind: 'REFUND',
+          amountCents: order.walletCreditAppliedCents, // POSITIF — credit back
+          balanceAfterCents: after.walletCents,
+          orderId: order.id,
+          adminId: input.actorId ?? null,
+          description: `Refund order #${order.id.slice(-6)} — wallet credit restored`,
+        },
+      });
+      return order.walletCreditAppliedCents;
     });
-    return order.walletCreditAppliedCents;
   } catch (err) {
     const { logStripe } = await import('@/lib/logger');
     logStripe.error(
       { err, orderId: order.id, walletAppliedCents: order.walletCreditAppliedCents },
-      'wallet restore on refund failed (non-fatal — manual reconcile needed)',
+      'wallet restore on refund failed (non-fatal — compensation auto par cron restore-compensation)',
     );
-    const { sendCriticalAlert } = await import('@/lib/alerting/slack');
-    await sendCriticalAlert({
-      severity: 'critical',
-      title: 'Wallet restore on refund FAILED',
-      body: `Stripe refund OK mais wallet credit non restauré. Ajuste manuellement /admin/users/${order.userId}.`,
-      context: {
-        orderId: order.id,
-        refundId: input.refundId,
-        walletAppliedCents: order.walletCreditAppliedCents,
-        error: err instanceof Error ? err.message : 'unknown',
-      },
+    // Audit 2026-07 #3 — marqueur durable idempotent : le cron restore-compensation
+    // rejoue ce restore (idempotent via le garde REFUND) jusqu'au succès. Best-effort.
+    const { recordRestorePending, WALLET_RESTORE_PENDING } = await import('@/lib/orders/restore-markers');
+    await recordRestorePending(WALLET_RESTORE_PENDING, order.id, {
+      amountCents: order.walletCreditAppliedCents,
+      refundId: input.refundId,
+      error: err instanceof Error ? err.message : String(err),
     });
+    // Alerte critique immédiate (visibilité). Supprimée quand le cron rejoue :
+    // il escalade lui-même, une seule fois, si le blocage persiste > 6 h.
+    if (!input.suppressAlert) {
+      const { sendCriticalAlert } = await import('@/lib/alerting/slack');
+      await sendCriticalAlert({
+        severity: 'critical',
+        title: 'Wallet restore on refund FAILED',
+        body: `Stripe refund OK mais wallet credit non restauré. Le cron restore-compensation va rejouer automatiquement ; sinon ajuste /admin/users/${order.userId}.`,
+        context: {
+          orderId: order.id,
+          refundId: input.refundId,
+          walletAppliedCents: order.walletCreditAppliedCents,
+          error: err instanceof Error ? err.message : 'unknown',
+        },
+      });
+    }
     return 0;
   }
 }
