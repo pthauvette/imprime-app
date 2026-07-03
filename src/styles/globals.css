@@ -9785,3 +9785,13 @@ a, button, [role="button"], input[type="checkbox"] {
   .acct-nav-list { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
   .acct-nav-section { display: none; }
 }
+
+/* Vignette de catégorie (wizard /order/start) — mini-mockup produit ProductMockup
+   (SVG) qui remplace l'ancienne icône line-art `.cat-icon` 32px. Largeur contenue,
+   la hauteur suit le ratio du SVG. Le survol de la carte l'anime légèrement. */
+.cat-mockup {
+  display: block;
+  width: 96px;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+.cat-card:hover .cat-mockup { transform: scale(1.04) rotate(1deg); }
