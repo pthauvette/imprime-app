@@ -16,6 +16,7 @@ describe('MARGIN_SPECS_BY_FAMILY', () => {
     const keys = Object.keys(MARGIN_SPECS_BY_FAMILY).sort();
     expect(keys).toEqual([
       'accroche-portes',
+      'affiches-rigides', // 2026-07 — grand format rigide (coroplaste/foam/aluminium…)
       'banners',
       'brochures',
       'cartes-de-visite',
@@ -27,6 +28,7 @@ describe('MARGIN_SPECS_BY_FAMILY', () => {
       'invitations',
       'livrets',
       'merchandise',
+      'papeterie', // 2026-07 — papeterie papier (letterhead/bloc-notes/NCR…)
       'signets',
       'stickers',
     ]);
