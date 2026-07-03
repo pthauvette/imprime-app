@@ -21,6 +21,8 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { useCart, type CartItem } from '@/lib/cart/store';
+import ProductMockup from '@/components/wizard/ProductMockup';
+import { mockupForProductName } from '@/lib/products/product-mockup';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -421,8 +423,11 @@ function ReviewPageInner() {
               {/* Items déjà dans le cart (ajoutés précédemment) */}
               {cart.items.map((it, i) => (
                 <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <span style={{ fontSize: 13 }}>
-                    <strong>Article {i + 1}</strong> · {it.productName} · {it.optionIds.length} options · {it.files.length} fichier(s)
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+                    <span style={{ width: 46, flexShrink: 0 }} aria-hidden>
+                      {(() => { const m = mockupForProductName(it.productName); return <ProductMockup shape={m.shape} finish={m.finish} height={30} />; })()}
+                    </span>
+                    <span><strong>Article {i + 1}</strong> · {it.productName} · {it.optionIds.length} options · {it.files.length} fichier(s)</span>
                   </span>
                   <button
                     onClick={() => cart.remove(it.id)}
@@ -438,9 +443,14 @@ function ReviewPageInner() {
               {/* Item courant (URL params) — pas encore "ajouté" au cart */}
               {currentItem && (
                 <div style={{ padding: '8px 0', borderBottom: cart.items.length > 0 ? '1px solid var(--border-subtle)' : 'none' }}>
-                  <span style={{ fontSize: 13 }}>
-                    <strong>{cart.items.length > 0 ? `Article ${cart.items.length + 1}` : 'Cet article'}</strong>{' '}
-                    · {currentSnapshot?.productName ?? `Produit #${currentItem.productId}`} · {currentItem.optionIds.length} options · {currentItem.files.length} fichier(s)
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+                    <span style={{ width: 46, flexShrink: 0 }} aria-hidden>
+                      {(() => { const m = mockupForProductName(currentSnapshot?.productName); return <ProductMockup shape={m.shape} finish={m.finish} height={30} />; })()}
+                    </span>
+                    <span>
+                      <strong>{cart.items.length > 0 ? `Article ${cart.items.length + 1}` : 'Cet article'}</strong>{' '}
+                      · {currentSnapshot?.productName ?? `Produit #${currentItem.productId}`} · {currentItem.optionIds.length} options · {currentItem.files.length} fichier(s)
+                    </span>
                   </span>
                 </div>
               )}
