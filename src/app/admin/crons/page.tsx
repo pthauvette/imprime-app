@@ -51,6 +51,7 @@ const CRONS: ReadonlyArray<{ name: string; expectedIntervalMs: number; label: st
   { name: 'admin-weekly-digest',      expectedIntervalMs: 7 * 24 * 3600 * 1000,  label: 'mercredi 13h UTC (9h EDT/8h EST)' },
   { name: 'order-sla-alerts',         expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 13h UTC (9h EDT/8h EST)' },
   { name: 'pipeda-sla-alerts',        expectedIntervalMs: 24 * 3600 * 1000,    label: 'quotidien 13h UTC (PIPEDA 30j SLA)' },
+  { name: 'restore-compensation',     expectedIntervalMs: 60 * 60 * 1000,      label: 'toutes les heures (compensation crédit wallet/referral)' },
 ];
 const KNOWN_CRONS = CRONS.map((c) => c.name);
 type CronName = string;
