@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shapeAspect, type MockupShape } from '@/lib/products/product-mockup';
+import { shapeAspect, mockupForIcon, toMockupFinish, MOCKUP_BY_ICON, type MockupShape } from '@/lib/products/product-mockup';
 
 describe('ProductMockup — shapeAspect (vraie forme par produit)', () => {
   it.each([
@@ -21,5 +21,32 @@ describe('ProductMockup — shapeAspect (vraie forme par produit)', () => {
 
   it('forme inconnue → fallback carte de visite (pas de NaN)', () => {
     expect(shapeAspect('bogus' as MockupShape)).toBeCloseTo(3.5 / 2, 5);
+  });
+});
+
+describe('mockupForIcon — forme/finition par famille (source unique)', () => {
+  it('banner→banner, plane→flyer, label→sticker, book→folded', () => {
+    expect(mockupForIcon('banner').shape).toBe('banner');
+    expect(mockupForIcon('plane').shape).toBe('flyer');
+    expect(mockupForIcon('label').shape).toBe('sticker');
+    expect(mockupForIcon('book').shape).toBe('folded');
+  });
+  it('chaque entrée a une forme valide (ratio > 0) et une finition', () => {
+    for (const v of Object.values(MOCKUP_BY_ICON)) {
+      expect(shapeAspect(v.shape)).toBeGreaterThan(0);
+      expect(v.finish).toBeTruthy();
+    }
+  });
+});
+
+describe('toMockupFinish — normalise le finishClass du nom produit', () => {
+  it('valeur connue → conservée', () => {
+    expect(toMockupFinish('gloss', 'plain')).toBe('gloss');
+    expect(toMockupFinish('foil', 'plain')).toBe('foil');
+  });
+  it('vide / inconnu / null → fallback famille', () => {
+    expect(toMockupFinish('', 'matte')).toBe('matte');
+    expect(toMockupFinish('weird', 'kraft')).toBe('kraft');
+    expect(toMockupFinish(null, 'soft')).toBe('soft');
   });
 });

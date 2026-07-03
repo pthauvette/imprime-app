@@ -18,6 +18,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import type { EnrichedProduct } from '@/lib/products/overrides';
+import ProductMockup from '@/components/wizard/ProductMockup';
+import { toMockupFinish, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 
 type SortKey = 'popular' | 'name-asc' | 'name-desc' | 'id-asc';
@@ -76,8 +78,13 @@ const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
 
 export default function ProductListClient({
   products,
+  mockupShape,
+  mockupFinish,
 }: {
   products: EnrichedProduct[];
+  /** Forme/finition de la famille — chaque row rend un mini-mockup à sa vraie forme. */
+  mockupShape: MockupShape;
+  mockupFinish: MockupFinish;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -329,7 +336,7 @@ export default function ProductListClient({
       ) : (
         <div className="product-list">
           {visible.map(({ p, flags }, i) => (
-            <ProductRow key={p.id} product={p} flags={flags} index={i} />
+            <ProductRow key={p.id} product={p} flags={flags} index={i} mockupShape={mockupShape} mockupFinish={mockupFinish} />
           ))}
         </div>
       )}
@@ -341,10 +348,14 @@ function ProductRow({
   product,
   flags,
   index,
+  mockupShape,
+  mockupFinish,
 }: {
   product: EnrichedProduct;
   flags: Flags;
   index: number;
+  mockupShape: MockupShape;
+  mockupFinish: MockupFinish;
 }) {
   return (
     <Link
@@ -353,9 +364,9 @@ function ProductRow({
       style={{ '--i': String(index) } as React.CSSProperties}
     >
       <div className="product-thumb">
-        <div className={`product-thumb-img ${flags.finishClass}`}>
-          <div className="logo-mock" />
-        </div>
+        <span className="product-thumb-mock">
+          <ProductMockup shape={mockupShape} finish={toMockupFinish(flags.finishClass, mockupFinish)} height={56} />
+        </span>
       </div>
       <div className="product-info">
         <div className="product-info-top">

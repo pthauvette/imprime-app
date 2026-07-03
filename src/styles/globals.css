@@ -9795,3 +9795,13 @@ a, button, [role="button"], input[type="checkbox"] {
   transition: transform var(--dur-base) var(--ease-spring);
 }
 .cat-card:hover .cat-mockup { transform: scale(1.04) rotate(1deg); }
+
+/* Vignette de la liste produit (ProductListClient) : mini-mockup ProductMockup à la
+   place de l'ancien `.product-thumb-img` plat. Le survol de la row l'anime (l'ancienne
+   règle .product-thumb-img est morte, le mockup ne porte plus cette classe). */
+.product-thumb-mock {
+  display: block;
+  width: 100%;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+.product-row:hover .product-thumb-mock { transform: scale(1.04) rotate(-1deg); }
