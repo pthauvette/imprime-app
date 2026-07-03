@@ -127,6 +127,20 @@ export const POST = withErrorHandler(async (req: Request) => {
     s.status === 'fulfilled' ? s.value : { to: ADMIN_EMAILS[i]!, sent: false },
   );
 
+  // Audit 2026-07 #5 — observabilité des échecs partiels. `anySent` (plus bas)
+  // masque QUELS admins n'ont pas reçu le message : sur un batch mixte (2 OK,
+  // 1 fail), la route renvoie 200 et rien ne dit lequel a échoué. On log les
+  // destinataires en échec (adresses d'équipe internes, pas du PII client) pour
+  // que le retry-queue/DEAD soit corrélable côté ops. Non-fatal (le message est
+  // déjà en DB + notifié Slack ; la queue retente les FAILED).
+  const failedAdmins = sends.filter((s) => !s.sent).map((s) => s.to);
+  if (failedAdmins.length > 0) {
+    log.warn(
+      { failedAdmins, sentCount: sends.length - failedAdmins.length, total: sends.length },
+      'contact: envoi admin partiellement échoué (les autres sont partis ; la queue retente les FAILED)',
+    );
+  }
+
   // Audit log pour traçabilité + détection abus
   await recordAdminAudit({
     kind: 'ADMIN_RESEND_EMAIL', // reuse — generic email kind
