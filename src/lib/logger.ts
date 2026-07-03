@@ -33,30 +33,35 @@ const LEVEL = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 
  * futur log, sans rustines à maintenir. Les clés distinctes (ex. `adminEmail` du
  * personnel) ne sont PAS touchées — utile au débogage des notifs.
  *
+ * Audit 2026-07 — fast-redact (moteur Pino) ne supporte PAS les wildcards
+ * récursifs (`**`) : `*.email` seul laissait fuir un email niché à profondeur ≥2
+ * (ex. `{order:{user:{email}}}`) — prouvé empiriquement. On énumère donc les
+ * profondeurs 1→4 (`k`, `*.k`, `*.*.k`, `*.*.*.k`) pour chaque clé sensible.
+ *
  * Exporté pour être testable (tests/logger-redaction.test.ts).
  */
+const SENSITIVE_KEYS = [
+  // Credentials
+  'password',
+  'secret',
+  'token',
+  // PII client (Loi 25) + courriel destinataire loggé sous `to`/`recipient`
+  // (audit v3 M5, emails/queue.ts, crons d'envoi). `adminEmail` (personnel) ne
+  // matche aucun de ces patterns → reste non censuré (débogage notifs).
+  'email',
+  'phone',
+  'to',
+  'recipient',
+];
+
+/** Racine + imbrication jusqu'à profondeur 4 (fast-redact n'a pas de `**`). */
+const nestedRedactPaths = SENSITIVE_KEYS.flatMap((k) => [k, `*.${k}`, `*.*.${k}`, `*.*.*.${k}`]);
+
 export const REDACT_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
   'req.headers["stripe-signature"]',
-  'password',
-  'secret',
-  'token',
-  '*.password',
-  '*.secret',
-  '*.token',
-  // PII client (Loi 25) — niveau racine + un niveau d'imbrication.
-  'email',
-  '*.email',
-  'phone',
-  '*.phone',
-  // Audit v3 M5 — le courriel destinataire est souvent loggé sous `to`
-  // (emails/queue.ts, crons d'envoi) ou `recipient`. `adminEmail` (personnel)
-  // reste volontairement non censuré.
-  'to',
-  '*.to',
-  'recipient',
-  '*.recipient',
+  ...nestedRedactPaths,
 ];
 
 // En prod : JSON brut pour CloudWatch / Sentry

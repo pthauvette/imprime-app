@@ -49,4 +49,34 @@ describe('logger — redaction PII (Loi 25)', () => {
     expect(out).not.toContain('hunter2');
     expect(out).not.toContain('"abc"');
   });
+
+  it('censure un email/phone niché en PROFONDEUR 3 et 4 (Audit 2026-07 — fast-redact sans **)', () => {
+    const out = capture((l) =>
+      l.info(
+        {
+          d3: { order: { email: 'd3@exemple.ca', phone: '5140000003' } }, // *.*.{email,phone}
+          d4: { data: { order: { email: 'd4@exemple.ca' } } }, // *.*.*.email
+        },
+        'x',
+      ),
+    );
+    expect(out).not.toContain('d3@exemple.ca');
+    expect(out).not.toContain('5140000003');
+    expect(out).not.toContain('d4@exemple.ca');
+    expect(out).toContain('[REDACTED]');
+  });
+
+  it('censure `to`/`recipient` + un credential nichés en profondeur (Audit 2026-07)', () => {
+    const out = capture((l) =>
+      l.info(
+        {
+          msg: { batch: { to: 'deep@exemple.ca' } }, // *.*.to
+          ctx: { auth: { token: 'deep-token-xyz' } }, // *.*.token
+        },
+        'x',
+      ),
+    );
+    expect(out).not.toContain('deep@exemple.ca');
+    expect(out).not.toContain('deep-token-xyz');
+  });
 });
