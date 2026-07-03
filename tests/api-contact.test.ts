@@ -25,6 +25,26 @@ vi.mock('@/lib/ratelimit', () => ({
   clientIp: vi.fn(() => '1.2.3.4'),
 }));
 
+// Audit #5 — on mock TOUTE la surface de logger (log + enfants) pour capturer
+// log.warn sans casser les vraies deps (api-helpers/admin-audit qui logguent).
+// hoisted → objet stable à travers les vi.resetModules() de importFresh.
+const mockLog = vi.hoisted(() => {
+  const flat = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), fatal: vi.fn(), trace: vi.fn() });
+  const withChild = () => ({ ...flat(), child: () => flat() });
+  return withChild();
+});
+vi.mock('@/lib/logger', () => ({
+  log: mockLog,
+  logStripe: mockLog.child(),
+  logSinalite: mockLog.child(),
+  logAuth: mockLog.child(),
+  logEmail: mockLog.child(),
+  logS3: mockLog.child(),
+  logAdmin: mockLog.child(),
+  logWebhook: mockLog.child(),
+  REDACT_PATHS: [],
+}));
+
 import { prisma } from '@/lib/db';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
 import { rateLimit } from '@/lib/ratelimit';
@@ -157,6 +177,27 @@ describe('POST /api/contact', () => {
       message: 'Message assez long ici',
     }));
     expect(res.status).toBe(200);
+  });
+
+  it('Audit #5 — batch partiel : log.warn liste QUELS admins ont échoué', async () => {
+    vi.stubEnv('ADMIN_EMAILS', 'a@plio.ca,b@plio.ca');
+    vi.mocked(sendAdminCustomMessageEmail)
+      .mockResolvedValueOnce({ sent: false, id: 'del_fail' } as never) // a@ échoue
+      .mockResolvedValueOnce({ sent: true, id: 'del_ok' } as never); // b@ ok
+    const POST = await importFresh();
+    await POST(makeReq({ name: 'Test', email: 'test@plio.ca', subject: 'Test', message: 'Message assez long ici' }));
+    // `anySent` renvoie 200, mais l'échec de a@ n'est plus masqué : il est loggé.
+    expect(mockLog.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ failedAdmins: ['a@plio.ca'], sentCount: 1, total: 2 }),
+      expect.stringMatching(/partiellement échoué/),
+    );
+  });
+
+  it('Audit #5 — aucun log.warn si tous les envois réussissent', async () => {
+    vi.stubEnv('ADMIN_EMAILS', 'a@plio.ca,b@plio.ca');
+    const POST = await importFresh();
+    await POST(makeReq({ name: 'Test', email: 'test@plio.ca', subject: 'Test', message: 'Message assez long ici' }));
+    expect(mockLog.warn).not.toHaveBeenCalled();
   });
 
   it('respect rate limit (return 429 si bucket dépassé)', async () => {

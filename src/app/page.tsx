@@ -74,7 +74,11 @@ export default async function LandingPage() {
                 <span className="hero-trust-item">100 % imprimé au Canada</span>
               </div>
             </div>
-            <div className="hero-visual">
+            {/* Audit 2026-07 #7 (a11y) — cartes empilées + badges purement
+                décoratifs (noms/coordonnées fictifs). aria-hidden les retire de
+                l'arbre d'accessibilité : sinon un lecteur d'écran énonce « Sophie
+                Beauchamp… Maison Verte… » avant le vrai contenu (CTA, trust bar). */}
+            <div className="hero-visual" aria-hidden="true">
               <div className="stack-card stack-1">
                 <div className="scn">Sophie Beauchamp</div>
                 <div className="scd"></div>
