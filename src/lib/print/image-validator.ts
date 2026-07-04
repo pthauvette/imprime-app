@@ -21,8 +21,9 @@ export interface ImageValidationResult {
 
 /** < ce DPI à la taille d'impression = clairement une image écran/web → BLOQUE. */
 const ERROR_DPI = 100;
-/** 100–150 DPI = imprimable mais qualité réduite (idéal 300) → warning. */
-const WARN_DPI = 150;
+/** Sinalite exige un MINIMUM de 300 DPI. En-dessous, on avertit (non bloquant) :
+ *  le rendu peut être flou et Sinalite décline ce défaut (« customer artwork »). */
+const WARN_DPI = 300;
 /** Sans taille connue : moins que ça sur un côté = quasi sûrement trop petit. */
 const ABS_MIN_PX = 400;
 
@@ -55,7 +56,7 @@ export function assessImageResolution(
       issues.push({
         level: 'warning',
         code: 'image-dpi-low',
-        message: `Résolution faible : ~${effectiveDpi} DPI (idéal 300). L'impression peut paraître légèrement floue. Acceptable si tu sais ce que tu fais.`,
+        message: `Résolution sous le minimum de 300 DPI de notre imprimeur : ~${effectiveDpi} DPI. L'impression risque de paraître floue et ce défaut ne serait pas couvert. Fournis une image plus grande si possible.`,
         detail: `${widthPx}×${heightPx}px`,
       });
     }
