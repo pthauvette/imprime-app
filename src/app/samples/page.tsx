@@ -24,9 +24,9 @@ export const dynamic = 'force-dynamic';
 const PAPERS: SampleOption[] = [
   { key: '14pt Coated', name: '14pt Coated', desc: 'Le standard. Surface lisse, durable, excellent rendu CMYK.', spec: '14pt · 350 g/m² · couché brillant', swatchClass: 'coated14', badge: 'Bestseller' },
   { key: '16pt Coated', name: '16pt Coated', desc: 'Plus épais que le standard. Meilleur ressenti premium.', spec: '16pt · 400 g/m² · couché brillant', swatchClass: 'coated16' },
-  { key: '18pt Soft Touch', name: '18pt Soft Touch', desc: 'Sensation veloutée unique. L\'option signature.', spec: '18pt · 450 g/m² · soft touch lamination', swatchClass: 'soft', badge: '★ Coup de cœur' },
+  { key: '16pt Soft Touch', name: '16pt Soft Touch', desc: 'Sensation veloutée unique. L\'option signature.', spec: '16pt · 400 g/m² · pelliculage soft touch', swatchClass: 'soft', badge: '★ Coup de cœur' },
   { key: '14pt Matte', name: '14pt Matte Finish', desc: 'Finition mate sans reflet. Idéal pour la photo sombre.', spec: '14pt · 350 g/m² · finition mate', swatchClass: 'matte' },
-  { key: 'Kraft naturel', name: 'Kraft naturel', desc: 'Papier recyclé brun. Esthétique artisanale, engagement écologique.', spec: '300 g/m² · 100 % recyclé · non couché', swatchClass: 'kraft', badge: 'Eco' },
+  { key: 'Kraft naturel', name: 'Kraft naturel', desc: 'Papier recyclé brun. Esthétique artisanale, engagement écologique.', spec: '18pt · 100 % recyclé · non couché', swatchClass: 'kraft', badge: 'Eco' },
   { key: 'Linen', name: 'Linen (texture lin)', desc: 'Texture tissée. Donne une sensation tactile distinctive.', spec: '320 g/m² · texture lin gaufré', swatchClass: 'linen' },
 ];
 

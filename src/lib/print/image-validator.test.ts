@@ -24,6 +24,14 @@ describe('assessImageResolution — DPI à la taille d\'impression', () => {
     expect(assessImageResolution(420, 240, bc).level).toBe('warning');
   });
 
+  it('200 DPI → warning (aligné sur le minimum Sinalite 300, non bloquant)', () => {
+    // 3.5×2 @ 200 DPI = 700×400. Avant : 'ok' (seuil 150) ; maintenant 'warning' (seuil 300).
+    const r = assessImageResolution(700, 400, bc);
+    expect(r.level).toBe('warning');
+    expect(r.issues[0].code).toBe('image-dpi-low');
+    expect(r.meta?.effectiveDpi).toBe(200);
+  });
+
   it('tolère l\'orientation inversée (portrait pour un produit paysage)', () => {
     // 600×1050 (portrait) pour 3.5×2 → en rotation = 300 DPI → ok
     expect(assessImageResolution(600, 1050, bc).level).toBe('ok');
