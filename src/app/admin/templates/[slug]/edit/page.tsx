@@ -305,7 +305,7 @@ export default async function AdminTemplateEditorPage({
                 <strong style={{ color: 'var(--text-secondary)' }}>
                   {template.variant}&quot;
                 </strong>{' '}
-                · CMYK 300 DPI · bleed 1/8&quot;
+                · 300 DPI · bleed 1/8&quot;
               </span>
               <span style={{ marginLeft: 'auto' }}>
                 Rendu PDF réel via{' '}

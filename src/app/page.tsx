@@ -138,7 +138,7 @@ export default async function LandingPage() {
               <div className="how-card">
                 <div className="how-card-num">02</div>
                 <h3 className="how-card-title">Téléverse</h3>
-                <p className="how-card-text">Dépose ton PDF, AI ou PSD. On vérifie bleed, résolution et CMYK automatiquement. Pas de design ? On a des templates.</p>
+                <p className="how-card-text">Dépose ton PDF, AI ou PSD. On vérifie bleed et résolution automatiquement. Pas de design ? On a des templates.</p>
                 <div className="how-card-time">Validation en temps réel</div>
               </div>
               <div className="how-card">
@@ -154,7 +154,7 @@ export default async function LandingPage() {
           <section id="products" className="products-section" style={{ maxWidth: "none", padding: "0", margin: "0" } as React.CSSProperties}>
             <div className="products-section-inner">
               <div className="section-eyebrow">Catalogue</div>
-              <h2 className="section-title">Plus de <em>1 200 produits</em> imprimés au Canada.</h2>
+              <h2 className="section-title">Des <em>centaines de produits</em> imprimés au Canada.</h2>
               <p className="section-lede">Du basique au spécialité — papier, finition, format, le tout configurable.</p>
               <div className="products-grid">
                 <a href="/order/start" className="product-promo">
@@ -223,7 +223,7 @@ export default async function LandingPage() {
               <div className="feature-card">
                 <div className="feature-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg></div>
                 <h3 className="feature-title">Prépresse incluse</h3>
-                <p className="feature-text">Notre équipe vérifie ton fichier (bleed, CMYK, fonts, résolution) avant la presse. Inclus dans le prix, pas en sus.</p>
+                <p className="feature-text">Notre équipe vérifie ton fichier (bleed, dimensions, résolution) avant la presse. Inclus dans le prix, pas en sus.</p>
               </div>
               <div className="feature-card">
                 <div className="feature-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="2" y1="20" x2="22" y2="20" /></svg></div>

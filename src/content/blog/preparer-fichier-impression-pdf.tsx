@@ -43,7 +43,7 @@ export default function Post() {
       <h2>2. Bleed (fond perdu) de 3 mm</h2>
       <p>
         Le bleed, c&apos;est l&apos;extension de ton design au-delà du format final, pour que
-        si la coupe dévie de 0,5 mm, il n&apos;y ait pas de liseré blanc apparent.
+        si la coupe dévie de 1 à 2 mm, il n&apos;y ait pas de liseré blanc apparent.
       </p>
       <p>
         <strong>Comment l&apos;ajouter :</strong>
