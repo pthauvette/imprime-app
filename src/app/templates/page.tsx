@@ -39,7 +39,7 @@ export default async function TemplatesPage({ searchParams }: PageProps) {
         <h1 className="page-title">Pars d'un design <em>fini.</em></h1>
         <p className="page-lede">
           Modifie le texte et les couleurs en 30 secondes, on génère le PDF print-ready
-          (CMYK, 300 DPI, bleed 1/8") prêt à imprimer. Aucun logiciel à installer.
+          (300 DPI, bleed 1/8", converti CMYK à la presse) prêt à imprimer. Aucun logiciel à installer.
         </p>
 
         <div className="tpl-filters" style={{ marginTop: 32 }}>

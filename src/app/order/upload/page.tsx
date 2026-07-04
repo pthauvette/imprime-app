@@ -196,8 +196,9 @@ function UploadPageInner() {
           <div className="step-eyebrow">Étape 04</div>
           <h1 className="step-question">Téléverse ton <em>design.</em></h1>
           <p className="step-lede">
-            PDF, AI, EPS, PSD, JPG, PNG ou TIFF (max 150 MB). On vérifie automatiquement bleed,
-            résolution et CMYK avant la production.
+            PDF, AI, EPS, PSD, JPG, PNG ou TIFF (max 150 MB). On vérifie automatiquement le bleed,
+            les dimensions et la résolution avant la production. Fournis un fichier CMYK : la
+            conversion des couleurs se fait à la presse.
           </p>
 
           {designId && templateLoading && (
