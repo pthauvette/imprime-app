@@ -23,9 +23,9 @@ export default function RefundPolicyPage() {
         <main>
           {/* HERO */}
           <section className="refund-hero">
-            <div className="page-eyebrow">Politique de remboursement · 16 mai 2026</div>
-            <h1>Pas content ? <em>On rembourse.</em></h1>
-            <p>Notre politique tient en 3 cas : erreur de notre part, défaut de qualité, ou changement d'avis avant que la presse démarre.</p>
+            <div className="page-eyebrow">Politique de remboursement · 3 juillet 2026</div>
+            <h1>Un défaut ? <em>On réimprime.</em></h1>
+            <p>Notre garantie tient en 3 cas : erreur de notre part, défaut de qualité, ou annulation avant le lancement en production. On priorise la réimpression ; le remboursement suit lorsqu'une réimpression n'est pas possible.</p>
           </section>
       
           {/* SCENARIOS */}
@@ -35,10 +35,10 @@ export default function RefundPolicyPage() {
                 <div className="scenario-icon">✓</div>
                 <div className="scenario-num">★ Cas 01</div>
                 <h2>Erreur de prepress</h2>
-                <p>Si notre validateur a laissé passer un fichier qui sort mal — bleed manquant non détecté, profil couleur mal converti, ou erreur de notre opérateur — on rembourse <strong>100 %</strong> et on réimprime <strong>gratuit sous 48 h</strong>.</p>
+                <p>Si l'erreur vient de <strong>chez nous</strong> — une bévue de notre opérateur ou de la presse — on <strong>réimprime gratuitement</strong>, généralement mis en production sous 48 h ouvrables. Si la réimpression n'est pas possible, on te rembourse.</p>
                 <p>Aucune question, aucun formulaire. Une photo suffit.</p>
                 <div className="scenario-meta">
-                  <span className="scenario-pill">Refund 100 %</span>
+                  <span className="scenario-pill">Réimpression gratuite</span>
                   <a href="#faq" className="scenario-link">Voir les exemples →</a>
                 </div>
               </div>
@@ -47,10 +47,10 @@ export default function RefundPolicyPage() {
                 <div className="scenario-icon">!</div>
                 <div className="scenario-num">★ Cas 02</div>
                 <h2>Défaut de qualité</h2>
-                <p>Inspecte ton colis à la réception. Si tu trouves un défaut imputable à la presse (taches, mauvaise coupe, papier abîmé), envoie une photo dans les <strong>48 heures</strong> à <a href="mailto:bonjour@plio.ca" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>bonjour@plio.ca</a>.</p>
-                <p>On rembourse et on réimprime. Délai de remboursement : <strong>5 à 10 jours bancaires</strong> après acceptation.</p>
+                <p>Inspecte ton colis à la réception. Si tu trouves un défaut imputable à la presse (taches, coupe hors tolérance, papier abîmé), envoie une photo dans les <strong>10 jours ouvrables</strong> à <a href="mailto:bonjour@plio.ca" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>bonjour@plio.ca</a>. Un dommage visible à la réception se signale dans les 24 h.</p>
+                <p>On réimprime le tirage. Si la réimpression n'est pas possible, on rembourse (délai bancaire <strong>5 à 10 jours</strong> après acceptation).</p>
                 <div className="scenario-meta">
-                  <span className="scenario-pill">48 h pour réclamer</span>
+                  <span className="scenario-pill">10 jours pour réclamer</span>
                   <a href="/contact" className="scenario-link">Ouvrir un ticket →</a>
                 </div>
               </div>
@@ -59,10 +59,10 @@ export default function RefundPolicyPage() {
                 <div className="scenario-icon">i</div>
                 <div className="scenario-num">★ Cas 03</div>
                 <h2>Changement d'avis</h2>
-                <p>Avant que la production démarre — généralement <strong>2 heures</strong> après le paiement — tu peux <strong>demander l&apos;annulation</strong> depuis ton compte. On traite ta demande rapidement et, si la presse n&apos;a pas démarré, on émet un <strong>refund complet</strong> sur ta carte d&apos;origine (délai bancaire 5 à 10 jours, cf. ci-dessus).</p>
-                <p>Après le démarrage de la presse, ce n'est plus possible : on a déjà engagé du matériel, de l'encre et du temps machine.</p>
+                <p>Tu peux <strong>demander l&apos;annulation</strong> depuis ton compte tant que ta commande n&apos;a pas été <strong>lancée en production</strong> chez notre imprimeur — ce qui survient souvent quelques minutes après le paiement. Si la production n&apos;a pas commencé, on rembourse sur ta carte d&apos;origine (délai bancaire 5 à 10 jours).</p>
+                <p>Une fois la production commencée, l&apos;annulation devient plus difficile : notre imprimeur applique des <strong>frais d&apos;annulation (min. 25 $ par article)</strong> lorsque le travail est déjà en préparation, et elle peut ne plus être possible selon l&apos;avancement. Ces frais, ainsi que le matériel et le temps machine engagés, sont déduits du remboursement.</p>
                 <div className="scenario-meta">
-                  <span className="scenario-pill">2 h pour annuler</span>
+                  <span className="scenario-pill">Avant le lancement en production</span>
                   <a href="/orders" className="scenario-link">Mes commandes →</a>
                 </div>
               </div>
@@ -122,17 +122,17 @@ export default function RefundPolicyPage() {
             <div className="faq-list">
               <details className="faq-item" open>
                 <summary className="faq-q">Quel est le délai pour réclamer ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Tu as <strong>48 heures à compter de la livraison</strong> pour signaler un défaut visuel (coupe, impression, papier). Au-delà, on considère le colis accepté. Pour une erreur de prepress flagrante, le délai est étendu à <strong>30 jours</strong> — on couvre l'erreur même si tu réalises sur le tard.</div>
+                <div className="faq-a">Tu as <strong>10 jours ouvrables à compter de la livraison</strong> pour signaler un défaut (coupe, impression, papier). Au-delà, la commande est réputée acceptée. Un dommage <em>visible</em> à la réception se signale dans les 24 h. Plus tu nous écris tôt, plus vite on règle — et ça nous permet de faire valoir ton dossier auprès de notre imprimeur dans les délais.</div>
               </details>
       
               <details className="faq-item">
                 <summary className="faq-q">Que se passe-t-il si Postes Canada (ou UPS) perd mon colis ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Si le tracking n'a pas bougé depuis <strong>10 jours ouvrables</strong>, on ouvre une enquête avec le transporteur. Pendant ce temps, on lance la <strong>réimpression à nos frais</strong> sans attendre la conclusion — tu n'as pas à patienter sur le résultat de l'enquête. C'est nous qui gérons la réclamation transporteur.</div>
+                <div className="faq-a">Le risque de transport passe au transporteur dès la remise du colis (cf. nos <a href="/legal/terms" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>conditions</a>, art. 5). Si le tracking n'a pas bougé depuis <strong>10 jours ouvrables</strong>, on ouvre une enquête avec le transporteur et on te tient informé. Une fois la perte confirmée, on organise une réimpression ou un dédommagement selon l'indemnisation obtenue. C'est nous qui gérons la réclamation transporteur pour toi.</div>
               </details>
       
               <details className="faq-item">
                 <summary className="faq-q">Puis-je échanger contre un autre produit ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Pas directement, parce que chaque commande est imprimée sur mesure (pas de stock). Mais on peut <strong>rembourser ta commande initiale</strong> et te donner un <strong>crédit bonus de 10 %</strong> à appliquer sur ta nouvelle commande, à la condition que la réimpression ait un motif valide (erreur de prepress, défaut). Pas applicable aux changements d'avis post-production.</div>
+                <div className="faq-a">Pas directement, parce que chaque commande est imprimée sur mesure (pas de stock). Si la réimpression a un motif valide (erreur de notre côté, défaut de fabrication confirmé), on réimprime le bon produit ; si ce n'est pas possible, on <strong>rembourse ta commande initiale</strong>. Non applicable à un simple changement d'avis une fois la production lancée.</div>
               </details>
       
               <details className="faq-item">
@@ -142,22 +142,22 @@ export default function RefundPolicyPage() {
       
               <details className="faq-item">
                 <summary className="faq-q">Et si la couleur imprimée ne correspond pas à mon écran ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Ton écran utilise un profil RGB rétro-éclairé, la presse imprime en CMYK sur papier réflectif — il y aura toujours un écart, c'est de la physique. On garantit la conformité au <strong>BAT numérique CMYK</strong> que tu as validé, avec une tolérance industrielle de <strong>Delta-E ≤ 4</strong>. Au-delà, c'est un défaut couvert. Pour les commandes critiques (logo de marque, packaging), commande un <strong>tirage d'épreuve</strong> à 18 $ avant la grande série.</div>
+                <div className="faq-a">Ton écran utilise un profil RVB rétro-éclairé, la presse imprime en CMJN sur papier réflectif — il y aura toujours un écart, c'est de la physique. La reproduction exacte des couleurs <strong>n'est pas garantie</strong> et une variation raisonnable est normale (elle ne constitue pas un défaut), en particulier sur les produits à vernis ou pelliculage. Pour une couleur critique (logo de marque, packaging), commande un <strong>tirage d'épreuve physique</strong> à 18 $ avant la grande série — c'est le seul moyen fiable de valider le rendu réel.</div>
               </details>
       
               <details className="faq-item">
                 <summary className="faq-q">Qui paie le retour du colis défectueux ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">En général, <strong>tu n'as rien à retourner</strong>. Les photos suffisent pour les défauts visuels. Si on a besoin de récupérer le colis pour analyse (rare, ~3 % des cas), on t'envoie une étiquette UPS prépayée. Tu ne sors pas un cent de ta poche.</div>
+                <div className="faq-a">Le plus souvent, les photos suffisent et <strong>tu n'as rien à retourner</strong>. Dans certains cas, notre imprimeur exige toutefois le retour du produit défectueux avant d'émettre la réimpression ou le remboursement : on t'envoie alors une <strong>étiquette prépayée</strong> et on te demande de poster le colis sous 15 jours. Tu n'as aucuns frais de retour à ta charge.</div>
               </details>
       
               <details className="faq-item">
                 <summary className="faq-q">Mon fichier était mauvais mais le validateur n'a rien dit. Qui paie ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Notre validateur couvre les erreurs <strong>techniquement détectables</strong> : bleed, résolution, mode couleur, fonts manquantes. Pour ces cas, si on a laissé passer, c'est <strong>de notre faute</strong> — réimpression gratuite. Par contre, le validateur ne juge pas le design (faute de frappe, mauvais numéro de téléphone, choix esthétique malheureux) — ces erreurs restent à ta charge.</div>
+                <div className="faq-a">Notre validateur automatique vérifie ce qui est <strong>techniquement mesurable</strong> : le fond perdu (bleed), les dimensions du PDF et la résolution des images. Le <strong>mode couleur et les polices ne sont pas validés automatiquement</strong> — la couleur est convertie en CMJN à la presse, et il t'incombe d'aplatir/vectoriser tes polices. Le validateur ne juge pas non plus le design (faute de frappe, mauvais numéro, choix esthétique) : ces erreurs restent à ta charge. La validation est une <strong>aide</strong>, pas un substitut à ta vérification finale du bon à tirer.</div>
               </details>
       
               <details className="faq-item">
                 <summary className="faq-q">Combien de fois puis-je faire réimprimer une commande ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Une réimpression couverte par garantie est <strong>illimitée tant que le défaut persiste</strong>. Si la première réimpression sort aussi mal, on relance — c'est notre problème, pas le tien. En pratique, ça arrive dans moins de 0,3 % des cas grâce au double contrôle qualité de notre presse.</div>
+                <div className="faq-a">Sur un défaut de fabrication confirmé, on réimprime. Si la réimpression présente encore le <strong>même défaut confirmé</strong>, on te rembourse intégralement plutôt que de relancer indéfiniment. En pratique, un deuxième défaut arrive dans moins de 0,3 % des cas grâce au contrôle qualité de la presse.</div>
               </details>
             </div>
           </section>
