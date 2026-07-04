@@ -92,6 +92,10 @@ export type SinalitePriceResponse = z.infer<typeof SinalitePriceResponse>;
 
 // ─── ORDER ────────────────────────────────────────────────────────────────
 
+// NB : les méthodes internationales (UPS Worldwide, FedEx International …) sont
+// listées pour tolérer une réponse Sinalite complète, mais le pipeline Plio est
+// verrouillé sur le Canada (ShipCountry='CA', cf. CaProvince). Elles ne sont pas
+// proposées au checkout tant que l'international n'est pas ouvert.
 export const ShipMethod = z.enum([
   'UPS Standard',
   'UPS Expedited',
