@@ -265,7 +265,7 @@ export default function DesignEditor({
             borderTop: '1px solid var(--border-subtle)',
           }}
         >
-          📐 {template.variant}" · CMYK 300 DPI · bleed 1/8" inclus
+          📐 {template.variant}" · 300 DPI · bleed 1/8" inclus
         </div>
       </aside>
 
