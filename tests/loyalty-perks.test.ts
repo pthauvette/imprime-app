@@ -12,10 +12,22 @@ import { describe, it, expect } from 'vitest';
 import { applyShippingPerks } from '@/lib/customers/perks';
 
 describe('applyShippingPerks', () => {
-  it('GOLD avec shipping payé → free shipping', () => {
+  it('GOLD sous le plafond (25 $) → livraison gratuite', () => {
+    const r = applyShippingPerks({ tier: 'GOLD', shippingPrice: 18 });
+    expect(r.effectiveShippingPrice).toBe(0);
+    expect(r.goldFreeShipping).toBe(true);
+  });
+
+  it('GOLD pile au plafond (25 $) → gratuit', () => {
     const r = applyShippingPerks({ tier: 'GOLD', shippingPrice: 25 });
     expect(r.effectiveShippingPrice).toBe(0);
     expect(r.goldFreeShipping).toBe(true);
+  });
+
+  it('GOLD au-delà du plafond (F7) → Plio absorbe 25 $, le surplus est facturé, pas de label « gratuit »', () => {
+    const r = applyShippingPerks({ tier: 'GOLD', shippingPrice: 40 });
+    expect(r.effectiveShippingPrice).toBe(15); // 40 − 25 (plafond par défaut)
+    expect(r.goldFreeShipping).toBe(false);
   });
 
   it('GOLD avec shipping déjà 0 → no-op', () => {
