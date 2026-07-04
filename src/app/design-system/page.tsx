@@ -51,7 +51,7 @@ export default function DesignSystemPage() {
               <div className="hero-meta">
                 <div>VOIX<strong>Linear × MUJI × Stripe</strong></div>
                 <div>MARCHÉ<strong>Canada · Bilingue FR/EN</strong></div>
-                <div>CATALOGUE<strong>1 200+ produits (CA)</strong></div>
+                <div>CATALOGUE<strong>Des centaines de produits (CA)</strong></div>
                 <div>VERSION<strong>v0.1 · 2026-05-15</strong></div>
               </div>
             </section>
