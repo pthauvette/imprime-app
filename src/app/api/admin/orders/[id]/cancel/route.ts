@@ -18,9 +18,16 @@ import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { markRefundIssued, markOrderFailed } from '@/lib/db/orders';
 import { sendOrderCancelledEmail } from '@/lib/emails/send';
 import { getStripe } from '@/lib/stripe/client';
+import { logStripe } from '@/lib/logger';
 
 const BodySchema = z.object({
   reason: z.string().min(1).max(500),
+  // Alignement Sinalite (F2/F3) — répercuter les frais d'annulation Sinalite
+  // (min. 25 $ PAR ARTICLE) sur le remboursement. OPT-IN, défaut = refund complet :
+  // un cancel côté Plio (défaut/erreur de fabrication) ne doit JAMAIS facturer le
+  // client. À activer seulement pour un changement d'avis client sur une commande
+  // déjà partie en production.
+  chargeCancelFee: z.boolean().optional().default(false),
 });
 
 export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -47,35 +54,62 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     );
   }
 
-  // Refund full
   // Round 38 #3 — idempotencyKey : double-cancel = double refund risk.
   let refund: Stripe.Refund | null = null;
+  let cancelFeeCents = 0;
   if (order.status !== 'PENDING') {
+    // Alignement Sinalite F2/F3 — une fois la commande partie chez l'imprimeur
+    // (SUBMITTED/IN_PRODUCTION), Sinalite facture des frais d'annulation (min. 25 $
+    // PAR ARTICLE). Si l'admin choisit de les répercuter (changement d'avis client),
+    // on les déduit de la part CARTE. `order.amountCents` = charge carte NETTE
+    // (= grossTotal − crédits, cf. price-order.ts:222). Le frais ne sort donc QUE de
+    // la part Stripe ; la part wallet/referral reste intégralement restaurée.
+    const { computeCancelFeeCents } = await import('@/lib/orders/cancel-fee');
+    cancelFeeCents = computeCancelFeeCents({
+      status: order.status,
+      chargeCancelFee: body.chargeCancelFee ?? false,
+      amountCents: order.amountCents,
+      itemsCount: order.itemsCount,
+    });
+    const refundAmountCents = order.amountCents - cancelFeeCents;
+
     const { createHash } = await import('node:crypto');
     const cancelIdemKey = `ca_${createHash('sha256')
-      .update(JSON.stringify({ orderId: order.id, adminUserId: guard.userId }))
+      .update(JSON.stringify({ orderId: order.id, adminUserId: guard.userId, refundAmountCents }))
       .digest('hex')
       .slice(0, 48)}`;
     try {
-      refund = await getStripe().refunds.create({
-        payment_intent: order.paymentIntentId,
-        reason: 'requested_by_customer',
-        metadata: {
-          orderId: order.id,
-          adminUserId: guard.userId,
-          reason: body.reason,
-        },
-      }, { idempotencyKey: cancelIdemKey });
-      await markRefundIssued({ orderId: order.id, refundId: refund.id, amountCents: refund.amount });
-      // Audit v2 #1.4 — /cancel est sémantiquement un FULL refund → restaurer le
-      // crédit wallet débité (le refund Stripe ne rend que la part Stripe). Sans
-      // ça, le client perdait son wallet alors que l'email annonce le total
-      // remboursé. Helper partagé idempotent + non-fatal (cf. /refund).
+      if (refundAmountCents > 0) {
+        refund = await getStripe().refunds.create({
+          payment_intent: order.paymentIntentId,
+          // Sans frais → pas d'`amount` = refund COMPLET (comportement historique).
+          // Avec frais → refund PARTIEL de la part carte restante.
+          ...(cancelFeeCents > 0 && { amount: refundAmountCents }),
+          reason: 'requested_by_customer',
+          metadata: {
+            orderId: order.id,
+            adminUserId: guard.userId,
+            reason: body.reason,
+            cancelFeeCents: String(cancelFeeCents),
+          },
+        }, { idempotencyKey: cancelIdemKey });
+        await markRefundIssued({ orderId: order.id, refundId: refund.id, amountCents: refund.amount });
+      } else {
+        // Cas limite : les frais couvrent toute la part carte → aucun refund Stripe
+        // à émettre (la part crédit est tout de même rendue ci-dessous).
+        logStripe.warn(
+          { orderId: order.id, cancelFeeCents, amountCents: order.amountCents },
+          'cancel: frais d\'annulation ≥ charge carte — aucun refund Stripe émis',
+        );
+      }
+      // Audit v2 #1.4/#3.1 — restaurer INTÉGRALEMENT les crédits wallet + referral
+      // débités (le refund Stripe ne rend que la part carte). Les frais d'annulation
+      // ne touchent JAMAIS la part crédit → restauration inchangée. Helpers partagés,
+      // idempotents + non-fatals (verrou FOR UPDATE, cf. #427).
       const { restoreWalletCreditOnFullRefund } = await import('@/lib/wallet/operations');
-      await restoreWalletCreditOnFullRefund({ order, actorId: guard.userId, refundId: refund.id });
-      // Audit v2 #3.1 — symétrique pour le crédit referral débité à la confirmation.
+      await restoreWalletCreditOnFullRefund({ order, actorId: guard.userId, refundId: refund?.id });
       const { restoreReferralCreditOnFullRefund } = await import('@/lib/referrals/restore');
-      await restoreReferralCreditOnFullRefund({ order, actorId: guard.userId, refundId: refund.id });
+      await restoreReferralCreditOnFullRefund({ order, actorId: guard.userId, refundId: refund?.id });
     } catch (err) {
       return NextResponse.json(
         { error: `Refund failed: ${err instanceof Error ? err.message : 'unknown'}` },
@@ -90,6 +124,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
         refundId: refund?.id,
         adminUserId: guard.userId,
         action: 'manual-cancel',
+        cancelFeeCents,
       },
     });
   } else {
@@ -133,6 +168,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       reason: body.reason,
       refundId: refund?.id ?? null,
       refundedCents: refund ? refund.amount : 0,
+      cancelFeeCents,
       previousStatus: order.status,
       customerEmail: order.user.email,
     },
@@ -142,5 +178,6 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     ok: true,
     refundId: refund?.id ?? null,
     refundedCents: refund ? refund.amount : 0,
+    cancelFeeCents,
   });
 });
