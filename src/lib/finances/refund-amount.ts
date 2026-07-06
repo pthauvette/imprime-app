@@ -9,6 +9,19 @@
  * Stripe) dans `OrderEvent.data`. On le lit ici ; fallback sur le total de la
  * commande pour les events ANTÉRIEURS au fix (qui n'ont que { refundId }).
  */
+/**
+ * Statuts « commande génératrice de revenu net » — exclut PENDING (jamais payée),
+ * CANCELLED et FAILED (ventes annulées/remboursées, voidées). SOURCE UNIQUE
+ * partagée par les surfaces finances (dashboard, export XLSX, tax-report) pour
+ * qu'elles comptent TOUTES le revenu de la même façon (audit admin 2026-07 §3).
+ *
+ * Définition canonique : brut = Σ amountCents des commandes payées de ces statuts ;
+ * refunds = Σ montants REFUND_ISSUED SUR CES commandes (chemin /refund sur une
+ * commande vivante) ; net = brut − refunds. Une commande annulée est exclue du
+ * brut ET son refund est exclu (sinon double-soustraction).
+ */
+export const PAID_STATUSES = ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'] as const;
+
 export interface RefundEventLike {
   data: string | null;
   order: { amountCents: number } | null;

@@ -13,14 +13,12 @@ import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
-import { computeTax } from '@/lib/taxes';
-import type { CaProvince } from '@/lib/sinalite/types';
+import { computeTaxReport } from '@/lib/finances/tax-report';
+import { PAID_STATUSES } from '@/lib/finances/refund-amount';
 import { formatCurrency } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Rapport de taxes' };
-
-const PAID_STATUSES = ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'];
 
 interface SP {
   from?: string;
@@ -84,38 +82,47 @@ export default async function TaxReportPage({
 
   const orders = await prisma.order.findMany({
     where: {
-      status: { in: PAID_STATUSES },
+      status: { in: [...PAID_STATUSES] },
       paidAt: { gte: range.from, lte: toEnd, not: null },
     },
     select: {
+      id: true,
+      paidAt: true,
       shipProvince: true,
       subtotalCents: true,
+      discountCents: true,
+      resellerDiscountCents: true,
+      shippingCents: true,
+      taxCents: true,
       amountCents: true,
     },
     take: 50_000,
   });
 
-  // Aggregate per-province + per-tax-code
-  const summary = { gst: 0, pst: 0, qst: 0, hst: 0, subtotal: 0, totalTax: 0, charged: 0, orderCount: orders.length };
-  const provinces = new Map<string, { count: number; subtotal: number; tax: number }>();
-
-  for (const o of orders) {
-    const breakdown = computeTax(o.subtotalCents / 100, o.shipProvince as CaProvince);
-    let orderTax = 0;
-    for (const line of breakdown.lines) {
-      summary[line.code] += line.amount;
-      orderTax += line.amount;
-    }
-    summary.subtotal += o.subtotalCents / 100;
-    summary.totalTax += orderTax;
-    summary.charged += o.amountCents / 100;
-
-    const prov = provinces.get(o.shipProvince) ?? { count: 0, subtotal: 0, tax: 0 };
-    prov.count++;
-    prov.subtotal += o.subtotalCents / 100;
-    prov.tax += orderTax;
-    provinces.set(o.shipProvince, prov);
-  }
+  // Audit admin 2026-07 §4a — MÊME calcul que l'export CSV via le helper PUR
+  // partagé (taxable subtotal réel + NET des remboursements) → écran == export.
+  const orderIds = orders.map((o) => o.id);
+  const refundEvents = orderIds.length > 0
+    ? await prisma.orderEvent.findMany({
+        where: { kind: 'REFUND_ISSUED', orderId: { in: orderIds }, createdAt: { gte: range.from, lte: toEnd } },
+        include: { order: { select: { amountCents: true } } },
+      })
+    : [];
+  const report = computeTaxReport(orders, refundEvents);
+  // Adaptateur en dollars pour le rendu (le helper retourne des cents).
+  const summary = {
+    gst: report.summary.gstCents / 100,
+    pst: report.summary.pstCents / 100,
+    qst: report.summary.qstCents / 100,
+    hst: report.summary.hstCents / 100,
+    subtotal: report.summary.totalSubtotalCents / 100,
+    totalTax: report.summary.totalTaxCents / 100,
+    charged: report.summary.totalChargedCents / 100,
+    orderCount: report.summary.orderCount,
+  };
+  const provinces = new Map(
+    report.byProvince.map((p) => [p.province, { count: p.count, subtotal: p.subtotalCents / 100, tax: p.taxCents / 100 }]),
+  );
 
   const downloadParams = new URLSearchParams({
     from: range.from.toISOString().slice(0, 10),

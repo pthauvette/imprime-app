@@ -2,16 +2,12 @@
  * GET /api/admin/finances/tax-report.csv?from=YYYY-MM-DD&to=YYYY-MM-DD
  *
  * Rapport de taxes pour remise CRA (TPS) + Revenu Québec (TVQ) + HST/PST.
- * On reconstitue le breakdown depuis Order.subtotalCents + shipProvince
- * via computeTax() — Order.taxCents en DB est juste le total (pas le split).
+ * Le calcul (taxable subtotal réel + split TPS/TVQ + NET des remboursements) vit
+ * dans le helper PUR `computeTaxReport` — MÊME source que la page de preview
+ * (/admin/finances/tax-report) pour garantir « écran == export » (audit §4a).
  *
  * Format CSV : RFC 4180 + UTF-8 BOM pour Excel. Granularité par order, plus
  * un summary aggregé en haut (commenté CSV).
- *
- * Colonnes :
- *   order_id, paid_at, province, subtotal_cents,
- *   gst_cents, pst_cents, qst_cents, hst_cents, total_tax_cents,
- *   total_charged_cents
  *
  * Defaults : from=début de trimestre, to=today (couvre le trimestre courant).
  * Filtre : status IN (PAID, SUBMITTED, IN_PRODUCTION, SHIPPED, DELIVERED)
@@ -25,10 +21,8 @@ import { prisma } from '@/lib/db';
 import { withErrorHandler } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
-import { computeTax } from '@/lib/taxes';
-import type { CaProvince } from '@/lib/sinalite/types';
-
-const PAID_STATUSES = ['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'] as const;
+import { PAID_STATUSES } from '@/lib/finances/refund-amount';
+import { computeTaxReport } from '@/lib/finances/tax-report';
 
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -76,10 +70,6 @@ export const GET = withErrorHandler(async (req: Request) => {
       paidAt: true,
       shipProvince: true,
       subtotalCents: true,
-      // Round 38 #2 — Inclure discount + resellerDiscount + shipping pour
-      // dériver le VRAI taxable subtotal (avant ce fix, on calculait sur
-      // subtotal seul → tax under-reportée de shipping × rate par order,
-      // CRA remittance mis-reportée).
       discountCents: true,
       resellerDiscountCents: true,
       shippingCents: true,
@@ -89,101 +79,25 @@ export const GET = withErrorHandler(async (req: Request) => {
     take: 50_000, // safety
   });
 
-  // Summary aggregates by tax code
-  const summary = {
-    gstCents: 0,
-    pstCents: 0,
-    qstCents: 0,
-    hstCents: 0,
-    totalSubtotalCents: 0,
-    totalTaxCents: 0,
-    totalChargedCents: 0,
-    orderCount: 0,
-  };
-  // Per-province for reconciliation
-  const byProvince = new Map<string, { count: number; subtotalCents: number; taxCents: number }>();
+  // Audit admin 2026-07 §3.2 — refunds de la période (createdAt ∈ [from, to]) sur
+  // les commandes du rapport. `computeTaxReport` les nette au prorata (helper pur).
+  const orderIds = orders.map((o) => o.id);
+  const refundEvents = orderIds.length > 0
+    ? await prisma.orderEvent.findMany({
+        where: { kind: 'REFUND_ISSUED', orderId: { in: orderIds }, createdAt: { gte: from, lte: toEnd } },
+        include: { order: { select: { amountCents: true } } },
+      })
+    : [];
 
-  // Build per-order tax rows
-  const orderRows: Array<{
-    id: string;
-    paidAt: Date;
-    province: string;
-    subtotalCents: number;
-    gstCents: number;
-    pstCents: number;
-    qstCents: number;
-    hstCents: number;
-    totalTaxCents: number;
-    totalChargedCents: number;
-  }> = [];
-
-  for (const o of orders) {
-    // Round 38 #2 — Le VRAI taxable subtotal aligné avec /api/orders/create :
-    //   subtotal - discount - resellerDiscount + shipping
-    // computeTax sert ici à dériver le SPLIT (TPS vs TVQ, etc.) ; ensuite
-    // on scale au prorata du stored taxCents pour garantir que la CRA
-    // remittance == ce qui a été effectivement chargé Stripe (truth source).
-    const taxableSubtotal = (
-      o.subtotalCents - o.discountCents - o.resellerDiscountCents + o.shippingCents
-    ) / 100;
-    const breakdown = computeTax(taxableSubtotal, o.shipProvince as CaProvince);
-
-    // Source of truth = o.taxCents. Si stored matches computed (cas normal),
-    // on prend les split direct. Si stored = 0 (tax-exempt) → toutes lignes 0.
-    // Si drift, on scale au prorata pour préserver la somme exacte.
-    const computedTotalCents = Math.round(breakdown.total * 100);
-    const scale = computedTotalCents > 0 ? o.taxCents / computedTotalCents : 0;
-    const taxByCode = { gst: 0, pst: 0, qst: 0, hst: 0 };
-    for (const line of breakdown.lines) {
-      taxByCode[line.code] = Math.round(line.amount * 100 * scale);
-    }
-    // Rounding drift correction : la somme des scaled cents peut différer
-    // de stored taxCents de 1¢ — on absorbe sur la plus grosse ligne.
-    const summedTax = taxByCode.gst + taxByCode.pst + taxByCode.qst + taxByCode.hst;
-    const drift = o.taxCents - summedTax;
-    if (drift !== 0 && breakdown.lines.length > 0) {
-      const biggestCode = breakdown.lines.reduce((max, l) =>
-        Math.round(l.amount * 100 * scale) > Math.round(max.amount * 100 * scale) ? l : max,
-      ).code;
-      taxByCode[biggestCode] += drift;
-    }
-    const totalTaxCents = taxByCode.gst + taxByCode.pst + taxByCode.qst + taxByCode.hst;
-
-    summary.gstCents += taxByCode.gst;
-    summary.pstCents += taxByCode.pst;
-    summary.qstCents += taxByCode.qst;
-    summary.hstCents += taxByCode.hst;
-    summary.totalSubtotalCents += o.subtotalCents;
-    summary.totalTaxCents += totalTaxCents;
-    summary.totalChargedCents += o.amountCents;
-    summary.orderCount++;
-
-    const provStat = byProvince.get(o.shipProvince) ?? { count: 0, subtotalCents: 0, taxCents: 0 };
-    provStat.count++;
-    provStat.subtotalCents += o.subtotalCents;
-    provStat.taxCents += totalTaxCents;
-    byProvince.set(o.shipProvince, provStat);
-
-    orderRows.push({
-      id: o.id,
-      paidAt: o.paidAt!,
-      province: o.shipProvince,
-      subtotalCents: o.subtotalCents,
-      gstCents: taxByCode.gst,
-      pstCents: taxByCode.pst,
-      qstCents: taxByCode.qst,
-      hstCents: taxByCode.hst,
-      totalTaxCents,
-      totalChargedCents: o.amountCents,
-    });
-  }
+  const { rows, summary, byProvince } = computeTaxReport(orders, refundEvents);
 
   // CSV : UTF-8 BOM + summary commentary + headers + rows
   let csv = '﻿';
   csv += `# Plio — Tax report ${from.toISOString().slice(0, 10)} → ${to.toISOString().slice(0, 10)}\r\n`;
   csv += `# Generated by ${guard.user.email} at ${new Date().toISOString()}\r\n`;
   csv += `# Orders included: ${summary.orderCount} (status IN PAID/SUBMITTED/IN_PROD/SHIPPED/DELIVERED)\r\n`;
-  csv += `# Subtotal total (cents): ${summary.totalSubtotalCents}\r\n`;
+  csv += `# Refunds netted (cents): ${summary.refundedCents} — subtotal/tax/charged réduits au prorata des REFUND_ISSUED de la période\r\n`;
+  csv += `# Subtotal total (NET des remboursements, cents): ${summary.totalSubtotalCents}\r\n`;
   csv += `# GST collected (cents): ${summary.gstCents}\r\n`;
   csv += `# PST collected (cents): ${summary.pstCents}\r\n`;
   csv += `# QST collected (cents): ${summary.qstCents}\r\n`;
@@ -192,8 +106,8 @@ export const GET = withErrorHandler(async (req: Request) => {
   csv += `# Total charged (cents): ${summary.totalChargedCents}\r\n`;
   csv += `#\r\n`;
   csv += `# Per-province :\r\n`;
-  for (const [prov, stat] of Array.from(byProvince.entries()).sort()) {
-    csv += `#   ${prov}: ${stat.count} orders · subtotal $${(stat.subtotalCents / 100).toFixed(2)} · tax $${(stat.taxCents / 100).toFixed(2)}\r\n`;
+  for (const stat of byProvince.slice().sort((a, b) => a.province.localeCompare(b.province))) {
+    csv += `#   ${stat.province}: ${stat.count} orders · subtotal $${(stat.subtotalCents / 100).toFixed(2)} · tax $${(stat.taxCents / 100).toFixed(2)}\r\n`;
   }
   csv += `#\r\n`;
 
@@ -210,10 +124,10 @@ export const GET = withErrorHandler(async (req: Request) => {
     'total_charged_cents',
   ]);
 
-  for (const r of orderRows) {
+  for (const r of rows) {
     csv += csvRow([
       r.id,
-      r.paidAt.toISOString(),
+      r.paidAt ? r.paidAt.toISOString() : '',
       r.province,
       r.subtotalCents,
       r.gstCents,
