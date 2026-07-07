@@ -334,6 +334,17 @@ function resolveTargetLink(targetType: string, targetId: string): string {
       return `/admin/products`;
     case 'TEMPLATE':
       return `/admin/templates`;
+    // §8.6 — types dédiés (avant : liés en ORDER/USER approximatifs)
+    case 'REVIEW':
+      return `/admin/reviews`;
+    case 'SAMPLE_REQUEST':
+      return `/admin/samples`;
+    case 'QUOTE':
+      return `/admin/quotes`;
+    case 'CONTACT_MESSAGE':
+      return `/admin/messages`;
+    case 'WEBHOOK':
+      return `/admin/webhooks/${targetId}`;
     default:
       return '/admin/audit';
   }

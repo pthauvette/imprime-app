@@ -18,6 +18,7 @@ import SendCustomMessageButton from '@/components/admin/SendCustomMessageButton'
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
+import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
 
@@ -79,6 +80,30 @@ export default async function AdminOrderDetailPage({
 
   const status = order.status as OrderStatus;
   const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
+
+  // Audit admin 2026-07 §8.5 — le tracking était ENFOUI dans le JSON brut de la
+  // timeline : on remonte le dernier SINALITE_STATUS_CHANGED qui en porte un
+  // (écrit par le bulk, la route /status ou les webhooks Sinalite).
+  let shipping: { trackingNumber: string; carrier?: string } | null = null;
+  for (const e of order.events) { // déjà triés desc
+    if (e.kind !== 'SINALITE_STATUS_CHANGED' || !e.data) continue;
+    try {
+      const d = JSON.parse(e.data) as { trackingNumber?: unknown; carrier?: unknown };
+      if (typeof d.trackingNumber === 'string' && d.trackingNumber) {
+        shipping = { trackingNumber: d.trackingNumber, carrier: typeof d.carrier === 'string' ? d.carrier : undefined };
+        break;
+      }
+    } catch { /* data malformé → event suivant */ }
+  }
+
+  // §8.5 — restant remboursable : somme des REFUND_ISSUED (montant réel via
+  // data.amountCents ; fallback total pour les vieux events), plafonnée au total.
+  const alreadyRefundedCents = Math.min(
+    order.amountCents,
+    order.events
+      .filter((e) => e.kind === 'REFUND_ISSUED')
+      .reduce((s, e) => s + refundAmountCentsOf({ data: e.data, order: { amountCents: order.amountCents } }), 0),
+  );
 
   return (
     <div className="adm-shell">
@@ -415,6 +440,13 @@ export default async function AdminOrderDetailPage({
               </a>
             </Card>
 
+            {shipping && (
+              <Card label="Expédition">
+                <KV k="Transporteur" v={shipping.carrier ?? '—'} />
+                <KV k="Tracking" v={shipping.trackingNumber} mono />
+              </Card>
+            )}
+
             <Card label="Actions">
               <OrderActions
                 orderId={order.id}
@@ -422,6 +454,7 @@ export default async function AdminOrderDetailPage({
                 amountCents={order.amountCents}
                 hasSinaliteId={!!order.sinaliteOrderId}
                 itemsCount={order.itemsCount}
+                alreadyRefundedCents={alreadyRefundedCents}
               />
               <div style={{ marginTop: 8 }}>
                 <SendCustomMessageButton orderId={order.id} customerEmail={order.user.email} />

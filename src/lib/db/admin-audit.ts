@@ -42,13 +42,24 @@ export type AdminAuditKind =
   // Audit admin 2026-07 §8.2 — transition de statut depuis la FICHE commande
   // (route /orders/[id]/status), distincte du bulk pour la traçabilité.
   | 'ADMIN_ORDER_STATUS_CHANGE'
+  // Audit admin 2026-07 §8.6 — kinds dédiés pour les actions qui logaient
+  // encore le générique ADMIN_TEMPLATE_EDIT (indistinguables dans /admin/audit).
+  | 'ADMIN_MESSAGE_ACTION'   // messages clients (répondre/fermer/note)
+  | 'ADMIN_QUOTE_DECISION'   // devis sur-mesure (quote/reject/archive)
+  | 'ADMIN_SAMPLE_ACTION'    // demandes d'échantillons (ship/cancel/note)
+  | 'ADMIN_ORDER_NOTES_EDIT' // notes internes d'une commande
   // Audit v2 #10.7 — DEMANDE d'annulation par le CLIENT (acteur = client, pas
   // admin). Avant : loggée en ADMIN_MANUAL_CANCEL avec l'email CLIENT → polluait
   // les rapports d'audit admin (confusion « qui a annulé » + email client mêlé
   // aux actions admin). Kind dédié pour la filtrer/distinguer.
   | 'CUSTOMER_CANCEL_REQUEST';
 
-export type AdminAuditTargetType = 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT' | 'EXPERIMENT';
+// §8.6 — types de cible dédiés : avant, reviews/samples/quotes/messages/webhooks
+// étaient logués en ORDER/USER approximatifs → liens « Cible » morts ou trompeurs
+// dans /admin/audit (cf. resolveTargetLink).
+export type AdminAuditTargetType =
+  | 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT' | 'EXPERIMENT'
+  | 'REVIEW' | 'SAMPLE_REQUEST' | 'QUOTE' | 'CONTACT_MESSAGE' | 'WEBHOOK';
 
 export interface AdminAuditInput {
   kind: AdminAuditKind;

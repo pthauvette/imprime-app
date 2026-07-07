@@ -21,9 +21,12 @@ interface Props {
   hasSinaliteId: boolean;
   /** Nombre d'articles — sert à estimer les frais d'annulation Sinalite (25 $/article). */
   itemsCount?: number;
+  /** Audit §8.5 — déjà remboursé (Σ REFUND_ISSUED) : le form refund montre le
+   *  RESTANT au lieu de pré-remplir le total (double-refund accidentel). */
+  alreadyRefundedCents?: number;
 }
 
-export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1 }: Props) {
+export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1, alreadyRefundedCents = 0 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +49,9 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   // Estimation UI (le vrai montant, env-configurable côté serveur, est renvoyé par l'API).
   const estimatedFeeCents = Math.min(amountCents, 2500 * Math.max(1, itemsCount));
 
-  const canRefund = status !== 'PENDING' && status !== 'CANCELLED' && status !== 'FAILED';
+  // §8.5 — restant remboursable (le form refund raisonne dessus, pas sur le total).
+  const remainingCents = Math.max(0, amountCents - alreadyRefundedCents);
+  const canRefund = status !== 'PENDING' && status !== 'CANCELLED' && status !== 'FAILED' && remainingCents > 0;
   const canReplay = !hasSinaliteId && status !== 'PENDING' && status !== 'CANCELLED';
   const canCancel = status !== 'SHIPPED' && status !== 'DELIVERED' && status !== 'CANCELLED' && status !== 'FAILED';
 
@@ -119,7 +124,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   // (refundOpen state) au lieu de window.prompt × 2. Mobile-friendly,
   // validation native HTML, pas de jarring browser dialog.
   function handleRefundOpen() {
-    setRefundAmount((amountCents / 100).toFixed(2));
+    setRefundAmount((remainingCents / 100).toFixed(2));
     setRefundReason('Geste commercial');
     setError(null);
     setSuccess(null);
@@ -301,17 +306,22 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
         >
           <div>
             <label htmlFor="refund-amount" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-              Montant CAD (vide = full refund {(amountCents / 100).toFixed(2)} $)
+              Montant CAD (restant remboursable : {(remainingCents / 100).toFixed(2)} $)
             </label>
+            {alreadyRefundedCents > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Déjà remboursé : {(alreadyRefundedCents / 100).toFixed(2)} $ / {(amountCents / 100).toFixed(2)} $
+              </div>
+            )}
             <input
               id="refund-amount"
               type="number"
               step="0.01"
               min="0"
-              max={(amountCents / 100).toFixed(2)}
+              max={(remainingCents / 100).toFixed(2)}
               value={refundAmount}
               onChange={(e) => setRefundAmount(e.target.value)}
-              placeholder={(amountCents / 100).toFixed(2)}
+              placeholder={(remainingCents / 100).toFixed(2)}
               style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
             />
           </div>

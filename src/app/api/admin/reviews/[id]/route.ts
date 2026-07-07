@@ -79,11 +79,12 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
     kind: 'ADMIN_REVIEW_MODERATE', // Round 1 audit — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,
-    targetType: 'ORDER', // existing enum, review attached to order
-    targetId: existing.orderId,
+    targetType: 'REVIEW', // §8.6 — type dédié (le lien « Cible » pointait la commande)
+    targetId: id,
     data: {
       action: `REVIEW_${body.action.toUpperCase()}`,
       reviewId: id,
+      orderId: existing.orderId,
       previousStatus: existing.status,
       newStatus: updated.status,
       rating: existing.rating,

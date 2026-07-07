@@ -51,7 +51,7 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
   });
 
   await recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT', // generic edit — `data` discrimine
+    kind: 'ADMIN_ORDER_NOTES_EDIT', // §8.6 — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,
     targetType: 'ORDER',

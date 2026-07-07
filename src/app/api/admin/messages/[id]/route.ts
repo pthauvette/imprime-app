@@ -106,14 +106,15 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
   }
 
   await recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    kind: 'ADMIN_MESSAGE_ACTION', // §8.6 — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,
-    targetType: 'USER',
-    targetId: existing.email,
+    targetType: 'CONTACT_MESSAGE',
+    targetId: id,
     data: {
       action: `MESSAGE_${body.action.toUpperCase()}`,
       messageId: id,
+      customerEmail: existing.email,
       previousStatus: existing.status,
       newStatus: updated.status,
       ...(body.action === 'reply' && { replyBodyChars: body.body.length }),
