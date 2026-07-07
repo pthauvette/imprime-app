@@ -67,10 +67,10 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
   }
 
   await recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    kind: 'ADMIN_SAMPLE_ACTION', // §8.6 — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,
-    targetType: 'ORDER', // existing enum, pas de SAMPLE_REQUEST encore
+    targetType: 'SAMPLE_REQUEST',
     targetId: id,
     data: {
       action: `SAMPLE_${body.action.toUpperCase()}`,

@@ -111,10 +111,10 @@ export const PATCH = withErrorHandler(async (req: Request, ctx: { params: Promis
   }
 
   await recordAdminAudit({
-    kind: 'ADMIN_TEMPLATE_EDIT',
+    kind: 'ADMIN_QUOTE_DECISION', // §8.6 — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,
-    targetType: 'USER',
+    targetType: 'QUOTE',
     targetId: id,
     data: {
       action: `QUOTE_${body.action.toUpperCase()}`,

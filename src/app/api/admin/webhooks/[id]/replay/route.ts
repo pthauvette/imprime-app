@@ -122,11 +122,12 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     kind: 'ADMIN_WEBHOOK_REPLAY', // Round 1 audit — kind dédié (était ADMIN_TEMPLATE_EDIT)
     adminId: guard.userId,
     adminEmail: guard.user.email,
-    targetType: 'ORDER',
-    targetId: handlerCtx.orderId,
+    targetType: 'WEBHOOK', // §8.6 — deep-link vers l'event rejoué (orderId dans data)
+    targetId: event.id,
     data: {
       action: 'WEBHOOK_REPLAY',
       webhookEventId: event.id,
+      orderId: handlerCtx.orderId,
       source: event.source,
       eventType: event.eventType,
       originalEventId: event.eventId,

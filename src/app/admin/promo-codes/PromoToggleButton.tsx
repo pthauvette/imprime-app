@@ -7,14 +7,28 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 export default function PromoToggleButton({ id, active }: { id: string; active: boolean }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmDialog();
   const [busy, setBusy] = useState(false);
   const [optimisticActive, setOptimisticActive] = useState(active);
 
   async function handleToggle() {
+    if (busy) return;
     const next = !optimisticActive;
+    // Audit admin 2026-07 §5.11 — désactiver un code ACTIF casse les paniers en
+    // cours qui le portent : confirmation avant le clic destructif (l'activation,
+    // elle, reste directe — réversible et sans dégât).
+    if (!next && !(await confirm({
+      title: 'Désactiver ce code promo ?',
+      body: 'Les clients qui l\'ont dans un panier en cours ne pourront plus l\'appliquer au paiement.',
+      confirmLabel: 'Désactiver',
+      danger: true,
+    }))) {
+      return;
+    }
     setBusy(true);
     setOptimisticActive(next);
     try {
@@ -37,6 +51,8 @@ export default function PromoToggleButton({ id, active }: { id: string; active: 
   }
 
   return (
+    <>
+      {dialog}
     <button
       onClick={handleToggle}
       disabled={busy}
@@ -57,5 +73,6 @@ export default function PromoToggleButton({ id, active }: { id: string; active: 
     >
       {optimisticActive ? '● Actif' : '○ Désactivé'}
     </button>
+    </>
   );
 }
