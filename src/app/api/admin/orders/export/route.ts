@@ -8,6 +8,12 @@
  *   ?from=YYYY-MM-DD       (incluant)
  *   ?to=YYYY-MM-DD         (excluant — typique : mois complet)
  *   ?status=PAID,SHIPPED   (CSV de statuses à inclure)
+ *   ?dateField=paidAt|createdAt (défaut createdAt — compat). Audit admin
+ *     2026-07 §3.4 : l'export XLSX finances filtre par paidAt (revenu reconnu
+ *     au paiement) alors que ce CSV filtrait par createdAt → une commande créée
+ *     le 30 juin, payée le 2 juillet, tombait dans des mois différents selon le
+ *     fichier. Pour un rapprochement comptable, passer dateField=paidAt (les
+ *     commandes jamais payées — paidAt null — sont alors exclues).
  *
  * Format CSV : RFC 4180 compliant. UTF-8 BOM en début pour Excel
  * (sinon Excel mal interprète les caractères accentués).
@@ -44,25 +50,24 @@ export const GET = withErrorHandler(async (req: Request) => {
   const fromParam = url.searchParams.get('from');
   const toParam = url.searchParams.get('to');
   const statusParam = url.searchParams.get('status');
+  // §3.4 — champ de date du filtre (createdAt = compat ; paidAt = comptable).
+  const dateField: 'createdAt' | 'paidAt' =
+    url.searchParams.get('dateField') === 'paidAt' ? 'paidAt' : 'createdAt';
 
   const where: Parameters<typeof prisma.order.findMany>[0] extends infer T
     ? T extends { where?: infer W } ? W : never : never = {};
+  type DateRange = { gte?: Date; lt?: Date };
+  const rangeTarget = where as Record<'createdAt' | 'paidAt', DateRange | undefined>;
   if (fromParam) {
     const d = new Date(fromParam);
     if (!isNaN(d.getTime())) {
-      (where as { createdAt?: { gte?: Date; lt?: Date } }).createdAt = {
-        ...(where as { createdAt?: { gte?: Date; lt?: Date } }).createdAt,
-        gte: d,
-      };
+      rangeTarget[dateField] = { ...rangeTarget[dateField], gte: d };
     }
   }
   if (toParam) {
     const d = new Date(toParam);
     if (!isNaN(d.getTime())) {
-      (where as { createdAt?: { gte?: Date; lt?: Date } }).createdAt = {
-        ...(where as { createdAt?: { gte?: Date; lt?: Date } }).createdAt,
-        lt: d,
-      };
+      rangeTarget[dateField] = { ...rangeTarget[dateField], lt: d };
     }
   }
   if (statusParam) {
@@ -74,7 +79,7 @@ export const GET = withErrorHandler(async (req: Request) => {
 
   const orders = await prisma.order.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { [dateField]: 'desc' },
     include: { user: { select: { email: true } } },
     take: 5000, // safety guardrail, ~6 mois de volume modéré
   });
@@ -145,6 +150,7 @@ export const GET = withErrorHandler(async (req: Request) => {
       from: fromParam,
       to: toParam,
       status: statusParam,
+      dateField,
       rowCount: orders.length,
     },
   });

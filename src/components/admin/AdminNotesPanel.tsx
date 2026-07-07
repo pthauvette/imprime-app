@@ -22,6 +22,11 @@ export default function AdminNotesPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Audit admin 2026-07 §4.5 — sérialise les autosaves : sur réseau > 1,5 s,
+  // deux PATCH pouvaient être en vol et le PREMIER (note tronquée) pouvait
+  // arriver APRÈS le second → last-write-wins non garanti, panel affichant
+  // « ✓ Sauvegardé » sur une note périmée. On aborte le fetch précédent.
+  const abortRef = useRef<AbortController | null>(null);
 
   const dirty = value !== savedValue;
 
@@ -38,6 +43,11 @@ export default function AdminNotesPanel({
   }, [value, dirty]);
 
   async function save() {
+    // §4.5 — un seul PATCH en vol : le précédent est abandonné (sa réponse
+    // périmée ne peut plus écraser l'état ni clore `saving` à tort).
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setSaving(true);
     setError(null);
     try {
@@ -45,6 +55,7 @@ export default function AdminNotesPanel({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: value }),
+        signal: ctrl.signal,
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -52,9 +63,10 @@ export default function AdminNotesPanel({
       }
       setSavedValue(value);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return; // remplacé par un save plus récent
       setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
-      setSaving(false);
+      if (!ctrl.signal.aborted) setSaving(false);
     }
   }
 

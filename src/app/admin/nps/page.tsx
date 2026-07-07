@@ -67,17 +67,7 @@ export default async function AdminNpsPage() {
       <main className="adm-main" style={{ padding: '40px 48px 80px' }}>
         <header style={{ marginBottom: 32 }}>
           <div className="page-eyebrow">Customer feedback</div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 40,
-              letterSpacing: '-0.025em',
-              fontWeight: 400,
-              margin: '8px 0 8px',
-            }}
-          >
-            Net Promoter Score
-          </h1>
+          <h1 className="adm-page-title" style={{ margin: '8px 0 8px' }}>Net Promoter Score</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
             Promoter (9-10) − Detractor (0-6) sur le total des répondants.
             Range −100 à +100. Industry benchmark : SaaS B2B {'~'} 30, e-commerce {'~'} 40+.

@@ -23,8 +23,14 @@ export default function ExperimentToggle({ experimentId, currentlyActive }: Prop
   const [optimistic, setOptimistic] = useState(currentlyActive);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Audit admin 2026-07 §4.4 — `pending` (useTransition) ne couvrait que le
+  // router.refresh APRÈS le fetch : pendant le PATCH, le bouton restait cliquable
+  // → double-clic sur réseau lent = 2 PATCH (ON puis OFF), l'expérience finissait
+  // dans l'état inverse. `busy` couvre toute la durée réseau + garde d'entrée.
+  const [busy, setBusy] = useState(false);
 
   async function toggle() {
+    if (busy || pending) return;
     const next = !optimistic;
     // Confirm avant désactivation (risque de perdre le contexte des conversions)
     if (optimistic && !(await confirm({ title: `Désactiver « ${experimentId} » ?`, body: 'Tous les visiteurs verront le control. À utiliser quand l’expérience est conclue.', confirmLabel: 'Désactiver', danger: true }))) {
@@ -33,6 +39,7 @@ export default function ExperimentToggle({ experimentId, currentlyActive }: Prop
 
     setError(null);
     setOptimistic(next); // optimistic flip
+    setBusy(true);
 
     try {
       const res = await fetch(`/api/admin/experiments/${experimentId}`, {
@@ -50,6 +57,8 @@ export default function ExperimentToggle({ experimentId, currentlyActive }: Prop
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur réseau');
       setOptimistic(currentlyActive);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -59,7 +68,7 @@ export default function ExperimentToggle({ experimentId, currentlyActive }: Prop
       <button
         type="button"
         onClick={toggle}
-        disabled={pending}
+        disabled={busy || pending}
         title={optimistic ? 'Cliquer pour désactiver' : 'Cliquer pour activer'}
         style={{
           padding: '8px 18px',

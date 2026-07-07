@@ -175,6 +175,11 @@ export default async function AdminUsersPage({
     filteredTotal = users.length;
     users = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   }
+  // Audit admin 2026-07 §8.4 — le filtre LTV est appliqué post-fetch sur les
+  // fetchSize (400) users les plus RÉCENTS : au-delà, un gros client historique
+  // disparaît silencieusement de la vue ET du count. Tant que la LTV n'est pas
+  // calculée côté SQL, on l'affiche honnêtement (bandeau) au lieu de le taire.
+  const highValueTruncated = isHighValue && rawUsers.length === fetchSize;
 
   // ─── Compute total for pagination ───────────────────────────────────────
   const listTotal = isHighValue
@@ -322,6 +327,14 @@ export default async function AdminUsersPage({
           })}
         </div>
 
+        {/* Audit §8.4 — troncature honnête du filtre high-value */}
+        {highValueTruncated && (
+          <div style={{ marginBottom: 12, padding: '10px 14px', background: 'var(--warning-soft, #fef9ec)', border: '1px solid var(--warning, #d97706)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--warning, #b45309)' }}>
+            ⚠ Vue partielle : la LTV n&apos;est évaluée que sur les {fetchSize} comptes les plus récents.
+            Un gros client plus ancien peut manquer — affine avec la recherche si tu cherches un compte précis.
+          </div>
+        )}
+
         {/* ─── Table ───────────────────────────────────────────── */}
         <div className="usr-panel">
           {users.length === 0 ? (
@@ -330,20 +343,20 @@ export default async function AdminUsersPage({
             <table className="usr-table">
               <thead>
                 <tr>
-                  <th style={{ width: 36 }}>
+                  <th scope="col" style={{ width: 36 }}>
                     {/* Select-all checkbox — no data-user-id so UserBulkBar
                         treats it as toggle-all */}
                     <input type="checkbox" className="usr-checkbox" aria-label="Tout sélectionner" />
                   </th>
-                  <th>Utilisateur</th>
-                  <th>Inscrit le</th>
-                  <th style={{ textAlign: 'right' }}>Commandes</th>
-                  <th style={{ textAlign: 'right' }}>LTV</th>
-                  <th>Dernière commande</th>
-                  <th>Status auth</th>
-                  <th>Rôle</th>
-                  <th>Province</th>
-                  <th className="actions-col"></th>
+                  <th scope="col">Utilisateur</th>
+                  <th scope="col">Inscrit le</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Commandes</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>LTV</th>
+                  <th scope="col">Dernière commande</th>
+                  <th scope="col">Status auth</th>
+                  <th scope="col">Rôle</th>
+                  <th scope="col">Province</th>
+                  <th scope="col" className="actions-col"></th>
                 </tr>
               </thead>
               <tbody>

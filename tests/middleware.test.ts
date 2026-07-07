@@ -52,9 +52,13 @@ describe('middleware — gate admin (#10.2)', () => {
     expect(location).toContain('callbackUrl=%2Fadmin');
   });
 
-  it('/admin/orders avec auth mais role USER → redirect /?forbidden=admin', () => {
+  it('/admin/orders avec auth mais role USER → redirect / NU (audit §2.2 : pas de flag révélateur)', () => {
     const { location } = run(makeReq('/admin/orders', { auth: { user: { role: 'USER' } } }));
-    expect(location).toContain('/?forbidden=admin');
+    expect(location).toBeDefined();
+    const url = new URL(location!);
+    expect(url.pathname).toBe('/');
+    // §2.2 — aucun paramètre qui révèle l'existence de la section admin.
+    expect(url.search).toBe('');
   });
 
   it('/admin avec role ADMIN → passe (pas de redirect)', () => {
@@ -63,9 +67,11 @@ describe('middleware — gate admin (#10.2)', () => {
     expect(location).toBeUndefined();
   });
 
-  it('/admin avec auth SANS role (undefined) → traité comme non-admin → redirect', () => {
+  it('/admin avec auth SANS role (undefined) → traité comme non-admin → redirect / nu', () => {
     const { location } = run(makeReq('/admin', { auth: { user: {} } }));
-    expect(location).toContain('/?forbidden=admin');
+    expect(location).toBeDefined();
+    expect(new URL(location!).pathname).toBe('/');
+    expect(new URL(location!).search).toBe('');
   });
 });
 
