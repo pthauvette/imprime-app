@@ -172,18 +172,22 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   // (typo), isFullRefund=false → wallet NON restauré, customer perd ses crédits
   // silencieusement. Alert Slack pour que l'admin soit visuellement notifié
   // (cf. self-audit Round 37 — own bug introduit par Round 37 #1).
-  if (!isFullRefund && order.walletCreditAppliedCents > 0) {
+  if (!isFullRefund && (order.walletCreditAppliedCents > 0 || order.referralCreditAppliedCents > 0)) {
+    // Audit admin 2026-07 §3.5 — l'alerte couvrait seulement le wallet ; le crédit
+    // referral, restauré lui aussi UNIQUEMENT en full refund, était oublié → un
+    // refund partiel le perdait silencieusement. On alerte pour tout crédit appliqué.
     const { sendCriticalAlert } = await import('@/lib/alerting/slack');
     await sendCriticalAlert({
       severity: 'warning',
-      title: 'Refund partial — wallet credit NON restauré',
-      body: `Admin a refund ${(refundAmount / 100).toFixed(2)} $ partiel sur order avec wallet credit ${(order.walletCreditAppliedCents / 100).toFixed(2)} $ appliqué. Le wallet reste débité côté customer. Vérifie si c'est intentionnel (full refund tape EXACT order.amountCents = ${(order.amountCents / 100).toFixed(2)} $).`,
+      title: 'Refund partial — crédit wallet/referral NON restauré',
+      body: `Admin a refund ${(refundAmount / 100).toFixed(2)} $ partiel sur order avec crédit wallet ${(order.walletCreditAppliedCents / 100).toFixed(2)} $ + referral ${(order.referralCreditAppliedCents / 100).toFixed(2)} $ appliqué. Ces crédits restent débités côté customer (restaurés seulement en full refund). Vérifie si c'est intentionnel (full refund tape EXACT order.amountCents = ${(order.amountCents / 100).toFixed(2)} $).`,
       context: {
         orderId: order.id,
         adminUserId: guard.userId,
         partialAmountCents: refundAmount,
         orderAmountCents: order.amountCents,
         walletCreditAppliedCents: order.walletCreditAppliedCents,
+        referralCreditAppliedCents: order.referralCreditAppliedCents,
         diff: order.amountCents - refundAmount,
       },
     });

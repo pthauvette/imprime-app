@@ -81,7 +81,9 @@ export default async function AdminFinancesPage({
     // Round 16 #3 : .catch fallbacks pour éviter 500 dashboard si table manque.
     // Aggregates throwers → fallback à un shape minimal vide.
     prisma.order.aggregate({
-      where: { paidAt: { gte: periodStart, lt: periodEnd } },
+      // Audit admin 2026-07 §3.3 — exclure CANCELLED/FAILED (ventes voidées) du
+      // brut, comme le fait déjà revenueByUserId. Le refund est soustrait à part.
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
       _sum: { amountCents: true, taxCents: true, subtotalCents: true, shippingCents: true },
       _count: { _all: true },
     }).catch(() => ({
@@ -89,26 +91,26 @@ export default async function AdminFinancesPage({
       _count: { _all: 0 },
     })),
     prisma.order.aggregate({
-      where: { paidAt: { gte: prevStart, lt: prevEnd } },
+      where: { paidAt: { gte: prevStart, lt: prevEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
       _sum: { amountCents: true },
       _count: { _all: true },
     }).catch(() => ({ _sum: { amountCents: 0 }, _count: { _all: 0 } })),
     prisma.order.groupBy({
       by: ['province'],
-      where: { paidAt: { gte: periodStart, lt: periodEnd } },
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
       _sum: { amountCents: true, taxCents: true, subtotalCents: true },
       _count: { _all: true },
     }).catch(() => []),
     prisma.order.groupBy({
       by: ['userId'],
-      where: { paidAt: { gte: periodStart, lt: periodEnd } },
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
       _sum: { amountCents: true },
       _count: { _all: true },
       orderBy: { _sum: { amountCents: 'desc' } },
       take: 8,
     }).catch(() => []),
     prisma.order.findMany({
-      where: { paidAt: { gte: periodStart, lt: periodEnd } },
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
       select: { amountCents: true, paidAt: true },
     }).catch(() => []),
     // Refunds in period — REFUND_ISSUED events. Audit v2 #10.6 — on lit
@@ -119,6 +121,10 @@ export default async function AdminFinancesPage({
       where: {
         kind: 'REFUND_ISSUED',
         createdAt: { gte: periodStart, lt: periodEnd },
+        // Audit admin 2026-07 §3.3 — ne compter que les refunds sur commandes
+        // VIVANTES (chemin /refund) : une commande annulée est déjà exclue du brut,
+        // soustraire aussi son refund la retrancherait deux fois.
+        order: { status: { notIn: ['CANCELLED', 'FAILED'] } },
       },
       include: { order: { select: { amountCents: true } } },
     }).catch(() => []),
@@ -126,6 +132,7 @@ export default async function AdminFinancesPage({
       where: {
         kind: 'REFUND_ISSUED',
         createdAt: { gte: prevStart, lt: prevEnd },
+        order: { status: { notIn: ['CANCELLED', 'FAILED'] } },
       },
       include: { order: { select: { amountCents: true } } },
     }).catch(() => []),

@@ -16,6 +16,7 @@ vi.mock('@/lib/db', () => ({
     adminAuditEvent: { create: vi.fn(async () => ({})) },
     user: { findUnique: vi.fn() },
     order: { findMany: vi.fn() },
+    orderEvent: { findMany: vi.fn(async () => []) },
   },
 }));
 
@@ -117,10 +118,41 @@ describe('GET /api/admin/finances/export', () => {
     await wb.xlsx.load(buf);
     const sheetNames = wb.worksheets.map((ws) => ws.name);
     expect(sheetNames).toEqual(['Aperçu', 'Commandes', 'Par jour', 'Par province']);
-    // Aperçu doit contenir 11 lignes data + header
+    // Aperçu doit contenir les lignes data + header (brut/remboursements/net inclus)
     expect(wb.getWorksheet('Aperçu')?.rowCount).toBeGreaterThanOrEqual(10);
     // Commandes : 2 orders + header
     expect(wb.getWorksheet('Commandes')?.rowCount).toBe(3);
+  });
+
+  it('Revenu net = brut − remboursements de la période (audit §3.1)', async () => {
+    vi.mocked(auth).mockResolvedValue(adminSession() as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: 'admin_1', email: 'admin@plio.ca', name: 'Admin', role: 'ADMIN',
+    } as never);
+    // 2 commandes vivantes à 105,22 $ = 210,44 $ brut.
+    vi.mocked(prisma.order.findMany).mockResolvedValue([
+      baseOrder, { ...baseOrder, id: 'order_2' },
+    ] as never);
+    // Un refund de 40,00 $ sur une commande vivante (montant réel dans data).
+    vi.mocked(prisma.orderEvent.findMany).mockResolvedValue([
+      { data: JSON.stringify({ amountCents: 4000 }), order: { amountCents: 10522 } },
+    ] as never);
+
+    const GET = await importFresh();
+    const res = await GET(makeReq('?period=30d'));
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await res.arrayBuffer());
+    const apercu = wb.getWorksheet('Aperçu')!;
+    // Cherche les lignes par libellé (col A) et lit la valeur (col B).
+    const byLabel = (label: string): number | undefined => {
+      for (let r = 2; r <= apercu.rowCount; r++) {
+        if (apercu.getCell(`A${r}`).value === label) return apercu.getCell(`B${r}`).value as number;
+      }
+      return undefined;
+    };
+    expect(byLabel('Revenu brut (CAD)')).toBeCloseTo(210.44, 2);
+    expect(byLabel('Remboursements (période)')).toBeCloseTo(-40, 2);
+    expect(byLabel('Revenu net (CAD)')).toBeCloseTo(170.44, 2);
   });
 
   it('audit log avec kind=ADMIN_DATA_EXPORT + action=FINANCES_XLSX_EXPORT', async () => {
