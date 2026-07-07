@@ -77,11 +77,27 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
     return NextResponse.json({ ok: true, sinaliteOrderId: result.orderId });
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'Sinalite replay failed';
-    await markOrderFailed({
-      orderId: order.id,
-      reason,
-      data: { adminUserId: guard.userId, action: 'replay-sinalite' },
-    });
+    // Audit admin 2026-07 §8.3 — ne PAS dégrader une commande valide. Avant, un
+    // hoquet transitoire Sinalite (503, timeout) pendant un replay de rattrapage
+    // faisait basculer une commande PAID en FAILED : l'action de RATTRAPAGE
+    // empirait l'état (fausse alerte « Échecs », email d'échec possible). On ne
+    // marque FAILED que si la commande l'était déjà ; sinon on conserve le statut
+    // et on trace l'échec dans la timeline (OrderEvent ERROR) + l'audit.
+    if (order.status === 'FAILED') {
+      await markOrderFailed({
+        orderId: order.id,
+        reason,
+        data: { adminUserId: guard.userId, action: 'replay-sinalite' },
+      });
+    } else {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          kind: 'ERROR',
+          data: JSON.stringify({ action: 'replay-sinalite', reason, adminUserId: guard.userId, statusKept: order.status }),
+        },
+      });
+    }
     await recordAdminAudit({
       kind: 'ADMIN_REPLAY_SINALITE',
       adminId: guard.userId,

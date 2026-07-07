@@ -426,6 +426,7 @@ export default async function AdminOrderDetailPage({
                 status={order.status}
                 amountCents={order.amountCents}
                 hasSinaliteId={!!order.sinaliteOrderId}
+                itemsCount={order.itemsCount}
               />
               <div style={{ marginTop: 8 }}>
                 <SendCustomMessageButton orderId={order.id} customerEmail={order.user.email} />
