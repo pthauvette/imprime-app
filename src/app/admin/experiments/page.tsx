@@ -102,17 +102,7 @@ export default async function AdminExperimentsPage() {
       <main className="adm-main" style={{ padding: '40px 48px 80px' }}>
         <header style={{ marginBottom: 32 }}>
           <div className="page-eyebrow">A/B testing</div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 40,
-              letterSpacing: '-0.025em',
-              fontWeight: 400,
-              margin: '8px 0 8px',
-            }}
-          >
-            Expériences A/B
-          </h1>
+          <h1 className="adm-page-title" style={{ margin: '8px 0 8px' }}>Expériences A/B</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
             Active/désactive les expériences sans redeploy. La structure (variants, poids
             par défaut) reste code-defined dans <code>src/lib/ab/experiments.ts</code>.
