@@ -341,16 +341,16 @@ export default async function AdminWebhooksPage({
               <thead>
                 <tr>
                   {/* Round 20 #2 : checkbox bulk-select wired via BulkReplayActions client */}
-                  <th style={{ width: 32 }}>
+                  <th scope="col" style={{ width: 32 }}>
                     <input type="checkbox" data-webhook-select-all aria-label="Sélectionner tout" />
                   </th>
-                  <th style={{ width: 170 }}>Timestamp</th>
-                  <th style={{ width: 90 }}>Source</th>
-                  <th>Event type</th>
-                  <th style={{ width: 240 }}>Event ID</th>
-                  <th style={{ width: 100 }}>Status</th>
-                  <th style={{ width: 90 }}>Latence</th>
-                  <th style={{ width: 80 }}>Actions</th>
+                  <th scope="col" style={{ width: 170 }}>Timestamp</th>
+                  <th scope="col" style={{ width: 90 }}>Source</th>
+                  <th scope="col">Event type</th>
+                  <th scope="col" style={{ width: 240 }}>Event ID</th>
+                  <th scope="col" style={{ width: 100 }}>Status</th>
+                  <th scope="col" style={{ width: 90 }}>Latence</th>
+                  <th scope="col" style={{ width: 80 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>

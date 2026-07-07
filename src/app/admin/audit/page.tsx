@@ -222,12 +222,12 @@ export default async function AdminAuditPage({
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead style={{ background: 'var(--bg-sunken)' }}>
                 <tr>
-                  <th style={th}>Quand</th>
-                  <th style={th}>Source</th>
-                  <th style={th}>Type</th>
-                  <th style={th}>Acteur</th>
-                  <th style={th}>Cible</th>
-                  <th style={th}>Statut</th>
+                  <th scope="col" style={th}>Quand</th>
+                  <th scope="col" style={th}>Source</th>
+                  <th scope="col" style={th}>Type</th>
+                  <th scope="col" style={th}>Acteur</th>
+                  <th scope="col" style={th}>Cible</th>
+                  <th scope="col" style={th}>Statut</th>
                 </tr>
               </thead>
               <tbody>
@@ -293,6 +293,16 @@ export default async function AdminAuditPage({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Audit admin 2026-07 §5.8 — la vue « Tous » merge 50 admin + 50 webhooks
+            puis tronque : l'historique au-delà n'est pas paginable ici. On le DIT
+            au lieu de le taire (et on pointe vers les vues paginables). */}
+        {source === 'all' && unified.length === PAGE_SIZE && (
+          <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--bg-sunken)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)' }}>
+            Vue tronquée aux {PAGE_SIZE} événements les plus récents — filtre par source
+            (Admin ou Webhooks) pour paginer l&apos;historique complet.
           </div>
         )}
 
