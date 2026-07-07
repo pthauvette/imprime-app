@@ -37,6 +37,11 @@ function isAdminEmail(email: string | null | undefined): boolean {
   return !!email && ADMIN_EMAILS.has(email.toLowerCase());
 }
 
+/** Audit admin 2026-07 §2.1 — fréquence de re-résolution du rôle depuis la DB
+ *  (fenêtre max de révocation d'un accès admin). 15 min = compromis entre
+ *  révocation rapide et coût Neon (1 findUnique / user / 15 min, pas / requête). */
+const ROLE_REFRESH_MS = 15 * 60 * 1000;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
@@ -226,6 +231,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // sync events.signIn n'a pas encore committed (race condition)
         token.role = (dbUser?.role === 'ADMIN' || isAdminEmail(dbUser?.email ?? user.email))
           ? 'ADMIN' : 'USER';
+        token.roleCheckedAt = Date.now();
+      } else if (token.userId) {
+        // Audit admin 2026-07 §2.1 — le rôle était FIGÉ dans le JWT jusqu'à
+        // expiration (défaut NextAuth 30 j) : rétrograder/congédier un admin
+        // n'avait aucun effet tant qu'il ne se déconnectait pas. On re-résout le
+        // rôle depuis la DB au plus toutes les ROLE_REFRESH_MS → fenêtre de
+        // révocation ≤ 15 min, sans payer un findUnique Neon par requête.
+        const checkedAt = typeof token.roleCheckedAt === 'number' ? token.roleCheckedAt : 0;
+        if (Date.now() - checkedAt > ROLE_REFRESH_MS) {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: token.userId as string },
+              select: { role: true, email: true },
+            });
+            // User supprimé → USER (aucun accès admin). Jamais hissé sur erreur.
+            token.role = (dbUser?.role === 'ADMIN' || isAdminEmail(dbUser?.email))
+              ? 'ADMIN' : 'USER';
+            token.roleCheckedAt = Date.now();
+          } catch (err) {
+            // Blip DB (Neon froid) : on CONSERVE le rôle existant plutôt que de
+            // déconnecter un admin légitime en plein incident — sans jamais hisser.
+            // Le refresh sera retenté au prochain appel (roleCheckedAt inchangé).
+            logAuth.error({ err }, 'jwt role refresh failed (rôle existant conservé)');
+          }
+        }
       }
       return token;
     },
