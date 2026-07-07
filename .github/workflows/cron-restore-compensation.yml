@@ -1,0 +1,51 @@
+name: Restore compensation (crédits wallet/referral)
+
+# Tape /api/cron/restore-compensation toutes les heures (audit money-path
+# 2026-07 #3, PR #427). Rejoue les restaurations de crédit wallet/referral
+# laissées EN ATTENTE quand la compta DB a échoué APRÈS un refund Stripe
+# réussi (marqueurs OrderEvent WALLET_RESTORE_PENDING / REFERRAL_RESTORE_PENDING).
+# Idempotent (verrou FOR UPDATE + gardes REFUND) ; escalade une alerte critique
+# (une fois) si un item reste bloqué > 6 h.
+#
+# ⚠️ TOUJOURS viser www.plio.ca, JAMAIS l'apex : l'apex répond 404 sur
+# /api/cron/* (redirecteur GoDaddy) — cf. Round 45 #4 + sweep 2026-07-07.
+#
+# Security: pas d'untrusted input (no github.event.* used). Only the pinned
+# CRON_SECRET (repo secret) via env per safe pattern.
+
+on:
+  schedule:
+    - cron: '20 * * * *'  # toutes les heures à :20 (offset des autres crons)
+  workflow_dispatch:
+
+concurrency:
+  group: restore-compensation
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/cron/restore-compensation
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret manquant."
+            exit 1
+          fi
+          response=$(curl -fsS --show-error \
+            --max-time 120 \
+            -X GET https://www.plio.ca/api/cron/restore-compensation \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "$response" | jq .
+          # Visibilité : compensations résolues / encore bloquées.
+          resolved=$(echo "$response" | jq -r '(.wallet.resolved // 0) + (.referral.resolved // 0)')
+          failing=$(echo "$response" | jq -r '(.wallet.stillFailing // 0) + (.referral.stillFailing // 0)')
+          if [ "$resolved" -gt 0 ]; then
+            echo "::notice::$resolved crédit(s) restauré(s) par compensation"
+          fi
+          if [ "$failing" -gt 0 ]; then
+            echo "::warning::$failing compensation(s) encore en échec — voir /admin/crons + alertes Slack"
+          fi
