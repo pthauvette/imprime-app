@@ -10,7 +10,6 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
-import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { prisma } from '@/lib/db';
 import { sinalite, SinaliteError } from '@/lib/sinalite/client';
 import { fetchOverridesMap } from '@/lib/products/overrides';
@@ -62,7 +61,6 @@ export default async function AdminProductsPage({
         sidebar={
           <AdminSidebar
             active="products"
-            counts={{ orders: ordersCount, users: usersCount, products: 0 }}
             user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
           />
         }
@@ -96,21 +94,10 @@ export default async function AdminProductsPage({
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const pageProducts = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Round 15 #3 : counts dynamiques via helper centralisé. Override
-  // `products` avec le vrai count Sinalite déjà fetched.
-  const sidebarCountsBase = await getAdminSidebarCounts();
-  const sidebarCounts = {
-    ...sidebarCountsBase,
-    orders: ordersCount,
-    users: usersCount,
-    products: enabledProducts.length,
-  };
-
   return (
     <div className="adm-shell">
       <AdminSidebar
         active="products"
-        counts={sidebarCounts}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

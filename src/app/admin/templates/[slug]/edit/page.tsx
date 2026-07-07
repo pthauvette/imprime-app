@@ -79,11 +79,6 @@ export default async function AdminTemplateEditorPage({
     <div className="adm-shell">
       <AdminSidebar
         active="templates"
-        counts={{
-          orders: ordersCount,
-          users: usersCount,
-          templates: ALL_TEMPLATES.length,
-        }}
         user={
           session?.user
             ? {

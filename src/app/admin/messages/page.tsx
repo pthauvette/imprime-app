@@ -60,9 +60,7 @@ export default async function AdminMessagesPage({
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active={'messages' as never}
-        counts={{ orders: ordersCount, users: usersCount }}
-        urgents={{ messages: openCount > 0 } as never}
+        active="messages"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

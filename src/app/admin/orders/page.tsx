@@ -151,8 +151,6 @@ export default async function AdminOrdersPage({
     <div className="adm-shell">
       <AdminSidebar
         active="orders"
-        counts={sidebarCounts}
-        urgents={{ webhooks: true }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

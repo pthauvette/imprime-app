@@ -12,7 +12,6 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
-import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import RefreshButton from '@/components/admin/RefreshButton';
 import type { OrderEventKind } from '@/lib/db/orders';
@@ -156,17 +155,6 @@ export default async function AdminDashboard() {
   const chartData = Array.from(byDay.entries()).map(([day, val]) => ({ day, val }));
   const maxVal = Math.max(1, ...chartData.map((d) => d.val));
 
-  // Round 15 #3 : counts dynamiques via helper centralisé. Conserve
-  // ordersCount / pendingWebhooks déjà calculés (besoin pour les KPIs
-  // sur cette page de dashboard).
-  const sidebarCounts = await getAdminSidebarCounts();
-  const counts = {
-    ...sidebarCounts,
-    orders: totalOrders,
-    webhooks: pendingWebhooks,
-    users: totalUsers,
-  };
-
   // Top produits 30 derniers jours — agrège par productId depuis itemsSnapshot
   // (snapshot Phase 2). Si l'order n'a pas de snapshot (vieilles orders),
   // on fallback à productSummary (label libre, moins précis mais comptable).
@@ -248,8 +236,6 @@ export default async function AdminDashboard() {
     <div className="adm-shell">
       <AdminSidebar
         active="dashboard"
-        counts={counts}
-        urgents={{ webhooks: failedOrdersCount > 0 }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 
