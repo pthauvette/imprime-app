@@ -158,17 +158,7 @@ export default async function AdminCronsPage() {
       <main className="adm-main" style={{ padding: '40px 48px 80px' }}>
         <header style={{ marginBottom: 32 }}>
           <div className="page-eyebrow">Système</div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 40,
-              letterSpacing: '-0.025em',
-              fontWeight: 400,
-              margin: '8px 0 8px',
-            }}
-          >
-            Cron monitor
-          </h1>
+          <h1 className="adm-page-title" style={{ margin: '8px 0 8px' }}>Cron monitor</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
             Last run + success rate 7 j + latence avg pour chaque cron.
             Healthchecks.io fait l&apos;alerting timeout externe en parallèle.

@@ -62,8 +62,10 @@ export default auth((req) => {
     // verify role here. session.user.role est set par le jwt callback.
     const role = (req.auth.user as { role?: 'USER' | 'ADMIN' } | undefined)?.role;
     if (role !== 'ADMIN') {
-      // Redirige vers home avec un flag (non-affiché côté UI pour MVP)
-      return NextResponse.redirect(new URL('/?forbidden=admin', req.url));
+      // Audit admin 2026-07 §2.2 — redirect NU : le flag `?forbidden=admin`
+      // révélait l'existence de la section admin (contredisait le notFound() de
+      // requireAdminPage, qui la masque volontairement).
+      return NextResponse.redirect(new URL('/', req.url));
     }
     return;
   }

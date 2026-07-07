@@ -270,15 +270,15 @@ export default async function AdminOrdersPage({
             <table className="ord-table">
               <thead>
                 <tr>
-                  <th className="checkbox-col"><input type="checkbox" className="ord-checkbox" /></th>
-                  <th>Order ID</th>
-                  <th>Date</th>
-                  <th>Client</th>
-                  <th>Qté</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th>Sinalite</th>
-                  <th className="actions-col"></th>
+                  <th scope="col" className="checkbox-col"><input type="checkbox" className="ord-checkbox" /></th>
+                  <th scope="col">Order ID</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Client</th>
+                  <th scope="col">Qté</th>
+                  <th scope="col">Total</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Sinalite</th>
+                  <th scope="col" className="actions-col"></th>
                 </tr>
               </thead>
               <tbody>

@@ -115,17 +115,7 @@ export default async function EmailPreviewPage({
       <main className="adm-main" style={{ padding: '40px 48px 80px' }}>
         <header style={{ marginBottom: 32 }}>
           <div className="page-eyebrow">Aperçu emails</div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 40,
-              letterSpacing: '-0.025em',
-              fontWeight: 400,
-              margin: '8px 0 8px',
-            }}
-          >
-            Aperçu des templates
-          </h1>
+          <h1 className="adm-page-title" style={{ margin: '8px 0 8px' }}>Aperçu des templates</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
             Rendu live des 11 templates transactionnels. Modifie les vars en JSON ou
             envoie-toi un test pour valider sur un vrai client mail.
