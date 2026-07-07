@@ -22,6 +22,7 @@ import { withErrorHandler } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
+import { refundAmountCentsOf, PAID_STATUSES } from '@/lib/finances/refund-amount';
 import ExcelJS from 'exceljs';
 
 export const runtime = 'nodejs';
@@ -68,14 +69,28 @@ export const GET = withErrorHandler(async (req: Request) => {
   const now = new Date();
   const { start, end, label } = computeRange(period, now);
 
-  // Fetch toutes les orders payées dans la période
+  // Fetch les orders GÉNÉRATRICES DE REVENU (PAID_STATUSES) payées dans la période
+  // — audit admin 2026-07 §3.1 : on exclut CANCELLED/FAILED (ventes voidées) qui
+  // gonflaient le revenu brut de toutes les sheets.
   const orders = await prisma.order.findMany({
-    where: { paidAt: { gte: start, lt: end } },
+    where: { paidAt: { gte: start, lt: end }, status: { in: [...PAID_STATUSES] } },
     orderBy: { paidAt: 'asc' },
     include: {
       user: { select: { email: true, name: true } },
     },
   });
+
+  // Refunds émis dans la période sur des commandes VIVANTES (chemin /refund).
+  // Montant réel via refundAmountCentsOf → « Revenu net » = brut − refunds.
+  const refundEvents = await prisma.orderEvent.findMany({
+    where: {
+      kind: 'REFUND_ISSUED',
+      createdAt: { gte: start, lt: end },
+      order: { status: { in: [...PAID_STATUSES] } },
+    },
+    include: { order: { select: { amountCents: true } } },
+  });
+  const refundsCents = refundEvents.reduce((s, e) => s + refundAmountCentsOf(e), 0);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Plio';
@@ -108,24 +123,27 @@ export const GET = withErrorHandler(async (req: Request) => {
     0,
   );
   const aov = orders.length > 0 ? revenue / orders.length : 0;
+  const netRevenue = revenue - refundsCents;
 
   summary.addRows([
     { label: 'Période', value: label },
     { label: 'Du', value: start },
     { label: 'Au', value: end },
     { label: 'Nombre de commandes', value: orders.length },
-    { label: 'Revenu total (CAD)', value: revenue / 100 },
-    { label: 'Sous-total (HT)', value: subtotal / 100 },
-    { label: 'Livraison', value: shipping / 100 },
-    { label: 'Taxes collectées', value: taxes / 100 },
+    { label: 'Revenu brut (CAD)', value: revenue / 100 },
+    { label: 'Remboursements (période)', value: -refundsCents / 100 },
+    { label: 'Revenu net (CAD)', value: netRevenue / 100 },
+    { label: 'Sous-total brut (HT)', value: subtotal / 100 },
+    { label: 'Livraison brute', value: shipping / 100 },
+    { label: 'Taxes collectées (brut)', value: taxes / 100 },
     { label: 'Remises promo', value: discounts / 100 },
     { label: 'Crédits parrainage utilisés', value: referralCredits / 100 },
-    { label: 'Panier moyen (AOV)', value: aov / 100 },
+    { label: 'Panier moyen brut (AOV)', value: aov / 100 },
   ]);
 
-  // Format monetary cells (rows 5-11) as currency
-  for (let r = 5; r <= 11; r++) {
-    summary.getCell(`B${r + 1}`).numFmt = '#,##0.00 "$"';
+  // Cellules monétaires : « Revenu brut » (row 6) → « AOV » (row 14).
+  for (let r = 6; r <= 14; r++) {
+    summary.getCell(`B${r}`).numFmt = '#,##0.00 "$"';
   }
   // Dates
   summary.getCell('B2').numFmt = 'yyyy-mm-dd hh:mm';
