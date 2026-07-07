@@ -83,29 +83,31 @@ describe('ProductMockup — unicité des visuels', () => {
   it('CATALOGUE RÉEL : chaque PRODUIT d\'une famille rend un SVG distinct (164 produits)', () => {
     // Avant le visuel par-produit (forme du nom + badge grammage + layout seedé),
     // 95 % des produits partageaient leur visuel (pire : 26/29 en bannières).
-    // Ce test rejoue le rendu EXACT de ProductListClient sur l'instantané réel.
+    // Ce test rejoue le rendu EXACT de ProductListClient sur l'instantané réel
+    // (fixture versionnée — le draft docs/ complet est gitignoré).
     const catalog = JSON.parse(
-      readFileSync('docs/sinalite-catalogue-map.draft.json', 'utf8'),
-    ) as Record<string, Array<{ name: string }>>;
+      readFileSync('tests/fixtures/sinalite-product-names.json', 'utf8'),
+    ) as Record<string, string[] | string>;
     const iconBySlug = new Map(CATEGORY_GROUPS.map((g) => [g.slug, g.icon]));
 
     let familiesChecked = 0;
     let productsChecked = 0;
-    for (const [slug, products] of Object.entries(catalog)) {
+    for (const [slug, names] of Object.entries(catalog)) {
+      if (!Array.isArray(names)) continue; // clé _readme
       const icon = iconBySlug.get(slug);
-      if (!icon) continue; // famille du draft absente du catalogue courant
+      if (!icon) continue; // famille de la fixture absente du catalogue courant
       const family = mockupForIcon(icon);
       const seen = new Map<string, string>(); // svg → nom du produit
-      for (const p of products) {
-        const m = mockupForProduct(p.name, family);
+      for (const name of names) {
+        const m = mockupForProduct(name, family);
         const svg = renderToStaticMarkup(
-          <ProductMockup shape={m.shape} finish={m.finish} spec={specForProductName(p.name)} seed={p.name} />,
+          <ProductMockup shape={m.shape} finish={m.finish} spec={specForProductName(name)} seed={name} />,
         );
         const dup = seen.get(svg);
         expect(
-          dup ? `DOUBLON dans ${slug} : « ${p.name} » ≡ « ${dup} »` : 'distinct',
+          dup ? `DOUBLON dans ${slug} : « ${name} » ≡ « ${dup} »` : 'distinct',
         ).toBe('distinct');
-        seen.set(svg, p.name);
+        seen.set(svg, name);
         productsChecked++;
       }
       familiesChecked++;
