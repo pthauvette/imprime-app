@@ -24,6 +24,9 @@ jobs:
             echo "::error::CRON_SECRET secret manquant."
             exit 1
           fi
+          # ⚠️ TOUJOURS viser www.plio.ca, JAMAIS l'apex : l'apex répond 404 sur
+          # /api/cron/* (redirecteur GoDaddy) → chaque run échouait (Round 45 #4,
+          # sweep complété 2026-07-07 — 12 crons étaient morts en silence).
           curl --fail --silent --show-error \
             -H "Authorization: Bearer $CRON_SECRET" \
-            https://plio.ca/api/cron/order-sla-alerts
+            https://www.plio.ca/api/cron/order-sla-alerts
