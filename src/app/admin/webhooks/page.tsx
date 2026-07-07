@@ -276,8 +276,10 @@ export default async function AdminWebhooksPage({
           <form action="/admin/webhooks" method="get" className="adm-filter-group">
             {filterSource && <input type="hidden" name="source" value={filterSource} />}
             {search && <input type="hidden" name="q" value={search} />}
-            <span className="adm-filter-label">Type</span>
-            <select className="adm-select" name="type" defaultValue={filterType}>
+            <span className="adm-filter-label" aria-hidden="true">Type</span>
+            {/* Audit admin 2026-07 §6.4 — le span voisin n'était pas associé au
+                select : aucun nom accessible pour les lecteurs d'écran. */}
+            <select className="adm-select" name="type" defaultValue={filterType} aria-label="Filtrer par type d'événement">
               <option value="">Tous les events</option>
               {typeGroups.map((g) => (
                 <option key={g.eventType} value={g.eventType}>

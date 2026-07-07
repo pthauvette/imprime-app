@@ -9846,3 +9846,27 @@ a, button, [role="button"], input[type="checkbox"] {
   transition: transform var(--dur-base) var(--ease-spring);
 }
 .product-row:hover .product-thumb-mock { transform: scale(1.04) rotate(-1deg); }
+
+/* ── Audit admin 2026-07 §6.1-§6.3 — mobile admin (patch EOF, ordre source) ──
+   §6.1 Filet PÉRENNE de scroll horizontal des tables : le SEUL filet vivait dans
+   migrated-pages.css (fichier GÉNÉRÉ, régénérable — une dédup pourrait le retirer) ;
+   les panels .ord-panel/.usr-panel/.adm-panel sont overflow:hidden → sans lui, les
+   colonnes de droite (Total/Statut/Actions) deviennent inatteignables à 375px.
+   Spécificité doublée .X.X pour battre migrated-pages.css (importé après). */
+@media (max-width: 768px) {
+  .ord-panel.ord-panel,
+  .usr-panel.usr-panel,
+  .adm-panel.adm-panel { overflow-x: auto; }
+}
+/* §6.2 Le burger fixe (top:12px, <1024px) recouvrait le titre/breadcrumb —
+   réserve la gouttière à gauche. */
+@media (max-width: 1024px) {
+  .adm-topbar.adm-topbar,
+  .od-breadcrumb.od-breadcrumb,
+  .ud-breadcrumb.ud-breadcrumb { padding-left: 52px; }
+}
+/* §6.3 iOS zoome tout champ < 16px au focus ; 11px + 27px de haut = zoom
+   involontaire + cible tactile trop petite. */
+@media (max-width: 700px) {
+  .adm-select.adm-select { font-size: 16px; min-height: 44px; }
+}
