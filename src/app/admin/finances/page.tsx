@@ -263,7 +263,6 @@ export default async function AdminFinancesPage({
     <div className="adm-shell">
       <AdminSidebar
         active="finances"
-        counts={sidebarCounts}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

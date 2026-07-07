@@ -56,8 +56,6 @@ export default async function AdminReviewsPage({
     <div className="adm-shell">
       <AdminSidebar
         active="reviews"
-        counts={{ orders, users, reviews: countByStatus('PENDING') }}
-        urgents={{ reviews: countByStatus('PENDING') > 0 }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

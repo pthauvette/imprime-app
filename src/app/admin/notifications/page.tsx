@@ -226,9 +226,7 @@ export default async function AdminNotificationsPage() {
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active={'notifications' as never}
-        counts={{ orders: ordersCount, users: usersCount }}
-        urgents={{ notifications: counts.critical + counts.warning > 0 } as never}
+        active="notifications"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

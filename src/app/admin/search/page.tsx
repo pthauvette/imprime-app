@@ -32,8 +32,7 @@ export default async function AdminSearchPage({
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active={'search' as never}
-        counts={{ orders: ordersCount, users: usersCount }}
+        active="search"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

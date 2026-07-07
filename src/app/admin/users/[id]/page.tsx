@@ -15,7 +15,6 @@ import TaxExemptToggle from '@/components/admin/TaxExemptToggle';
 import ResellerStatusToggle from '@/components/admin/ResellerStatusToggle';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
-import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { classifyCustomer, rfmSummary } from '@/lib/customers/segment';
@@ -187,20 +186,10 @@ export default async function AdminUserDetailPage({
 
   const initials = userInitials(displayName, user.email);
 
-  // Round 15 #3 : counts dynamiques via helper centralisé.
-  const sidebarCountsBase = await getAdminSidebarCounts();
-  const sidebarCounts = {
-    ...sidebarCountsBase,
-    orders: sidebarOrders,
-    webhooks: sidebarWebhooks,
-    users: sidebarUsers,
-  };
-
   return (
     <div className="adm-shell">
       <AdminSidebar
         active="users"
-        counts={sidebarCounts}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

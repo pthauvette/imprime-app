@@ -16,7 +16,6 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
-import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -36,11 +35,11 @@ export default async function AdminPromoCodeDetailPage({
   const { session } = await requireAdminPage();
   const { id } = await params;
 
-  // Round 44 #2 — promo, globalAovAgg et sidebarCounts sont mutuellement
-  // indépendants (aucun ne lit le résultat d'un autre ; globalAovAgg ne
-  // dépend que de `id`) → un seul Promise.all au lieu de 3 awaits sériels.
+  // Round 44 #2 — promo et globalAovAgg sont mutuellement indépendants
+  // (globalAovAgg ne dépend que de `id`) → un seul Promise.all au lieu
+  // d'awaits sériels. (Les counts de sidebar sont fetchés par AdminSidebar.)
   // Le notFound() sur promo reste juste après (guard inchangé).
-  const [promo, globalAovAgg, sidebarCountsBase] = await Promise.all([
+  const [promo, globalAovAgg] = await Promise.all([
     prisma.promoCode.findUnique({
       where: { id },
       include: {
@@ -70,7 +69,6 @@ export default async function AdminPromoCodeDetailPage({
       _avg: { amountCents: true },
       _count: { _all: true },
     }).catch(() => ({ _avg: { amountCents: 0 }, _count: { _all: 0 } })),
-    getAdminSidebarCounts(),
   ]);
   if (!promo) notFound();
 
@@ -129,13 +127,11 @@ export default async function AdminPromoCodeDetailPage({
         ? { label: 'Épuisé', color: 'var(--warning, #D97706)' }
         : { label: 'Actif', color: 'var(--success, #16A34A)' };
 
-  // sidebarCountsBase résolu ci-dessus en parallèle (Round 44 #2).
 
   return (
     <div className="adm-shell">
       <AdminSidebar
         active="promo-codes"
-        counts={sidebarCountsBase}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 
