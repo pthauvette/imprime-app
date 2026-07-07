@@ -85,8 +85,6 @@ export default async function AdminSamplesPage({
     <div className="adm-shell">
       <AdminSidebar
         active="samples"
-        counts={{ orders: ordersCount, users: usersCount }}
-        urgents={{ samples: pendingCount > 0 } as never}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

@@ -54,8 +54,7 @@ export default async function AdminNewsletterPage({
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active="settings"
-        counts={{ orders, users }}
+        active="newsletter"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

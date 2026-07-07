@@ -141,8 +141,7 @@ export default async function TaxReportPage({
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active="finances"
-        counts={{ orders: ordersCount, users: usersCount }}
+        active="finances-tax-report"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

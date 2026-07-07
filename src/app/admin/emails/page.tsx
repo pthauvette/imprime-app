@@ -116,8 +116,6 @@ export default async function AdminEmailsPage({
     <div className="adm-shell">
       <AdminSidebar
         active="emails"
-        counts={{ orders, users, emails: countByStatus('FAILED') + countByStatus('DEAD') }}
-        urgents={{ emails: countByStatus('DEAD') > 0 }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

@@ -57,9 +57,7 @@ export default async function AdminResellerApplicationsPage({
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active={'reseller-applications' as never}
-        counts={{ orders: ordersCount, users: usersCount }}
-        urgents={{ 'reseller-applications': pendingCount > 0 } as never}
+        active="reseller-applications"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

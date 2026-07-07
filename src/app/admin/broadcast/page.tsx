@@ -39,8 +39,7 @@ export default async function AdminBroadcastPage() {
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active={'broadcast' as never}
-        counts={{ orders: ordersCount, users: usersCount }}
+        active="broadcast"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

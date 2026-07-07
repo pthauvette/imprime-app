@@ -1,11 +1,16 @@
 import Link from 'next/link';
 import type { Route } from 'next';
+import { getAdminSidebarData } from '@/lib/admin/sidebar-counts';
+import AdminSignOutButton from '@/components/admin/AdminSignOutButton';
 
 /**
- * Sidebar admin — réutilisée par les 10 pages /admin/*.
+ * Sidebar admin — réutilisée par les 31 pages /admin/*.
  *
- * Les counts sont passés en props (ou fallback hardcodé). Pour la prod,
- * passer les vraies stats via les Server Components.
+ * Audit admin 2026-07 §5.1-§5.4 — composant serveur ASYNC autosuffisant : il
+ * va chercher lui-même counts + pastilles urgentes via getAdminSidebarData()
+ * (source unique). Avant, chaque page passait des counts faits main (partiels,
+ * parfois hardcodés) → les badges changeaient d'une page à l'autre. Les props
+ * counts/urgents ont été RETIRÉS : la cohérence est garantie par construction.
  */
 
 export type AdminSidebarKey =
@@ -18,6 +23,7 @@ export type AdminSidebarKey =
   | 'reseller-applications'
   | 'messages'
   | 'quotes'
+  | 'newsletter'
   | 'broadcast'
   | 'email-preview'
   | 'experiments'
@@ -130,23 +136,23 @@ const ICONS = {
 
 export interface AdminSidebarProps {
   active: AdminSidebarKey;
-  counts?: Partial<Record<AdminSidebarKey, number | string>>;
   user?: {
     name: string | null;
     email: string;
     role?: 'USER' | 'ADMIN' | string;
   };
-  urgents?: Partial<Record<AdminSidebarKey, boolean>>;
 }
 
-export default function AdminSidebar({ active, counts = {}, user, urgents = {} }: AdminSidebarProps) {
+export default async function AdminSidebar({ active, user }: AdminSidebarProps) {
+  // Source unique — counts + urgents identiques sur toutes les pages (§5.1-§5.4).
+  const { counts, urgents } = await getAdminSidebarData();
   const sections: { label: string; items: NavItem[] }[] = [
     {
       label: 'Opérations',
       items: [
         { key: 'dashboard', href: '/admin' as Route, label: 'Tableau de bord', icon: ICONS.dashboard },
         { key: 'search', href: '/admin/search' as Route, label: 'Recherche · ⌘K', icon: ICONS.search },
-        { key: 'notifications', href: '/admin/notifications' as Route, label: 'Notifications', icon: ICONS.reviews, urgent: urgents.notifications },
+        { key: 'notifications', href: '/admin/notifications' as Route, label: 'Notifications', icon: ICONS.reviews },
         { key: 'orders', href: '/admin/orders' as Route, label: 'Commandes', icon: ICONS.orders, count: counts.orders },
         { key: 'webhooks', href: '/admin/webhooks' as Route, label: 'Webhooks', icon: ICONS.webhooks, count: counts.webhooks, urgent: urgents.webhooks },
         { key: 'emails', href: '/admin/emails' as Route, label: 'Queue email', icon: ICONS.emails, count: counts.emails, urgent: urgents.emails },
@@ -170,6 +176,8 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
         { key: 'reseller-applications', href: '/admin/reseller-applications' as Route, label: 'Demandes reseller', icon: ICONS.users, count: counts['reseller-applications'], urgent: urgents['reseller-applications'] },
         { key: 'messages', href: '/admin/messages' as Route, label: 'Messages clients', icon: ICONS.emails, count: counts.messages, urgent: urgents.messages },
         { key: 'quotes', href: '/admin/quotes' as Route, label: 'Devis sur-mesure', icon: ICONS.emails, count: counts.quotes, urgent: urgents.quotes },
+        // Audit §5.6 — /admin/newsletter existait sans item de nav (inatteignable).
+        { key: 'newsletter', href: '/admin/newsletter' as Route, label: 'Infolettre', icon: ICONS.emails },
         { key: 'broadcast', href: '/admin/broadcast' as Route, label: 'Broadcasts email', icon: ICONS.emails },
       ],
     },
@@ -241,6 +249,14 @@ export default function AdminSidebar({ active, counts = {}, user, urgents = {} }
           </div>
         </div>
       )}
+      {/* Audit §5.7 — le bloc utilisateur n'était pas interactif : aucune
+          déconnexion ni retour au site depuis l'admin. */}
+      <div className="adm-nav-footer" style={{ display: 'grid', gap: 2, marginTop: 4 }}>
+        <Link href={'/' as Route} className="adm-nav-link">
+          <span className="adm-nav-link-text">← Voir le site</span>
+        </Link>
+        <AdminSignOutButton />
+      </div>
     </aside>
   );
 }

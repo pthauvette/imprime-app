@@ -45,13 +45,41 @@ export interface AdminSidebarCounts {
  * le vrai count sur sa propre page.
  */
 export async function getAdminSidebarCounts(): Promise<AdminSidebarCounts> {
+  return (await getAdminSidebarData()).counts;
+}
+
+/** Pastilles rouges « à traiter » de la sidebar — mêmes clés que AdminSidebarKey. */
+export interface AdminSidebarUrgents {
+  webhooks: boolean;
+  emails: boolean;
+  reviews: boolean;
+  samples: boolean;
+  messages: boolean;
+  quotes: boolean;
+  'reseller-applications': boolean;
+}
+
+/**
+ * Audit admin 2026-07 §5.1-§5.4 — SOURCE UNIQUE des counts ET des pastilles
+ * urgentes de la sidebar, en UN batch de requêtes. Avant : ~17 pages passaient
+ * des counts faits main (partiels) et chaque page n'allumait que SA pastille →
+ * les badges changeaient d'une page à l'autre et l'admin ne pouvait pas s'y
+ * fier. La sidebar appelle désormais ce helper ELLE-MÊME (composant serveur
+ * async) → cohérence par construction sur les 31 pages.
+ */
+export async function getAdminSidebarData(): Promise<{
+  counts: AdminSidebarCounts;
+  urgents: AdminSidebarUrgents;
+}> {
   const safe = async <T>(p: Promise<T>, fallback: T): Promise<T> => {
     try { return await p; } catch { return fallback; }
   };
 
+  const yesterday = new Date(Date.now() - 24 * 3600 * 1000);
   const [
     orders, users, webhooks, emails,
     reviews, samples, messages, quotes, resellerApps, promoCodes,
+    failedWebhooks24h, deadEmails,
   ] = await Promise.all([
     safe(prisma.order.count(), 0),
     safe(prisma.user.count(), 0),
@@ -63,20 +91,35 @@ export async function getAdminSidebarCounts(): Promise<AdminSidebarCounts> {
     safe(prisma.customQuoteRequest.count({ where: { status: { in: ['NEW', 'IN_REVIEW'] } } }), 0),
     safe(prisma.resellerApplication.count({ where: { status: { in: ['NEW', 'PENDING_REVIEW'] } } }), 0),
     safe(prisma.promoCode.count({ where: { active: true } }), 0),
+    // Urgents — mêmes définitions que les pages dédiées (webhooks/page failed24h,
+    // emails/page DEAD) pour que la pastille dise la même chose partout.
+    safe(prisma.webhookEvent.count({ where: { success: false, processedAt: { gte: yesterday } } }), 0),
+    safe(prisma.emailDelivery.count({ where: { status: 'DEAD' } }), 0),
   ]);
 
   return {
-    orders,
-    users,
-    webhooks,
-    templates: ALL_TEMPLATES.length,
-    // products omis volontairement — cf. doc ci-dessus
-    emails,
-    reviews,
-    samples,
-    messages,
-    quotes,
-    'reseller-applications': resellerApps,
-    'promo-codes': promoCodes,
+    counts: {
+      orders,
+      users,
+      webhooks,
+      templates: ALL_TEMPLATES.length,
+      // products omis volontairement — cf. doc ci-dessus
+      emails,
+      reviews,
+      samples,
+      messages,
+      quotes,
+      'reseller-applications': resellerApps,
+      'promo-codes': promoCodes,
+    },
+    urgents: {
+      webhooks: failedWebhooks24h > 0,
+      emails: deadEmails > 0,
+      reviews: reviews > 0,
+      samples: samples > 0,
+      messages: messages > 0,
+      quotes: quotes > 0,
+      'reseller-applications': resellerApps > 0,
+    },
   };
 }

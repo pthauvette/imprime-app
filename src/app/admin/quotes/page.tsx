@@ -59,9 +59,7 @@ export default async function AdminQuotesPage({
   return (
     <div className="adm-shell">
       <AdminSidebar
-        active={'quotes' as never}
-        counts={{ orders: ordersCount, users: usersCount, quotes: pendingCount || undefined } as never}
-        urgents={{ quotes: pendingCount > 0 } as never}
+        active="quotes"
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 
