@@ -50,7 +50,6 @@ export default async function AdminPromoCodesPage({
     <div className="adm-shell">
       <AdminSidebar
         active="promo-codes"
-        counts={{ orders: totalOrders, users: totalUsers, 'promo-codes': activeCount }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

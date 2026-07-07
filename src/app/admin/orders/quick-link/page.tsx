@@ -31,7 +31,6 @@ export default async function AdminQuickLinkPage() {
     <div className="adm-shell">
       <AdminSidebar
         active="orders"
-        counts={{ orders: ordersCount, users: usersCount }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

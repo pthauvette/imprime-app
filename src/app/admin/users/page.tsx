@@ -12,7 +12,6 @@ import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
-import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import UserBulkBar from './UserBulkBar';
 
@@ -199,15 +198,6 @@ export default async function AdminUsersPage({
     inactive: 'Inactifs 90j+',
   };
 
-  // Round 15 #3 : counts dynamiques via helper centralisé.
-  const sidebarCountsBase = await getAdminSidebarCounts();
-  const sidebarCounts = {
-    ...sidebarCountsBase,
-    orders: sidebarOrders,
-    webhooks: sidebarWebhooks,
-    users: totalCount,
-  };
-
   const newDelta = new7dPrev > 0
     ? new7dCount - new7dPrev
     : new7dCount > 0 ? new7dCount : 0;
@@ -216,7 +206,6 @@ export default async function AdminUsersPage({
     <div className="adm-shell">
       <AdminSidebar
         active="users"
-        counts={sidebarCounts}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 

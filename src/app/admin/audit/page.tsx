@@ -127,7 +127,6 @@ export default async function AdminAuditPage({
     <div className="adm-shell">
       <AdminSidebar
         active="audit"
-        counts={{ orders: ordersCount, users: usersCount }}
         user={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? '', role: session.user.role } : undefined}
       />
 
