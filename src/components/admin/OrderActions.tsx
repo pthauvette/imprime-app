@@ -50,6 +50,26 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   const canReplay = !hasSinaliteId && status !== 'PENDING' && status !== 'CANCELLED';
   const canCancel = status !== 'SHIPPED' && status !== 'DELIVERED' && status !== 'CANCELLED' && status !== 'FAILED';
 
+  // Audit admin 2026-07 §8.2 — faire avancer le fulfillment depuis la fiche
+  // (avant : détour obligé par le bulk de la liste). Boutons contextuels au
+  // statut ; SHIPPED ouvre un mini-form tracking/carrier.
+  const canToProduction = status === 'PAID' || status === 'SUBMITTED';
+  const canToShipped = status === 'PAID' || status === 'SUBMITTED' || status === 'IN_PRODUCTION';
+  const canToDelivered = status === 'SHIPPED';
+  const [shipOpen, setShipOpen] = useState(false);
+  const [shipTracking, setShipTracking] = useState('');
+  const [shipCarrier, setShipCarrier] = useState('UPS');
+
+  function handleShipSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setShipOpen(false);
+    void call('Marquée expédiée', `/api/admin/orders/${orderId}/status`, {
+      status: 'SHIPPED',
+      ...(shipTracking.trim() && { trackingNumber: shipTracking.trim() }),
+      ...(shipTracking.trim() && shipCarrier.trim() && { carrier: shipCarrier.trim() }),
+    });
+  }
+
   async function call(label: string, path: string, body?: Record<string, unknown>) {
     setBusy(label);
     setError(null);
@@ -170,6 +190,79 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
         busy={busy === 'Replay Sinalite'}
         disabled={!canReplay}
       />
+
+      {/* Audit §8.2 — faire avancer le fulfillment depuis la fiche */}
+      {(canToProduction || canToShipped || canToDelivered) && (
+        <>
+          <div style={{ height: 1, background: 'var(--border-subtle)', margin: '8px 0' }} />
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+            Faire avancer
+          </div>
+          {canToProduction && (
+            <ActionBtn
+              label="⚙ → En production"
+              onClick={() => void call('En production', `/api/admin/orders/${orderId}/status`, { status: 'IN_PRODUCTION' })}
+              busy={busy === 'En production'}
+            />
+          )}
+          {canToShipped && (
+            <ActionBtn
+              label="🚚 → Expédiée (tracking)…"
+              onClick={() => { setError(null); setSuccess(null); setShipOpen(true); }}
+              busy={busy === 'Marquée expédiée'}
+            />
+          )}
+          {shipOpen && (
+            <form
+              onSubmit={handleShipSubmit}
+              style={{ display: 'grid', gap: 8, padding: 12, background: 'var(--bg-sunken)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', marginTop: 4 }}
+            >
+              <div>
+                <label htmlFor="ship-tracking" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                  Numéro de tracking (optionnel — envoyé au client + /track)
+                </label>
+                <input
+                  id="ship-tracking"
+                  type="text"
+                  value={shipTracking}
+                  onChange={(e) => setShipTracking(e.target.value)}
+                  maxLength={80}
+                  placeholder="1Z999AA10123456784"
+                  style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
+                />
+              </div>
+              <div>
+                <label htmlFor="ship-carrier" style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                  Transporteur
+                </label>
+                <input
+                  id="ship-carrier"
+                  type="text"
+                  value={shipCarrier}
+                  onChange={(e) => setShipCarrier(e.target.value)}
+                  maxLength={40}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShipOpen(false)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}>
+                  Annuler
+                </button>
+                <button type="submit" style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  Marquer expédiée
+                </button>
+              </div>
+            </form>
+          )}
+          {canToDelivered && (
+            <ActionBtn
+              label="✓ → Livrée"
+              onClick={() => void call('Marquée livrée', `/api/admin/orders/${orderId}/status`, { status: 'DELIVERED' })}
+              busy={busy === 'Marquée livrée'}
+            />
+          )}
+        </>
+      )}
 
       <div style={{ height: 1, background: 'var(--border-subtle)', margin: '8px 0' }} />
       <div
