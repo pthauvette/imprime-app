@@ -39,6 +39,9 @@ export type AdminAuditKind =
   | 'ADMIN_WEBHOOK_REPLAY' // rejeu d'un webhook (financier)
   | 'ADMIN_REVIEW_MODERATE' // modération d'un avis (approve/reject/reply)
   | 'ADMIN_RESELLER_DECISION' // décision sur une demande reseller (approve/reject/archive)
+  // Audit admin 2026-07 §8.2 — transition de statut depuis la FICHE commande
+  // (route /orders/[id]/status), distincte du bulk pour la traçabilité.
+  | 'ADMIN_ORDER_STATUS_CHANGE'
   // Audit v2 #10.7 — DEMANDE d'annulation par le CLIENT (acteur = client, pas
   // admin). Avant : loggée en ADMIN_MANUAL_CANCEL avec l'email CLIENT → polluait
   // les rapports d'audit admin (confusion « qui a annulé » + email client mêlé
