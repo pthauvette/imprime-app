@@ -9,7 +9,7 @@
  * Server-renderable — aucun état, aucun hook.
  */
 import { fitRect } from '@/lib/products/format-preview';
-import { shapeAspect, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
+import { shapeAspect, mockupSeed, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
 
 export type { MockupShape, MockupFinish };
 
@@ -37,11 +37,19 @@ export default function ProductMockup({
   finish = 'plain',
   height = 150,
   title,
+  spec,
+  seed,
 }: {
   shape: MockupShape;
   finish?: MockupFinish;
   height?: number;
   title?: string;
+  /** Badge de grammage/épaisseur (« 14PT », « 100LB ») — cf. specForProductName. */
+  spec?: string;
+  /** Nom du produit : pilote des variations DÉTERMINISTES de layout (largeur des
+   *  lignes) pour que deux produits au même (forme, finition, spec) restent
+   *  visuellement distincts. Omis (surfaces famille/accueil) = layout canonique. */
+  seed?: string;
 }) {
   const r = fitRect(shapeAspect(shape), 1, VB_W - 40, VB_H - 40); // fit ratio dans une boîte
   const x = 20 + r.x;
@@ -54,6 +62,11 @@ export default function ProductMockup({
   const rot = shape === 'banner' ? -2 : -3;
   const textColor = finish === 'green' || finish === 'foil' ? 'rgba(250,250,247,0.6)' : 'rgba(20,28,22,0.16)';
   const lineY = shape === 'flyer' ? y + 14 : cy - 8;
+  // Variation déterministe par produit (seed = nom) : largeurs des lignes de
+  // texte suggérées. Sans seed → layout canonique historique (0.42 / 0.28).
+  const h1 = seed ? mockupSeed(seed) : 0;
+  const line1W = seed ? w * (0.32 + ((h1 >>> 3) % 21) / 100) : w * 0.42; // 32–52 %
+  const line2W = seed ? w * (0.18 + ((h1 >>> 9) % 17) / 100) : w * 0.28; // 18–34 %
 
   return (
     <svg
@@ -113,9 +126,20 @@ export default function ProductMockup({
           </>
         )}
 
-        {/* Lignes de texte suggérées */}
-        <rect x={x + 12} y={lineY} width={w * 0.42} height={3} rx={1.5} fill={finish === 'foil' ? FOIL : textColor} />
-        <rect x={x + 12} y={lineY + 9} width={w * 0.28} height={3} rx={1.5} fill={textColor} />
+        {/* Lignes de texte suggérées (largeurs seedées par produit) */}
+        <rect x={x + 12} y={lineY} width={line1W} height={3} rx={1.5} fill={finish === 'foil' ? FOIL : textColor} />
+        <rect x={x + 12} y={lineY + 9} width={line2W} height={3} rx={1.5} fill={textColor} />
+
+        {/* Badge de spec (grammage/épaisseur) — coin bas-droit */}
+        {spec && (
+          <>
+            <rect x={x + w - 12 - spec.length * 5.4} y={y + h - 16} width={spec.length * 5.4 + 8} height={11}
+              rx={5.5} fill={finish === 'green' || finish === 'foil' ? 'rgba(250,250,247,0.85)' : GREEN} opacity={0.9} />
+            <text x={x + w - 8 - (spec.length * 5.4) / 2} y={y + h - 8} textAnchor="middle"
+              fontFamily="ui-monospace, Menlo, monospace" fontSize={6.5} fontWeight={700} letterSpacing="0.05em"
+              fill={finish === 'green' || finish === 'foil' ? GREEN : '#fbfaf7'}>{spec}</text>
+          </>
+        )}
 
         {/* Œillets (bannière) */}
         {shape === 'banner' &&

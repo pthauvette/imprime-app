@@ -19,7 +19,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import type { EnrichedProduct } from '@/lib/products/overrides';
 import ProductMockup from '@/components/wizard/ProductMockup';
-import { toMockupFinish, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
+import { mockupForProduct, specForProductName, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 
 type SortKey = 'popular' | 'name-asc' | 'name-desc' | 'id-asc';
@@ -365,7 +365,22 @@ function ProductRow({
     >
       <div className="product-thumb">
         <span className="product-thumb-mock">
-          <ProductMockup shape={mockupShape} finish={toMockupFinish(flags.finishClass, mockupFinish)} height={56} />
+          {/* Visuel PAR PRODUIT (audit unicité 2026-07) : le nom prime (forme réelle
+              — poster/greeting/folder… + finition, AQ/enviro inclus), la famille sert
+              de fallback ; badge de grammage + layout seedé par nom → chaque produit
+              d'une liste rend un SVG distinct (avant : 95 % de doublons). */}
+          {(() => {
+            const m = mockupForProduct(product.name, { shape: mockupShape, finish: mockupFinish });
+            return (
+              <ProductMockup
+                shape={m.shape}
+                finish={m.finish}
+                spec={specForProductName(product.name)}
+                seed={product.name}
+                height={56}
+              />
+            );
+          })()}
         </span>
       </div>
       <div className="product-info">
