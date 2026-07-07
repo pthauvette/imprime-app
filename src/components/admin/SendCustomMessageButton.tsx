@@ -39,6 +39,17 @@ export default function SendCustomMessageButton({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      // Audit admin 2026-07 §4.1 — queueEmail retourne { sent:false } en HTTP 200
+      // quand l'email est droppé (opt-out / suppression bounce / throttle). Avant,
+      // on affichait « ✓ Envoyé » à tort et l'admin attendait une réponse qui ne
+      // viendrait jamais. On garde le texte rédigé pour qu'il puisse le réutiliser.
+      if (data.sent === false) {
+        setFeedback({
+          ok: false,
+          message: `NON délivré à ${data.to ?? customerEmail} (opt-out, bounce ou throttle). Le client n'a rien reçu — contacte-le autrement.`,
+        });
+        return;
+      }
       setFeedback({ ok: true, message: `Envoyé à ${data.to}` });
       // Reset après envoi réussi
       setSubject('');

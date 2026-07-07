@@ -20,7 +20,13 @@ interface Props {
 
 export default function MessageActions({ id, status, email, subject }: Props) {
   const router = useRouter();
-  const [busy, startTransition] = useTransition();
+  // Audit admin 2026-07 §4.3 — busy manuel : avec useTransition seul, le fetch
+  // vivait DANS la transition (non awaité par l'appelant) → sendReply fermait le
+  // drawer et vidait le texte AVANT de connaître le résultat (réponse perdue sur
+  // échec). Le fetch est maintenant awaité et retourne un booléen ; la transition
+  // ne couvre plus que router.refresh().
+  const [busy, setBusy] = useState(false);
+  const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
   const [replyBody, setReplyBody] = useState('');
@@ -30,24 +36,27 @@ export default function MessageActions({ id, status, email, subject }: Props) {
   const [notingOpen, setNotingOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
 
-  async function patch(body: Record<string, unknown>) {
+  async function patch(body: Record<string, unknown>): Promise<boolean> {
     setError(null);
-    startTransition(async () => {
-      try {
-        const res = await fetch(`/api/admin/messages/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(j.error ?? `HTTP ${res.status}`);
-        }
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erreur');
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error ?? `HTTP ${res.status}`);
       }
-    });
+      startTransition(() => router.refresh());
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
 
   // Round 41 #1 — Inline form au lieu de window.prompt (mobile : prompt iOS
@@ -64,8 +73,12 @@ export default function MessageActions({ id, status, email, subject }: Props) {
       setError('Note requise');
       return;
     }
-    setNotingOpen(false);
-    await patch({ action: 'note', adminNotes: trimmed });
+    // §4.3 — ne fermer/vider qu'au SUCCÈS (sinon la note est perdue sur échec).
+    const ok = await patch({ action: 'note', adminNotes: trimmed });
+    if (ok) {
+      setNotingOpen(false);
+      setNoteText('');
+    }
   }
 
   async function sendReply() {
@@ -73,13 +86,17 @@ export default function MessageActions({ id, status, email, subject }: Props) {
       setError('Réponse trop courte (min 10 caractères)');
       return;
     }
-    await patch({
+    // §4.3 — ne fermer/vider qu'au SUCCÈS : sur échec, le drawer reste ouvert
+    // avec le texte intact (avant : réponse de 4 paragraphes perdue sur un 500).
+    const ok = await patch({
       action: 'reply',
       body: replyBody.trim(),
       subjectOverride: replySubject.trim() !== `Re: ${subject}` ? replySubject.trim() : undefined,
     });
-    setReplying(false);
-    setReplyBody('');
+    if (ok) {
+      setReplying(false);
+      setReplyBody('');
+    }
   }
 
   return (

@@ -19,9 +19,11 @@ interface Props {
   status: string;
   amountCents: number;
   hasSinaliteId: boolean;
+  /** Nombre d'articles — sert à estimer les frais d'annulation Sinalite (25 $/article). */
+  itemsCount?: number;
 }
 
-export default function OrderActions({ orderId, status, amountCents, hasSinaliteId }: Props) {
+export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,14 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   // Round 40 #5 — Cancel reason inline form (était window.prompt).
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('Stock épuisé — non disponible');
+  // Audit admin 2026-07 §8.1 — répercuter les frais d'annulation Sinalite
+  // (l'API cancel accepte chargeCancelFee depuis #433 ; l'UI ne l'exposait pas →
+  // Plio absorbait ≥ 25 $/article à chaque annulation post-production).
+  const [chargeCancelFee, setChargeCancelFee] = useState(false);
+  // Sinalite ne facture qu'une fois la commande partie en production.
+  const sinaliteCharged = status === 'SUBMITTED' || status === 'IN_PRODUCTION';
+  // Estimation UI (le vrai montant, env-configurable côté serveur, est renvoyé par l'API).
+  const estimatedFeeCents = Math.min(amountCents, 2500 * Math.max(1, itemsCount));
 
   const canRefund = status !== 'PENDING' && status !== 'CANCELLED' && status !== 'FAILED';
   const canReplay = !hasSinaliteId && status !== 'PENDING' && status !== 'CANCELLED';
@@ -52,7 +62,17 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setSuccess(`✓ ${label} OK`);
+      // Audit admin 2026-07 §4.2 — queueEmail retourne { sent:false } en HTTP 200
+      // quand l'email est droppé (opt-out / suppression bounce / throttle). Un
+      // « ✓ OK » codé en dur mentait à l'admin. On lit `sent` quand il est présent.
+      if (typeof data.sent === 'boolean' && !data.sent) {
+        setError(`⚠ ${label} : email NON délivré (opt-out, bounce ou throttle). Le client n'a rien reçu — contacte-le autrement.`);
+      } else if (typeof data.cancelFeeCents === 'number' && data.cancelFeeCents > 0) {
+        // §8.1 — refléter les frais réellement retenus par l'API cancel.
+        setSuccess(`✓ ${label} OK — frais d'annulation retenus : ${(data.cancelFeeCents / 100).toFixed(2)} $ · remboursé : ${(data.refundedCents / 100).toFixed(2)} $`);
+      } else {
+        setSuccess(`✓ ${label} OK`);
+      }
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue');
@@ -109,6 +129,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   // no multiline, no styled keyboard). L'audit l'avait flaggé P1 mobile.
   function handleCancelOpen() {
     setCancelReason('Stock épuisé — non disponible');
+    setChargeCancelFee(false);
     setError(null);
     setSuccess(null);
     setCancelOpen(true);
@@ -122,15 +143,18 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
       return;
     }
     setCancelOpen(false);
+    const withFee = chargeCancelFee && sinaliteCharged;
     // Garde la confirm modal pour le double-check destructif (mobile-OK).
     const ok = await confirm({
-      title: 'Annuler la commande + full refund ?',
-      body: `Raison : ${reason}\n\nLe customer sera notifié + Stripe refund + wallet credit restauré si applicable.`,
+      title: withFee ? 'Annuler la commande (refund moins frais) ?' : 'Annuler la commande + full refund ?',
+      body: withFee
+        ? `Raison : ${reason}\n\nFrais d'annulation Sinalite retenus (≈ ${(estimatedFeeCents / 100).toFixed(2)} $) — remboursement estimé : ${((amountCents - estimatedFeeCents) / 100).toFixed(2)} $ + crédits restaurés. Le customer sera notifié.`
+        : `Raison : ${reason}\n\nLe customer sera notifié + Stripe refund + wallet credit restauré si applicable.`,
       confirmLabel: 'Annuler la commande',
       danger: true,
     });
     if (!ok) return;
-    void call('Commande annulée', `/api/admin/orders/${orderId}/cancel`, { reason });
+    void call('Commande annulée', `/api/admin/orders/${orderId}/cancel`, { reason, chargeCancelFee: withFee });
   }
 
   return (
@@ -230,7 +254,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
         </form>
       )}
       <ActionBtn
-        label="✕ Annuler + full refund"
+        label="✕ Annuler la commande (refund)"
         onClick={handleCancelOpen}
         busy={busy === 'Commande annulée'}
         disabled={!canCancel}
@@ -272,6 +296,24 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
               }}
             />
           </div>
+          {/* Audit §8.1 — frais d'annulation Sinalite, seulement si la commande est
+              déjà partie en production (sinon computeCancelFeeCents renvoie 0). */}
+          {sinaliteCharged && (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={chargeCancelFee}
+                onChange={(e) => setChargeCancelFee(e.target.checked)}
+                style={{ marginTop: 2, width: 16, height: 16, accentColor: 'var(--danger)' }}
+              />
+              <span>
+                <strong>Répercuter les frais d&apos;annulation Sinalite</strong> (≈ 25 $/article ×{' '}
+                {Math.max(1, itemsCount)} = ~{(estimatedFeeCents / 100).toFixed(2)} $).
+                Remboursement estimé : <strong>{((amountCents - (chargeCancelFee ? estimatedFeeCents : 0)) / 100).toFixed(2)} $</strong>
+                {' '}+ crédits restaurés. Décoché = Plio absorbe les frais (full refund).
+              </span>
+            </label>
+          )}
           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
             <button
               type="button"
