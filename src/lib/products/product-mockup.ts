@@ -44,27 +44,68 @@ export function mockupForIcon(icon: keyof typeof MOCKUP_BY_ICON): { shape: Mocku
   return MOCKUP_BY_ICON[icon] ?? MOCKUP_BY_ICON.card;
 }
 
+/** Forme suggérée par le NOM du produit, ou null si aucun indice. PUR. */
+export function shapeFromName(name: string | null | undefined): MockupShape | null {
+  const n = (name ?? '').toLowerCase();
+  if (/(banner|banni|pull ?up|vinyl|vinyle|coroplast|foam|sintra|yard|\bsign|rigid|aluminum|styrene|plastic|table cover|poster|affiche)/.test(n)) return 'banner';
+  if (/(flyer|d[ée]plian|admail)/.test(n)) return 'flyer';
+  if (/(postcard|carte postale|greeting|v[oœ]ux|invitation)/.test(n)) return 'postcard';
+  if (/(sticker|label|[ée]tiquette|decal|magnet|aimant|cling)/.test(n)) return 'sticker';
+  if (/(brochure|booklet|livret|folded|folder|pr[ée]sentation|chemise)/.test(n)) return 'folded';
+  return null;
+}
+
+/** Finition suggérée par le NOM, ou null. `+ AQ` (vernis aqueux) ≈ semi-gloss. PUR. */
+export function finishFromName(name: string | null | undefined): MockupFinish | null {
+  const n = (name ?? '').toLowerCase();
+  if (/(uv|gloss|brillant|\baq\b)/.test(n)) return 'gloss';
+  if (/(foil|dorure|m[ée]tallique|metallic)/.test(n)) return 'foil';
+  if (/(soft ?touch|velours)/.test(n)) return 'soft';
+  if (/(matte|\bmat\b)/.test(n)) return 'matte';
+  if (/(kraft|recycl|\beco\b|enviro|uncoated)/.test(n)) return 'kraft';
+  return null;
+}
+
 /**
  * Devine forme + finition d'un produit depuis son NOM (quand la catégorie n'est pas
  * dispo — ex. items du panier `CartItem`, qui ne portent pas la catégorie). Heuristique
  * par mots-clés, fallback carte de visite plate. PUR → testable.
  */
 export function mockupForProductName(name: string | null | undefined): { shape: MockupShape; finish: MockupFinish } {
-  const n = (name ?? '').toLowerCase();
-  let shape: MockupShape = 'card';
-  if (/(banner|banni|pull ?up|vinyl|vinyle|coroplast|foam|sintra|yard|\bsign|rigid|aluminum|styrene|plastic|table cover|poster|affiche)/.test(n)) shape = 'banner';
-  else if (/(flyer|d[ée]plian|admail)/.test(n)) shape = 'flyer';
-  else if (/(postcard|carte postale|greeting|v[oœ]ux|invitation)/.test(n)) shape = 'postcard';
-  else if (/(sticker|label|[ée]tiquette|decal|magnet|aimant)/.test(n)) shape = 'sticker';
-  else if (/(brochure|booklet|livret|folded|folder|pr[ée]sentation|chemise)/.test(n)) shape = 'folded';
+  return { shape: shapeFromName(name) ?? 'card', finish: finishFromName(name) ?? 'plain' };
+}
 
-  let finish: MockupFinish = 'plain';
-  if (/(uv|gloss|brillant)/.test(n)) finish = 'gloss';
-  else if (/(foil|dorure|m[ée]tallique|metallic)/.test(n)) finish = 'foil';
-  else if (/(soft ?touch|velours)/.test(n)) finish = 'soft';
-  else if (/(matte|\bmat\b)/.test(n)) finish = 'matte';
-  else if (/(kraft|recycl|\beco\b)/.test(n)) finish = 'kraft';
-  return { shape, finish };
+/**
+ * Mockup d'un produit DANS une famille (liste /order/product) — le nom prime,
+ * la famille sert de fallback. Sans ça, toutes les rows d'une famille rendaient
+ * la forme famille + finition famille → 95 % des 164 produits partageaient leur
+ * visuel (mesuré sur docs/sinalite-catalogue-map.draft.json). PUR.
+ */
+export function mockupForProduct(
+  name: string | null | undefined,
+  family: { shape: MockupShape; finish: MockupFinish },
+): { shape: MockupShape; finish: MockupFinish } {
+  return { shape: shapeFromName(name) ?? family.shape, finish: finishFromName(name) ?? family.finish };
+}
+
+/**
+ * Badge de spec lisible sur le mockup — grammage/épaisseur extrait du nom
+ * (« 14PT », « 100LB », « 4MM »). Différencie les variantes d'un même produit
+ * (14pt vs 16pt vs 18pt) qui rendraient sinon identiquement. PUR.
+ */
+export function specForProductName(name: string | null | undefined): string | undefined {
+  const m = (name ?? '').match(/(\d{1,3})\s?(pt|lb|mm|oz)\b/i);
+  return m ? `${m[1]}${m[2].toUpperCase()}` : undefined;
+}
+
+/** Hash déterministe (djb2) du nom — pilote des variations subtiles de layout
+ *  (largeur des lignes de texte suggérées) pour que deux produits au même
+ *  (forme, finition, badge) restent visuellement distincts. PUR. */
+export function mockupSeed(name: string | null | undefined): number {
+  const s = name ?? '';
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h;
 }
 
 /** Normalise le `finishClass` dérivé du nom produit (ProductListClient) en MockupFinish. */

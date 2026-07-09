@@ -12,9 +12,16 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ProductMockup from '@/components/wizard/ProductMockup';
-import { mockupForIcon, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
+import {
+  mockupForIcon,
+  mockupForProduct,
+  specForProductName,
+  type MockupShape,
+  type MockupFinish,
+} from '@/lib/products/product-mockup';
 import { CATEGORY_GROUPS } from '@/lib/catalogue';
 
 function markup(shape: MockupShape, finish: MockupFinish): string {
@@ -71,5 +78,42 @@ describe('ProductMockup — unicité des visuels', () => {
     const shapes: MockupShape[] = ['card', 'flyer', 'postcard', 'banner', 'sticker', 'folded'];
     const svgs = shapes.map((s) => markup(s, 'plain'));
     expect(new Set(svgs).size).toBe(shapes.length);
+  });
+
+  it('CATALOGUE RÉEL : chaque PRODUIT d\'une famille rend un SVG distinct (164 produits)', () => {
+    // Avant le visuel par-produit (forme du nom + badge grammage + layout seedé),
+    // 95 % des produits partageaient leur visuel (pire : 26/29 en bannières).
+    // Ce test rejoue le rendu EXACT de ProductListClient sur l'instantané réel
+    // (fixture versionnée — le draft docs/ complet est gitignoré).
+    const catalog = JSON.parse(
+      readFileSync('tests/fixtures/sinalite-product-names.json', 'utf8'),
+    ) as Record<string, string[] | string>;
+    const iconBySlug = new Map(CATEGORY_GROUPS.map((g) => [g.slug, g.icon]));
+
+    let familiesChecked = 0;
+    let productsChecked = 0;
+    for (const [slug, names] of Object.entries(catalog)) {
+      if (!Array.isArray(names)) continue; // clé _readme
+      const icon = iconBySlug.get(slug);
+      if (!icon) continue; // famille de la fixture absente du catalogue courant
+      const family = mockupForIcon(icon);
+      const seen = new Map<string, string>(); // svg → nom du produit
+      for (const name of names) {
+        const m = mockupForProduct(name, family);
+        const svg = renderToStaticMarkup(
+          <ProductMockup shape={m.shape} finish={m.finish} spec={specForProductName(name)} seed={name} />,
+        );
+        const dup = seen.get(svg);
+        expect(
+          dup ? `DOUBLON dans ${slug} : « ${name} » ≡ « ${dup} »` : 'distinct',
+        ).toBe('distinct');
+        seen.set(svg, name);
+        productsChecked++;
+      }
+      familiesChecked++;
+    }
+    // Garde-fou : l'instantané doit réellement couvrir le catalogue.
+    expect(familiesChecked).toBeGreaterThanOrEqual(8);
+    expect(productsChecked).toBeGreaterThanOrEqual(150);
   });
 });
