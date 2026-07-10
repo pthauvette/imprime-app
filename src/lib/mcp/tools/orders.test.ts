@@ -54,6 +54,12 @@ describe('MCP list_orders', () => {
     expect(out[0]).toMatchObject({ id: 'o_1', status: 'DELIVERED', summary: 'Flyers (250)', totalCents: 5000 });
   });
 
+  it('userId vide → [] SANS interroger la DB (défense en profondeur cross-user)', async () => {
+    const out = await listUserOrders('', 10);
+    expect(out).toEqual([]);
+    expect(listOrdersForUser).not.toHaveBeenCalled();
+  });
+
   it('fallback résumé quand productSummary est vide', async () => {
     listOrdersForUser.mockResolvedValue([
       { id: 'o_2', createdAt: new Date(), status: 'PAID', amountCents: 100, productSummary: '  ', itemsCount: 3 },

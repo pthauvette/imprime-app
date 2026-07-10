@@ -33,6 +33,11 @@ export interface OrderSummaryView {
 
 /** Résumé des commandes RÉCENTES du user authentifié (les plus récentes d'abord). */
 export async function listUserOrders(userId: string, limit = 10): Promise<OrderSummaryView[]> {
+  // Défense en profondeur (revue sécu) : `listOrdersForUser` renvoie TOUTES les
+  // commandes si userId est vide (`where: undefined`). requireUser garantit déjà
+  // un userId non-vide en amont, mais on ne fait pas reposer l'isolation
+  // cross-user sur la discipline de l'appelant → refus local et explicite.
+  if (!userId) return [];
   const orders = await listOrdersForUser({ userId, limit });
   return orders.map((o) => ({
     id: o.id,
