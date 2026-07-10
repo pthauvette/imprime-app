@@ -42,8 +42,11 @@ describe('couverture TEXTURE — chaque finition/papier a un vrai matériau', ()
   const finishes = new Set<string>();
   const specialtyPapers = new Set<string>();
   for (const p of Object.values(VIRTUAL_PRODUCTS)) {
-    for (const v of p.variants) finishes.add(v.finish);
     for (const pa of p.papers) if (pa.specialty) specialtyPapers.add(pa.key);
+    // Le 2e axe des produits `format` (livrets) porte des dimensions, pas des
+    // finitions matérielles → hors du contrôle « chaque finition a un matériau ».
+    if (p.axis2Kind === 'format') continue;
+    for (const v of p.variants) finishes.add(v.finish);
   }
 
   it('chaque finition du catalogue a une surcharge matériau (jamais un BASE silencieux)', () => {

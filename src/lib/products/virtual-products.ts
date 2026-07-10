@@ -18,13 +18,14 @@
  */
 
 export interface VirtualVariant {
-  /** productId Sinalite résolu pour ce couple papier × finition. */
+  /** productId Sinalite résolu pour ce couple axe1 × axe2. */
   productId: number;
   /** Clé de papier (axe 1). */
   paper: string;
-  /** Clé de finition (axe 2), unique au sein d'un papier. */
+  /** Clé du 2e axe (finition PAR DÉFAUT ; format si `axis2Kind: 'format'`),
+   *  unique au sein d'un papier. */
   finish: string;
-  /** Libellé court de finition affiché à l'utilisateur. */
+  /** Libellé court du 2e axe affiché à l'utilisateur. */
   finishLabel: string;
   /** Sous-texte optionnel (specialty, inscriptible, etc.). */
   note?: string;
@@ -50,8 +51,17 @@ export interface VirtualProduct {
   lede: string;
   /** Papiers disponibles, dans l'ordre (standards puis specialty). */
   papers: VirtualPaper[];
-  /** Mapping papier × finition → productId. */
+  /** Mapping axe1 × axe2 → productId. */
   variants: VirtualVariant[];
+  /**
+   * Nature du 2e axe. Défaut `'finish'` (couche : UV/Mat/…). `'format'` quand
+   * les productId d'un même produit diffèrent par la DIMENSION plutôt que la
+   * finition (ex. livrets : 5 papiers × 2 formats). Pilote le libellé du picker
+   * et exclut le 2e axe du contrôle « chaque finition a un matériau ».
+   */
+  axis2Kind?: 'finish' | 'format';
+  /** Libellé singulier du 2e axe (défaut « Finition »). Ex. « Format ». */
+  axis2Label?: string;
 }
 
 // ─── Cartes de visite ───────────────────────────────────────────────────────
@@ -341,6 +351,39 @@ const FEUILLES_NUMERIQUES: VirtualProduct = {
   ],
 };
 
+// ─── Livrets (Booklets) — 2e axe = FORMAT, pas finition ─────────────────────
+// Les 10 productId Booklets = 5 papiers × 2 formats. La « size » Sinalite est le
+// NOMBRE DE PAGES (8→64pg, choisi à la config) ; la dimension physique
+// (8,5×5,5 / 8,5×11) est encodée dans le productId → axe FORMAT. Slug `livrets`
+// (≠ family slug `brochures`) réutilise la margin-spec `livrets` existante.
+const LIVRETS: VirtualProduct = {
+  slug: 'livrets',
+  name: 'Livret',
+  eyebrow: 'Étape 02 — Livret',
+  lede: 'Tous les livrets (booklets) en un seul produit — choisis le papier puis le format. Le nombre de pages et la reliure se choisissent à la configuration.',
+  axis2Kind: 'format',
+  axis2Label: 'Format',
+  papers: [
+    { key: '60lb-offset', label: '60lb Offset — économique', desc: 'Texte non couché, léger et économique.' },
+    { key: '80lb-gloss',  label: '80lb Gloss — standard', desc: 'Texte couché brillant · le polyvalent.' },
+    { key: '100lb-gloss', label: '100lb Gloss — premium', desc: 'Plus épais, couché brillant.' },
+    { key: '80lb-silk',   label: '80lb Silk — satiné', desc: 'Texte couché satiné (silk), reflets doux.' },
+    { key: '100lb-silk',  label: '100lb Silk — premium satiné', desc: 'Épais, couché satiné haut de gamme.' },
+  ],
+  variants: [
+    { productId: 14679, paper: '60lb-offset', finish: 'half-letter', finishLabel: '8,5 × 5,5 po (demi-lettre)' },
+    { productId: 14678, paper: '60lb-offset', finish: 'letter',      finishLabel: '8,5 × 11 po (lettre)' },
+    { productId: 54,    paper: '80lb-gloss',  finish: 'half-letter', finishLabel: '8,5 × 5,5 po (demi-lettre)' },
+    { productId: 55,    paper: '80lb-gloss',  finish: 'letter',      finishLabel: '8,5 × 11 po (lettre)' },
+    { productId: 56,    paper: '100lb-gloss', finish: 'half-letter', finishLabel: '8,5 × 5,5 po (demi-lettre)' },
+    { productId: 57,    paper: '100lb-gloss', finish: 'letter',      finishLabel: '8,5 × 11 po (lettre)' },
+    { productId: 14979, paper: '80lb-silk',   finish: 'half-letter', finishLabel: '8,5 × 5,5 po (demi-lettre)' },
+    { productId: 14980, paper: '80lb-silk',   finish: 'letter',      finishLabel: '8,5 × 11 po (lettre)' },
+    { productId: 14982, paper: '100lb-silk',  finish: 'half-letter', finishLabel: '8,5 × 5,5 po (demi-lettre)' },
+    { productId: 14983, paper: '100lb-silk',  finish: 'letter',      finishLabel: '8,5 × 11 po (lettre)' },
+  ],
+};
+
 /** Registre des produits virtuels, par slug. */
 export const VIRTUAL_PRODUCTS: Record<string, VirtualProduct> = {
   [CARTES_DE_VISITE.slug]: CARTES_DE_VISITE,
@@ -355,6 +398,7 @@ export const VIRTUAL_PRODUCTS: Record<string, VirtualProduct> = {
   [CARTES_DETACHABLES.slug]: CARTES_DETACHABLES,
   [AFFICHES.slug]: AFFICHES,
   [FEUILLES_NUMERIQUES.slug]: FEUILLES_NUMERIQUES,
+  [LIVRETS.slug]: LIVRETS,
 };
 
 /** Slugs qui ont un produit virtuel (pour wirer les tuiles du start). */
