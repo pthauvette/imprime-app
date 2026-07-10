@@ -393,7 +393,7 @@ function ProductRow({
                 finish={m.finish}
                 spec={specForProductName(product.name)}
                 seed={product.name}
-                height={56}
+                height={100}
               />
             );
           })()}

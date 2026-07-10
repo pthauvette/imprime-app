@@ -10,7 +10,7 @@ export default function CategoryIcon({ icon }: { icon: CategoryGroup['icon'] }) 
   const m = mockupForIcon(icon);
   return (
     <span className="cat-mockup">
-      <ProductMockup shape={m.shape} finish={m.finish} height={70} />
+      <ProductMockup shape={m.shape} finish={m.finish} height={96} />
     </span>
   );
 }

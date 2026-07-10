@@ -2935,7 +2935,11 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .product-row {
       position: relative;
       display: grid;
-      grid-template-columns: 144px 1fr 220px;
+      /* 144px→200px : la vignette ProductMockup était quasi invisible (~75×56) ;
+         à 200px de colonne + height 100 elle rend ~134×100 (2× l'aire).
+         minmax(0,1fr) : 1fr nu = minmax(auto,1fr) → le min-content du contenu
+         (SKU insécable, price-block) pousserait la row au-delà du viewport. */
+      grid-template-columns: 200px minmax(0, 1fr) 220px;
       gap: 24px;
       padding: 20px;
       background: var(--bg-surface);
@@ -3081,9 +3085,15 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     }
 
     @media (max-width: 900px) {
-      .product-row { grid-template-columns: 96px 1fr; }
+      /* 96px→132px + gap réduit : vignette lisible sans étouffer le nom
+         (375px : 132 + 16 gap + 40 padding row → ~187px pour le texte). */
+      .product-row { grid-template-columns: 132px minmax(0, 1fr); gap: 16px; }
       .product-thumb { padding: 8px; }
-      .product-price { grid-column: 1 / -1; flex-direction: row; justify-items: start; text-align: left; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+      /* flex-wrap : en rangée mobile, la somme label+valeur+unité+CTA (~400px de
+         min-content) poussait la row hors viewport — mesuré 461px à 375px. */
+      .product-price { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; row-gap: 6px; justify-items: start; text-align: left; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+      /* Le SKU <code> est insécable (aucune espace) → autoriser la césure. */
+      .product-desc { overflow-wrap: anywhere; }
     }
 
     /* Compare tray (sticky bottom, dim) */
@@ -9832,7 +9842,9 @@ a, button, [role="button"], input[type="checkbox"] {
    la hauteur suit le ratio du SVG. Le survol de la carte l'anime légèrement. */
 .cat-mockup {
   display: block;
-  width: 96px;
+  /* 96px→128px (+ height 96 côté CategoryIcon) : les vignettes étaient trop
+     discrètes — quasi invisibles selon le feedback 2026-07. */
+  width: 128px;
   transition: transform var(--dur-base) var(--ease-spring);
 }
 .cat-card:hover .cat-mockup { transform: scale(1.04) rotate(1deg); }
@@ -9869,4 +9881,16 @@ a, button, [role="button"], input[type="checkbox"] {
    involontaire + cible tactile trop petite. */
 @media (max-width: 700px) {
   .adm-select.adm-select { font-size: 16px; min-height: 44px; }
+}
+
+/* ── Vignettes produits + overflow /order/product (2026-07-09, patch EOF) ──
+   L'overflow SE MESURE : à 375px, /order/product scrollait à 453px AVANT même
+   l'agrandissement des vignettes. Cause racine (pattern connu de ce fichier) :
+   le bloc legacy « review.html » redéfinit .step-layout et son collapse ≤1100px
+   en `grid-template-columns: 1fr` NU — 1fr = minmax(auto,1fr), le min-content
+   des enfants (stock-card, product-row) remonte et pousse la piste au-delà du
+   viewport. La 1re définition (l.~2580) utilisait minmax(0,1fr) précisément
+   pour ça. Spécificité doublée .X.X pour battre migrated-pages.css. */
+@media (max-width: 1100px) {
+  .step-layout.step-layout { grid-template-columns: minmax(0, 1fr); }
 }
