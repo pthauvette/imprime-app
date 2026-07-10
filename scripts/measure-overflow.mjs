@@ -15,8 +15,11 @@
  * Réutilise Playwright déjà présent (@playwright/test). Pas de nouvelle dépendance.
  *
  * ⚠️ Couvre les pages publiques rendables en dev. Les pages auth-gated
- * (/account, /admin, wizard /order/*, /settings) ne sont pas rendables sans
+ * (/account, /admin, /settings, fin du wizard) ne sont pas rendables sans
  * session → pour celles-là, audit d'ordre source dans globals.css.
+ * Le DÉBUT du wizard (/order/start, /order/product) est PUBLIC et rendable —
+ * l'avoir cru auth-gated a laissé passer un overflow de 78px à 375px pendant
+ * des mois (trouvé 2026-07-09, fix #447 : collapse .step-layout en 1fr nu).
  */
 
 import { chromium } from '@playwright/test';
@@ -41,6 +44,11 @@ const ROUTES = [
   '/mcp',
   '/sign-in',
   '/sign-up',
+  // Début du wizard (public malgré /order/*) — verrou de non-régression #447 :
+  // le collapse .step-layout d'un bloc legacy causait 78px d'overflow invisible.
+  '/order/start',
+  '/order/product?category=cartes-de-visite', // cartes virtuelles + rows + prix
+  '/order/product?category=bannieres',        // la famille la plus fournie (29 rows)
 ];
 
 async function main() {
