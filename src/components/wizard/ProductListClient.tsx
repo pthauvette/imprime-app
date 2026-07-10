@@ -21,6 +21,7 @@ import type { EnrichedProduct } from '@/lib/products/overrides';
 import ProductMockup from '@/components/wizard/ProductMockup';
 import { mockupForProduct, specForProductName, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
+import { formatCents } from '@/lib/format';
 
 type SortKey = 'popular' | 'name-asc' | 'name-desc' | 'id-asc';
 type FilterKey = 'all' | 'bestseller' | 'premium' | 'eco' | 'specialty';
@@ -80,11 +81,15 @@ export default function ProductListClient({
   products,
   mockupShape,
   mockupFinish,
+  startingPrices,
 }: {
   products: EnrichedProduct[];
   /** Forme/finition de la famille — chaque row rend un mini-mockup à sa vraie forme. */
   mockupShape: MockupShape;
   mockupFinish: MockupFinish;
+  /** Prix minimal (cents, markup inclus) par productId — table ProductStartingPrice.
+   *  Id absent = pas encore balayé par le cron → la row garde « Voir prix → ». */
+  startingPrices?: Record<number, number>;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -336,7 +341,15 @@ export default function ProductListClient({
       ) : (
         <div className="product-list">
           {visible.map(({ p, flags }, i) => (
-            <ProductRow key={p.id} product={p} flags={flags} index={i} mockupShape={mockupShape} mockupFinish={mockupFinish} />
+            <ProductRow
+              key={p.id}
+              product={p}
+              flags={flags}
+              index={i}
+              mockupShape={mockupShape}
+              mockupFinish={mockupFinish}
+              startingPriceCents={startingPrices?.[p.id]}
+            />
           ))}
         </div>
       )}
@@ -350,12 +363,15 @@ function ProductRow({
   index,
   mockupShape,
   mockupFinish,
+  startingPriceCents,
 }: {
   product: EnrichedProduct;
   flags: Flags;
   index: number;
   mockupShape: MockupShape;
   mockupFinish: MockupFinish;
+  /** Prix minimal réel (cents, markup inclus) — undefined = pas encore connu. */
+  startingPriceCents?: number;
 }) {
   return (
     <Link
@@ -407,8 +423,19 @@ function ProductRow({
       </div>
       <div className="product-price">
         <span className="product-price-label">À partir de</span>
-        <span className="product-price-value">Voir prix →</span>
-        <span className="product-price-unit">Configure pour devis</span>
+        {startingPriceCents !== undefined ? (
+          <>
+            {/* Vrai minimum (cents, markup inclus) calculé par le cron sur
+                l'index des variantes — même source de prix que le wizard. */}
+            <span className="product-price-value">{formatCents(startingPriceCents)}</span>
+            <span className="product-price-unit">selon options · devis exact au configurateur</span>
+          </>
+        ) : (
+          <>
+            <span className="product-price-value">Voir prix →</span>
+            <span className="product-price-unit">Configure pour devis</span>
+          </>
+        )}
         <span className="product-cta">Configurer →</span>
       </div>
     </Link>
