@@ -22,6 +22,8 @@ import {
   virtualSlugForProductId,
   getVirtualProduct,
 } from '@/lib/products/virtual-products';
+import { getStartingPrices } from '@/lib/products/starting-price-store';
+import { formatCents } from '@/lib/format';
 
 export const metadata = { title: "Quel produit ?" };
 export const dynamic = 'force-dynamic';
@@ -57,6 +59,23 @@ export default async function ProductPickerPage({
     if (vs && !virtualSlugs.includes(vs)) virtualSlugs.push(vs);
   }
   const entryCount = virtualSlugs.length + rawProducts.length;
+
+  // Prix « à partir de » (table ProductStartingPrice, remplie par le cron
+  // refresh-product-prices) : UNE requête DB pour rows brutes + variantes des
+  // produits virtuels. Id absent = pas encore balayé → la row garde son
+  // fallback « Voir prix → » (jamais de chiffre inventé, pattern #8.7).
+  const priceMap = await getStartingPrices([
+    ...rawProducts.map((p) => p.id),
+    ...virtualSlugs.flatMap((vs) => getVirtualProduct(vs)!.variants.map((v) => v.productId)),
+  ]);
+  const startingPrices = Object.fromEntries(priceMap);
+  /** Min sur les variantes (papier × finition) couvertes par la carte virtuelle. */
+  function virtualStartingCents(vs: string): number | null {
+    const cents = getVirtualProduct(vs)!.variants
+      .map((v) => priceMap.get(v.productId))
+      .filter((c): c is number => c !== undefined);
+    return cents.length > 0 ? Math.min(...cents) : null;
+  }
 
   // Structured data (ItemList) = la vue COLLAPSÉE, pas les productId bruts : une
   // entrée /order/v/<slug> par produit virtuel + /order/configure pour le reste.
@@ -128,6 +147,7 @@ export default async function ProductPickerPage({
             <div className="stock-grid" style={{ marginBottom: rawProducts.length > 0 ? 32 : 0 }}>
               {virtualSlugs.map((vs) => {
                 const vp = getVirtualProduct(vs)!;
+                const fromCents = virtualStartingCents(vs);
                 return (
                   <Link
                     key={vs}
@@ -138,7 +158,12 @@ export default async function ProductPickerPage({
                     <div className="stock-swatch coated" />
                     <div className="stock-body">
                       <div className="stock-name">{vp.name} <span style={{ color: 'var(--accent-primary)' }}>★</span></div>
-                      <div className="stock-desc">{vp.variants.length} finitions · papier + finition au choix</div>
+                      <div className="stock-desc">
+                        {fromCents !== null && (
+                          <strong style={{ color: 'var(--text-primary)' }}>À partir de {formatCents(fromCents)} · </strong>
+                        )}
+                        {vp.variants.length} finitions · papier + finition au choix
+                      </div>
                     </div>
                   </Link>
                 );
@@ -149,7 +174,12 @@ export default async function ProductPickerPage({
           {entryCount === 0 ? (
             <EmptyProducts familyName={family.name} />
           ) : rawProducts.length > 0 ? (
-            <ProductListClient products={rawProducts} mockupShape={mock.shape} mockupFinish={mock.finish} />
+            <ProductListClient
+              products={rawProducts}
+              mockupShape={mock.shape}
+              mockupFinish={mock.finish}
+              startingPrices={startingPrices}
+            />
           ) : null}
         </div>
 

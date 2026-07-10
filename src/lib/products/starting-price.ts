@@ -53,6 +53,41 @@ export function quantityByOptionId(
  * @returns le meilleur $/unité + sa quantité, ou null si rien d'exploitable
  *          (Sinalite indisponible, aucune qty, ou index vide).
  */
+/**
+ * Prix TOTAL minimal parmi les variantes (markup admin inclus) — le « à partir
+ * de » des listes produits. Contrairement à bestUnitPrice (plancher $/unité aux
+ * gros tirages, pour le badge cartes), ici on veut le plus petit panier possible,
+ * valable pour TOUS les types de produits (bannières, enseignes, dépliants…).
+ * @returns cents, ou null si l'index est vide/inexploitable.
+ */
+export function minTotalCents(index: ReadonlyMap<string, number>): number | null {
+  let min: number | null = null;
+  for (const totalDollars of index.values()) {
+    if (!(totalDollars > 0)) continue;
+    const cents = Math.round(totalDollars * 100);
+    if (min === null || cents < min) min = cents;
+  }
+  return min;
+}
+
+/**
+ * Ordre de balayage du cron refresh-product-prices : les produits JAMAIS
+ * calculés d'abord (nouveau catalogue → prix visibles au plus vite), puis du
+ * plus vieux calcul au plus récent. Déterministe (tiebreak par id croissant)
+ * pour que deux runs consécutifs ne se marchent pas dessus. PUR.
+ */
+export function refreshOrder(
+  productIds: readonly number[],
+  computedAtById: ReadonlyMap<number, Date>,
+): number[] {
+  return [...productIds].sort((a, b) => {
+    const ta = computedAtById.get(a)?.getTime() ?? -1; // -1 = jamais calculé → en tête
+    const tb = computedAtById.get(b)?.getTime() ?? -1;
+    if (ta !== tb) return ta - tb;
+    return a - b;
+  });
+}
+
 export function bestUnitPrice(
   index: ReadonlyMap<string, number>,
   qtyById: ReadonlyMap<number, number>,

@@ -1485,6 +1485,30 @@ model WebhookReplay {
 //   COMPLAINT    : user a cliqué "spam" dans son client mail
 //   MANUAL       : admin a suppress manuellement via UI
 
+// ─── Prix vitrine « à partir de » des listes produits ────────────────────
+//
+// Pourquoi une table et pas un calcul au rendu : le min des variantes exige
+// l'index Sinalite COMPLET (listVariants paginé — plusieurs secondes par
+// produit, cf. src/lib/sinalite/pricing.ts). Impossible pour une liste de
+// 5-45 produits dans une Lambda Amplify (timeout ~30 s, pas de promesse
+// flottante post-réponse). Le cron refresh-product-prices balaie donc le
+// catalogue par tranches (budget de temps, stalest-first) et upsert ici ;
+// /order/product lit tout en UNE requête DB (~ms) et retombe sur
+// « Voir prix → » pour les produits pas encore balayés.
+model ProductStartingPrice {
+  /** productId Sinalite (clé du catalogue fournisseur). */
+  sinaliteProductId Int      @id
+  /** Prix TOTAL minimal en cents, markup admin INCLUS (même source que le
+   *  wizard : index enrichi). Null = balayé mais index vide/inexploitable. */
+  minTotalCents     Int?
+  /** Nb de variantes indexées au moment du calcul (observabilité). */
+  variantCount      Int      @default(0)
+  /** Dernier calcul — pilote l'ordre du sweep (jamais-calculé, puis plus vieux). */
+  computedAt        DateTime @default(now())
+
+  @@index([computedAt])
+}
+
 model EmailSuppression {
   id           String   @id @default(cuid())
   /** Lowercased email — UNIQUE empêche les doublons sur SNS replay. */
