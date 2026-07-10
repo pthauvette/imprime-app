@@ -106,6 +106,11 @@ const FINISH_OVERRIDES: Record<string, Partial<FinishMaterial>> = {
 const PAPER_OVERRIDES: Record<string, Partial<FinishMaterial>> = {
   kraft: { baseTint: '#b89b72', roughness: 0.9 },
   enviro: { baseTint: '#efeae0', roughness: 0.9 },
+  // Feuilles numériques : deux grammages de recyclé non couché (13pt carte /
+  // 80lb texte) — même rendu papier que `enviro`, clés distinctes pour ne pas
+  // dupliquer (papier, finition) dans le produit virtuel.
+  'enviro-13pt': { baseTint: '#efeae0', roughness: 0.9 },
+  'enviro-80lb': { baseTint: '#efeae0', roughness: 0.9 },
   linen: { baseTint: '#f3f1ea', roughness: 0.92 },
   pearl: { iridescence: 0.55, baseTint: '#f6f3ef', roughness: 0.45 },
   synthetic: { roughness: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.35 },
