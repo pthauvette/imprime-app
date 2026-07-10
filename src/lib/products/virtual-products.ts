@@ -260,6 +260,87 @@ const SIGNETS: VirtualProduct = {
   ],
 };
 
+// ─── Brochures ──────────────────────────────────────────────────────────────
+// Famille « brochures » (list-based) : les 4 productId ne diffèrent QUE par la
+// couche (Sinalite les modélise en produits séparés). Slug ≠ family slug
+// `brochures` — sinon /order/start routerait la famille vers /order/v.
+const BROCHURE: VirtualProduct = {
+  slug: 'brochure',
+  name: 'Brochure',
+  eyebrow: 'Étape 02 — Brochure',
+  lede: 'Toutes les brochures en un seul produit — choisis le papier puis la finition. Le type de pli se choisit à la configuration.',
+  papers: [
+    { key: '100lb', label: '100lb couché', desc: 'Texte couché · le standard polyvalent.' },
+    { key: 'enviro', label: 'Recyclé 80lb', desc: 'Non couché, éco.', specialty: true },
+  ],
+  variants: [
+    { productId: 43, paper: '100lb', finish: 'standard', finishLabel: 'Sans couche' },
+    { productId: 44, paper: '100lb', finish: 'uv',       finishLabel: 'UV haute brillance' },
+    { productId: 45, paper: '100lb', finish: 'matte',    finishLabel: 'Mat' },
+    { productId: 46, paper: 'enviro', finish: 'standard', finishLabel: 'Recyclé non couché' },
+  ],
+};
+
+// ─── Cartes détachables (Tear Cards) ────────────────────────────────────────
+const CARTES_DETACHABLES: VirtualProduct = {
+  slug: 'cartes-detachables',
+  name: 'Carte détachable',
+  eyebrow: 'Étape 02 — Carte détachable',
+  lede: 'Toutes les cartes détachables (tear cards, avec perforation) en un seul produit — papier puis finition.',
+  papers: [
+    { key: '14pt', label: '14pt — standard', desc: '350 g/m² · rigide, le standard.' },
+    { key: 'enviro', label: 'Recyclé (enviro)', desc: '13pt non couché, éco.', specialty: true },
+  ],
+  variants: [
+    { productId: 129, paper: '14pt',  finish: 'uv',       finishLabel: 'UV haute brillance' },
+    { productId: 130, paper: '14pt',  finish: 'matte',    finishLabel: 'Mat' },
+    { productId: 132, paper: 'enviro', finish: 'standard', finishLabel: 'Recyclé non couché' },
+  ],
+};
+
+// ─── Affiches (Posters papier) ──────────────────────────────────────────────
+// Famille « bannieres » (list-based). ≠ affiches RIGIDES (coroplaste/foam) qui
+// restent des produits distincts (substrats réels différents).
+const AFFICHES: VirtualProduct = {
+  slug: 'affiches',
+  name: 'Affiche',
+  eyebrow: 'Étape 02 — Affiche',
+  lede: 'Toutes les affiches papier grand format en un seul produit — papier puis finition.',
+  papers: [
+    { key: '100lb', label: '100lb couché', desc: 'Texte couché · rendu photo éclatant.' },
+    { key: 'enviro', label: 'Recyclé 80lb', desc: 'Non couché, éco.', specialty: true },
+  ],
+  variants: [
+    { productId: 65, paper: '100lb', finish: 'standard', finishLabel: 'Sans couche' },
+    { productId: 66, paper: '100lb', finish: 'matte',    finishLabel: 'Mat' },
+    { productId: 67, paper: '100lb', finish: 'uv',       finishLabel: 'UV haute brillance' },
+    { productId: 68, paper: 'enviro', finish: 'standard', finishLabel: 'Recyclé non couché' },
+  ],
+};
+
+// ─── Feuilles numériques (Digital Sheets 12×18) ─────────────────────────────
+// Deux stocks « enviro » de grammages DIFFÉRENTS (13pt carte vs 80lb texte) →
+// clés papier distinctes, sinon doublon (papier, finition).
+const FEUILLES_NUMERIQUES: VirtualProduct = {
+  slug: 'feuilles-numeriques',
+  name: 'Feuille numérique',
+  eyebrow: 'Étape 02 — Feuille numérique',
+  lede: 'Toutes les feuilles numériques (12 × 18) en un seul produit — papier puis finition.',
+  papers: [
+    { key: '14pt',       label: '14pt carte', desc: '350 g/m² · carte rigide.' },
+    { key: '100lb',      label: '100lb couché', desc: 'Texte couché brillant.' },
+    { key: 'enviro-13pt', label: 'Recyclé 13pt', desc: 'Carte recyclée non couchée.', specialty: true },
+    { key: 'enviro-80lb', label: 'Recyclé 80lb', desc: 'Texte recyclé non couché.', specialty: true },
+  ],
+  variants: [
+    { productId: 137, paper: '14pt',        finish: 'matte',    finishLabel: 'Mat' },
+    { productId: 139, paper: '100lb',       finish: 'standard', finishLabel: 'Sans couche' },
+    { productId: 141, paper: '100lb',       finish: 'matte',    finishLabel: 'Mat' },
+    { productId: 138, paper: 'enviro-13pt', finish: 'standard', finishLabel: 'Recyclé non couché' },
+    { productId: 142, paper: 'enviro-80lb', finish: 'standard', finishLabel: 'Recyclé non couché' },
+  ],
+};
+
 /** Registre des produits virtuels, par slug. */
 export const VIRTUAL_PRODUCTS: Record<string, VirtualProduct> = {
   [CARTES_DE_VISITE.slug]: CARTES_DE_VISITE,
@@ -270,6 +351,10 @@ export const VIRTUAL_PRODUCTS: Record<string, VirtualProduct> = {
   [INVITATIONS.slug]: INVITATIONS,
   [CHEMISES.slug]: CHEMISES,
   [SIGNETS.slug]: SIGNETS,
+  [BROCHURE.slug]: BROCHURE,
+  [CARTES_DETACHABLES.slug]: CARTES_DETACHABLES,
+  [AFFICHES.slug]: AFFICHES,
+  [FEUILLES_NUMERIQUES.slug]: FEUILLES_NUMERIQUES,
 };
 
 /** Slugs qui ont un produit virtuel (pour wirer les tuiles du start). */

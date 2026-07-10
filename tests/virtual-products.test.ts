@@ -38,6 +38,19 @@ describe('produits virtuels — résolution', () => {
     expect(resolveVirtualProductId('signets', '16pt', 'gloss-lam')).toBe(5531);
   });
 
+  it('fusion 2026-07 (list-based) : couples connus → bon productId', () => {
+    // Brochures 43-46, Tear Cards 129-132, Posters 65-68, Digital Sheets 137-142.
+    expect(resolveVirtualProductId('brochure', '100lb', 'uv')).toBe(44);
+    expect(resolveVirtualProductId('brochure', 'enviro', 'standard')).toBe(46);
+    expect(resolveVirtualProductId('cartes-detachables', '14pt', 'matte')).toBe(130);
+    expect(resolveVirtualProductId('affiches', '100lb', 'standard')).toBe(65);
+    expect(resolveVirtualProductId('affiches', 'enviro', 'standard')).toBe(68);
+    // Digital Sheets : les deux « enviro » de grammages différents résolvent bien.
+    expect(resolveVirtualProductId('feuilles-numeriques', 'enviro-13pt', 'standard')).toBe(138);
+    expect(resolveVirtualProductId('feuilles-numeriques', 'enviro-80lb', 'standard')).toBe(142);
+    expect(resolveVirtualProductId('feuilles-numeriques', '100lb', 'matte')).toBe(141);
+  });
+
   it('couple ou slug inexistant → null', () => {
     expect(resolveVirtualProductId('cartes-de-visite', '14pt', 'soft-touch')).toBeNull();
     expect(resolveVirtualProductId('cartes-postales', '18pt', 'matte')).toBeNull(); // pas de vrai 18pt postale

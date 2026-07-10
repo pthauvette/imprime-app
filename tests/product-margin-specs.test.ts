@@ -16,14 +16,18 @@ describe('MARGIN_SPECS_BY_FAMILY', () => {
     const keys = Object.keys(MARGIN_SPECS_BY_FAMILY).sort();
     expect(keys).toEqual([
       'accroche-portes',
+      'affiches', // 2026-07 — produit virtuel de fusion (posters papier)
       'affiches-rigides', // 2026-07 — grand format rigide (coroplaste/foam/aluminium…)
       'banners',
+      'brochure', // 2026-07 — produit virtuel de fusion (brochures pliables)
       'brochures',
       'cartes-de-visite',
       'cartes-de-voeux',
+      'cartes-detachables', // 2026-07 — produit virtuel de fusion (tear cards)
       'cartes-postales',
       'chemises-presentation',
       'enveloppes',
+      'feuilles-numeriques', // 2026-07 — produit virtuel de fusion (digital sheets)
       'flyers',
       'invitations',
       'livrets',

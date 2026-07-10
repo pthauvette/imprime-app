@@ -150,6 +150,34 @@ export const MARGIN_SPECS_BY_FAMILY: Record<string, MarginSpec> = {
     typicalTrim: { widthIn: 8.5, heightIn: 11 },
     overlay: { bleedPercent: 3, safePercent: 6 },
   },
+  // 2026-07 — produits virtuels de fusion (finition-seule) dans les familles
+  // list-based. Keyés par slug virtuel (comme cartes-de-voeux/signets/…) : le
+  // picker /order/v résout l'aperçu 3D via getMarginSpecBySlug(slug). typicalTrim
+  // = 1re taille Sinalite du cluster (la vraie vient de la sélection ensuite).
+  'brochure': {
+    bleedInches: 0.125,
+    safeInches: 0.25,
+    typicalTrim: { widthIn: 8.5, heightIn: 11 },
+    overlay: { bleedPercent: 3, safePercent: 6 },
+  },
+  'cartes-detachables': {
+    bleedInches: 0.125,
+    safeInches: 0.125,
+    typicalTrim: { widthIn: 8.5, heightIn: 3.5 },
+    overlay: { bleedPercent: 4, safePercent: 8 },
+  },
+  'affiches': {
+    bleedInches: 0.125,
+    safeInches: 0.25,
+    typicalTrim: { widthIn: 18, heightIn: 24 },
+    overlay: { bleedPercent: 2, safePercent: 5 },
+  },
+  'feuilles-numeriques': {
+    bleedInches: 0.125,
+    safeInches: 0.25,
+    typicalTrim: { widthIn: 12, heightIn: 18 },
+    overlay: { bleedPercent: 2, safePercent: 5 },
+  },
 };
 
 /**
