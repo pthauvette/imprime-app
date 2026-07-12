@@ -51,6 +51,16 @@ describe('produits virtuels — résolution', () => {
     expect(resolveVirtualProductId('feuilles-numeriques', '100lb', 'matte')).toBe(141);
   });
 
+  it('livrets : 2e axe = FORMAT (5 papiers × 2 formats) → bon productId', () => {
+    expect(resolveVirtualProductId('livrets', '80lb-gloss', 'half-letter')).toBe(54);
+    expect(resolveVirtualProductId('livrets', '80lb-gloss', 'letter')).toBe(55);
+    expect(resolveVirtualProductId('livrets', '100lb-silk', 'letter')).toBe(14983);
+    expect(resolveVirtualProductId('livrets', '60lb-offset', 'half-letter')).toBe(14679);
+    // Chaque papier a bien ses 2 formats (grille 5×2 complète).
+    expect(virtualFinishes('livrets', '100lb-gloss').map((f) => f.finish)).toEqual(['half-letter', 'letter']);
+    expect(virtualPapers('livrets').length).toBe(5);
+  });
+
   it('couple ou slug inexistant → null', () => {
     expect(resolveVirtualProductId('cartes-de-visite', '14pt', 'soft-touch')).toBeNull();
     expect(resolveVirtualProductId('cartes-postales', '18pt', 'matte')).toBeNull(); // pas de vrai 18pt postale
