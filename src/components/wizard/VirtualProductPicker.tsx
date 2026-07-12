@@ -59,6 +59,11 @@ export default function VirtualProductPicker({
   const paperMeta = papers.find((p) => p.key === paper);
   const finishMeta = finishes.find((f) => f.finish === finish);
 
+  // 2e axe : « Finition » par défaut, « Format » pour les livrets (dimension).
+  const axis2Label = vp.axis2Label ?? 'Finition';
+  const axis2Word = axis2Label.toLowerCase();
+  const axis2Article = vp.axis2Kind === 'format' ? 'ton' : 'ta'; // le format / la finition
+
   // Ratio de la carte pour l'aperçu 3D = trim typique de la famille (fallback 3.5:2).
   const trim = getMarginSpecBySlug(slug).typicalTrim;
   const cardAspect = trim.heightIn > 0 ? trim.widthIn / trim.heightIn : 3.5 / 2;
@@ -84,7 +89,7 @@ export default function VirtualProductPicker({
             <div className="progress-segment"></div>
             <div className="progress-segment"></div>
           </div>
-          <div className="progress-label">Étape 02 sur 06 — Papier & finition</div>
+          <div className="progress-label">Étape 02 sur 06 — Papier &amp; {axis2Word}</div>
         </div>
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
@@ -95,7 +100,7 @@ export default function VirtualProductPicker({
       <main className="step-layout">
         <div className="step-content" style={{ maxWidth: 1080 }}>
           <div className="step-eyebrow">{vp.eyebrow}</div>
-          <h1 className="step-question">Choisis ton <em>papier &amp; ta finition.</em></h1>
+          <h1 className="step-question">Choisis ton <em>papier &amp; {axis2Article} {axis2Word}.</em></h1>
           <p className="step-lede">{vp.lede}</p>
 
           {/* ── Papier ── */}
@@ -130,8 +135,8 @@ export default function VirtualProductPicker({
             <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr', gap: 16, alignItems: 'baseline', marginBottom: 24 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600 }}>II.</span>
               <div>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '-0.01em', margin: '0 0 4px', fontWeight: 400 }}>Finition</h2>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{finishes.length} finition{finishes.length > 1 ? 's' : ''} pour {paperMeta?.label ?? paper}</div>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '-0.01em', margin: '0 0 4px', fontWeight: 400 }}>{axis2Label}</h2>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{finishes.length} {axis2Word}{finishes.length > 1 ? 's' : ''} pour {paperMeta?.label ?? paper}</div>
               </div>
             </div>
             <div className="finish-pills" role="tablist">
@@ -159,7 +164,7 @@ export default function VirtualProductPicker({
             {/* Aperçu 3D de la finition — montre l'EFFET (vernis/velours/foil) que le
                 libellé texte ne disait pas. Le format/quantité se choisissent après. */}
             <div style={{ marginBottom: 20 }}>
-              <div className="recap-section-label" style={{ marginBottom: 10 }}>Aperçu de la finition</div>
+              <div className="recap-section-label" style={{ marginBottom: 10 }}>{vp.axis2Kind === 'format' ? 'Aperçu du papier' : 'Aperçu de la finition'}</div>
               <FinishPreview finishKey={finish} paperKey={paper} aspect={cardAspect} height={210} />
               <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
                 {effectLabel} · bouge la carte 👆
@@ -176,7 +181,7 @@ export default function VirtualProductPicker({
                 <span className="value">{paperMeta?.label ?? '—'}</span>
               </div>
               <div className="recap-config-row">
-                <span className="label">Finition</span>
+                <span className="label">{axis2Label}</span>
                 <span className="value">{finishMeta?.finishLabel ?? '—'}</span>
               </div>
             </div>
