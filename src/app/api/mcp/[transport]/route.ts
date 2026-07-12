@@ -33,6 +33,14 @@ import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipp
 import { buildConfiguratorPayload } from '@/lib/mcp/tools/configure';
 import { validatePrintFile, formatValidatePrintFileText } from '@/lib/mcp/tools/validate-file';
 import { getUploadPresign, uploadWidgetPayload } from '@/lib/mcp/tools/upload';
+import {
+  listUserOrders,
+  formatOrdersListText,
+  getUserOrderStatus,
+  formatOrderStatusText,
+  buildUserReorderLink,
+  formatReorderText,
+} from '@/lib/mcp/tools/orders';
 import { plioFileHost } from '@/lib/mcp/file-url-guard';
 import { CONFIGURATOR_HTML, UPLOAD_HTML } from '@/lib/mcp/widget/configurator-html.generated';
 import { placeHeadlessOrder, formatHeadlessResult } from '@/lib/mcp/place-order';
@@ -258,6 +266,68 @@ const handler = createMcpHandler(
         const u = requireUser(extra);
         if (!u.ok) return u.error;
         return { content: [{ type: 'text', text: `Authentifié comme user ${u.userId} (rôle ${u.role}). Clé ${u.keyId}, scopes: ${u.scopes.join(', ') || '(aucun)'}.` }] };
+      },
+    );
+
+    // ── Tools POST-commande (lecture, authentifiés) ─────────────────────────
+    // Gatés par requireUser (pas un scope dédié : lire SES commandes = capacité
+    // de base d'une identité connectée) + filtrage STRICT par userId dans
+    // src/lib/mcp/tools/orders.ts (jamais la commande d'un autre). Read-only.
+    server.registerTool(
+      'list_orders',
+      {
+        title: 'Mes commandes récentes',
+        description:
+          "Liste tes commandes Plio récentes (statut, date, résumé, total). Nécessite d'être connecté (clé API ou OAuth). Ne renvoie QUE tes propres commandes.",
+        inputSchema: {
+          limit: z.number().int().min(1).max(25).optional().describe('Nombre de commandes (défaut 10, max 25).'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async ({ limit }, extra) => {
+        const u = requireUser(extra);
+        if (!u.ok) return u.error;
+        const orders = await listUserOrders(u.userId, limit ?? 10);
+        return { content: [{ type: 'text', text: formatOrdersListText(orders) }] };
+      },
+    );
+
+    server.registerTool(
+      'get_order_status',
+      {
+        title: "Statut d'une commande",
+        description:
+          "Détaille le statut d'une commande (articles, total, suivi d'expédition avec numéro + lien transporteur, livraison estimée). Fournis l'orderId (cf. list_orders). Ne renvoie que TES commandes ; un id qui n'est pas à toi → « introuvable ».",
+        inputSchema: {
+          orderId: z.string().min(1).describe('Identifiant de commande (cf. list_orders).'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async ({ orderId }, extra) => {
+        const u = requireUser(extra);
+        if (!u.ok) return u.error;
+        const r = await getUserOrderStatus(u.userId, orderId);
+        if (!r.ok) return { content: [{ type: 'text', text: `Commande #${orderId} introuvable sur ton compte.` }], isError: true };
+        return { content: [{ type: 'text', text: formatOrderStatusText(r.view) }] };
+      },
+    );
+
+    server.registerTool(
+      'reorder',
+      {
+        title: 'Recommander une commande',
+        description:
+          "Génère un lien pour REFAIRE une commande passée : rouvre le configurateur pré-rempli (produit + options) sur plio.ca. Handoff SÛR — aucun paiement, tu re-téléverses le fichier et paies sur le site. Fournis l'orderId (cf. list_orders).",
+        inputSchema: {
+          orderId: z.string().min(1).describe('Identifiant de la commande à refaire (cf. list_orders).'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      async ({ orderId }, extra) => {
+        const u = requireUser(extra);
+        if (!u.ok) return u.error;
+        const r = await buildUserReorderLink(u.userId, orderId);
+        return { content: [{ type: 'text', text: formatReorderText(orderId, r) }], isError: !r.ok };
       },
     );
 
