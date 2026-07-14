@@ -15,7 +15,7 @@ import JsonLd, { breadcrumbSchema, itemListSchema } from '@/components/seo/JsonL
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import ProductListClient from '@/components/wizard/ProductListClient';
 import ProductMockup from '@/components/wizard/ProductMockup';
-import { mockupForIcon } from '@/lib/products/product-mockup';
+import { mockupForIcon, mockupForProduct, specForProductName } from '@/lib/products/product-mockup';
 import HeaderUserSlot from '@/components/account/HeaderUserSlot';
 import {
   ALL_VIRTUAL_PRODUCT_IDS,
@@ -155,7 +155,22 @@ export default async function ProductPickerPage({
                     className="stock-card"
                     style={{ textDecoration: 'none' }}
                   >
-                    <div className="stock-swatch coated" />
+                    <div className="stock-mock">
+                      {/* Vrai aperçu produit (avant : cadre blanc vide) — forme
+                          dérivée du nom du produit virtuel, finition famille. */}
+                      {(() => {
+                        const m = mockupForProduct(vp.name, { shape: mock.shape, finish: mock.finish });
+                        return (
+                          <ProductMockup
+                            shape={m.shape}
+                            finish={m.finish}
+                            spec={specForProductName(vp.name)}
+                            seed={vp.slug}
+                            height={150}
+                          />
+                        );
+                      })()}
+                    </div>
                     <div className="stock-body">
                       <div className="stock-name">{vp.name} <span style={{ color: 'var(--accent-primary)' }}>★</span></div>
                       <div className="stock-desc">
