@@ -9894,3 +9894,30 @@ a, button, [role="button"], input[type="checkbox"] {
 @media (max-width: 1100px) {
   .step-layout.step-layout { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Images produits plus grandes (2026-07-14) ────────────────────────────
+   Feedback : « les images produits doivent être plus grandes ». Les cartes
+   VIRTUELLES (produits principaux du picker) n'affichaient qu'une pastille
+   .stock-swatch VIDE → on y met un vrai ProductMockup (.stock-mock). Et on
+   agrandit les vignettes de la grille catégories + des rows liste. */
+.stock-mock {
+  height: 172px;
+  display: grid;
+  place-items: center;
+  padding: 16px 16px 4px;
+  background: var(--paper-warm);
+  overflow: hidden;
+}
+.stock-card:hover .stock-mock svg { transform: scale(1.04) rotate(-1deg); }
+.stock-mock svg { transition: transform var(--dur-base) var(--ease-spring); }
+
+/* Grille catégories /order/start : 128px → 156px (les cartes ont la place). */
+.cat-mockup.cat-mockup { width: 156px; }
+
+/* Rows liste /order/product : colonne mockup agrandie avec MESURE — le
+   step-content ne fait que ~672px utiles, donc 210px max sinon la colonne info
+   s'écrase (<130px = texte serré, mesuré). Doublage de classe pour battre la
+   règle @media(≤900) et la déf de base. */
+@media (min-width: 901px) {
+  .product-list .product-row.product-row { grid-template-columns: 210px minmax(0, 1fr) 200px; gap: 20px; }
+}
