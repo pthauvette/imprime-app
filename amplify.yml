@@ -46,10 +46,21 @@ applications:
             # par défaut (~2 Go) et mourait en `JavaScript heap out of memory`
             # (exit 134) — l'app a grossi (MCP, mcp-handler, pages). C'est ce qui
             # gelait la prod (build rouge → pas de déploiement) alors que la CI
-            # passait (la CI ne reproduit pas le pic mémoire de prod). On donne
-            # 4 Go d'old-space (2× le pic observé). Si ça re-OOM, l'instance de
-            # build Amplify est < ~6 Go → bump « Large » dans la Console Amplify.
-            - NODE_OPTIONS='--max-old-space-size=4096' pnpm build
+            # passait (la CI ne reproduit pas le pic mémoire de prod).
+            #
+            # 2026-07-15 — 4096 → 6144 : la prod est restée gelée sur ce8286d
+            # alors que main était à 57ec76e (#452) ; la sonde deploy-drift a
+            # échoué (« merged ≠ deployed », 33 min de poll). Même signature que
+            # 2026-06 : CI verte + build local OK, mais aucun déploiement. L'app
+            # a encore grossi depuis (12 → 13 produits virtuels, 3 tools MCP,
+            # table prix). ⚠️ HYPOTHÈSE non confirmée par le log Amplify (pas
+            # d'accès console) — si le build reste rouge APRÈS ce bump, lire le
+            # log : « heap out of memory » (exit 134) = la heap est encore trop
+            # petite MAIS le conteneur suffit ; « Killed » / exit 137 = c'est le
+            # CONTENEUR qui est trop petit → passer la compute en « Large »
+            # (Console Amplify → App settings → Build settings), le NODE_OPTIONS
+            # n'y changera rien.
+            - NODE_OPTIONS='--max-old-space-size=6144' pnpm build
       artifacts:
         baseDirectory: .next
         files:
