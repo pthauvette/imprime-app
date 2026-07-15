@@ -18,7 +18,7 @@ Séquence exacte de `.github/workflows/ci.yml`, dans l'ordre, stop au premier é
 pnpm exec prisma generate   # sinon les imports @prisma/client cassent
 pnpm typecheck              # tsc --noEmit
 pnpm vitest run
-NODE_OPTIONS='--max-old-space-size=4096' pnpm build   # cf. amplify.yml — build OOM sinon
+NODE_OPTIONS='--max-old-space-size=6144' pnpm build   # cf. amplify.yml — build OOM sinon
 ```
 Le skill `/gate` automatise ça. **CI verte ≠ prod OK** : après un merge, vérifier le déploiement avec `node scripts/check-deploy.mjs` (passer la `DATABASE_URL` PROD explicitement — le `.env` local pointe sur une branche Neon dev **périmée**).
 
