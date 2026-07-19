@@ -8,7 +8,16 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Supabase (2026-07) : split pooler / direct.
+  //  - url = DATABASE_URL : Supavisor pooler (port 6543, ?pgbouncer=true) pour
+  //    le RUNTIME. Amplify = Lambda SSR → connexions éphémères nombreuses ; le
+  //    pooler évite d'épuiser le max_connections Postgres (Neon poolait tout
+  //    seul, Supabase exige le split explicite).
+  //  - directUrl = DIRECT_URL : connexion DIRECTE (port 5432) pour les MIGRATIONS
+  //    (prisma migrate deploy). Le pooler transaction-mode ne supporte pas les
+  //    verrous/DDL de migrate → obligatoire.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── USER + AUTH.JS ───────────────────────────────────────────────────────
