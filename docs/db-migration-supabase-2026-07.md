@@ -6,10 +6,15 @@ est devenue **injoignable** (P1001) — compute qui ne démarre plus, cause prob
 = limite de plan / facturation. Symptômes : `/api/health` `db:postgres: fail`, et
 le build Amplify échoue au preBuild `prisma migrate deploy` (P1001).
 
-Décision (Patrick) : **migrer sur Supabase, en repartant à neuf** (DB vide). Les
-données Neon **ne sont pas importées** ; elles restent dormantes dans Neon et
-seraient récupérables en réactivant le compute (pg_dump → restore) si besoin plus
-tard.
+Décision (Patrick) : **migrer sur Supabase, en repartant à neuf** — l'app n'est
+PAS encore en production (aucune commande / compte / wallet). **Exception : la
+table `ProductOverride`** (markups/marges, noms custom, featured, produits
+masqués) **doit être récupérée** de Neon. Le catalogue lui-même vient de Sinalite
+(externe) → rien à migrer pour qu'il s'affiche.
+
+⚠️ La récupération de `ProductOverride` EXIGE que Neon soit **réveillée**
+(facturation débloquée) — sinon `pg_dump` échoue (P1001). C'est le seul
+préalable côté Patrick pour cette partie.
 
 ## Ce qui est PROUVÉ (avant cutover)
 - Schéma 100 % Postgres standard (aucune extension, IDs `cuid()` app-level).
@@ -48,6 +53,21 @@ tard.
    - Prix « à partir de » : le cron `refresh-product-prices` réamorce la table
      `ProductStartingPrice` (vide au départ → « Voir prix » en attendant).
    - Promo codes / réglages admin : à recréer via l'admin si besoin.
+
+## Récupérer ProductOverride (Neon → Supabase)
+La SEULE data à migrer. Prérequis : Neon réveillée + schéma Supabase créé
+(étape 4 ci-dessus) + `pg_dump`/`psql` v16 (`brew install libpq && brew link
+--force libpq`).
+
+```bash
+export NEON_URL='postgresql://…@ep-small-mountain-…neon.tech/neondb?sslmode=require'
+export SUPABASE_URL='postgresql://…@…pooler.supabase.com:5432/postgres'   # DIRECT (5432)
+./scripts/migrate-product-overrides.sh
+```
+Le script (idempotent : TRUNCATE + copie) dumpe UNIQUEMENT `ProductOverride`,
+l'importe dans Supabase, et vérifie l'égalité des comptages. Les URLs sont lues
+depuis l'env (jamais loggées). ⚠️ À lancer AVANT de reconfigurer des overrides
+dans l'admin Supabase (sinon écrasés).
 
 ## Après cutover (à faire)
 - Mettre à jour la mémoire projet : `neon-db-local-stale` devient obsolète ;
