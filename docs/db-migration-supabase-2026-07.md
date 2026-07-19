@@ -31,8 +31,9 @@ préalable côté Patrick pour cette partie.
   `DIRECT_URL` ; le runtime n'utilise que `DATABASE_URL`.
 
 ## Étapes de cutover (dans l'ordre)
-1. **Créer le projet Supabase** (supabase.com), région **us-east-1** (colle à
-   Amplify). Attendre que la DB soit prête.
+1. **Créer le projet Supabase** (supabase.com). ✅ FAIT : projet « Plio »,
+   ref `unabhnrynnnpllzhswek`, région **ca-central-1** (Montréal) — même région
+   qu'Amplify (latence minimale) ET données au Canada (Loi 25). Postgres 17.6.
 2. **Récupérer les 2 URLs** : projet → **Connect** → preset **Prisma** :
    - `DATABASE_URL` = **Transaction pooler** (port **6543**), avec
      `?pgbouncer=true` (Supabase l'inclut). Ajouter `&connection_limit=1`
