@@ -114,6 +114,20 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
   env,
+  // OOM build Amplify (2026-07-15) : `next build` tue un worker en SIGKILL
+  // (OOM CONTENEUR, pas heap Node — le bump NODE_OPTIONS n'y a rien fait).
+  // L'app est au ras du plafond mémoire du compute « Standard » (4 Go) : #451
+  // se déployait, #452 (simple CSS/TSX) a suffi à faire basculer. Ces deux
+  // leviers réduisent l'empreinte RÉELLE du build (≠ le cap de heap) :
+  //  - webpackMemoryOptimizations : mode webpack basse-mémoire (Next 15+),
+  //    compile plus lentement mais avec un pic RSS nettement plus bas.
+  //  - eslint au build désactivé : la CI lint déjà (gate) ; en prime le build
+  //    Amplify le voyait échouer (« Cannot find @eslint/eslintrc ») en warning
+  //    inutile. On économise un worker + de la mémoire.
+  // ⚠️ Palliatif : le fix DURABLE reste de passer le build compute Amplify en
+  //    « Large » (8 Go). L'app continuera de grossir.
+  experimental: { webpackMemoryOptimizations: true },
+  eslint: { ignoreDuringBuilds: true },
   async headers() {
     return [
       {
