@@ -1,6 +1,8 @@
 # CLAUDE.md — Plio (imprime-app)
 
-Boutique e-commerce d'impression (Québec). Next.js 15 App Router + TypeScript strict, Prisma/Postgres (Neon), Stripe, Sinalite (API impression), AWS S3/SES, NextAuth magic-link. Hébergé sur **AWS Amplify (Lambda)**. Expose un serveur **MCP** premium (« commander Plio par IA »).
+Boutique e-commerce d'impression (Québec). Next.js 15 App Router + TypeScript strict, Prisma/Postgres (**Supabase** — migré depuis Neon 2026-07, DB repartie à neuf), Stripe, Sinalite (API impression), AWS S3/SES, NextAuth magic-link. Hébergé sur **AWS Amplify (Lambda)**. Expose un serveur **MCP** premium (« commander Plio par IA »).
+
+**DB Supabase (2026-07)** : split pooler/direct — `DATABASE_URL` = pooler Supavisor (port 6543, `?pgbouncer=true`) au runtime Lambda ; `DIRECT_URL` = connexion directe (port 5432) pour `prisma migrate deploy`. Les deux sont des env vars Amplify (console). Migration = **repartie à neuf** (aucune donnée Neon importée ; l'historique Neon reste dormant, récupérable si le compute est réactivé). Runbook : `docs/db-migration-supabase-2026-07.md`.
 
 ## Langue & ton
 - **Réponds en français canadien.** Code, identifiants et commentaires de code suivent le style existant du fichier.
