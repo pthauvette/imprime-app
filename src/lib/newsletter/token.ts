@@ -9,9 +9,10 @@
  */
 
 import { createHmac } from 'node:crypto';
+import { signingSecret } from '@/lib/crypto/signing-secret';
 
 export function newsletterUnsubscribeToken(email: string): string {
-  const secret = process.env.AUTH_SECRET ?? 'dev-secret';
+  const secret = signingSecret('desabonnement infolettre');
   return createHmac('sha256', secret)
     .update(`newsletter:${email.toLowerCase()}`)
     .digest('hex')
