@@ -40,17 +40,48 @@ applications:
             # pose à l'env de build ; on l'expose au runtime pour /api/health
             # (releaseId), socle de la sonde deploy-drift (« merged ≠ deployed »).
             # Sans elle, releaseId tombe sur 'dev' et le drift est indétectable.
-            # 2026-07-20 — valeurs ENTRE GUILLEMETS. Avant, on écrivait
-            # `CLE=valeur` brut : toute valeur contenant un `#` voyait la suite
-            # traitée comme un COMMENTAIRE par le parseur dotenv (URL tronquée
-            # → « invalid port number »), et une valeur avec espaces cassait
-            # aussi. Les mots de passe Supabase/Stripe peuvent contenir `#`.
-            # sed entoure la valeur de guillemets doubles (on échappe d'abord
-            # les `"` et `\` éventuels pour ne pas casser le quoting).
-            - >-
-              env | grep -E '^(DATABASE_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|AWS_COMMIT_ID)'
-              | sed -E 's/\\/\\\\/g; s/"/\\"/g; s/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/\1="\2"/'
-              > .env.production || true
+            # 2026-07-20 (rév. 2) — écriture de .env.production, DURCIE.
+            #
+            # Historique : on écrivait `CLE=valeur` BRUT. Un `#` dans un mot de
+            # passe faisait passer la suite en commentaire (dotenv) → DATABASE_URL
+            # tronquée → « invalid port number » en prod. La 1re correction
+            # (guillemets DOUBLES + échappement de `\` et `"`) ne réglait que le
+            # `#` : mesuré 3/7 sur des mots de passe réalistes.
+            #
+            # Version actuelle : guillemets SIMPLES + échappement de `$`.
+            # Mesuré 7/7 (test tests/amplify-env-quoting.test.ts, rejoué contre
+            # le VRAI loader @next/env, qui applique dotenv-expand) :
+            #   pa#ss · pa$ss · pa"ss · pa\ss · pa ss · p@s$w#rd\x · simple123
+            # Le `$` est le cas le plus vicieux : non échappé, dotenv-expand le
+            # traite comme une référence de variable et l'avale SILENCIEUSEMENT,
+            # produisant une URL syntaxiquement VALIDE → erreur d'authentification
+            # opaque au lieu d'un message clair. Pire que le `#`.
+            #
+            # NON couvert : une valeur contenant `'` ou un saut de ligne. Les
+            # assertions ci-dessous font échouer le build dans ce cas (un build
+            # rouge explicite vaut mieux qu'un runtime corrompu).
+            #
+            # ⚠️ `|| true` RETIRÉ : il avalait exactement le mode de panne de
+            # l'incident 2026-05-30 (grep qui ne matche rien → .env.production
+            # vide → AUTH_SECRET undefined → 500 partout, en silence).
+            - |
+              set -euo pipefail
+              env | grep -E '^(DATABASE_URL|DIRECT_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|ENFORCE_|FILE_REVALIDATION|ORDER_|REFERRAL_|GOLD_|DEFAULT_MARGIN_PCT|AWS_COMMIT_ID)' \
+                | sed -E "s/\\\$/\\\\\$/g; s/^([A-Za-z_][A-Za-z0-9_]*)=(.*)\$/\\1='\\2'/" \
+                > .env.production
+              n=$(grep -c '^[A-Za-z_]' .env.production || true)
+              [ "$n" -ge 15 ] || { echo "::error::.env.production ne contient que $n vars (attendu >=15) — whitelist ou grep cassé"; exit 1; }
+              for k in DATABASE_URL AUTH_SECRET STRIPE_SECRET_KEY CRON_SECRET; do
+                grep -q "^$k=" .env.production || { echo "::error::$k absent de .env.production"; exit 1; }
+              done
+              node -e '
+                const fs=require("fs");
+                const m=fs.readFileSync(".env.production","utf8").match(/^DATABASE_URL='"'"'(.*)'"'"'$/m);
+                if(!m){throw new Error("DATABASE_URL introuvable ou mal quotée");}
+                const u=new URL(m[1]);
+                if(!u.port){throw new Error("DATABASE_URL sans port — valeur tronquée ?");}
+                console.log("env OK : DATABASE_URL port "+u.port+", "+process.argv[1]);
+              ' "$n vars"
             # OOM FIX (build gelé 2026-06) : `next build` dépassait la heap Node
             # par défaut (~2 Go) et mourait en `JavaScript heap out of memory`
             # (exit 134) — l'app a grossi (MCP, mcp-handler, pages). C'est ce qui
@@ -69,7 +100,20 @@ applications:
             # CONTENEUR qui est trop petit → passer la compute en « Large »
             # (Console Amplify → App settings → Build settings), le NODE_OPTIONS
             # n'y changera rien.
-            - NODE_OPTIONS='--max-old-space-size=6144' pnpm build
+            # 2026-07-20 (rév. 2) — 6144 → 3072. Le bump à 6144 était
+            # CONTRE-PRODUCTIF : sur un conteneur « Standard » de 4 Go, dire à V8
+            # qu'il peut monter à 6 Go le fait dépasser la limite du cgroup et se
+            # faire TUER PAR LE NOYAU (SIGKILL / exit 137) au lieu de lever un
+            # « JavaScript heap out of memory » (exit 134), qui serait
+            # diagnosticable. On rend donc la panne LISIBLE.
+            # Pic RSS mesuré du build : ~3,18 Gio → 3072 laisse V8 faire son GC
+            # sous le plafond conteneur.
+            # ⚠️ Marge réelle ~20 % seulement. Le prochain dépassement ne se
+            #    règlera PAS dans ce fichier : les leviers de next.config.ts sont
+            #    épuisés (webpackMemoryOptimizations + lint off + typecheck off).
+            #    → passer le build compute en « Large » (8 Go) dans la Console
+            #      Amplify, PUIS remonter cette valeur à 6144.
+            - NODE_OPTIONS='--max-old-space-size=3072' pnpm build
       artifacts:
         baseDirectory: .next
         files:
