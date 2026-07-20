@@ -138,6 +138,10 @@ describe('amplify.yml — cohérence des whitelists d\'env', () => {
       'REFERRAL_REWARD_CENTS',
       'GOLD_FREE_SHIPPING_CAP_CENTS',
       'DIRECT_URL',
+      // Plancher de marge (#462) : absent de la whitelist, la var n'atteint
+      // JAMAIS le runtime → le catalogue refuse de coter en production alors
+      // que l'opérateur croit l'avoir configurée dans la console Amplify.
+      'DEFAULT_MARGIN_PCT',
     ]) {
       expect(couverte(k), `${k} n'est pas capturée par la whitelist amplify.yml`).toBe(true);
     }
