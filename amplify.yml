@@ -40,8 +40,17 @@ applications:
             # pose à l'env de build ; on l'expose au runtime pour /api/health
             # (releaseId), socle de la sonde deploy-drift (« merged ≠ deployed »).
             # Sans elle, releaseId tombe sur 'dev' et le drift est indétectable.
+            # 2026-07-20 — valeurs ENTRE GUILLEMETS. Avant, on écrivait
+            # `CLE=valeur` brut : toute valeur contenant un `#` voyait la suite
+            # traitée comme un COMMENTAIRE par le parseur dotenv (URL tronquée
+            # → « invalid port number »), et une valeur avec espaces cassait
+            # aussi. Les mots de passe Supabase/Stripe peuvent contenir `#`.
+            # sed entoure la valeur de guillemets doubles (on échappe d'abord
+            # les `"` et `\` éventuels pour ne pas casser le quoting).
             - >-
-              env | grep -E '^(DATABASE_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|AWS_COMMIT_ID)' > .env.production || true
+              env | grep -E '^(DATABASE_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|AWS_COMMIT_ID)'
+              | sed -E 's/\\/\\\\/g; s/"/\\"/g; s/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/\1="\2"/'
+              > .env.production || true
             # OOM FIX (build gelé 2026-06) : `next build` dépassait la heap Node
             # par défaut (~2 Go) et mourait en `JavaScript heap out of memory`
             # (exit 134) — l'app a grossi (MCP, mcp-handler, pages). C'est ce qui
