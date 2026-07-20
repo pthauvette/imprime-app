@@ -14,7 +14,7 @@ import { paymentRetryToken, verifyPaymentRetryToken } from '@/lib/payment/retry-
 const ORIG_ENV = { ...process.env };
 
 beforeEach(() => {
-  process.env = { ...ORIG_ENV, AUTH_SECRET: 'fixed-test-secret' };
+  process.env = { ...ORIG_ENV, AUTH_SECRET: 'fixed-test-secret-min-32-characters-xx' };
 });
 
 describe('paymentRetryToken()', () => {
@@ -29,9 +29,9 @@ describe('paymentRetryToken()', () => {
   });
 
   it('change si AUTH_SECRET change (rotate-protected)', () => {
-    process.env.AUTH_SECRET = 'secret-A';
+    process.env.AUTH_SECRET = 'rotation-secret-A-min-32-characters-xx';
     const a = paymentRetryToken('order_1');
-    process.env.AUTH_SECRET = 'secret-B';
+    process.env.AUTH_SECRET = 'rotation-secret-B-min-32-characters-xx';
     const b = paymentRetryToken('order_1');
     expect(a).not.toBe(b);
   });
