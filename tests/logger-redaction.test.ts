@@ -80,3 +80,40 @@ describe('logger — redaction PII (Loi 25)', () => {
     expect(out).not.toContain('deep-token-xyz');
   });
 });
+
+/**
+ * Magic link (audit pré-lancement 2026-07, P1-4).
+ *
+ * `src/auth.ts` loguait `{ email, url }` : `email` était censuré, mais `url`
+ * NON — or l'URL EST le jeton de connexion à usage unique. Le commentaire du
+ * code anticipait explicitement une expédition vers CloudWatch : un lien
+ * magique en clair dans les logs = prise de contrôle de compte pour quiconque
+ * les lit. On logue désormais l'URL sous la clé `token` (censurée), et
+ * l'origine seule sous `magicLinkOrigin` (non sensible, utile au débogage).
+ */
+describe('logger — magic link jamais en clair', () => {
+  const MAGIC = 'https://www.plio.ca/api/auth/callback/nodemailer?token=abc123secret&email=a%40b.ca';
+
+  it('l\'URL du magic link loguée sous `token` est censurée', () => {
+    const out = capture((log) =>
+      log.info({ email: 'a@b.ca', token: MAGIC, magicLinkOrigin: 'https://www.plio.ca' }, 'magic'),
+    );
+    expect(out).not.toContain('abc123secret');
+    expect(out).not.toContain('/api/auth/callback');
+    expect(out).toContain('[REDACTED]');
+  });
+
+  it('l\'origine reste lisible (débogage) et ne contient aucun jeton', () => {
+    const out = capture((log) => log.info({ token: MAGIC, magicLinkOrigin: 'https://www.plio.ca' }, 'magic'));
+    expect(out).toContain('"magicLinkOrigin":"https://www.plio.ca"');
+    expect(out).not.toContain('token=abc123secret');
+  });
+
+  it('régression : la même URL sous la clé `url` NE serait PAS censurée', () => {
+    // Documente pourquoi on a renommé la clé plutôt que d'ajouter `url` aux
+    // clés sensibles : `url` est loguée partout à des fins légitimes
+    // (endpoints, webhooks) et tout censurer aveuglerait le débogage.
+    const out = capture((log) => log.info({ url: MAGIC }, 'endpoint'));
+    expect(out).toContain('abc123secret'); // ← exactement ce qu'on a évité
+  });
+});
