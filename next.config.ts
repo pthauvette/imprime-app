@@ -128,6 +128,21 @@ const nextConfig: NextConfig = {
   //    « Large » (8 Go). L'app continuera de grossir.
   experimental: { webpackMemoryOptimizations: true },
   eslint: { ignoreDuringBuilds: true },
+  // 2026-07-20 — le build Amplify meurt en SIGKILL PRÉCISÉMENT sur « Checking
+  // validity of types » (OOM conteneur : tsc garde tout le programme en
+  // mémoire). Or `tsc --noEmit` tourne DÉJÀ dans la CI, et le job
+  // « Typecheck + Vitest » est le check REQUIS de la branch protection de main
+  // (vérifié : required_status_checks = ["Typecheck + Vitest"]).
+  //
+  // → Aucun code ne peut atteindre main sans typecheck vert. Le refaire au
+  //   build est REDONDANT ; on ne perd donc AUCUNE garantie de type, elle est
+  //   juste assurée en amont, dans la CI qui a la mémoire pour la faire.
+  //
+  // ⚠️ Cette sûreté DÉPEND de la branch protection : si le check requis
+  //    « Typecheck + Vitest » était un jour retiré de main, il faudrait
+  //    RÉACTIVER cette vérification ici (ou accepter de déployer du code non
+  //    typé-vérifié).
+  typescript: { ignoreBuildErrors: true },
   async headers() {
     return [
       {
