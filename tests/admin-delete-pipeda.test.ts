@@ -18,6 +18,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/admin-auth', () => ({ requireAdmin: vi.fn() }));
+vi.mock('@/lib/storage/s3', () => ({
+  deleteObjectsByUrl: vi.fn(async () => ({ deleted: 2, skipped: 0, errors: [] })),
+}));
+
 vi.mock('@/lib/db', () => ({
   prisma: {
     user: { findUnique: vi.fn(), update: vi.fn(async () => ({})) },
@@ -25,8 +29,20 @@ vi.mock('@/lib/db', () => ({
     account: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     session: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     address: { deleteMany: vi.fn(async () => ({ count: 0 })) },
-    draft: { deleteMany: vi.fn(async () => ({ count: 0 })) },
-    designDraft: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    // findMany : la route collecte les URLs S3 AVANT la transaction (audit
+    // P1-1) — sans ces mocks, elle échoue avant d'atteindre l'anonymisation.
+    draft: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      findMany: vi.fn(async () => [
+        { files: JSON.stringify([{ type: 'front', url: 'https://b.s3.ca-central-1.amazonaws.com/uploads/u/a-front.pdf' }]) },
+      ]),
+    },
+    designDraft: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      findMany: vi.fn(async () => [
+        { finalPdfUrl: 'https://b.s3.ca-central-1.amazonaws.com/uploads/u/b-final.pdf' },
+      ]),
+    },
     savedConfig: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     apiKey: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     mcpOrderIntent: { deleteMany: vi.fn(async () => ({ count: 0 })) },
@@ -320,5 +336,35 @@ describe('POST /api/admin/users/[id]/delete-pipeda (Round 39 #1)', () => {
     expect(res.status).toBe(200);
     // La tx PIPEDA a bien run (anonymization done)
     expect(prisma.order.updateMany).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * Audit pré-lancement P1-1 — le courriel de confirmation affirme au client
+   * « Brouillons + designs → supprimés ». Avant ce correctif c'était FAUX :
+   * aucun `DeleteObject` n'existait dans le dépôt, les PDF restaient
+   * public-read à une URL toujours valide (Loi 25 art. 28.1).
+   */
+  it('P1-1 — purge S3 déclenchée avec les URLs des brouillons ET des designs', async () => {
+    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
+    const { deleteObjectsByUrl } = await import('@/lib/storage/s3');
+
+    await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
+
+    expect(deleteObjectsByUrl).toHaveBeenCalledOnce();
+    const urls = vi.mocked(deleteObjectsByUrl).mock.calls[0]![0];
+    // DesignDraft.finalPdfUrl + Draft.files[].url
+    expect(urls).toContain('https://b.s3.ca-central-1.amazonaws.com/uploads/u/b-final.pdf');
+    expect(urls).toContain('https://b.s3.ca-central-1.amazonaws.com/uploads/u/a-front.pdf');
+  });
+
+  it('P1-1 — un JSON `files` corrompu ne fait pas échouer la suppression', async () => {
+    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
+    const { deleteObjectsByUrl } = await import('@/lib/storage/s3');
+    vi.mocked(prisma.draft.findMany).mockResolvedValueOnce([{ files: 'pas-du-json' }] as never);
+
+    const res = await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
+
+    expect(res.status).toBe(200);           // l'anonymisation DB reste prioritaire
+    expect(deleteObjectsByUrl).toHaveBeenCalledOnce();
   });
 });

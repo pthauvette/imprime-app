@@ -32,6 +32,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { sendAdminCustomMessageEmail } from '@/lib/emails/send';
 import { logAdmin } from '@/lib/logger';
+import { deleteObjectsByUrl } from '@/lib/storage/s3';
 import { scrubSinalitePayloadPII } from '@/lib/account/scrub-sinalite-payload';
 
 const BodySchema = z.object({
@@ -105,6 +106,31 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       data: { sinalitePayload: scrubSinalitePayloadPII(o.sinalitePayload, scrubSentinels) },
     }),
   );
+
+  // Audit pré-lancement P1-1 — collecter les URLs S3 AVANT la transaction : elle
+  // supprime les rows Draft/DesignDraft, donc les URLs seraient perdues après.
+  // Le courriel de confirmation affirme « Brouillons + designs → supprimés » ;
+  // sans cette purge, c'était FAUX — les PDF restaient public-read à une URL
+  // toujours valide (Loi 25 art. 28.1). Aucun `DeleteObject` n'existait dans
+  // tout le dépôt.
+  const [draftsToPurge, designDraftsToPurge] = await Promise.all([
+    prisma.draft.findMany({ where: { userId }, select: { files: true } }),
+    prisma.designDraft.findMany({ where: { userId }, select: { finalPdfUrl: true } }),
+  ]);
+  const s3UrlsToPurge: (string | null)[] = [
+    ...designDraftsToPurge.map((d) => d.finalPdfUrl),
+    ...draftsToPurge.flatMap((d) => {
+      // `files` = JSON `{ type, url }[]` — défensif contre un JSON corrompu.
+      try {
+        const parsed = JSON.parse(d.files) as unknown;
+        return Array.isArray(parsed)
+          ? parsed.map((f) => (f && typeof f === 'object' && 'url' in f ? String((f as { url: unknown }).url) : null))
+          : [];
+      } catch {
+        return [];
+      }
+    }),
+  ];
 
   await prisma.$transaction([
     ...scrubOps,
@@ -255,6 +281,20 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     }),
   ]);
 
+  // 2b. Purge S3 — HORS transaction (un appel réseau n'a rien à y faire) et
+  // best-effort : un échec S3 ne doit pas annuler l'anonymisation DB, qui est
+  // prioritaire et déjà commitée. Le résultat est journalisé ET versé à l'audit
+  // admin, pour qu'un échec soit constatable et rejouable.
+  const s3Purge = await deleteObjectsByUrl(s3UrlsToPurge);
+  if (s3Purge.errors.length > 0) {
+    logAdmin.error(
+      { userId, ...s3Purge },
+      'PIPEDA : purge S3 partielle — des fichiers client survivent, à retirer manuellement',
+    );
+  } else {
+    logAdmin.info({ userId, ...s3Purge }, 'PIPEDA : purge S3 effectuée');
+  }
+
   // 3. Audit log
   await recordAdminAudit({
     kind: 'ADMIN_DELETE_USER_PIPEDA',
@@ -267,6 +307,9 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       requestId: request.id,
       anonymizedEmail,
       adminNotes: body.adminNotes ?? null,
+      s3Deleted: s3Purge.deleted,
+      s3Skipped: s3Purge.skipped,
+      s3Errors: s3Purge.errors.length,
     },
   });
 
