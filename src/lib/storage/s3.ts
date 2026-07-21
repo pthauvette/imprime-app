@@ -189,3 +189,84 @@ export function buildUploadKey(owner: string, kind: PresignOptions['kind'], ext:
   // uploads/{user|guest}/{uuid}-{front|back}.{ext}
   return `uploads/${safeOwner}/${randomUUID()}-${kind}.${safeExt}`;
 }
+
+// ─── SUPPRESSION (droit à l'effacement — Loi 25 art. 28.1) ────────────────
+
+/**
+ * Extrait la CLÉ S3 d'une URL d'objet de NOTRE bucket.
+ *
+ * Retourne `null` pour toute URL étrangère : on ne supprime jamais sur la foi
+ * d'une URL arbitraire trouvée en base (une valeur corrompue ou injectée ne
+ * doit pas pouvoir viser un autre objet). Même principe que
+ * `assertPlioFileUrl` côté MCP.
+ */
+export function s3KeyFromUrl(url: string | null | undefined): string | null {
+  if (!url || !BUCKET) return null;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  // Formes émises par ce module : https://{bucket}.s3.{region}.amazonaws.com/{key}
+  const hostOk = u.hostname === `${BUCKET}.s3.${REGION}.amazonaws.com`
+    || u.hostname === `${BUCKET}.s3.amazonaws.com`;
+  if (!hostOk) return null;
+  const key = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+  // Garde-fou : nos clés vivent toutes sous `uploads/`.
+  return key.startsWith('uploads/') ? key : null;
+}
+
+export interface DeleteObjectsResult {
+  /** Clés effectivement soumises à la suppression. */
+  deleted: number;
+  /** URLs ignorées (hors bucket, illisibles, hors préfixe uploads/). */
+  skipped: number;
+  /** Erreurs S3 par clé — non fatales, à journaliser. */
+  errors: string[];
+}
+
+/**
+ * Supprime des objets S3 à partir de leurs URLs publiques.
+ *
+ * POURQUOI (audit pré-lancement 2026-07, P1-1) : la route de suppression PIPEDA
+ * anonymisait 10 tables mais ne touchait JAMAIS S3 — aucun `DeleteObject` dans
+ * tout le dépôt — alors que le courriel de confirmation affirme au client
+ * « Brouillons + designs → supprimés ». Les PDF restaient `public-read` à une
+ * URL toujours valide, indéfiniment. Un design de carte d'affaires contient
+ * couramment nom, téléphone et courriel.
+ *
+ * BEST-EFFORT ASSUMÉ : un échec S3 ne doit pas faire échouer l'anonymisation DB
+ * (qui, elle, est transactionnelle et prioritaire). On retourne le détail pour
+ * que l'appelant journalise et puisse relancer. À appeler HORS de la
+ * transaction Prisma — un appel réseau n'a rien à faire dans une transaction.
+ */
+export async function deleteObjectsByUrl(urls: (string | null | undefined)[]): Promise<DeleteObjectsResult> {
+  const keys = [...new Set(urls.map(s3KeyFromUrl).filter((k): k is string => !!k))];
+  const skipped = urls.length - keys.length;
+  if (keys.length === 0 || !S3_CONFIGURED) {
+    return { deleted: 0, skipped, errors: S3_CONFIGURED ? [] : ['S3 non configuré'] };
+  }
+
+  const { DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+  const client = getClient();
+  const errors: string[] = [];
+  let deleted = 0;
+
+  // L'API DeleteObjects plafonne à 1000 clés par appel.
+  for (let i = 0; i < keys.length; i += 1000) {
+    const lot = keys.slice(i, i + 1000);
+    try {
+      const res = await client.send(new DeleteObjectsCommand({
+        Bucket: BUCKET,
+        Delete: { Objects: lot.map((Key) => ({ Key })), Quiet: true },
+      }));
+      deleted += lot.length - (res.Errors?.length ?? 0);
+      for (const e of res.Errors ?? []) errors.push(`${e.Key}: ${e.Message}`);
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : 'erreur S3 inconnue');
+    }
+  }
+
+  return { deleted, skipped, errors };
+}
