@@ -108,9 +108,44 @@ try {
   if (mode === 'live') {
     ok('Stripe en mode LIVE', `clé publiable pk_live_ trouvée (${chunks.length} chunks balayés)`);
   } else if (mode === 'test') {
-    ko('Stripe en mode TEST', 'aucun paiement réel ne sera encaissé (pk_test_ ⇒ sk_test_)');
+    // Volontairement pas un bloquant : en phase d'essai, `test` est le mode
+    // VOULU. C'est l'incohérence avec Sinalite qui est dangereuse, pas le mode
+    // lui-même — et cette incohérence n'est pas observable d'ici.
+    warn('Stripe en mode TEST', 'aucun paiement réel — cohérent SI Sinalite est en sandbox');
   } else {
     warn('Clé publiable Stripe introuvable', `${chunks.length} chunks balayés — page vide sans panier ?`);
+  }
+
+  // Vivacité du point de terminaison webhook. Un POST non signé DOIT être
+  // rejeté en 400 : ça prouve que la route existe et que la vérification tourne.
+  //
+  // ⚠️ CE QUE CE CONTRÔLE NE PROUVE PAS : qu'il s'agit du BON `whsec_`. Un
+  // secret du mauvais mode produit exactement le même `400 Invalid signature`.
+  // Aucun test externe ne peut les distinguer — seul Stripe → Webhooks →
+  // « Recent deliveries » tranche (200 = bon secret, 400 = mauvais, aucune
+  // livraison = l'endpoint n'existe pas dans ce mode).
+  try {
+    const r = await fetch(`${BASE}/api/webhooks/stripe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (r.status === 400) {
+      ok('Webhook Stripe joignable et vérifiant les signatures',
+         'ne dit RIEN du mode du whsec_ — à lire dans « Recent deliveries »');
+    } else {
+      ko(`Webhook Stripe répond ${r.status} au lieu de 400`,
+         'un POST non signé doit être rejeté — route absente ou vérification contournée');
+    }
+  } catch (err) {
+    ko('Webhook Stripe injoignable', err.message);
+  }
+
+  if (mode) {
+    const attendu = mode === 'live' ? 'sk_live_ / whsec_ de l’endpoint LIVE' : 'sk_test_ / whsec_ de l’endpoint TEST';
+    console.log(`   ${DIM}Triplet à accorder : pk_${mode}_ ✓ · ${attendu} (non vérifiables d'ici)${RST}`);
+    console.log(`   ${DIM}Chaque mode a SES PROPRES endpoints webhook — celui de l'autre mode n'existe pas.${RST}`);
   }
 } catch (err) {
   warn('Mode Stripe non déterminable', err.message);
@@ -166,8 +201,9 @@ console.log(`     ⚠️ À basculer EN MÊME TEMPS que Stripe — l'inverse (St
 console.log(`     Sinalite live) déclenche de VRAIES impressions sur de faux paiements.`);
 console.log(`     Identifiants client_id/secret probablement différents entre les deux,`);
 console.log(`     et createOrder débite le portefeuille Sinalite (compte live à approvisionner).${RST}`);
-console.log('  🔴 SINALITE_WEBHOOK_SECRET · STRIPE_WEBHOOK_SECRET (whsec_ de l’endpoint LIVE)');
+console.log('  🔴 SINALITE_WEBHOOK_SECRET · STRIPE_WEBHOOK_SECRET (whsec_ de l’endpoint du MODE VISÉ)');
 console.log(`     ${DIM}Un whsec_ d'endpoint test ne valide aucun événement live.${RST}`);
+console.log(`     ${DIM}Procédure complète : docs/bascule-test-live.md${RST}`);
 console.log('  🟡 SES hors sandbox · numéros TPS/TVQ/NEQ réels · noms des garde-fous inactifs (CloudWatch)');
 
 // ── Verdict ───────────────────────────────────────────────────────────────
