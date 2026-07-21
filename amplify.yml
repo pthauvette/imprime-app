@@ -10,8 +10,35 @@ applications:
             - pnpm install --frozen-lockfile
             # Génère le client Prisma (sinon next build échoue à l'import).
             - pnpm exec prisma generate
-            # Apply les migrations DB (Neon Postgres) — idempotent.
-            - pnpm exec prisma migrate deploy
+            # Applique les migrations — idempotent. Utilise DIRECT_URL (port 5432),
+            # pas le pooler : Supavisor en mode transaction ne supporte pas les
+            # verrous de session dont `migrate deploy` a besoin.
+            #
+            # ── SOUPAPE D'URGENCE : SKIP_MIGRATIONS ──────────────────────────
+            # Le couplage migrations↔build protège une vraie propriété : on ne
+            # déploie jamais du code qui attend un schéma inexistant. On le GARDE.
+            #
+            # Mais il a un défaut vécu (Neon mort, 2026-07) : une base injoignable
+            # gèle TOUT déploiement, y compris un correctif sans aucun rapport
+            # avec la DB. On se retrouve incapable de livrer le fix pendant que la
+            # prod brûle.
+            #
+            # `SKIP_MIGRATIONS=1` (posée dans la console Amplify, RETIRÉE juste
+            # après) saute l'étape pour ce build. C'est une soupape, pas un mode :
+            # elle exige un geste manuel, elle crie dans le log, et un déploiement
+            # normal ne peut pas l'emprunter par inadvertance.
+            #
+            # ⚠️ Après usage : RETIRER la variable et redéployer, sinon les
+            # migrations suivantes ne s'appliqueront jamais et le schéma dérivera
+            # en silence — un mode d'échec pire que celui qu'on contourne.
+            - |
+              set -euo pipefail
+              if [ "${SKIP_MIGRATIONS:-}" = "1" ]; then
+                echo "::warning::SKIP_MIGRATIONS=1 — migrations NON appliquées pour ce build."
+                echo "::warning::Soupape d'urgence. RETIRER la variable et redéployer dès que la DB répond."
+              else
+                pnpm exec prisma migrate deploy
+              fi
         build:
           commands:
             # Amplify Console expose les env vars au BUILD mais pas toujours
@@ -66,7 +93,7 @@ applications:
             # vide → AUTH_SECRET undefined → 500 partout, en silence).
             - |
               set -euo pipefail
-              env | grep -E '^(DATABASE_URL|DIRECT_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|ENFORCE_|FILE_REVALIDATION|ORDER_|REFERRAL_|GOLD_|DEFAULT_MARGIN_PCT|ARTWORK_URL_MODE|AWS_COMMIT_ID)' \
+              env | grep -E '^(DATABASE_URL|DIRECT_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|ENFORCE_|FILE_REVALIDATION|ORDER_|REFERRAL_|GOLD_|DEFAULT_MARGIN_PCT|ARTWORK_URL_MODE|SKIP_MIGRATIONS|AWS_COMMIT_ID)' \
                 | sed -E "s/\\\$/\\\\\$/g; s/^([A-Za-z_][A-Za-z0-9_]*)=(.*)\$/\\1='\\2'/" \
                 > .env.production
               n=$(grep -c '^[A-Za-z_]' .env.production || true)

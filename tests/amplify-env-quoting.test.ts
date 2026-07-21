@@ -147,3 +147,45 @@ describe('amplify.yml — cohérence des whitelists d\'env', () => {
     }
   });
 });
+
+describe('amplify.yml — soupape SKIP_MIGRATIONS', () => {
+  const yml = readFileSync('amplify.yml', 'utf8');
+
+  /** Rejoue la condition RÉELLE extraite d'amplify.yml pour une valeur donnée. */
+  function saute(valeur: string | undefined): boolean {
+    const cond = yml.match(/if \[ "\$\{SKIP_MIGRATIONS:-\}" = "([^"]+)" \]/)?.[1];
+    if (cond === undefined) throw new Error('soupape introuvable dans amplify.yml — le pipeline a changé');
+    const dir = mkdtempSync(join(tmpdir(), 'plio-skip-'));
+    const f = join(dir, 'test.sh');
+    writeFileSync(f, `if [ "\${SKIP_MIGRATIONS:-}" = "${cond}" ]; then echo SAUTE; else echo APPLIQUE; fi`);
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    if (valeur === undefined) delete env.SKIP_MIGRATIONS;
+    else env.SKIP_MIGRATIONS = valeur;
+    return execFileSync('bash', [f], { encoding: 'utf8', env }).trim() === 'SAUTE';
+  }
+
+  it("n'est PAS empruntable par un déploiement normal", () => {
+    // La propriété qui compte : le couplage migrations↔build protège contre le
+    // déploiement de code attendant un schéma inexistant. La soupape doit exiger
+    // un geste délibéré, jamais s'activer par défaut.
+    expect(saute(undefined)).toBe(false);
+    expect(saute('')).toBe(false);
+  });
+
+  it('exige la valeur EXACTE « 1 » — toute valeur ambiguë applique les migrations', () => {
+    // Fail-safe : dans le doute, on migre. Accepter `true`/`yes`/`on` inviterait
+    // à sauter les migrations en croyant activer autre chose, et le schéma
+    // dériverait en silence — pire que la panne qu'on contourne.
+    expect(saute('1')).toBe(true);
+    for (const v of ['true', 'yes', 'on', 'TRUE', '0', 'oui']) {
+      expect(saute(v), `« ${v} » ne doit pas activer la soupape`).toBe(false);
+    }
+  });
+
+  it('SKIP_MIGRATIONS atteint bien le build (whitelist)', () => {
+    // Sans ça, la poser dans la console Amplify n'aurait aucun effet — exactement
+    // le mode de panne silencieuse que cette whitelist existe pour empêcher.
+    const whitelist = yml.match(/grep -E '\^\(([^)]+)\)'/)?.[1] ?? '';
+    expect(whitelist.split('|')).toContain('SKIP_MIGRATIONS');
+  });
+});
