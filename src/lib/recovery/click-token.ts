@@ -13,9 +13,10 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { signingSecret } from '@/lib/crypto/signing-secret';
 
 export function recoveryClickToken(cartId: string): string {
-  const secret = process.env.AUTH_SECRET ?? 'dev-secret';
+  const secret = signingSecret('lien de relance panier');
   return createHmac('sha256', secret)
     .update(`abandoned-cart-click:${cartId}`)
     .digest('hex')

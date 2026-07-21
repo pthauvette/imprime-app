@@ -57,7 +57,7 @@ beforeEach(() => {
   vi.mocked(prisma.emailDelivery.create).mockRejectedValue(new Error('force fallback'));
   vi.mocked(prisma.order.findUnique).mockResolvedValue(null as never);
   vi.mocked(render.sendEmail).mockResolvedValue({ sent: true } as never);
-  process.env.AUTH_SECRET = 'fixed-test-secret';
+  process.env.AUTH_SECRET = 'fixed-test-secret-min-32-characters-xx';
   process.env.NEXT_PUBLIC_APP_URL = 'https://plio.ca';
 });
 

@@ -14,9 +14,10 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { signingSecret } from '@/lib/crypto/signing-secret';
 
 export function paymentRetryToken(orderId: string): string {
-  const secret = process.env.AUTH_SECRET ?? 'dev-secret';
+  const secret = signingSecret('lien de reprise de paiement');
   return createHmac('sha256', secret)
     .update(`payment-retry:${orderId}`)
     .digest('hex')

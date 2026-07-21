@@ -30,7 +30,7 @@ const ORIG_ENV = { ...process.env };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env = { ...ORIG_ENV, AUTH_SECRET: 'fixed-test-secret', NEXT_PUBLIC_APP_URL: 'https://plio.ca' };
+  process.env = { ...ORIG_ENV, AUTH_SECRET: 'fixed-test-secret-min-32-characters-xx', NEXT_PUBLIC_APP_URL: 'https://plio.ca' };
 });
 
 describe('recoveryClickToken / verifyRecoveryClickToken', () => {
@@ -50,9 +50,9 @@ describe('recoveryClickToken / verifyRecoveryClickToken', () => {
   });
 
   it('change si AUTH_SECRET change', () => {
-    process.env.AUTH_SECRET = 'A';
+    process.env.AUTH_SECRET = 'rotation-secret-A-min-32-characters-xx';
     const a = recoveryClickToken('cart_1');
-    process.env.AUTH_SECRET = 'B';
+    process.env.AUTH_SECRET = 'rotation-secret-B-min-32-characters-xx';
     const b = recoveryClickToken('cart_1');
     expect(a).not.toBe(b);
   });

@@ -16,6 +16,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { signingSecret } from '@/lib/crypto/signing-secret';
 
 export interface ShippingQuoteFields {
   method: string;
@@ -39,7 +40,7 @@ function canonical(f: ShippingQuoteFields): string {
 }
 
 export function shippingQuoteToken(f: ShippingQuoteFields): string {
-  const secret = process.env.AUTH_SECRET ?? 'dev-secret';
+  const secret = signingSecret('devis de livraison');
   return createHmac('sha256', secret).update(canonical(f)).digest('hex').slice(0, 32);
 }
 
