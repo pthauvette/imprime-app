@@ -1,0 +1,160 @@
+name: Log de build Amplify
+
+# Récupère le log d'un build Amplify et en pose le DIAGNOSTIC.
+#
+# POURQUOI CE WORKFLOW EXISTE
+# ---------------------------
+# Le 2026-07-15, la prod est restée gelée plusieurs jours : CI verte, build local
+# vert, aucun déploiement. Le diagnostic a été fait à l'AVEUGLE, par hypothèses
+# successives — `amplify.yml` en porte encore la trace : « ⚠️ HYPOTHÈSE non
+# confirmée par le log Amplify (pas d'accès console) ». Une de ces hypothèses
+# (monter NODE_OPTIONS à 6144) était CONTRE-PRODUCTIVE et a aggravé la panne :
+# sur un conteneur de 4 Go, autoriser V8 à monter à 6 Go garantit un SIGKILL du
+# noyau (exit 137) au lieu d'une erreur de heap diagnosticable (exit 134).
+#
+# Le log distinguait ces deux cas en une ligne. Il fallait juste pouvoir le lire.
+#
+# ⚠️ PREMIÈRE EXÉCUTION : les identifiants AWS déjà en secrets GitHub servent à
+# S3 (db-backup.yml) et n'ont probablement PAS les droits Amplify. Le workflow
+# échoue alors avec la politique IAM exacte à ajouter — c'est voulu : un échec
+# qui dit quoi faire vaut mieux qu'un silence.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branche Amplify"
+        required: false
+        default: main
+      job_id:
+        description: "ID du build (vide = le plus récent)"
+        required: false
+        default: ""
+      lignes:
+        description: "Lignes de fin à afficher par étape"
+        required: false
+        default: "150"
+
+jobs:
+  log:
+    name: Récupérer et diagnostiquer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier les secrets
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+        run: |
+          set -euo pipefail
+          manquants=()
+          [ -z "${AWS_ACCESS_KEY_ID:-}" ] && manquants+=("AWS_ACCESS_KEY_ID")
+          [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] && manquants+=("AWS_SECRET_ACCESS_KEY")
+          [ -z "${AMPLIFY_APP_ID:-}" ] && manquants+=("AMPLIFY_APP_ID")
+          if [ ${#manquants[@]} -gt 0 ]; then
+            echo "::error::Secrets GitHub manquants : ${manquants[*]}"
+            echo "AMPLIFY_APP_ID se lit dans l'URL de la console Amplify :"
+            echo "  .../apps/<APP_ID>/branches — c'est la partie 'dXXXXXXXXXXXXX'."
+            exit 1
+          fi
+
+      - name: Récupérer le log
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || secrets.S3_REGION || 'ca-central-1' }}
+          APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+          BRANCHE: ${{ inputs.branch }}
+          JOB_ID: ${{ inputs.job_id }}
+          LIGNES: ${{ inputs.lignes }}
+        run: |
+          set -uo pipefail
+
+          # ── Résolution du build ────────────────────────────────────────────
+          if [ -z "$JOB_ID" ]; then
+            echo "Recherche du build le plus récent sur '$BRANCHE'…"
+            liste=$(aws amplify list-jobs --app-id "$APP_ID" --branch-name "$BRANCHE" --max-results 1 2>&1) || {
+              echo "$liste"
+              if echo "$liste" | grep -qi "AccessDenied\|not authorized"; then
+                echo "::error::Les identifiants AWS n'ont pas les droits Amplify."
+                echo "Ajouter cette politique à l'utilisateur IAM des secrets GitHub"
+                echo "(lecture seule : aucun droit de modification ni de déclenchement) :"
+                echo '  { "Version": "2012-10-17", "Statement": [{'
+                echo '      "Effect": "Allow",'
+                echo '      "Action": ["amplify:ListJobs", "amplify:GetJob"],'
+                echo '      "Resource": "*" }] }'
+              fi
+              exit 1
+            }
+            JOB_ID=$(echo "$liste" | jq -r '.jobSummaries[0].jobId // empty')
+            [ -z "$JOB_ID" ] && { echo "::error::Aucun build trouvé sur '$BRANCHE'"; exit 1; }
+          fi
+
+          echo "Build #$JOB_ID sur '$BRANCHE'"
+          job=$(aws amplify get-job --app-id "$APP_ID" --branch-name "$BRANCHE" --job-id "$JOB_ID" 2>&1) || {
+            echo "$job"; echo "::error::get-job a échoué"; exit 1;
+          }
+
+          echo "## Build Amplify #$JOB_ID (\`$BRANCHE\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Étape | Statut |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "$job" | jq -r '.job.steps[] | "| \(.stepName) | \(.status) |"' >> "$GITHUB_STEP_SUMMARY"
+
+          # ── Log de chaque étape ────────────────────────────────────────────
+          # logUrl est une URL S3 présignée à durée de vie courte : on la
+          # consomme immédiatement et on ne la journalise JAMAIS (elle donne
+          # accès au log sans authentification).
+          complet=$(mktemp)
+          echo "$job" | jq -r '.job.steps[] | "\(.stepName)\t\(.status)\t\(.logUrl // "")"' \
+          | while IFS=$'\t' read -r nom statut url; do
+              echo ""
+              echo "══════ $nom — $statut"
+              if [ -z "$url" ]; then
+                echo "  (aucun log pour cette étape)"
+                continue
+              fi
+              curl -sS --max-time 60 "$url" > "$complet.step" || { echo "  (log illisible)"; continue; }
+              tail -n "$LIGNES" "$complet.step"
+              cat "$complet.step" >> "$complet"
+            done
+
+          # ── Diagnostic ─────────────────────────────────────────────────────
+          # Encode la connaissance acquise en 2026-06/07, pour que la prochaine
+          # panne ne reparte pas d'hypothèses. Les deux signatures mémoire se
+          # ressemblent mais appellent des correctifs OPPOSÉS.
+          echo ""
+          echo "══════ DIAGNOSTIC"
+          {
+            echo ""
+            echo "### Diagnostic"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          diag() { echo "$1"; echo "- $1" >> "$GITHUB_STEP_SUMMARY"; }
+
+          if grep -qi "JavaScript heap out of memory" "$complet"; then
+            diag "🔴 Heap V8 dépassée (exit 134) — le CONTENEUR suffit, c'est la limite Node qui est trop basse."
+            diag "   → monter NODE_OPTIONS --max-old-space-size dans amplify.yml, SANS dépasser la RAM du conteneur."
+          elif grep -qiE "Killed|exit (code )?137|SIGKILL" "$complet"; then
+            diag "🔴 Tué par le noyau (exit 137) — le CONTENEUR est trop petit."
+            diag "   → passer le build compute en « Large » (Console Amplify → App settings → Build settings)."
+            diag "   ⚠️ Monter NODE_OPTIONS ici AGGRAVE la panne : autoriser V8 au-delà du cgroup garantit le SIGKILL."
+          fi
+
+          if grep -qiE "P1001|Can't reach database server" "$complet"; then
+            diag "🔴 DB injoignable (P1001) — vérifier DATABASE_URL / DIRECT_URL et l'état du projet Supabase."
+          fi
+          if grep -qiE "P1012|Environment variable not found" "$complet"; then
+            diag "🔴 Variable Prisma absente (P1012) — DIRECT_URL est requise par le schéma pour migrate deploy."
+          fi
+          if grep -qi "invalid port number" "$complet"; then
+            diag "🔴 URL tronquée — un caractère spécial du mot de passe casse le parsing."
+            diag "   → percent-encoder \`#\` (%23) et \`@\` (%40) dans la valeur posée en console."
+          fi
+          if grep -qE "\.env\.production ne contient que" "$complet"; then
+            diag "🔴 Whitelist d'env cassée — une variable lue au runtime manque au grep d'amplify.yml."
+          fi
+
+          statut_final=$(echo "$job" | jq -r '.job.summary.status')
+          diag "Statut final du build : $statut_final"
+          [ "$statut_final" = "FAILED" ] && exit 1 || exit 0
