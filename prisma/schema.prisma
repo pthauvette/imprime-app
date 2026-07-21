@@ -455,10 +455,20 @@ model DesignDraft {
   orderId String? @unique
   order   Order?  @relation(fields: [orderId], references: [id])
 
+  /** Cloisonnement des INVITÉS (audit pré-lancement 2026-07, P1-5).
+   *  Tous les visiteurs non connectés partagent UNE seule row User
+   *  (`guest@plio.local`) — donc filtrer par `userId` ne les sépare PAS entre
+   *  eux : un invité qui obtenait le draftId d'un autre (Referer, URL partagée)
+   *  pouvait ÉCRASER son design. Ce jeton, tiré aléatoirement et gardé dans un
+   *  cookie httpOnly, identifie le navigateur invité. Null pour les drafts de
+   *  comptes réels, où `userId` suffit déjà. */
+  guestToken String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, updatedAt])
+  @@index([guestToken])
 }
 
 // ─── WEBHOOK EVENT ────────────────────────────────────────────────────────

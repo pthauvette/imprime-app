@@ -18,6 +18,8 @@ import { renderTemplateToPdf } from '@/lib/templates/render';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
+import { GUEST_COOKIE, newGuestToken, setGuestCookie } from '@/lib/auth/guest-token';
+import { cookies } from 'next/headers';
 
 const BodySchema = z.object({
   templateSlug: z.string(),
@@ -59,6 +61,18 @@ export const POST = withErrorHandler(async (req: Request) => {
         update: {},
       });
 
+  // Cloisonnement des INVITÉS (P1-5). Tous partagent la row `guest@plio.local`,
+  // donc `userId` ne les sépare pas entre eux : il faut une 2e clé, propre au
+  // navigateur. Pour un compte réel, `userId` suffit → `guestToken` reste null.
+  const isGuest = !session?.user;
+  let guestToken: string | null = null;
+  let guestTokenIsNew = false;
+  if (isGuest) {
+    const existing = (await cookies()).get(GUEST_COOKIE)?.value;
+    guestToken = existing ?? newGuestToken();
+    guestTokenIsNew = !existing;
+  }
+
   const templateId = await getOrCreateTemplateDbRow(template);
 
   // Reprise d'un brouillon : on met à jour le draft existant SI il appartient
@@ -68,7 +82,12 @@ export const POST = withErrorHandler(async (req: Request) => {
   let draft: { id: string } | null = null;
   if (body.draftId) {
     const updated = await prisma.designDraft.updateMany({
-      where: { id: body.draftId, userId: user.id, orderId: null },
+      // Pour un invité on exige EN PLUS le guestToken : sans lui, deux invités
+      // (même userId) pouvaient s'écraser mutuellement. Un draft d'invité créé
+      // avant ce correctif a `guestToken: null` → ne matche aucun jeton, donc
+      // n'est plus reprenable : perte volontaire (fail-closed) plutôt qu'une
+      // clause `OR null` qui rouvrirait exactement le trou qu'on ferme.
+      where: { id: body.draftId, userId: user.id, orderId: null, ...(isGuest ? { guestToken } : {}) },
       data: { values: JSON.stringify(body.values), finalPdfUrl: pdfDataUrl, templateId },
     });
     if (updated.count === 1) draft = { id: body.draftId };
@@ -82,16 +101,21 @@ export const POST = withErrorHandler(async (req: Request) => {
         templateId,
         values: JSON.stringify(body.values),
         finalPdfUrl: pdfDataUrl,
+        guestToken,
       },
       select: { id: true },
     });
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     designId: draft.id,
     productId: template.defaultSinalite.productId,
     productType: template.productType,
   });
+  // Seulement si on vient de le tirer : re-poser un cookie existant à chaque
+  // appel rallongerait sa durée de vie sans raison.
+  if (guestToken && guestTokenIsNew) setGuestCookie(res, guestToken);
+  return res;
 });
 
 /**
