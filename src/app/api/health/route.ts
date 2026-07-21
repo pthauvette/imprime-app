@@ -7,7 +7,8 @@
  *
  * Catégories :
  *   - CRITIQUE (503 si fail) : db:postgres (pas de site sans DB)
- *   - DEGRADED (200 + warn)  : api:sinalite, api:stripe, email:queue, webhooks:recent
+ *   - DEGRADED (200 + warn)  : api:sinalite, api:stripe, email:queue, webhooks:recent,
+ *     config:env (variables d'environnement absentes du runtime — cf. panne 2026-07-20)
  *
  * Format IETF Health Check (draft-inadarei-api-health-check) :
  *   { status: 'pass'|'warn'|'fail', version, releaseId, checks: {...} }
@@ -17,6 +18,8 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { countDeadLetterWebhooks } from '@/lib/webhooks/dead-letter';
+import { inspectEnvConfig } from '@/lib/config/env-health';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -91,7 +94,10 @@ export async function GET() {
           },
           () => ({ reachable: true }),
         )
-      : Promise.resolve<CheckResult>({ status: 'fail', latencyMs: 0, error: 'STRIPE_SECRET_KEY not set' }),
+      // Le message ne NOMME pas la variable : /api/health est public, et le
+      // détail de quelle clé manque appartient aux logs, pas à la réponse.
+      // (Fuite préexistante, détectée par tests/env-health.test.ts.)
+      : Promise.resolve<CheckResult>({ status: 'fail', latencyMs: 0, error: 'stripe non configuré' }),
     // Degraded : email queue dead-letter count (alert si > 10 dans la dernière heure)
     timed(
       async () => {
@@ -129,8 +135,37 @@ export async function GET() {
     ),
   ]);
 
+  // config:env — SYNCHRONE (lecture de process.env), donc hors du Promise.all.
+  // Rend visible le mode d'échec qui a coûté des heures le 2026-07-20 : une
+  // variable posée dans la console Amplify mais jamais arrivée au runtime, sans
+  // la moindre erreur. Classé DEGRADED et non critique : une clé manquante ne
+  // veut pas dire que le site est mort, et faire chuter l'uptime SLA sur ce
+  // signal le rendrait vite ignoré.
+  const envReport = inspectEnvConfig();
+  const envCheck: CheckResult = {
+    status: envReport.failing ? 'fail' : 'pass',
+    latencyMs: 0,
+    ...(envReport.failing
+      ? { error: `${envReport.missingRequired.length} variable(s) requise(s) absente(s) du runtime` }
+      : {}),
+    // ⚠️ Endpoint PUBLIC : des COMPTES, jamais les noms. Publier « ENFORCE_SHIPPING_SIG
+    // est inactif » renseignerait un attaquant sur les gardes qu'il peut ignorer.
+    detail: {
+      missingRequired: envReport.missingRequired.length,
+      guardsInactive: envReport.guardsInactive.length,
+    },
+  };
+  // Les NOMS partent aux logs (privés) — c'est là que l'opérateur diagnostique.
+  if (envReport.missingRequired.length || envReport.guardsInactive.length) {
+    log.warn(
+      { missingRequired: envReport.missingRequired, guardsInactive: envReport.guardsInactive },
+      'config:env — variables absentes du runtime (posées en console mais non transmises ?)',
+    );
+  }
+
   const checks = {
     'db:postgres': db,
+    'config:env': envCheck,
     'api:sinalite': sinalite,
     'api:stripe': stripeCheck,
     'email:queue': emailQueue,
