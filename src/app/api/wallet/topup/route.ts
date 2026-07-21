@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { auth } from '@/auth';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { tierForAmount, computeBonus, isValidTopupAmount } from '@/lib/wallet/tiers';
+import { rateLimit } from '@/lib/ratelimit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 // Pattern existant : Stripe instancié par route (vs singleton) — meilleur
@@ -36,6 +37,12 @@ export const POST = withErrorHandler(async (req: Request) => {
   if (!session?.user?.id || !session.user.email) {
     return NextResponse.json({ error: 'Auth required' }, { status: 401 });
   }
+
+  // Borné PAR UTILISATEUR (la route exige déjà une session) : empêche qu'une
+  // boucle de retry côté client ou une session compromise crée des Checkout
+  // Sessions en rafale.
+  const limit = await rateLimit('walletTopup', session.user.id);
+  if (!limit.ok) return limit.response;
 
   const body = await parseBody(req, BodySchema);
   if (!isValidTopupAmount(body.amountCents)) {

@@ -26,6 +26,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { getStripe } from '@/lib/stripe/client';
 import type { PriceOrderUser } from '@/lib/orders/price-order';
+import { rateLimit, clientIp } from '@/lib/ratelimit';
 
 // ─── PAYLOAD SCHEMA ───────────────────────────────────────────────────────
 
@@ -115,7 +116,29 @@ const CreateOrderSchema = z.object({
 // ─── HANDLER ──────────────────────────────────────────────────────────────
 
 export const POST = withErrorHandler(async (req: Request) => {
+  // parseBody d'abord : un corps malformé part en 400 sans consommer de quota, et
+  // ne coûte rien à servir. Le rate-limit garde ce qui suit, où tout est cher —
+  // revalidation des fichiers (téléchargements S3), tarification (API Sinalite),
+  // objets Stripe — et se paie AVANT qu'un centime soit encaissé.
   const payload = await parseBody(req, CreateOrderSchema);
+
+  // `earlySession` est résolu ici (et non plus au moment du calcul de prix) pour
+  // servir de clé de bucket ; il est réutilisé tel quel plus bas, sans changement
+  // de valeur — rien entre les deux points ne touche la session.
+  const earlySession = await auth();
+  const callerKey = earlySession?.user?.id ? `u:${earlySession.user.id}` : `ip:${clientIp(req)}`;
+  const perCaller = await rateLimit('orderCreate', callerKey);
+  if (!perCaller.ok) return perCaller.response;
+
+  // Plafond agrégé : seule borne face à un flood distribué (X-Forwarded-For est
+  // spoofable). Réservé aux appelants ANONYMES — une revue adversariale a montré
+  // qu'un plafond global inconditionnel laisse n'importe qui couper le checkout
+  // de TOUS les clients avec quelques secondes de curl. Un client identifié doit
+  // toujours pouvoir payer ; l'attaquant du scénario, lui, est anonyme.
+  if (!earlySession?.user?.id) {
+    const globalCap = await rateLimit('orderCreateGlobal', 'all');
+    if (!globalCap.ok) return globalCap.response;
+  }
 
   // Phase 1b — REVALIDATION SERVEUR des fichiers print (backstop anti-bypass du
   // contrôle client). On rejette AVANT tout appel Stripe/Sinalite (au plus tôt).
@@ -162,8 +185,8 @@ export const POST = withErrorHandler(async (req: Request) => {
   const { priceOrder } = await import('@/lib/orders/price-order');
 
   // Prefs user — source de vérité = DB user (jamais le payload). earlySession est
-  // réutilisé plus bas (rattachement de l'Order au compte + breakdown UI).
-  const earlySession = await auth();
+  // résolu en tête de handler (clé de rate-limit) et réutilisé ici puis plus bas
+  // (rattachement de l'Order au compte + breakdown UI).
   let userLoyaltyTier: string | null = null;
   let userResellerStatus: 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' | 'PLATINUM' = 'NONE';
   let priceUser: PriceOrderUser | null = null;

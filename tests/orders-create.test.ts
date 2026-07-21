@@ -95,6 +95,15 @@ vi.mock('@/lib/orders/revalidate-files', () => ({
   revalidatePrintFiles: revalidateMock.fn,
 }));
 
+// Rate-limit (audit pré-lancement P2) — par défaut TOUT passe, pour que les
+// ~40 tests existants restent inchangés ; les tests dédiés surchargent au cas
+// par cas. Sans ce mock, le vrai module se charge sans Upstash → fail-open, donc
+// le 429 serait intestable.
+vi.mock('@/lib/ratelimit', () => ({
+  rateLimit: vi.fn(async () => ({ ok: true, remaining: 99 })),
+  clientIp: vi.fn(() => '203.0.113.7'),
+}));
+
 // Mock Stripe via vi.hoisted pour qu'il soit dispo dans le mock factory
 const stripeMock = vi.hoisted(() => ({
   paymentIntents: {
@@ -114,11 +123,13 @@ vi.mock('stripe', () => {
   return { default: StripeMock };
 });
 
+import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import { sinalite } from '@/lib/sinalite/client';
 import { shippingQuoteToken } from '@/lib/shipping/quote-token';
+import { rateLimit } from '@/lib/ratelimit';
 
 const URL = 'http://localhost/api/orders/create';
 
@@ -158,6 +169,8 @@ beforeEach(() => {
   stripeMock.paymentIntents.create.mockClear();
   revalidateMock.fn.mockReset();
   revalidateMock.fn.mockResolvedValue([]);
+  vi.mocked(rateLimit).mockReset();
+  vi.mocked(rateLimit).mockResolvedValue({ ok: true, remaining: 99 } as never);
   vi.resetModules();
 });
 
@@ -577,5 +590,81 @@ describe('/api/orders/create — réservation crédit M2/M3', () => {
     const res = await POST(makeReq(validPayload));
     expect(res.status).toBe(200);
     expect(reservedMock.fn).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Audit pré-lancement 2026-07 (P2) — bornes du checkout WEB.
+ *
+ * Le jumeau headless (MCP create_order Mode B) avait deux buckets ; cette route,
+ * qui fait le MÊME travail payant avant encaissement (téléchargements S3 pour la
+ * revalidation, tarification Sinalite, objets Stripe), n'en avait aucun.
+ */
+describe('/api/orders/create — rate-limit', () => {
+  const RL_429 = {
+    ok: false,
+    response: NextResponse.json({ code: 'RATE_LIMITED' }, { status: 429 }),
+  };
+
+  it('borne par appelant dépassée → 429 AVANT toute revalidation ou appel Stripe', async () => {
+    vi.mocked(rateLimit).mockResolvedValueOnce(RL_429 as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+
+    expect(res.status).toBe(429);
+    // Le point du correctif : rien de coûteux ne doit avoir tourné.
+    expect(revalidateMock.fn).not.toHaveBeenCalled();
+    expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  it('plafond AGRÉGÉ dépassé → 429 même si la borne par appelant passe', async () => {
+    // Le cas qui compte : un attaquant qui fait tourner X-Forwarded-For satisfait
+    // toujours le bucket par-IP. Seul le plafond global l'arrête.
+    vi.mocked(rateLimit)
+      .mockResolvedValueOnce({ ok: true, remaining: 99 } as never)
+      .mockResolvedValueOnce(RL_429 as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq(validPayload));
+
+    expect(res.status).toBe(429);
+    expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  it('anonyme → keyé par IP ; connecté → keyé par userId (le NAT ne punit pas des clients distincts)', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    await POST(makeReq(validPayload));
+    expect(vi.mocked(rateLimit).mock.calls[0]).toEqual(['orderCreate', 'ip:203.0.113.7']);
+    expect(vi.mocked(rateLimit).mock.calls[1]).toEqual(['orderCreateGlobal', 'all']);
+
+    vi.mocked(rateLimit).mockClear();
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u_42', email: 'a@b.ca' } } as never);
+    vi.resetModules();
+    const { POST: POST2 } = await import('@/app/api/orders/create/route');
+    await POST2(makeReq(validPayload));
+    expect(vi.mocked(rateLimit).mock.calls[0]).toEqual(['orderCreate', 'u:u_42']);
+  });
+
+  it('client CONNECTÉ immunisé contre le plafond agrégé (un flood anonyme ne coupe pas ses paiements)', async () => {
+    // Le correctif issu de la revue adversariale : un plafond global inconditionnel
+    // laissait n'importe qui couper le checkout de TOUS les clients en quelques
+    // secondes de curl, sans compte ni payload valide.
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u_fidele', email: 'a@b.ca' } } as never);
+
+    const { POST } = await import('@/app/api/orders/create/route');
+    await POST(makeReq(validPayload));
+
+    const buckets = vi.mocked(rateLimit).mock.calls.map((c) => c[0]);
+    expect(buckets).toContain('orderCreate');
+    expect(buckets).not.toContain('orderCreateGlobal');
+  });
+
+  it('un corps malformé part en 400 SANS consommer de quota', async () => {
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({ ...validPayload, items: [] }));
+
+    expect(res.status).toBe(400);
+    expect(rateLimit).not.toHaveBeenCalled();
   });
 });
