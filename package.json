@@ -23,6 +23,7 @@
     "@auth/prisma-adapter": "^2.11.2",
     "@aws-sdk/client-s3": "^3.1048.0",
     "@aws-sdk/s3-presigned-post": "^3.1048.0",
+    "@aws-sdk/s3-request-presigner": "^3.1048.0",
     "@modelcontextprotocol/ext-apps": "^1.7.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@pdfme/common": "^6.1.2",
@@ -74,6 +75,12 @@
       "@prisma/engines",
       "prisma",
       "@prisma/client"
-    ]
+    ],
+    "overrides": {
+      "@smithy/types": "4.16.1",
+      "@smithy/core": "3.29.6",
+      "@smithy/signature-v4": "5.6.7"
+    },
+    "overridesComment": "Deux copies de @smithy/* (via client-s3 vs s3-request-presigner) rendaient les S3Client mutuellement incompatibles au niveau des types. Pins DURS volontaires : un futur `pnpm up @aws-sdk/*` retiendrait @smithy en arrière sans bruit. À retirer quand l'amont sera dédoublonné ; re-tester la signature (upload presigned POST + getSignedUrl) à chaque bump du SDK AWS."
   }
 }

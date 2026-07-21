@@ -35,7 +35,18 @@ const S3_CONFIGURED = !!(BUCKET && ACCESS_KEY && SECRET_KEY);
 
 // ─── CLIENT (singleton) ───────────────────────────────────────────────────
 
+/** Nom du bucket, pour les modules qui composent des commandes S3 (route proxy
+ *  d'artwork). Lu à l'import comme le reste de la config de ce module — un test
+ *  qui le manipule doit poser l'env AVANT d'importer (piège déjà rencontré). */
+export const S3_BUCKET = BUCKET;
+
 let _client: S3Client | null = null;
+/** Client partagé — exporté pour que la route proxy signe des GET sans
+ *  reconstruire (ni redupliquer) la configuration de credentials. */
+export function getS3Client(): S3Client {
+  return getClient();
+}
+
 function getClient(): S3Client {
   if (_client) return _client;
   if (!S3_CONFIGURED) {

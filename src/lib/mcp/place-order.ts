@@ -27,6 +27,7 @@ import {
 } from './order-intent';
 import { isHeadlessOrderEnabled, createMcpCheckoutSession } from './checkout-session';
 import { buildMcpSinalitePayload } from './sinalite-payload';
+import { reportArtworkFallbacks } from '@/lib/storage/artwork-url';
 
 /** Plafond dur d'une commande passée via IA (anti-clé fuitée / erreur d'agent). */
 const MAX_TOTAL_CENTS = 500_000; // 5000 $
@@ -245,10 +246,13 @@ export async function placeHeadlessOrder(
     }
 
     // 8. Payload Sinalite + snapshot d'affichage.
+    const artworkFallbacks: string[] = [];
     const sinalitePayload = buildMcpSinalitePayload({
+      artworkFallbacks,
       items: resolved, detailCache, contact: args.contact,
       shippingAddress: args.shippingAddress, shippingMethod: args.shippingMethod, shippingNote: args.shippingNote,
     });
+    await reportArtworkFallbacks(artworkFallbacks, { chemin: 'mcp' });
     const itemsSnapshot = buildItemsSnapshot(sinalitePayload, detailCache, productNames);
 
     // 9. Order PENDING + RÉSERVATION atomique des crédits (M2/M3). paymentIntentId

@@ -25,6 +25,7 @@ const base = {
 describe('buildMcpSinalitePayload', () => {
   it('résout optionId → groupe, injecte le fichier front, remplit ship/bill', () => {
     const payload = buildMcpSinalitePayload({
+    artworkFallbacks: [],
       ...base,
       items: [{ productId: 2, optionIds: [30, 5, 203], fileUrl: 'https://plio-uploads.s3.ca-central-1.amazonaws.com/uploads/u1/abc-front.pdf' }],
     });
@@ -38,6 +39,7 @@ describe('buildMcpSinalitePayload', () => {
 
   it('internalRef → extra', () => {
     const payload = buildMcpSinalitePayload({
+    artworkFallbacks: [],
       ...base,
       items: [{ productId: 2, optionIds: [30], fileUrl: 'https://x/uploads/a.pdf', internalRef: 'PO-42' }],
     });
@@ -46,6 +48,7 @@ describe('buildMcpSinalitePayload', () => {
 
   it('le payload produit est VALIDE contre le schéma SinaliteOrderRequest', () => {
     const payload = buildMcpSinalitePayload({
+    artworkFallbacks: [],
       ...base,
       shippingNote: 'Sonner à l\'interphone',
       items: [{ productId: 2, optionIds: [30, 5, 203], fileUrl: 'https://plio-uploads.s3.ca-central-1.amazonaws.com/uploads/u1/a.pdf' }],

@@ -120,6 +120,26 @@ export const limiters = {
   // livrables, chacun borné à 60/h et portant un userId bannable.
   orderCreateGlobal: makeLimiter(60, '1 m', 'order-create-global'),
   walletTopup: makeLimiter(10, '1 h', 'wallet-topup'),
+  // /api/artwork — route publique qui signe des GET S3. Keyée sur une EMPREINTE
+  // de la clé d'artwork (jamais la clé en clair : `analytics: true` la
+  // persisterait chez Upstash, et cette clé EST le secret qui protège des
+  // fichiers à PII — cf. storage/s3.ts).
+  //
+  // ⚠️ CE QUE CETTE BORNE NE PROTÈGE PAS : elle borne le coût S3 + signature,
+  // PAS le nombre d'invocations Lambda — une clé malformée est rejetée AVANT le
+  // limiteur (bon ordre : une charge d'attaque ne doit pas consommer de quota),
+  // et l'invocation a déjà eu lieu. La saturation du pool de concurrence, qui
+  // ferait tomber le checkout et le webhook Stripe à côté, se traite à l'edge
+  // (règle WAF) ou se surveille (alarme CloudWatch). Risque ACCEPTÉ, pas couvert.
+  artwork: makeLimiter(60, '1 m', 'artwork'),
+  // Plafond agrégé : `/api/uploads/presign` n'étant pas authentifiée, un
+  // attaquant mint autant de clés valides qu'il veut et ouvre autant de budgets
+  // de 60/min. Sans ce compagnon, le débit agrégé n'a aucune borne.
+  artworkGlobal: makeLimiter(600, '1 m', 'artwork-global'),
+  // Throttle des alertes de repli d'artwork : en configuration cassée, c'est une
+  // alerte PAR COMMANDE. L'alerte critique se noierait dans son propre bruit au
+  // moment précis où il faut la lire.
+  artworkAlert: makeLimiter(1, '5 m', 'artwork-alert'),
 };
 
 /** True si le rate-limit est réellement actif (Upstash configuré). Sinon fail-open. */
