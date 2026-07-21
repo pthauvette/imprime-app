@@ -21,6 +21,20 @@ import { buildSignupUpdateData } from '@/lib/auth/pending-profile';
 
 const SES_CONFIGURED = !!process.env.SES_SMTP_USER;
 const DEV_LINK_LOGGER = !SES_CONFIGURED;
+
+/**
+ * Origine d'une URL, sans le chemin ni la query — donc SANS le jeton.
+ * Sert à garder une info de débogage utile (« vers quel host part le lien ? »)
+ * quand on censure l'URL complète du magic link. Retourne une constante si
+ * l'URL est illisible, jamais l'entrée brute (qui pourrait porter le jeton).
+ */
+function safeOrigin(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '(url invalide)';
+  }
+}
 const SES_HOST = process.env.SES_SMTP_HOST ?? 'email-smtp.ca-central-1.amazonaws.com';
 const SES_FROM = process.env.SES_FROM ?? 'Plio <bonjour@plio.ca>';
 
@@ -73,7 +87,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Dev convenience : log the magic link to stdout. We deliberately use
           // a Pino-friendly structured payload (no fancy box drawing) so
           // CloudWatch / log shippers can still index it if it ever ships.
-          logAuth.info({ email: identifier, url }, '🔑 AUTH MAGIC LINK (dev)');
+          //
+          // ⚠️ Audit 2026-07 (P1-4) : `email` était censuré par le redactor mais
+          // PAS `url` — or l'URL EST le jeton de connexion à usage unique.
+          // Le commentaire ci-dessus anticipait justement une expédition vers
+          // CloudWatch : un lien magique en clair dans les logs = prise de
+          // contrôle de compte pour quiconque lit les logs. On logue désormais
+          // sous la clé `token` (censurée par SENSITIVE_KEYS) et on garde
+          // séparément l'origine, seule partie utile au débogage.
+          logAuth.info(
+            { email: identifier, token: url, magicLinkOrigin: safeOrigin(url) },
+            '🔑 AUTH MAGIC LINK (dev)',
+          );
           return;
         }
         // Prod : SMTP SES via nodemailer (provider.server est passé par Auth.js)

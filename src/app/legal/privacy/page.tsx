@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       
         <main>
           <header className="legal-header">
-            <div className="legal-eyebrow">Dernière mise à jour · 16 mai 2026</div>
+            <div className="legal-eyebrow">Dernière mise à jour · 20 juillet 2026</div>
             <h1>Politique de <em>confidentialité.</em></h1>
             <p>Tu nous confies ton courriel, ton adresse, ton fichier de design. On te doit en retour une transparence totale sur ce qu'on en fait. Voici tout, sans jargon.</p>
             <div className="compliance-row">
@@ -139,9 +139,9 @@ export default function PrivacyPage() {
                     <div className="tp-desc">Traite la carte bancaire. Plio ne voit jamais le numéro complet — uniquement les 4 derniers chiffres et le type de carte. Données stockées chez Stripe (PCI-DSS niveau 1).</div>
                   </div>
                   <div className="tp-card">
-                    <div className="tp-name">AWS Amplify (Canada-Central) + Neon Postgres (USA)</div>
+                    <div className="tp-name">AWS Amplify (Canada-Central) + Supabase Postgres (Canada-Central)</div>
                     <div className="tp-role">Hébergement application + base de données</div>
-                    <div className="tp-desc">Notre application web est hébergée sur AWS Amplify Hosting (région ca-central-1, Montréal) ; la base de données principale est Neon Postgres (région US East). Tes données transitent en TLS 1.3.</div>
+                    <div className="tp-desc">Notre application web est hébergée sur AWS Amplify Hosting (région ca-central-1, Montréal) ; la base de données principale est Supabase Postgres, également hébergée à Montréal (région ca-central-1). Tes données transitent en TLS 1.3.</div>
                   </div>
                   <div className="tp-card">
                     <div className="tp-name">AWS S3 (Canada-Central)</div>
@@ -176,7 +176,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <p style={{ marginTop: 16 }}>
-                  <strong>Transferts hors-Canada :</strong> certains sous-traitants (Stripe, Neon, Sentry, Upstash) traitent tes données aux États-Unis ou en Europe. L&apos;hébergement de l&apos;application (AWS Amplify, ca-central-1), le stockage des fichiers (AWS S3), l&apos;envoi de courriels (AWS SES) et l&apos;impression (Sinalite, Markham ON) sont au Canada. Conformément à l&apos;article 17 de la Loi 25, nous avons évalué que ces transferts offrent une protection équivalente, et les accords de traitement (DPA) couvrent les obligations de confidentialité et de sécurité. Tu peux demander la liste détaillée des DPA via <a href="mailto:privacy@plio.ca">privacy@plio.ca</a>.
+                  <strong>Transferts hors-Canada :</strong> certains sous-traitants (Stripe, Sentry, Upstash) traitent tes données aux États-Unis ou en Europe. L&apos;hébergement de l&apos;application (AWS Amplify, ca-central-1), la base de données (Supabase, ca-central-1), le stockage des fichiers (AWS S3), l&apos;envoi de courriels (AWS SES) et l&apos;impression (Sinalite, Markham ON) sont au Canada. Conformément à l&apos;article 17 de la Loi 25, nous avons évalué que ces transferts offrent une protection équivalente, et les accords de traitement (DPA) couvrent les obligations de confidentialité et de sécurité. Tu peux demander la liste détaillée des DPA via <a href="mailto:privacy@plio.ca">privacy@plio.ca</a>.
                 </p>
 
                 <p>Aucune donnée personnelle n&apos;est revendue, louée ou cédée à des fins publicitaires. Aucun partenaire publicitaire (Meta, Google Ads, TikTok) n&apos;a accès à tes informations. Aucun outil d&apos;analytique tiers (Google Analytics, Plausible, etc.) n&apos;est actuellement déployé.</p>
