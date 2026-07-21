@@ -27,6 +27,7 @@ import { prisma } from '@/lib/db';
 import { getStripe } from '@/lib/stripe/client';
 import type { PriceOrderUser } from '@/lib/orders/price-order';
 import { rateLimit, clientIp } from '@/lib/ratelimit';
+import { toDeliverableUrl, reportArtworkFallbacks } from '@/lib/storage/artwork-url';
 
 // ─── PAYLOAD SCHEMA ───────────────────────────────────────────────────────
 
@@ -263,7 +264,12 @@ export const POST = withErrorHandler(async (req: Request) => {
   } = priced;
 
   // Phase 3: build the Sinalite payload (will be POSTed by webhook after Stripe confirms)
-  const sinalitePayload = buildSinalitePayload(payload, detailCache);
+  // Collecteur local (pas d'état de module — Lambda traite des commandes en
+  // parallèle). Un repli signifie que la commande part avec une URL S3 DIRECTE
+  // alors qu'on croit avoir basculé : invisible dans le résultat, donc alerté.
+  const artworkFallbacks: string[] = [];
+  const sinalitePayload = buildSinalitePayload(payload, detailCache, artworkFallbacks);
+  await reportArtworkFallbacks(artworkFallbacks, { chemin: 'web', items: payload.items.length });
   // Phase 3b: build the display-friendly snapshot persisted in Order.itemsSnapshot
   // pour render itemized sur /orders, /orders/[id], emails — sans refetch Sinalite.
   const itemsSnapshot = buildItemsSnapshot(sinalitePayload, detailCache, productNames);
@@ -488,10 +494,16 @@ export const POST = withErrorHandler(async (req: Request) => {
   });
 });
 
-/** Transforme le payload de l'app en format attendu par Sinalite /order/new. */
+/** Transforme le payload de l'app en format attendu par Sinalite /order/new.
+ *
+ *  `artworkFallbacks` est un collecteur passé par l'appelant plutôt qu'un état
+ *  de module : cette fonction tourne sous Lambda en concurrence, un accumulateur
+ *  partagé mélangerait les commandes. L'appelant l'`await`e ensuite via
+ *  reportArtworkFallbacks — la conversion d'URL reste pure et synchrone. */
 function buildSinalitePayload(
   p: z.infer<typeof CreateOrderSchema>,
   detailCache: Map<number, Awaited<ReturnType<typeof sinalite.getProductDetail>>>,
+  artworkFallbacks: string[],
 ): SinaliteOrderRequest {
   const billing = p.billingAddress ?? p.shippingAddress;
 
@@ -510,7 +522,16 @@ function buildSinalitePayload(
       return {
         productId: item.productId,
         options,
-        files: item.files,
+        // Indirection sur l'URL remise à Sinalite (ARTWORK_URL_MODE). En mode
+        // `direct` — le défaut — c'est l'URL S3 publique, strictement inchangé.
+        // Ce payload est FIGÉ dans Order.sinalitePayload : les commandes déjà
+        // créées gardent la forme d'URL de leur époque, ce qui rend la bascule
+        // progressive par construction.
+        files: item.files.map((f) => {
+          const conv = toDeliverableUrl(f.url);
+          if (conv.fallbackReason) artworkFallbacks.push(conv.fallbackReason);
+          return { ...f, url: conv.url };
+        }),
         ...(item.internalRef ? { extra: item.internalRef } : {}),
       };
     }),

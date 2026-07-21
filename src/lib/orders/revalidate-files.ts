@@ -25,7 +25,14 @@
  * `off` (défaut, inerte : aucune latence ni blocage), `log` (mesure en prod sans
  * bloquer), `enforce` (refuse 422). On passe off → log → enforce après vérif des
  * logs CloudWatch.
- */
+  *
+ * ⚠️ ORDRE D'APPEL — cette revalidation doit rester AVANT la construction du
+ * payload Sinalite. Elle reçoit les URL S3 d'ORIGINE ; si un futur déplacement
+ * la faisait tourner après `toDeliverableUrl` (cf. storage/artwork-url.ts), elle
+ * verrait des URL `/api/artwork/...` que `assertPlioFileUrl` rejette — le
+ * backstop deviendrait fail-closed sur TOUTES les commandes. Aujourd'hui la
+ * propriété tient par l'ordre des lignes, pas par le typage.
+*/
 import { validatePrintFile } from '@/lib/mcp/tools/validate-file';
 import { virtualSlugForProductId } from '@/lib/products/virtual-products';
 import type { ValidationIssue, ValidationLevel } from '@/lib/print/pdf-validator';

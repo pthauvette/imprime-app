@@ -9,6 +9,14 @@
  */
 import type { SinaliteOrderRequest, CaProvince, ShipMethod } from '@/lib/sinalite/types';
 import type { sinalite } from '@/lib/sinalite/client';
+import { toDeliverableUrl } from '@/lib/storage/artwork-url';
+
+/** Applique l'indirection et note un éventuel repli dans le collecteur. */
+function convertirArtwork(url: string, collecteur: string[]): string {
+  const conv = toDeliverableUrl(url);
+  if (conv.fallbackReason) collecteur.push(conv.fallbackReason);
+  return conv.url;
+}
 
 type DetailCache = Map<number, Awaited<ReturnType<typeof sinalite.getProductDetail>>>;
 
@@ -37,6 +45,12 @@ export interface McpShippingAddress {
 }
 
 export function buildMcpSinalitePayload(input: {
+  /** Collecteur de replis d'URL d'artwork — passé par l'appelant (jamais un
+   *  état de module : Lambda traite des commandes en parallèle). L'appelant
+   *  l'`await`e via reportArtworkFallbacks. REQUIS et non optionnel : un futur
+   *  appelant qui l'oublierait perdrait les alertes en silence, sans que `tsc`
+   *  bronche — on fait du compilateur le garde-fou. */
+  artworkFallbacks: string[];
   items: McpOrderItemResolved[];
   detailCache: DetailCache;
   contact: McpContact;
@@ -60,7 +74,10 @@ export function buildMcpSinalitePayload(input: {
         productId: item.productId,
         options,
         // Artwork unique fourni par l'agent (URL S3 Plio) → fichier 'front'.
-        files: [{ type: 'front' as const, url: item.fileUrl }],
+        // Même indirection que le chemin web (ARTWORK_URL_MODE) : les deux
+        // chemins doivent produire la MÊME forme d'URL, sinon la bascule ne
+        // couvrirait que la moitié des commandes.
+        files: [{ type: 'front' as const, url: convertirArtwork(item.fileUrl, input.artworkFallbacks) }],
         ...(item.internalRef ? { extra: item.internalRef } : {}),
       };
     }),
