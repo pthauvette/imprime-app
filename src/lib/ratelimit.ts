@@ -70,6 +70,56 @@ export const limiters = {
   // à coût Stripe, ces buckets DOIVENT être fail-CLOSED en prod (cf. create_order).
   mcpOrder: makeLimiter(10, '1 h', 'mcp-order'),
   mcpOrderGlobal: makeLimiter(60, '1 h', 'mcp-order-global'),
+  // Audit pré-lancement 2026-07 (P2) — /api/orders/create, le checkout WEB, n'avait
+  // AUCUNE borne, alors que son jumeau headless (mcpOrder ci-dessus) en a deux. Or
+  // un appel y déclenche du travail payant AVANT tout paiement : revalidation des
+  // fichiers (téléchargements S3), tarification (API Sinalite), objets Stripe.
+  //
+  // orderCreate est keyé par UTILISATEUR quand la session existe, sinon par IP :
+  // derrière un NAT (bureau, réseau mobile) des clients légitimes distincts
+  // partagent une IP, et les punir ensemble coûterait des ventes réelles.
+  //
+  // 60/h et non 20 : un checkout ne vaut PAS un appel. /order/review re-poste à
+  // chaque code promo essayé, chaque item retiré, chaque rechargement après un
+  // refus de carte — un revendeur qui traite 4 jobs le lundi matin dépasse 20
+  // facilement, et ce sont les comptes les plus rentables. On borne l'emballement,
+  // pas l'usage intensif.
+  orderCreate: makeLimiter(60, '1 h', 'order-create'),
+  // Plafond AGRÉGÉ — nécessaire car clientIp() lit X-Forwarded-For, spoofable :
+  // qui fait tourner les IP échappe au bucket par-appelant.
+  //
+  // ⚠️ DEUX choix ici viennent d'une revue adversariale qui a démontré que la
+  // première version était un interrupteur d'arrêt du chiffre d'affaires :
+  //
+  //   1. FENÊTRE COURTE (1 min), pas un budget horaire. Un budget horaire est un
+  //      LOQUET : 300 requêtes de curl en 2 s, sans compte ni payload valide, et
+  //      le checkout renvoie 429 à TOUS les clients pendant une heure pleine. Une
+  //      fenêtre d'une minute borne la rafale et se rétablit seule. Même ordre de
+  //      grandeur que mcpGlobal, qui garde une route moins critique.
+  //   2. ANONYMES SEULEMENT (cf. orders/create). Une session valide doit TOUJOURS
+  //      pouvoir payer : aucun flood anonyme ne doit pouvoir bloquer un client
+  //      identifié. L'attaquant du scénario ci-dessus est anonyme, donc la borne
+  //      le vise toujours.
+  //
+  // Le DÉBIT (60/min) est calé bas, et pas sur mcpGlobal (600/min) comme on
+  // pourrait le croire : mcpGlobal garde des tools READ-ONLY, alors qu'ici chaque
+  // requête coûte un appel Sinalite NON CACHÉ (getProduct, cf. sinalite/client.ts
+  // « pas cacheable agressivement »), un PaymentIntent et des écritures DB. Le
+  // risque dominant n'est pas la facture : c'est que Sinalite étrangle ou coupe
+  // nos identifiants API, ce qui abattrait le CATALOGUE ENTIER — pas seulement le
+  // checkout. Asymétrie qui décide du réglage : un seuil trop bas coûte au pire
+  // 60 s de checkout anonyme lors d'un pic impossible ; un seuil trop haut coûte
+  // le fournisseur. 60/min = 3600 checkouts anonymes/h, soit des dizaines de fois
+  // le volume d'une journée de lancement réussie.
+  //
+  // RÉSIDU ASSUMÉ — il n'y a AUCUN plafond agrégé sur les appelants AUTHENTIFIÉS
+  // (contrairement à mcpOrderGlobal, qui existe justement contre le multi-comptes).
+  // C'est délibéré : l'y soumettre recréerait le loquet décrit plus haut sous une
+  // autre forme. L'échange : une attaque anonyme, gratuite et non attribuable
+  // devient une attaque authentifiée exigeant ~600 comptes avec boîtes courriel
+  // livrables, chacun borné à 60/h et portant un userId bannable.
+  orderCreateGlobal: makeLimiter(60, '1 m', 'order-create-global'),
+  walletTopup: makeLimiter(10, '1 h', 'wallet-topup'),
 };
 
 /** True si le rate-limit est réellement actif (Upstash configuré). Sinon fail-open. */
@@ -92,7 +142,12 @@ export async function rateLimit(
   key: string,
 ): Promise<{ ok: true; remaining: number } | { ok: false; response: NextResponse }> {
   const limiter = limiters[bucket];
-  // Si Upstash pas configuré, on let through (dev mode)
+  // Upstash non configuré → on laisse passer (dev, ou incident Upstash en prod).
+  // Ce fail-OPEN est un choix assumé pour les chemins de REVENU : une panne du
+  // rate-limiter ne doit pas empêcher des clients de payer. Les chemins où le
+  // risque penche dans l'autre sens (MCP create_order Mode B, paiement headless)
+  // ne s'en remettent PAS à ce défaut — ils testent `rateLimitEnabled` et
+  // refusent explicitement en production. Voir src/lib/mcp/place-order.ts.
   if (!limiter) return { ok: true, remaining: 999 };
 
   const { success, limit, remaining, reset } = await limiter.limit(key);
