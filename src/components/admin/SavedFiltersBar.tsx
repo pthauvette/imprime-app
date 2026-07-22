@@ -17,6 +17,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 interface SavedFilter {
   id: string;
@@ -165,7 +166,7 @@ export default function SavedFiltersBar({ scope, basePath, initialFilters = [] }
           }}
           title="Sauvegarder la combinaison actuelle de filtres"
         >
-          💾 Sauvegarder ces filtres
+          <Icon name="save" size={14} /> Sauvegarder ces filtres
         </button>
       )}
 

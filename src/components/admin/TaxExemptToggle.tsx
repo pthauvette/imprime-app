@@ -10,6 +10,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   userId: string;
@@ -99,7 +100,7 @@ export default function TaxExemptToggle({ userId, initialExempt, initialCertId }
       <div style={{ padding: 14, background: 'var(--accent-soft)', border: '1px solid var(--accent-primary)', borderRadius: 'var(--r-md)' }}>
         {dialog}
         <div style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600, marginBottom: 4 }}>
-          ✓ Tax-exempt actif
+          <Icon name="check" size={14} /> Tax-exempt actif
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>
           Cert : <strong style={{ color: 'var(--text-primary)' }}>{certId || '(non-renseigné)'}</strong>

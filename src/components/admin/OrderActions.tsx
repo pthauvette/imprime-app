@@ -13,6 +13,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   orderId: string;
@@ -185,7 +186,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   return (
     <div style={{ display: 'grid', gap: 6 }}>
       <ActionBtn
-        label="✉ Renvoyer la confirmation"
+        label={<><Icon name="mail" /> Renvoyer la confirmation</>}
         onClick={handleResend}
         busy={busy === 'Email renvoyé'}
       />
@@ -205,14 +206,14 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
           </div>
           {canToProduction && (
             <ActionBtn
-              label="⚙ → En production"
+              label={<><Icon name="settings" /> → En production</>}
               onClick={() => void call('En production', `/api/admin/orders/${orderId}/status`, { status: 'IN_PRODUCTION' })}
               busy={busy === 'En production'}
             />
           )}
           {canToShipped && (
             <ActionBtn
-              label="🚚 → Expédiée (tracking)…"
+              label={<><Icon name="truck" /> → Expédiée (tracking)…</>}
               onClick={() => { setError(null); setSuccess(null); setShipOpen(true); }}
               busy={busy === 'Marquée expédiée'}
             />
@@ -261,7 +262,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
           )}
           {canToDelivered && (
             <ActionBtn
-              label="✓ → Livrée"
+              label={<><Icon name="check" /> → Livrée</>}
               onClick={() => void call('Marquée livrée', `/api/admin/orders/${orderId}/status`, { status: 'DELIVERED' })}
               busy={busy === 'Marquée livrée'}
             />
@@ -284,7 +285,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
         Zone dangereuse
       </div>
       <ActionBtn
-        label="💰 Émettre un refund (partial OK)"
+        label={<><Icon name="dollar" /> Émettre un refund (partial OK)</>}
         onClick={handleRefundOpen}
         busy={busy === 'Refund émis'}
         disabled={!canRefund}
@@ -357,7 +358,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
         </form>
       )}
       <ActionBtn
-        label="✕ Annuler la commande (refund)"
+        label={<><Icon name="x" /> Annuler la commande (refund)</>}
         onClick={handleCancelOpen}
         busy={busy === 'Commande annulée'}
         disabled={!canCancel}
@@ -477,7 +478,7 @@ function ActionBtn({
   disabled,
   danger,
 }: {
-  label: string;
+  label: React.ReactNode;
   onClick: () => void;
   busy?: boolean;
   disabled?: boolean;
@@ -500,7 +501,7 @@ function ActionBtn({
         opacity: disabled ? 0.5 : 1,
       }}
     >
-      {busy ? '⏳ ' + label : label}
+      {busy ? <>⏳ {label}</> : label}
     </button>
   );
 }

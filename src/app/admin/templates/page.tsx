@@ -17,6 +17,7 @@ import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Icon } from '@/components/ui/Icon';
 import { ALL_TEMPLATES, listProductTypes } from '@/lib/templates/registry';
 import type { AppTemplate } from '@/lib/templates/types';
 import { formatDate } from '@/lib/format';
@@ -155,7 +156,7 @@ export default async function AdminTemplatesPage() {
                       {d.user.email} · {formatDate(d.updatedAt.toISOString())}
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--warning)', marginTop: 8, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
-                      ⚠ Non finalisé
+                      <Icon name="alert" /> Non finalisé
                     </div>
                   </div>
                 );

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ReviewActions({ id, status, isFeatured }: { id: string; status: string; isFeatured: boolean }) {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function ReviewActions({ id, status, isFeatured }: { id: string; 
             disabled={busy}
             style={btnStyle('var(--success, #16a34a)', 'var(--success-soft, #f0fdf4)')}
           >
-            ✓ Approuver
+            <Icon name="check" size={14} /> Approuver
           </button>
           <button
             onClick={() => {
@@ -71,7 +72,7 @@ export default function ReviewActions({ id, status, isFeatured }: { id: string; 
             disabled={busy}
             style={btnStyle('var(--danger)', 'var(--danger-soft)')}
           >
-            ✗ Rejeter
+            <Icon name="x" size={14} /> Rejeter
           </button>
         </>
       )}
@@ -82,7 +83,7 @@ export default function ReviewActions({ id, status, isFeatured }: { id: string; 
             disabled={busy}
             style={btnStyle('var(--accent-primary)', 'var(--accent-soft)')}
           >
-            {isFeatured ? '★ Retirer featured' : '☆ Marquer featured'}
+            {isFeatured ? <><Icon name="star" size={14} /> Retirer featured</> : <><Icon name="star" size={14} /> Marquer featured</>}
           </button>
           <button
             onClick={async () => {
@@ -103,7 +104,7 @@ export default function ReviewActions({ id, status, isFeatured }: { id: string; 
           disabled={busy}
           style={btnStyle('var(--success, #16a34a)', 'var(--success-soft, #f0fdf4)')}
         >
-          ↻ Restaurer + Approuver
+          <Icon name="refresh" size={14} /> Restaurer + Approuver
         </button>
       )}
     </div>

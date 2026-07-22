@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function SendCustomMessageButton({
   orderId,
@@ -82,7 +83,7 @@ export default function SendCustomMessageButton({
           color: 'var(--text-primary)',
         }}
       >
-        ✉ Envoyer un message custom
+        <Icon name="mail" /> Envoyer un message custom
       </button>
     );
   }
@@ -154,7 +155,7 @@ export default function SendCustomMessageButton({
             fontSize: 12,
             color: feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)',
           }}>
-            {feedback.ok ? '✓' : '✗'} {feedback.message}
+            {feedback.ok ? <Icon name="check" /> : <Icon name="x" />} {feedback.message}
           </div>
         )}
 

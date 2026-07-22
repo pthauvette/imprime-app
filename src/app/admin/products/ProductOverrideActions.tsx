@@ -21,6 +21,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 type FormMode = null | 'rename' | 'margin';
 
@@ -158,7 +159,7 @@ export default function ProductOverrideActions({ productId, productName, overrid
             opacity: busy ? 0.5 : 1,
           }}
         >
-          {optimistic.disabled ? '🚫 HIDDEN' : 'Cacher'}
+          {optimistic.disabled ? <><Icon name="ban" size={14} /> HIDDEN</> : 'Cacher'}
         </button>
         <button
           type="button"
@@ -180,7 +181,7 @@ export default function ProductOverrideActions({ productId, productName, overrid
             opacity: busy ? 0.5 : 1,
           }}
         >
-          {optimistic.featured ? '★ FEATURED' : 'Featured'}
+          {optimistic.featured ? <><Icon name="star" size={14} /> FEATURED</> : 'Featured'}
         </button>
         <button
           type="button"
@@ -202,7 +203,7 @@ export default function ProductOverrideActions({ productId, productName, overrid
             opacity: busy ? 0.5 : 1,
           }}
         >
-          {override?.displayName ? '✎ Renommé' : 'Renommer'}
+          {override?.displayName ? <><Icon name="edit" size={14} /> Renommé</> : 'Renommer'}
         </button>
         <button
           type="button"

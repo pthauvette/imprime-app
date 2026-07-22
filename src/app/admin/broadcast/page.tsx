@@ -8,6 +8,7 @@
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Icon } from '@/components/ui/Icon';
 import { formatDateTime } from '@/lib/format';
 import BroadcastComposer from './BroadcastComposer';
 
@@ -95,7 +96,7 @@ export default async function AdminBroadcastPage() {
                   </div>
                   {b.notes && (
                     <div style={{ marginTop: 8, padding: 8, background: 'var(--bg-sunken)', borderRadius: 'var(--r-sm)', fontSize: 11, color: 'var(--text-muted)' }}>
-                      📝 {b.notes}
+                      <Icon name="file" size={14} /> {b.notes}
                     </div>
                   )}
                 </div>

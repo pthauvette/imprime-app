@@ -18,6 +18,7 @@ import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Icon } from '@/components/ui/Icon';
 import { formatDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -182,7 +183,7 @@ export default async function AdminAuditPage({
                   color: 'var(--text-muted)',
                 }}
               >
-                ✕ Tous les types
+                <Icon name="x" /> Tous les types
               </a>
             )}
             {kindGroups.map((k) => {
@@ -273,9 +274,9 @@ export default async function AdminAuditPage({
                       {e.source === 'webhook' ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                           {e.success ? (
-                            <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ {e.statusCode ?? 200}</span>
+                            <span style={{ color: 'var(--success)', fontWeight: 600 }}><Icon name="check" /> {e.statusCode ?? 200}</span>
                           ) : (
-                            <span style={{ color: 'var(--danger)', fontWeight: 600 }}>✗ {e.statusCode ?? 'fail'}</span>
+                            <span style={{ color: 'var(--danger)', fontWeight: 600 }}><Icon name="x" /> {e.statusCode ?? 'fail'}</span>
                           )}
                           {e.latencyMs !== null && e.latencyMs !== undefined && (
                             <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{e.latencyMs}ms</span>

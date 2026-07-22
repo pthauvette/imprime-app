@@ -25,6 +25,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatDateTime } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Notifications' };
@@ -236,7 +237,7 @@ export default async function AdminNotificationsPage() {
             <h1 className="adm-page-title">Notifications</h1>
             <p className="adm-page-subtitle">
               {notifs.length === 0
-                ? 'Tout est sous contrôle. 👌'
+                ? <>Tout est sous contrôle. <Icon name="check" size={14} /></>
                 : (
                   <>
                     <strong style={{ color: 'var(--danger)' }}>{counts.critical} urgent{counts.critical > 1 ? 's' : ''}</strong>
@@ -252,7 +253,7 @@ export default async function AdminNotificationsPage() {
 
         {notifs.length === 0 ? (
           <div className="adm-panel" style={{ padding: '80px 22px', textAlign: 'center' }}>
-            <div style={{ fontSize: 60, marginBottom: 12 }}>🎉</div>
+            <div style={{ marginBottom: 12 }}><Icon name="check-circle" size={44} /></div>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, margin: '0 0 8px' }}>
               Inbox zéro.
             </h2>

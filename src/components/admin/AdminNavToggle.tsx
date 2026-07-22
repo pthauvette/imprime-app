@@ -18,6 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { Icon } from '@/components/ui/Icon';
 
 export default function AdminNavToggle() {
   const [open, setOpen] = useState(false);
@@ -55,7 +56,7 @@ export default function AdminNavToggle() {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? '✕' : '☰'}
+        {open ? <Icon name="x" /> : <Icon name="menu" />}
       </button>
       {open && (
         <div

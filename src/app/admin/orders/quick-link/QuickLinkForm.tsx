@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function QuickLinkForm() {
   const [customerEmail, setCustomerEmail] = useState('');
@@ -113,7 +114,7 @@ export default function QuickLinkForm() {
       {feedback?.ok && (
         <div style={{ padding: '12px 14px', background: 'var(--success-soft, #f0fdf4)', border: '1px solid var(--success, #16a34a)', borderRadius: 'var(--r-md)', fontSize: 13, display: 'grid', gap: 8 }}>
           <div style={{ color: 'var(--success, #16a34a)', fontWeight: 600 }}>
-            ✓ Email envoyé à <strong>{feedback.to}</strong>
+            <Icon name="check" size={14} /> Email envoyé à <strong>{feedback.to}</strong>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>
             Deep-link : <a href={feedback.deepLink} target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>{feedback.deepLink}</a>
@@ -122,7 +123,7 @@ export default function QuickLinkForm() {
       )}
       {feedback && !feedback.ok && (
         <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--danger)' }}>
-          ✗ {feedback.message}
+          <Icon name="x" size={14} /> {feedback.message}
         </div>
       )}
 

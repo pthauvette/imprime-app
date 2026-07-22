@@ -12,6 +12,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 type Segment =
   | 'newsletter'
@@ -408,7 +409,7 @@ export default function BroadcastComposer() {
             className="btn btn-secondary"
             style={{ opacity: testBusy ? 0.6 : 1 }}
           >
-            {testBusy ? 'Envoi test…' : '✉ Envoyer un test à moi'}
+            {testBusy ? 'Envoi test…' : <><Icon name="mail" size={14} /> Envoyer un test à moi</>}
           </button>
           <button
             type="submit"
@@ -421,13 +422,13 @@ export default function BroadcastComposer() {
               : count === null
                 ? 'Calcul…'
                 : sendMode === 'later'
-                  ? `📅 Programmer pour ${count} destinataire${count > 1 ? 's' : ''}`
-                  : `📨 Envoyer à ${count} destinataire${count > 1 ? 's' : ''}`}
+                  ? <><Icon name="calendar" size={14} /> {`Programmer pour ${count} destinataire${count > 1 ? 's' : ''}`}</>
+                  : <><Icon name="mail" size={14} /> {`Envoyer à ${count} destinataire${count > 1 ? 's' : ''}`}</>}
           </button>
         </div>
 
         <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
-          ⚠️ Action irréversible. {sendMode === 'later' ? 'Le broadcast sera processé par le cron à l\'heure indiquée.' : 'Les emails sont enqueués immédiatement.'}
+          <Icon name="alert" size={14} /> Action irréversible. {sendMode === 'later' ? 'Le broadcast sera processé par le cron à l\'heure indiquée.' : 'Les emails sont enqueués immédiatement.'}
         </p>
       </form>
 

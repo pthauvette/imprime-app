@@ -8,6 +8,7 @@
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Icon } from '@/components/ui/Icon';
 import { formatDateTime } from '@/lib/format';
 import EmailsBulkTable, { type EmailListItem } from './EmailsBulkTable';
 
@@ -141,7 +142,7 @@ export default async function AdminEmailsPage({
             }}
           >
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, margin: '0 0 14px', letterSpacing: '-0.01em' }}>
-              🛒 Funnel recovery cart abandonné · 30 derniers jours
+              <Icon name="cart" /> Funnel recovery cart abandonné · 30 derniers jours
             </h2>
             <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', flexWrap: 'wrap' }}>
               <FunnelStep label="Email envoyé" value={cartFunnel.sent} />
@@ -175,7 +176,7 @@ export default async function AdminEmailsPage({
             borderRadius: 'var(--r-xl)',
           }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, margin: '0 0 14px', letterSpacing: '-0.01em' }}>
-              📊 Analytics par template · 30 derniers jours
+              <Icon name="chart" /> Analytics par template · 30 derniers jours
             </h2>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>

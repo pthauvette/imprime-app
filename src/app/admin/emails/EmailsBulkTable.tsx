@@ -13,6 +13,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useMemo } from 'react';
 import { formatDateTime } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 import EmailRetryButton from './EmailRetryButton';
 
 export interface EmailListItem {
@@ -138,8 +139,8 @@ export default function EmailsBulkTable({ emails }: { emails: EmailListItem[] })
             </button>
           </>
         )}
-        {result && <span style={{ fontSize: 12, color: 'var(--success)' }}>✓ {result}</span>}
-        {error && <span style={{ fontSize: 12, color: 'var(--danger)' }}>✗ {error}</span>}
+        {result && <span style={{ fontSize: 12, color: 'var(--success)' }}><Icon name="check" size={14} /> {result}</span>}
+        {error && <span style={{ fontSize: 12, color: 'var(--danger)' }}><Icon name="x" size={14} /> {error}</span>}
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>

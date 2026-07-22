@@ -18,6 +18,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 export default function OrderBulkBar() {
   const router = useRouter();
@@ -443,10 +444,10 @@ export default function OrderBulkBar() {
           >
             + Note admin
           </button>
-          <StatusBtn label="⚙ En production" disabled={busy} onClick={() => bulkMarkStatus('IN_PRODUCTION')} />
-          <StatusBtn label="📦 Expédiées" disabled={busy} onClick={() => bulkMarkStatus('SHIPPED')} />
-          <StatusBtn label="✓ Livrées" disabled={busy} onClick={() => bulkMarkStatus('DELIVERED')} />
-          <StatusBtn label="✉ Renvoyer confirmation" disabled={busy} onClick={bulkResendConfirmation} />
+          <StatusBtn label={<><Icon name="settings" size={12} /> En production</>} disabled={busy} onClick={() => bulkMarkStatus('IN_PRODUCTION')} />
+          <StatusBtn label={<><Icon name="package" size={12} /> Expédiées</>} disabled={busy} onClick={() => bulkMarkStatus('SHIPPED')} />
+          <StatusBtn label={<><Icon name="check" size={12} /> Livrées</>} disabled={busy} onClick={() => bulkMarkStatus('DELIVERED')} />
+          <StatusBtn label={<><Icon name="mail" size={12} /> Renvoyer confirmation</>} disabled={busy} onClick={bulkResendConfirmation} />
           <button
             type="button"
             onClick={clearSelection}
@@ -467,10 +468,10 @@ export default function OrderBulkBar() {
         </>
       )}
       {result && (
-        <span style={{ fontSize: 12, color: 'var(--success, #4ade80)' }}>✓ {result}</span>
+        <span style={{ fontSize: 12, color: 'var(--success, #4ade80)' }}><Icon name="check" size={12} /> {result}</span>
       )}
       {error && (
-        <span style={{ fontSize: 12, color: 'var(--danger)' }}>✗ {error}</span>
+        <span style={{ fontSize: 12, color: 'var(--danger)' }}><Icon name="x" size={12} /> {error}</span>
       )}
       </div>
     </>
@@ -484,7 +485,7 @@ function StatusBtn({
   disabled,
   onClick,
 }: {
-  label: string;
+  label: React.ReactNode;
   disabled: boolean;
   onClick: () => void;
 }) {

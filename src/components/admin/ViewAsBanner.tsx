@@ -10,6 +10,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ViewAsBanner({
   targetUser,
@@ -41,7 +42,7 @@ export default function ViewAsBanner({
       }}
     >
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span aria-hidden style={{ fontSize: 16 }}>👁</span>
+        <span aria-hidden style={{ fontSize: 16 }}><Icon name="eye" size={16} /></span>
         <span>
           Mode admin — tu regardes les commandes de <strong>{display}</strong>{' '}
           (<code style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, opacity: 0.85 }}>{targetUser.email}</code>)

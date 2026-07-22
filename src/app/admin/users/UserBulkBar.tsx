@@ -17,6 +17,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 type BulkAction =
   | { action: 'set-role'; userIds: string[]; role: 'USER' | 'ADMIN' }
@@ -174,7 +175,7 @@ export default function UserBulkBar() {
             )}
             style={ghostBtnStyle}
           >
-            ✕ Opt-out emails
+            <Icon name="x" size={14} /> Opt-out emails
           </button>
           {/* Round 27 #2 — open email composer modal */}
           <button
@@ -184,7 +185,7 @@ export default function UserBulkBar() {
             style={ghostBtnStyle}
             title={selectedIds.size > 50 ? 'Max 50 destinataires par envoi' : 'Envoyer un email personnalisé aux utilisateurs sélectionnés'}
           >
-            ✉ Envoyer message
+            <Icon name="mail" size={14} /> Envoyer message
           </button>
           <button
             type="button"
@@ -218,14 +219,14 @@ export default function UserBulkBar() {
           textDecoration: 'none',
         }}
       >
-        ⬇ Export CSV
+        <Icon name="download" size={14} /> Export CSV
       </a>
 
       {result && (
-        <span style={{ fontSize: 12, color: 'var(--success, #4ade80)' }}>✓ {result}</span>
+        <span style={{ fontSize: 12, color: 'var(--success, #4ade80)' }}><Icon name="check" size={14} /> {result}</span>
       )}
       {error && (
-        <span style={{ fontSize: 12, color: 'var(--danger)' }}>✗ {error}</span>
+        <span style={{ fontSize: 12, color: 'var(--danger)' }}><Icon name="x" size={14} /> {error}</span>
       )}
 
       {/* Round 27 #2 — Email composer modal */}

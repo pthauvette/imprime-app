@@ -15,6 +15,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 type FormMode = null | 'quoted' | 'reject' | 'note';
 
@@ -113,20 +114,20 @@ export default function QuoteActions({ id, status }: { id: string; status: strin
         {status === 'PENDING' && (
           <>
             <button onClick={() => openInlineForm('quoted')} disabled={busy} className="btn btn-primary btn-sm">
-              📝 Marquer quoté
+              <Icon name="edit" size={14} /> Marquer quoté
             </button>
             <button onClick={() => openInlineForm('reject')} disabled={busy} className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}>
-              ✗ Refuser
+              <Icon name="x" size={14} /> Refuser
             </button>
           </>
         )}
         {status === 'QUOTED' && (
           <>
             <button onClick={() => patch({ action: 'accept' })} disabled={busy} className="btn btn-primary btn-sm">
-              ✓ Client a accepté
+              <Icon name="check" size={14} /> Client a accepté
             </button>
             <button onClick={() => openInlineForm('reject')} disabled={busy} className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}>
-              ✗ Client a refusé
+              <Icon name="x" size={14} /> Client a refusé
             </button>
           </>
         )}

@@ -7,6 +7,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 interface ResultItem {
   type: 'order' | 'user' | 'message' | 'quote' | 'reseller';
@@ -17,12 +18,12 @@ interface ResultItem {
   meta?: string;
 }
 
-const TYPE_LABELS: Record<ResultItem['type'], { label: string; icon: string }> = {
-  order: { label: 'Commande', icon: '📦' },
-  user: { label: 'Utilisateur', icon: '👤' },
-  message: { label: 'Message', icon: '💬' },
-  quote: { label: 'Devis sur-mesure', icon: '💰' },
-  reseller: { label: 'Reseller', icon: '🎯' },
+const TYPE_LABELS: Record<ResultItem['type'], { label: string; icon: IconName }> = {
+  order: { label: 'Commande', icon: 'package' },
+  user: { label: 'Utilisateur', icon: 'user' },
+  message: { label: 'Message', icon: 'chat' },
+  quote: { label: 'Devis sur-mesure', icon: 'dollar' },
+  reseller: { label: 'Reseller', icon: 'target' },
 };
 
 export default function SearchUI({ initialQuery }: { initialQuery: string }) {
@@ -119,7 +120,7 @@ export default function SearchUI({ initialQuery }: { initialQuery: string }) {
                   margin: '0 0 8px',
                 }}
               >
-                {meta.icon} {meta.label} <span style={{ marginLeft: 6 }}>({items.length})</span>
+                <Icon name={meta.icon} size={14} /> {meta.label} <span style={{ marginLeft: 6 }}>({items.length})</span>
               </h2>
               <div className="adm-panel" style={{ padding: 0, overflow: 'hidden' }}>
                 {items.map((r, i) => (

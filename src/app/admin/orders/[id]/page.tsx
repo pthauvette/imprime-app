@@ -21,6 +21,7 @@ import { parseItemsSnapshot } from '@/lib/orders/items';
 import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -238,7 +239,7 @@ export default async function AdminOrderDetailPage({
                           }}
                           aria-hidden
                         >
-                          👤
+                          <Icon name="user" size={14} />
                         </div>
                         <div className="od-tl-body">
                           <div className="od-tl-type" style={{ color: 'var(--accent-primary)' }}>
@@ -307,7 +308,7 @@ export default async function AdminOrderDetailPage({
                           </div>
                           {item.fileNames && item.fileNames.length > 0 && (
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-                              📎 {item.fileNames.join(' · ')}
+                              <Icon name="clip" size={14} /> {item.fileNames.join(' · ')}
                             </div>
                           )}
                         </div>
@@ -371,7 +372,7 @@ export default async function AdminOrderDetailPage({
                   }}
                 >
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--warning, #D97706)', fontWeight: 600, marginBottom: 4 }}>
-                    📝 Note interne
+                    <Icon name="file" size={14} /> Note interne
                   </div>
                   <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                     {order.user.adminNotes}
@@ -477,7 +478,7 @@ export default async function AdminOrderDetailPage({
                   color: 'var(--text-primary)',
                 }}
               >
-                ⬇ Télécharger la facture PDF
+                <Icon name="download" size={14} /> Télécharger la facture PDF
               </a>
               <Link
                 href={`/order/start?reorder=${order.id}` as Route}

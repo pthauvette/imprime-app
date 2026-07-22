@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 export default function EmailRetryButton({ id, status }: { id: string; status: string }) {
   const router = useRouter();
   const { confirm, dialog } = useConfirmDialog();
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<ReactNode>(null);
 
   async function handleRetry() {
     if (
@@ -28,10 +29,10 @@ export default function EmailRetryButton({ id, status }: { id: string; status: s
       const res = await fetch(`/api/admin/emails/${id}/retry`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setFeedback(data.sent ? '✓ Envoyé' : '↻ Re-queued');
+      setFeedback(data.sent ? <><Icon name="check" size={12} /> Envoyé</> : <><Icon name="refresh" size={12} /> Re-queued</>);
       router.refresh();
     } catch (err) {
-      setFeedback(err instanceof Error ? `✗ ${err.message}` : '✗ Erreur');
+      setFeedback(err instanceof Error ? <><Icon name="x" size={12} /> {err.message}</> : <><Icon name="x" size={12} /> Erreur</>);
     } finally {
       setBusy(false);
     }

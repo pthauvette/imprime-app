@@ -14,6 +14,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminPagination from '@/components/admin/AdminPagination';
+import { Icon } from '@/components/ui/Icon';
 import { formatDateTime } from '@/lib/format';
 import SampleActions from './SampleActions';
 
@@ -199,7 +200,7 @@ export default async function AdminSamplesPage({
 
                   {r.trackingNumber && (
                     <div style={{ fontSize: 12, color: 'var(--success)', fontFamily: 'var(--font-mono)', marginBottom: 12 }}>
-                      ✓ Tracking : {r.trackingNumber}
+                      <Icon name="check" size={14} /> Tracking : {r.trackingNumber}
                       {r.shippedAt && ` · expédié ${formatDateTime(r.shippedAt.toISOString())}`}
                     </div>
                   )}

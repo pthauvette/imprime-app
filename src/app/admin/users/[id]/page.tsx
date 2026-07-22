@@ -13,6 +13,7 @@ import UserNotesEditor from '@/components/admin/UserNotesEditor';
 import PipedaDeleteButton from '@/components/admin/PipedaDeleteButton';
 import TaxExemptToggle from '@/components/admin/TaxExemptToggle';
 import ResellerStatusToggle from '@/components/admin/ResellerStatusToggle';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import type { OrderStatus, OrderEventKind } from '@/lib/db/orders';
@@ -209,7 +210,7 @@ export default async function AdminUserDetailPage({
             </div>
             <div className="ud-header-tags">
               {user.emailVerified ? (
-                <span className="ud-tag verified">✓ Email vérifié</span>
+                <span className="ud-tag verified"><Icon name="check" size={12} /> Email vérifié</span>
               ) : (
                 <span className="ud-tag" style={{ background: 'var(--bg-sunken)', color: 'var(--text-muted)' }}>Guest</span>
               )}
@@ -248,7 +249,7 @@ export default async function AdminUserDetailPage({
                   {user.resellerStatus === 'PLATINUM'
                     ? '◆ PLATINUM'
                     : user.resellerStatus === 'VERIFIED'
-                      ? '✓ Reseller'
+                      ? <><Icon name="check" size={12} /> Reseller</>
                       : '~ Reseller (auto)'}
                 </span>
               )}
@@ -276,7 +277,7 @@ export default async function AdminUserDetailPage({
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              👁 Voir comme ce client
+              <Icon name="eye" size={14} /> Voir comme ce client
             </Link>
           )}
         </header>
@@ -698,7 +699,7 @@ export default async function AdminUserDetailPage({
               <div className="ud-kv-row">
                 <span className="label">Email</span>
                 <span className={`value${user.emailVerified ? ' good' : ''}`}>
-                  {user.emailVerified ? '✓ Vérifié' : 'Non vérifié'}
+                  {user.emailVerified ? <><Icon name="check" size={12} /> Vérifié</> : 'Non vérifié'}
                 </span>
               </div>
               <div className="ud-kv-row">
@@ -974,10 +975,10 @@ function SegmentBadge({
   };
   const { bg, color } = toneStyles[segment.tone];
   const icon =
-    segment.segment === 'VIP' ? '⭐'
-    : segment.segment === 'ACTIVE' ? '✓'
-    : segment.segment === 'AT_RISK' ? '⚠'
-    : segment.segment === 'LOST' ? '✕'
+    segment.segment === 'VIP' ? <Icon name="star" size={12} />
+    : segment.segment === 'ACTIVE' ? <Icon name="check" size={12} />
+    : segment.segment === 'AT_RISK' ? <Icon name="alert" size={12} />
+    : segment.segment === 'LOST' ? <Icon name="x" size={12} />
     : '•';
   return (
     <span
@@ -1045,14 +1046,14 @@ function RfmStat({
 // ─── Loyalty tier badge (Round 12 #3) ────────────────────────────────────
 
 function LoyaltyTierTag({ tier }: { tier: LoyaltyTier }) {
-  const palette: Record<LoyaltyTier, { bg: string; color: string; emoji: string }> = {
+  const palette: Record<LoyaltyTier, { bg: string; color: string; icon: IconName }> = {
     // Round 43 #1 — tier tokens (dark-safe + unifiés avec /account qui
     // utilisait des hex DIFFÉRENTS pour les mêmes tiers).
-    BRONZE: { bg: 'var(--tier-bronze-soft)', color: 'var(--tier-bronze)', emoji: '🥉' },
-    SILVER: { bg: 'var(--tier-silver-soft)', color: 'var(--tier-silver)', emoji: '🥈' },
-    GOLD:   { bg: 'var(--tier-gold-soft)', color: 'var(--tier-gold)', emoji: '🥇' },
+    BRONZE: { bg: 'var(--tier-bronze-soft)', color: 'var(--tier-bronze)', icon: 'award' },
+    SILVER: { bg: 'var(--tier-silver-soft)', color: 'var(--tier-silver)', icon: 'award' },
+    GOLD:   { bg: 'var(--tier-gold-soft)', color: 'var(--tier-gold)', icon: 'award' },
   };
-  const { bg, color, emoji } = palette[tier];
+  const { bg, color, icon } = palette[tier];
   return (
     <span
       title={`Tier fidélité ${TIER_LABELS[tier]} — recomputé mensuellement (revenu 365j)`}
@@ -1069,7 +1070,7 @@ function LoyaltyTierTag({ tier }: { tier: LoyaltyTier }) {
         textTransform: 'uppercase',
       }}
     >
-      {emoji} {TIER_LABELS[tier]}
+      <Icon name={icon} size={12} /> {TIER_LABELS[tier]}
     </span>
   );
 }
