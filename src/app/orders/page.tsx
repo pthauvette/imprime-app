@@ -23,6 +23,7 @@ import { listOrdersForUser, type OrderStatus } from '@/lib/db/orders';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Mes commandes — Plio' };
 
@@ -161,7 +162,7 @@ export default async function OrdersPage({
                   fontFamily: 'var(--font-mono)',
                 }}
               >
-                ⬇ CSV
+                <Icon name="download" size={14} /> CSV
               </a>
             )}
             <Link href={'/order/start' as Route} className="page-action" style={pageAction}>
@@ -299,7 +300,7 @@ function Toolbar({
         })}
       </div>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-        📅 50 dernières commandes
+        <Icon name="calendar" size={14} /> 50 dernières commandes
       </div>
     </div>
   );
@@ -321,7 +322,7 @@ function EmptyState() {
         margin: '0 auto',
       }}
     >
-      <div style={{ fontSize: 48 }}>📦</div>
+      <Icon name="package" size={44} />
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '-0.01em', fontWeight: 400, margin: 0 }}>
         Aucune commande pour le moment.
       </h2>

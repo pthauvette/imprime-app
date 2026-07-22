@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { buildResetConsentCookie } from '@/lib/legal/cookie-consent';
+import { Icon } from '@/components/ui/Icon';
 
 export default function CookieConsentResetButton() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function CookieConsentResetButton() {
       className="btn btn-secondary btn-sm"
       aria-live="polite"
     >
-      {done ? '✓ Réinitialisé — la bannière reviendra' : '↻ Réinitialiser la bannière cookies'}
+      {done ? <><Icon name="check" /> Réinitialisé — la bannière reviendra</> : '↻ Réinitialiser la bannière cookies'}
     </button>
   );
 }

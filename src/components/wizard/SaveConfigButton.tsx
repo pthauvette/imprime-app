@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 /**
  * Bouton « ★ Sauvegarder » inline — POST /api/saved-configs avec un nom suggéré
@@ -66,9 +67,9 @@ export default function SaveConfigButton({
 
   const label =
     state === 'saving' ? 'Sauvegarde…' :
-    state === 'saved' ? '✓ Sauvegardé' :
-    state === 'duplicate' ? '✓ Déjà sauvegardé' :
-    '★ Sauvegarder';
+    state === 'saved' ? <><Icon name="check" /> Sauvegardé</> :
+    state === 'duplicate' ? <><Icon name="check" /> Déjà sauvegardé</> :
+    <><Icon name="star" /> Sauvegarder</>;
 
   if (naming) {
     return (
@@ -92,7 +93,7 @@ export default function SaveConfigButton({
           }}
         />
         <button type="submit" className="btn btn-primary btn-sm">
-          ★ Sauver
+          <Icon name="star" /> Sauver
         </button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNaming(false)}>
           Annuler

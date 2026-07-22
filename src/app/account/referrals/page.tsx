@@ -17,6 +17,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { ensureReferralCode, buildShareUrl, REFERRAL_REWARD_CENTS } from '@/lib/referrals/code';
@@ -151,7 +152,7 @@ export default async function ReferralsPage() {
           </section>
         ) : (
           <section style={{ padding: 22, background: 'var(--warning-soft, #FFF6E5)', border: '1px solid var(--warning, #D97706)', borderRadius: 'var(--r-md)', marginBottom: 28 }}>
-            ⚠ Impossible de générer ton code de parrainage. Recharge la page ou écris-nous à
+            <Icon name="alert" size={14} /> Impossible de générer ton code de parrainage. Recharge la page ou écris-nous à
             <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)', marginLeft: 4 }}>bonjour@plio.ca</a>.
           </section>
         )}
@@ -239,7 +240,7 @@ export default async function ReferralsPage() {
                       color: r.status === 'CREDITED' ? 'var(--success, #16a34a)' : 'var(--text-muted)',
                     }}
                   >
-                    {r.status === 'CREDITED' ? '✓ Crédité' : r.status === 'PENDING' ? '… En attente' : 'Annulé'}
+                    {r.status === 'CREDITED' ? <><Icon name="check" size={14} /> Crédité</> : r.status === 'PENDING' ? '… En attente' : 'Annulé'}
                   </span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600, color: r.status === 'CREDITED' ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
                     {formatCurrency(r.creditCents / 100)}

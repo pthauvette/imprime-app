@@ -11,6 +11,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { DELIVERY_WINDOW, DELIVERY_DAYS, SUPPORT_SLA } from '@/lib/content/marketing';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = {
   title: 'À propos de Plio — print wholesale au Canada',
@@ -53,7 +54,7 @@ export default function AboutPage() {
         {/* MISSION */}
         <section className="mission">
           <div>
-            <div className="mission-eyebrow">★ Notre mission</div>
+            <div className="mission-eyebrow"><Icon name="star" /> Notre mission</div>
             <h2>Pourquoi on a démarré <em>Plio.</em></h2>
             <p>
               Avant Plio, commander 500 cartes de visite voulait souvent dire <strong>trois
@@ -82,7 +83,7 @@ export default function AboutPage() {
         {/* PROMISES (remplace les fake stats) */}
         <section className="stats-section">
           <div className="stats-inner">
-            <div className="mission-eyebrow">★ Nos engagements</div>
+            <div className="mission-eyebrow"><Icon name="star" /> Nos engagements</div>
             <h2>Quatre <em>promesses claires.</em></h2>
             <div className="stats-grid">
               <div className="stat">
@@ -108,7 +109,7 @@ export default function AboutPage() {
         {/* FOUNDER */}
         <section className="founders">
           <div className="founders-head">
-            <div className="mission-eyebrow">★ Derrière Plio</div>
+            <div className="mission-eyebrow"><Icon name="star" /> Derrière Plio</div>
             <h2>Une petite équipe, <em>basée à Montréal.</em></h2>
             <p>
               Plio est un produit de <strong>Démocratik inc.</strong> — une jeune entreprise
@@ -135,12 +136,12 @@ export default function AboutPage() {
         <section className="values-section">
           <div className="values-inner">
             <div className="values-head">
-              <div className="mission-eyebrow">★ Ce qui nous tient</div>
+              <div className="mission-eyebrow"><Icon name="star" /> Ce qui nous tient</div>
               <h2>Quatre valeurs <em>non négociables.</em></h2>
             </div>
             <div className="values-grid">
               <div className="value-card">
-                <div className="value-icon">✓</div>
+                <div className="value-icon"><Icon name="check" /></div>
                 <h3 className="value-title">Honnêteté radicale</h3>
                 <p className="value-text">
                   Si ton fichier va mal imprimer, on te le dit. Si on n&apos;est pas le bon
@@ -149,7 +150,7 @@ export default function AboutPage() {
                 </p>
               </div>
               <div className="value-card">
-                <div className="value-icon">★</div>
+                <div className="value-icon"><Icon name="star" /></div>
                 <h3 className="value-title">Excellence artisanale</h3>
                 <p className="value-text">
                   On choisit nos papiers, nos finitions et notre presse partenaire comme un
@@ -190,7 +191,7 @@ export default function AboutPage() {
             borderRadius: 'var(--r-xl)',
           }}
         >
-          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Pour nous joindre</div>
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}><Icon name="star" /> Pour nous joindre</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.01em', marginTop: 0 }}>
             Une question avant de commander ?
           </h2>
@@ -259,7 +260,7 @@ export default function AboutPage() {
           </div>
         </div>
         <div className="footer-bottom">
-          <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
+          <span><Icon name="star" /> © Plio 2026 · Imprimé au Canada 🇨🇦</span>
           <span>Démocratik inc. · Montréal</span>
         </div>
       </footer>

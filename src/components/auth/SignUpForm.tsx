@@ -13,6 +13,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
+import { Icon } from '@/components/ui/Icon';
 
 const PENDING_PROFILE_COOKIE = 'plio_pending_profile';
 const COOKIE_MAX_AGE = 60 * 15; // 15 min — temps de cliquer le magic-link
@@ -119,7 +120,7 @@ export default function SignUpForm() {
               disabled={submitting}
             />
           </div>
-          <div className="field-helper">★ Confirmation par lien magique — pas de mot de passe à retenir</div>
+          <div className="field-helper"><Icon name="star" /> Confirmation par lien magique — pas de mot de passe à retenir</div>
         </div>
         <div>
           <div className="field">
@@ -194,7 +195,7 @@ export default function SignUpForm() {
       </div>
 
       <div className="auth-footer">
-        🔒 Chiffré · 🇨🇦 Données hébergées au Canada · 0 spam
+        <Icon name="lock" /> Chiffré · 🇨🇦 Données hébergées au Canada · 0 spam
       </div>
     </form>
   );

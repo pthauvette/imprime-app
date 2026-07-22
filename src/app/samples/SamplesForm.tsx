@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export interface SampleOption {
   key: string;
@@ -113,7 +114,7 @@ export default function SamplesForm({
           textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 56, marginBottom: 8 }}>✓</div>
+        <div style={{ marginBottom: 8 }}><Icon name="check" size={44} /></div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 400, margin: '8px 0' }}>
           Demande reçue, <em>merci !</em>
         </h2>
@@ -337,7 +338,7 @@ function SampleCard({
               display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 700,
             }}
           >
-            ✓
+            <Icon name="check" size={14} />
           </span>
         )}
       </div>

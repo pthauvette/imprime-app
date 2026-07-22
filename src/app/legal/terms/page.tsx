@@ -3,6 +3,7 @@
  */
 
 import { getCompanyIdentity } from '@/lib/company/identity';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: "Conditions d'utilisation — Plio" };
 
@@ -141,7 +142,7 @@ export default function TermsPage() {
       
         <footer>
           <div className="footer-bottom">
-            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
+            <span><Icon name="star" /> © Plio 2026 · Imprimé au Canada 🇨🇦</span>
             <span><a href="/legal/privacy">Confidentialité</a> · <a href="/legal/refund-policy">Remboursements</a> · <a href="/contact">Contact</a></span>
           </div>
         </footer>

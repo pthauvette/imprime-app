@@ -12,6 +12,7 @@ import type { Route } from 'next';
 import { prisma } from '@/lib/db';
 import { reviewSubmitToken } from '@/lib/reviews/token';
 import ReviewSubmitForm from './ReviewSubmitForm';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Laisser un avis' };
@@ -88,7 +89,7 @@ async function ReviewContext({ orderId, token }: { orderId?: string; token?: str
   if (order.review) {
     return (
       <div style={{ padding: '24px', background: 'var(--success-soft, #f0fdf4)', border: '1px solid var(--success, #16a34a)', borderRadius: 'var(--r-lg)', textAlign: 'center' }}>
-        <div style={{ fontSize: 32 }}>✓</div>
+        <div><Icon name="check" size={32} /></div>
         <h2 style={{ margin: '8px 0', fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 400 }}>Merci !</h2>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
           Tu nous as déjà laissé un avis pour cette commande. On l&apos;apprécie vraiment.
@@ -112,7 +113,7 @@ async function ReviewContext({ orderId, token }: { orderId?: string; token?: str
 function ErrorBlock({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ padding: '20px 24px', background: 'var(--warning-soft, #FFF6E5)', border: '1px solid var(--warning, #D97706)', borderRadius: 'var(--r-md)', fontSize: 14, color: 'var(--text-primary)' }}>
-      ⚠ {children}
+      <Icon name="alert" size={14} /> {children}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 import { auth } from '@/auth';
 import { statusLabel } from '@/lib/orders/status-labels';
 import { prisma } from '@/lib/db';
@@ -140,7 +141,7 @@ function EmptyState() {
         margin: '0 auto',
       }}
     >
-      <div style={{ fontSize: 48 }}>💳</div>
+      <div><Icon name="card" size={44} /></div>
       <h2
         style={{
           fontFamily: 'var(--font-display)',

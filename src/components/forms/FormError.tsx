@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 /**
  * Message d'erreur de formulaire ANNONCÉ aux lecteurs d'écran (Audit v2 #9.2).
@@ -27,7 +28,7 @@ export default function FormError({
       className={className}
       style={{ margin: 0, fontSize: 12, color: 'var(--danger)', ...style }}
     >
-      ✗ {children}
+      <Icon name="x" size={14} /> {children}
     </p>
   );
 }

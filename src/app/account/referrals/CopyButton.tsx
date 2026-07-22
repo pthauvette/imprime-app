@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -23,7 +24,7 @@ export default function CopyButton({ text }: { text: string }) {
       className="btn btn-primary"
       style={{ whiteSpace: 'nowrap' }}
     >
-      {copied ? '✓ Copié' : 'Copier'}
+      {copied ? <><Icon name="check" size={14} /> Copié</> : 'Copier'}
     </button>
   );
 }

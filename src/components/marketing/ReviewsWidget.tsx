@@ -10,6 +10,7 @@
 
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { Icon } from '@/components/ui/Icon';
 
 interface ReviewForDisplay {
   rating: number;
@@ -104,7 +105,7 @@ export default async function ReviewsWidget() {
             fontWeight: 400,
             lineHeight: 1.1,
           }}>
-            {avgRating.toFixed(1)} / 5 ★ par nos clients
+            {avgRating.toFixed(1)} / 5 <Icon name="star" size={14} /> par nos clients
           </h2>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>
             Reviews vérifiées après livraison.
@@ -146,7 +147,7 @@ function ReviewCard({ review }: { review: ReviewForDisplay }) {
       {/* Star rating — Unicode ★ vs ☆ pour filled vs empty */}
       <div style={{ display: 'flex', gap: 2, color: 'var(--accent-primary)', fontSize: 18 }}>
         {[1, 2, 3, 4, 5].map((s) => (
-          <span key={s} style={{ opacity: s <= review.rating ? 1 : 0.25 }}>★</span>
+          <span key={s} style={{ opacity: s <= review.rating ? 1 : 0.25 }}><Icon name="star" size={18} /></span>
         ))}
       </div>
 

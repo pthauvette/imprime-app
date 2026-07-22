@@ -29,6 +29,7 @@ import { parseItemsSnapshot } from '@/lib/orders/items';
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
 import { orderStatusTone } from '@/lib/orders/status-tone';
 import StatusPill from '@/components/ui/StatusPill';
+import { Icon } from '@/components/ui/Icon';
 import {
   buildOrderTimeline,
   computeOrderEta,
@@ -165,7 +166,7 @@ export default async function CustomerOrderDetailPage({
               />
               {order.paidAt && (
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>
-                  ✓ Payée le {formatDate(order.paidAt.toISOString())}
+                  <Icon name="check" /> Payée le {formatDate(order.paidAt.toISOString())}
                 </span>
               )}
             </div>
@@ -252,7 +253,7 @@ export default async function CustomerOrderDetailPage({
                         fontWeight: 600,
                       }}
                     >
-                      {step.done ? '✓' : i + 1}
+                      {step.done ? <Icon name="check" /> : i + 1}
                     </div>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
@@ -327,7 +328,7 @@ export default async function CustomerOrderDetailPage({
                             </div>
                             {item.fileNames && item.fileNames.length > 0 && (
                               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
-                                📎 {item.fileNames.join(' · ')}
+                                <Icon name="clip" /> {item.fileNames.join(' · ')}
                               </div>
                             )}
                           </div>
@@ -466,7 +467,7 @@ export default async function CustomerOrderDetailPage({
                 fontWeight: 500,
               }}
             >
-              ⬇ Télécharger la facture PDF
+              <Icon name="download" /> Télécharger la facture PDF
             </a>
 
             {/* Round 27 #3 — ICS calendar export (livraison estimée) */}
@@ -487,7 +488,7 @@ export default async function CustomerOrderDetailPage({
                   fontWeight: 500,
                 }}
               >
-                📅 Ajouter au calendrier
+                <Icon name="calendar" /> Ajouter au calendrier
               </a>
             )}
 
@@ -509,7 +510,7 @@ export default async function CustomerOrderDetailPage({
                 fontWeight: 500,
               }}
             >
-              📄 Télécharger l&apos;historique PDF
+              <Icon name="file" /> Télécharger l&apos;historique PDF
             </a>
 
             <Link

@@ -2,6 +2,8 @@
  * not-found.tsx — page 404 globale (Next.js convention).
  */
 
+import { Icon } from '@/components/ui/Icon';
+
 export const metadata = { title: "404 — Plio" };
 
 export default function NotFound() {
@@ -24,7 +26,7 @@ export default function NotFound() {
               </div>
       
               <div className="err-suggestions">
-                <div className="err-suggestions-label">★ Tu cherchais peut-être</div>
+                <div className="err-suggestions-label"><Icon name="star" size={14} /> Tu cherchais peut-être</div>
                 <div className="err-suggestions-list">
                   <a href="/order/start" className="err-sugg-pill">Cartes de visite</a>
                   <a href="/order/start" className="err-sugg-pill">Flyers</a>
@@ -49,8 +51,8 @@ export default function NotFound() {
           </main>
       
           <footer className="err-footer">
-            <span className="err-footer-id">★ ERROR_ID: 404 · 2026-05-15T15:42:08Z · TRACE_X9F2H</span>
-            <span>★ BONJOUR@PLIO.CA · © PLIO 2026 🇨🇦</span>
+            <span className="err-footer-id"><Icon name="star" size={12} /> ERROR_ID: 404 · 2026-05-15T15:42:08Z · TRACE_X9F2H</span>
+            <span><Icon name="star" size={12} /> BONJOUR@PLIO.CA · © PLIO 2026 🇨🇦</span>
           </footer>
         </div>
     </>

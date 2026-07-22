@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 import WalletTopupForm from '@/components/account/WalletTopupForm';
 import WalletSubscriptionCard from '@/components/account/WalletSubscriptionCard';
 import { auth } from '@/auth';
@@ -113,7 +114,7 @@ export default async function WalletPage({
             fontSize: 14,
             fontWeight: 500,
           }}>
-            ✓ Top-up confirmé. Le crédit apparaîtra dans ton solde dans quelques secondes
+            <Icon name="check" size={14} /> Top-up confirmé. Le crédit apparaîtra dans ton solde dans quelques secondes
             (synchronisation Stripe webhook).
           </div>
         )}
@@ -156,10 +157,10 @@ export default async function WalletPage({
             </div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 8, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               {user.walletCents > 0 && (
-                <span>💳 Prépayé : {formatCurrency(user.walletCents / 100)}</span>
+                <span><Icon name="card" size={14} /> Prépayé : {formatCurrency(user.walletCents / 100)}</span>
               )}
               {user.referralCreditCents > 0 && (
-                <span>🎁 Parrainage : {formatCurrency(user.referralCreditCents / 100)}</span>
+                <span><Icon name="gift" size={14} /> Parrainage : {formatCurrency(user.referralCreditCents / 100)}</span>
               )}
               {user.walletCents === 0 && user.referralCreditCents === 0 && (
                 <span>Pas encore de crédit — recharge ton wallet ou parraine un ami.</span>
@@ -182,7 +183,7 @@ export default async function WalletPage({
                 whiteSpace: 'nowrap',
               }}
             >
-              🎁 Parrainer un ami
+              <Icon name="gift" size={14} /> Parrainer un ami
             </Link>
           )}
         </section>
@@ -231,7 +232,7 @@ export default async function WalletPage({
             }}
           >
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>
-              🎁 Tu as été parrainé par
+              <Icon name="gift" size={14} /> Tu as été parrainé par
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>
               <strong>{rewardsReceived.referrer.email}</strong> — tu as reçu{' '}
@@ -349,7 +350,7 @@ export default async function WalletPage({
         </div>
 
         <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 32 }}>
-          💡 Pour l&apos;instant, le portefeuille = crédit de parrainage uniquement.
+          <Icon name="info" size={14} /> Pour l&apos;instant, le portefeuille = crédit de parrainage uniquement.
           Les crédits prépayés (top-up Stripe Customer balance) arrivent post-MVP.
         </p>
       </main>

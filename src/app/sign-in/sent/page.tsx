@@ -9,6 +9,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: "Vérifie ta boîte courriel — Plio" };
 
@@ -94,7 +95,7 @@ export default async function MagicLinkSentPage({
 
           <div>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, margin: '0 0 8px' } as React.CSSProperties}>
-              ★ Ouvrir directement
+              <Icon name="star" size={12} /> Ouvrir directement
             </p>
             <div className="ml-providers">
               {providerDeepLinks.map((p) => (
@@ -142,8 +143,8 @@ export default async function MagicLinkSentPage({
       </main>
 
       <footer className="ml-footer">
-        <span>★ BONJOUR@PLIO.CA</span>
-        <span>★ © PLIO 2026 🇨🇦</span>
+        <span><Icon name="star" size={12} /> BONJOUR@PLIO.CA</span>
+        <span><Icon name="star" size={12} /> © PLIO 2026 🇨🇦</span>
       </footer>
     </div>
   );

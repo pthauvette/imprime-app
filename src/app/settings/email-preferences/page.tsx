@@ -16,6 +16,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Préférences email — Plio' };
 export const dynamic = 'force-dynamic';
@@ -177,7 +178,7 @@ export default async function EmailPreferencesPage() {
               marginBottom: 16,
             }}
           >
-            ⚠ Toujours actifs · requis par le service
+            <Icon name="alert" /> Toujours actifs · requis par le service
           </div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 14 }}>
             <RequiredRow
@@ -272,7 +273,7 @@ function PreferenceRow({
           cursor: 'pointer',
         }}
       >
-        {enabled ? '✓ Activé' : '✕ Désactivé'}
+        {enabled ? <><Icon name="check" /> Activé</> : <><Icon name="x" /> Désactivé</>}
       </button>
     </div>
   );

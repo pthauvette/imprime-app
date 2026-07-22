@@ -13,6 +13,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { TIER_LABELS, TIER_PERKS, type LoyaltyTier } from '@/lib/customers/loyalty';
 import { formatCurrency } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   current: LoyaltyTier;
@@ -82,7 +83,7 @@ export default function LoyaltyTierProgress(props: Props) {
 
       {isMax ? (
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-          ⭐ Tu profites de tous nos avantages premium. Merci d&apos;être un client GOLD !
+          <Icon name="star" size={14} /> Tu profites de tous nos avantages premium. Merci d&apos;être un client GOLD !
         </p>
       ) : (
         <>

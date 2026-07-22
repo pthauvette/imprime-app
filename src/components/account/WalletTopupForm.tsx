@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { WALLET_TIERS, MIN_TOPUP_CENTS, MAX_TOPUP_CENTS, computeBonus, tierForAmount } from '@/lib/wallet/tiers';
+import { Icon } from '@/components/ui/Icon';
 
 const PRESETS = WALLET_TIERS;
 
@@ -60,7 +61,7 @@ export default function WalletTopupForm({ hasActiveSubscription = false }: { has
       marginBottom: 32,
     }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400, margin: '0 0 6px', letterSpacing: '-0.01em' }}>
-        💳 Recharger ton wallet
+        <Icon name="card" size={16} /> Recharger ton wallet
       </h2>
       <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 20px' }}>
         Prépaye et obtiens un bonus : plus tu charges, plus tu gagnes. Le crédit est utilisé avant
@@ -194,7 +195,7 @@ export default function WalletTopupForm({ hasActiveSubscription = false }: { has
         />
         <div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>
-            ♻ Auto-renew mensuel
+            <Icon name="refresh" size={14} /> Auto-renew mensuel
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
             {hasActiveSubscription

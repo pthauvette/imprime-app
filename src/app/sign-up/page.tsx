@@ -14,6 +14,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { auth } from '@/auth';
 import SignUpForm from '@/components/auth/SignUpForm';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Créer un compte — Plio' };
 
@@ -47,21 +48,21 @@ export default async function SignUpPage() {
 
           <div className="side-perks">
             <div className="side-perk">
-              <div className="side-perk-icon">★</div>
+              <div className="side-perk-icon"><Icon name="star" /></div>
               <div className="side-perk-text">
                 <strong>Devis instantané, illimité</strong>
                 <span>Configure n&apos;importe quel produit, vois le prix exact en temps réel.</span>
               </div>
             </div>
             <div className="side-perk">
-              <div className="side-perk-icon">📦</div>
+              <div className="side-perk-icon"><Icon name="package" /></div>
               <div className="side-perk-text">
                 <strong>5 échantillons par mois, gratuits</strong>
                 <span>Touche le papier avant de commander — envoyés en 5 jours.</span>
               </div>
             </div>
             <div className="side-perk">
-              <div className="side-perk-icon">🎨</div>
+              <div className="side-perk-icon"><Icon name="edit" /></div>
               <div className="side-perk-text">
                 <strong>Templates &amp; éditeur en ligne</strong>
                 <span>Pas de design ? On a des templates et un éditeur en ligne.</span>

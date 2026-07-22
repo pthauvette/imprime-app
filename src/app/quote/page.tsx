@@ -11,6 +11,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import QuoteRequestForm from './QuoteRequestForm';
 
 export const metadata = {
@@ -96,7 +97,7 @@ export default function QuotePage() {
                   borderRadius: 'var(--r-lg)',
                 }}
               >
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{uc.emoji}</div>
+                <div style={{ marginBottom: 8 }}><Icon name={uc.icon} size={28} /></div>
                 <h3 style={{ fontSize: 16, margin: '0 0 6px', fontWeight: 600 }}>{uc.title}</h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
                   {uc.description}
@@ -158,34 +159,34 @@ export default function QuotePage() {
   );
 }
 
-const USE_CASES = [
+const USE_CASES: { icon: IconName; title: string; description: string }[] = [
   {
-    emoji: '📦',
+    icon: 'package',
     title: 'Quantité hors barème',
     description: '10 000+ cartes, 50 000+ flyers, runs très spécifiques avec mix multiple.',
   },
   {
-    emoji: '🎨',
+    icon: 'edit',
     title: 'Papier ou finition unique',
     description: 'Embossage, foil stamping, papier coton ou recyclé spécifique, vernis sélectif.',
   },
   {
-    emoji: '📋',
+    icon: 'clipboard',
     title: 'Signage ou substrats rigides',
     description: 'Foamcore, dibond, coroplast, bannières grand format, présentoirs en boutique.',
   },
   {
-    emoji: '🎁',
+    icon: 'gift',
     title: 'Packaging et kits',
     description: 'Boîtes pliantes custom, étiquettes adhésives, kits de bienvenue assemblés.',
   },
   {
-    emoji: '📰',
+    icon: 'file',
     title: 'Édition et magazines',
     description: 'Brochures dos carré collé, magazines piqués, catalogues à pagination élevée.',
   },
   {
-    emoji: '🤝',
+    icon: 'user',
     title: 'Reseller avec besoin spécial',
     description: 'Si tu es déjà reseller et que ton client veut quelque chose hors catalogue.',
   },

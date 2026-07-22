@@ -17,6 +17,7 @@ import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   /** Contexte additionnel auto-ajouté au message (ex: "Étape 4 — Qté 500"). */
@@ -139,7 +140,7 @@ export default function FloatingHelpButton({
           transition: 'transform var(--dur-fast), box-shadow var(--dur-fast)',
         }}
       >
-        <span aria-hidden style={{ fontSize: 16 }}>💬</span>
+        <Icon name="chat" size={16} />
         Besoin d&apos;aide ?
       </button>
 
@@ -208,7 +209,7 @@ export default function FloatingHelpButton({
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: 32, marginBottom: 4 }}>✓</div>
+                <div style={{ marginBottom: 4 }}><Icon name="check" size={32} /></div>
                 <p style={{ margin: 0, fontSize: 14, color: 'var(--text-primary)' }}>
                   Message envoyé. On te répond à <strong>{email || 'l\'adresse fournie'}</strong>.
                 </p>

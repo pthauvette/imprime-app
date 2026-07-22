@@ -13,6 +13,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { formatCurrency } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 
 interface OrderForChart {
   paidAt: Date | null;
@@ -84,7 +85,7 @@ export default function MonthlySpendChart({ orders }: { orders: OrderForChart[] 
           margin: 0,
           fontWeight: 400,
         }}>
-          📊 Tes dépenses · 6 derniers mois
+          <Icon name="chart" size={14} /> Tes dépenses · 6 derniers mois
         </h2>
         <div style={{ display: 'flex', gap: 24, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
           <span>

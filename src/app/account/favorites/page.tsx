@@ -15,6 +15,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
@@ -93,7 +94,7 @@ export default async function FavoritesPage({
             {folders.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
-                  📁 Dossiers
+                  <Icon name="folder" size={14} /> Dossiers
                 </span>
                 <FolderChip href={'/account/favorites' as Route} active={!filterFolder} label={`Tous (${allConfigs.length})`} />
                 {folders.map((f) => {
@@ -191,7 +192,7 @@ export default async function FavoritesPage({
                     <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {c.folder && (
                         <span style={{ padding: '2px 8px', fontSize: 11, background: 'var(--accent-soft)', color: 'var(--accent-primary)', borderRadius: 'var(--r-sm)', fontFamily: 'var(--font-mono)' }}>
-                          📁 {c.folder}
+                          <Icon name="folder" size={14} /> {c.folder}
                         </span>
                       )}
                       {c.tags?.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
@@ -249,7 +250,7 @@ function EmptyState() {
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 48, marginBottom: 12 }}>★</div>
+      <div style={{ marginBottom: 12 }}><Icon name="star" size={44} /></div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 8px', fontWeight: 400 }}>
         Aucune configuration sauvegardée
       </h2>

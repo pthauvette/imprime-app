@@ -15,6 +15,7 @@ import { auth } from '@/auth';
 import Sidebar from '@/components/account/Sidebar';
 import DeleteAccountRequest from './DeleteAccountRequest';
 import CookieConsentResetButton from '@/components/legal/CookieConsentResetButton';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Confidentialité' };
@@ -71,7 +72,7 @@ export default async function PrivacySettingsPage() {
               download
               className="btn btn-primary btn-sm"
             >
-              ⬇ Télécharger mes données (JSON)
+              <Icon name="download" size={14} /> Télécharger mes données (JSON)
             </a>
           </div>
         </section>
@@ -148,7 +149,7 @@ export default async function PrivacySettingsPage() {
             de l&apos;impôt fédérale</a>).
           </p>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
-            ⚠️ Action <strong>irréversible</strong> une fois traitée par l&apos;admin.
+            <Icon name="alert" size={14} /> Action <strong>irréversible</strong> une fois traitée par l&apos;admin.
             Tu perds accès à : addresses, saved configs, drafts, crédits de
             parrainage non utilisés, statut reseller éventuel.
           </p>

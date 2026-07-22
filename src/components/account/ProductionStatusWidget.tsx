@@ -12,6 +12,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { formatDate } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 
 interface OrderForWidget {
   id: string;
@@ -54,7 +55,7 @@ export default function ProductionStatusWidget({ orders }: { orders: OrderForWid
           margin: 0,
           fontWeight: 400,
         }}>
-          🖨 En production · {orders.length}
+          <Icon name="printer" size={14} /> En production · {orders.length}
         </h2>
         <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
           Refresh la page pour update

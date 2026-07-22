@@ -17,6 +17,7 @@
  */
 
 import { useEffect } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function GlobalError({
   error,
@@ -53,7 +54,7 @@ export default function GlobalError({
           </div>
 
           <div className="err-suggestions">
-            <div className="err-suggestions-label">★ Pendant ce temps</div>
+            <div className="err-suggestions-label"><Icon name="star" /> Pendant ce temps</div>
             <div className="err-suggestions-list">
               <a href="/orders" className="err-sugg-pill">Mes commandes</a>
               <a href="/order/start" className="err-sugg-pill">Nouveau devis</a>
@@ -75,9 +76,9 @@ export default function GlobalError({
 
       <footer className="err-footer">
         <span className="err-footer-id">
-          ★ ERROR_ID: 500{error.digest ? ` · ${error.digest}` : ''}
+          <Icon name="star" /> ERROR_ID: 500{error.digest ? ` · ${error.digest}` : ''}
         </span>
-        <span>★ BONJOUR@PLIO.CA · © PLIO 2026 🇨🇦</span>
+        <span><Icon name="star" /> BONJOUR@PLIO.CA · © PLIO 2026 🇨🇦</span>
       </footer>
     </div>
   );

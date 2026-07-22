@@ -12,6 +12,7 @@
  */
 
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function CancelRequestButton({
   orderId,
@@ -152,7 +153,7 @@ export default function CancelRequestButton({
               color: feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)',
             }}
           >
-            {feedback.ok ? '✓' : '✗'} {feedback.message}
+            {feedback.ok ? <Icon name="check" /> : <Icon name="x" />} {feedback.message}
           </div>
         )}
 

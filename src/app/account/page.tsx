@@ -21,6 +21,7 @@ import NpsAutoPrompt from '@/components/account/NpsAutoPrompt';
 import LoyaltyTierProgress from '@/components/account/LoyaltyTierProgress';
 import { formatCurrency, formatDate } from '@/lib/format';
 import StatusPill from '@/components/ui/StatusPill';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { orderStatusTone } from '@/lib/orders/status-tone';
 import { statusLabel } from '@/lib/orders/status-labels';
 import {
@@ -384,7 +385,7 @@ export default async function AccountDashboardPage() {
                 }}
               >
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>
-                  🎁 Parrainage
+                  <Icon name="gift" /> Parrainage
                 </div>
                 <div style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--text-secondary)', marginBottom: 12 }}>
                   Invite tes contacts et reçois <strong>10 $ de crédit</strong> par première commande.
@@ -471,7 +472,7 @@ function StatCard({
 function EmptyState() {
   return (
     <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>
+      <div style={{ marginBottom: 8 }}><Icon name="package" size={36} /></div>
       <p style={{ fontSize: 14, margin: '0 0 16px' }}>
         Aucune commande pour l&apos;instant.
       </p>
@@ -514,10 +515,10 @@ function LoyaltyCard({
     SILVER: 'var(--tier-silver)',
     GOLD: 'var(--tier-gold)',
   };
-  const TIER_EMOJI: Record<LoyaltyTier, string> = {
-    BRONZE: '🥉',
-    SILVER: '🥈',
-    GOLD: '🥇',
+  const TIER_ICON: Record<LoyaltyTier, IconName> = {
+    BRONZE: 'award',
+    SILVER: 'award',
+    GOLD: 'award',
   };
   const perksPreview = TIER_PERKS[tier][0] ?? '';
 
@@ -546,7 +547,7 @@ function LoyaltyCard({
           gap: 8,
         }}
       >
-        <span>{TIER_EMOJI[tier]}</span>
+        <span><Icon name={TIER_ICON[tier]} /></span>
         <span>{TIER_LABELS[tier]}</span>
       </div>
       {progress.next && progress.needsCents !== null ? (

@@ -20,6 +20,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { newsletterUnsubscribeToken } from '@/lib/newsletter/token';
 import UnsubscribeForm from './UnsubscribeForm';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -81,7 +82,7 @@ export default async function UnsubscribePage({
         envoyées à <strong>{email}</strong>.
       </p>
       <p style={{ ...paragraphStyle, fontSize: 13 }}>
-        ⚠️ Tu continueras à recevoir les emails transactionnels (confirmation, suivi
+        <Icon name="alert" size={14} /> Tu continueras à recevoir les emails transactionnels (confirmation, suivi
         de livraison) si tu commandes — ces emails sont essentiels au service et ne
         sont pas concernés par le désabonnement marketing.
       </p>

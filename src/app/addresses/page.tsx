@@ -14,6 +14,7 @@
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import AddressActionsBar from './AddressActionsBar';
@@ -103,7 +104,7 @@ function EmptyState() {
         margin: '24px auto 0',
       }}
     >
-      <div style={{ fontSize: 48 }}>📮</div>
+      <div><Icon name="send" size={44} /></div>
       <h2
         style={{
           fontFamily: 'var(--font-display)',

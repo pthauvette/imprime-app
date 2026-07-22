@@ -19,6 +19,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import type { EnrichedProduct } from '@/lib/products/overrides';
 import ProductMockup from '@/components/wizard/ProductMockup';
+import { Icon } from '@/components/ui/Icon';
 import { mockupForProduct, specForProductName, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import { formatCents } from '@/lib/format';
@@ -418,7 +419,7 @@ function ProductRow({
             </svg>
             {DELIVERY_WINDOW}
           </span>
-          <span className="product-spec">📦 ID #{product.id}</span>
+          <span className="product-spec"><Icon name="package" size={14} /> ID #{product.id}</span>
         </div>
       </div>
       <div className="product-price">

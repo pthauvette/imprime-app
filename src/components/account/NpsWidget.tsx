@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   orderId: string;
@@ -75,8 +76,8 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
         style={{ fontSize: 13 }}
       >
         {submittedScore !== null
-          ? `✓ Tu as donné ${submittedScore}/10 · modifier`
-          : '💬 Donner mon avis'}
+          ? <><Icon name="check" /> Tu as donné {submittedScore}/10 · modifier</>
+          : <><Icon name="chat" /> Donner mon avis</>}
       </button>
 
       {open && (
@@ -236,7 +237,7 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
                   color: 'var(--danger, #dc2626)',
                 }}
               >
-                ⚠ {error}
+                <Icon name="alert" /> {error}
               </div>
             )}
 
@@ -253,7 +254,7 @@ export default function NpsWidget({ orderId, existingScore, existingComment }: P
                   textAlign: 'center',
                 }}
               >
-                ✓ Merci pour ton feedback !
+                <Icon name="check" /> Merci pour ton feedback !
               </div>
             ) : (
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

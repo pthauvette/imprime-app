@@ -16,7 +16,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Icon } from '@/components/ui/Icon';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 import { signOut } from 'next-auth/react';
 import ThemeToggle from './ThemeToggle';
@@ -162,10 +164,10 @@ export default function UserMenu({ user }: UserMenuProps) {
           </div>
 
           <MenuLink href="/account" label="Mon compte" icon="◉" onClick={() => setOpen(false)} />
-          <MenuLink href="/orders" label="Mes commandes" icon="📦" onClick={() => setOpen(false)} />
-          <MenuLink href="/addresses" label="Mes adresses" icon="📍" onClick={() => setOpen(false)} />
-          <MenuLink href="/account/favorites" label="Mes favoris" icon="★" onClick={() => setOpen(false)} />
-          <MenuLink href="/settings" label="Réglages" icon="⚙" onClick={() => setOpen(false)} />
+          <MenuLink href="/orders" label="Mes commandes" icon={<Icon name="package" size={14} />} onClick={() => setOpen(false)} />
+          <MenuLink href="/addresses" label="Mes adresses" icon={<Icon name="pin" size={14} />} onClick={() => setOpen(false)} />
+          <MenuLink href="/account/favorites" label="Mes favoris" icon={<Icon name="star" size={14} />} onClick={() => setOpen(false)} />
+          <MenuLink href="/settings" label="Réglages" icon={<Icon name="settings" size={14} />} onClick={() => setOpen(false)} />
 
           {/* Préférences inline */}
           <div
@@ -233,7 +235,7 @@ function MenuLink({
 }: {
   href: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   onClick?: () => void;
 }) {
   return (

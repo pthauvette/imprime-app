@@ -10,6 +10,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ExportImportActions() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function ExportImportActions() {
         disabled={busy}
         title="Télécharge tes configs en JSON pour backup ou partage"
       >
-        ⬇ Exporter JSON
+        <Icon name="download" size={14} /> Exporter JSON
       </button>
       <button
         type="button"
@@ -72,7 +73,7 @@ export default function ExportImportActions() {
         disabled={busy}
         title="Importe un fichier JSON exporté précédemment (dédup auto)"
       >
-        {busy ? 'Import…' : '⬆ Importer JSON'}
+        {busy ? 'Import…' : <><Icon name="upload" size={14} /> Importer JSON</>}
       </button>
       <input
         ref={fileInputRef}

@@ -14,6 +14,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = {
   title: 'État du système — Plio',
@@ -121,8 +122,16 @@ export default async function StatusPage() {
           gap: 18,
         }}
       >
-        <div style={{ fontSize: 40 }}>
-          {!health ? '⚠️' : health.status === 'pass' ? '✓' : health.status === 'warn' ? '⚠' : '✗'}
+        <div style={{ display: 'flex' }}>
+          {!health ? (
+            <Icon name="alert" size={40} />
+          ) : health.status === 'pass' ? (
+            <Icon name="check" size={40} />
+          ) : health.status === 'warn' ? (
+            <Icon name="alert" size={40} />
+          ) : (
+            <Icon name="x" size={40} />
+          )}
         </div>
         <div>
           <div style={{ fontSize: 20, fontWeight: 600 }}>
@@ -190,7 +199,7 @@ export default async function StatusPage() {
                         color: check.status === 'pass' ? 'var(--success, #16a34a)' : 'var(--danger)',
                       }}
                     >
-                      {check.status === 'pass' ? '✓ OK' : '✗ Fail'}
+                      {check.status === 'pass' ? <><Icon name="check" size={12} /> OK</> : <><Icon name="x" size={12} /> Fail</>}
                     </span>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
                       {check.latencyMs}ms

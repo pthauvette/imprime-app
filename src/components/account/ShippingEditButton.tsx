@@ -13,6 +13,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useModalFocusTrap } from '@/hooks/useModalFocusTrap';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   orderId: string;
@@ -90,7 +91,7 @@ export default function ShippingEditButton({ orderId, status, current }: Props) 
           cursor: 'pointer',
         }}
       >
-        ✏️ Modifier l&apos;adresse de livraison
+        <Icon name="edit" size={14} /> Modifier l&apos;adresse de livraison
       </button>
 
       {open && (

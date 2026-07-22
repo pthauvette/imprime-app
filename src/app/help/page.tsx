@@ -18,6 +18,7 @@ import HelpSearch from './HelpSearch';
 import { FAQ_ITEMS, type FaqItem } from '@/data/help-faq';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = {
   title: 'Centre d\'aide — Plio',
@@ -95,7 +96,7 @@ export default function HelpPage() {
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <a href="mailto:bonjour@plio.ca" className="btn btn-primary">
-              📧 bonjour@plio.ca
+              <Icon name="mail" size={14} /> bonjour@plio.ca
             </a>
             <Link href={'/contact' as Route} className="btn btn-ghost">
               Formulaire de contact →

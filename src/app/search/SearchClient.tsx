@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 interface ResultItem {
   type: 'faq' | 'blog';
@@ -12,9 +13,9 @@ interface ResultItem {
   meta?: string;
 }
 
-const TYPE_INFO: Record<ResultItem['type'], { label: string; icon: string }> = {
-  faq: { label: 'Aide', icon: '💡' },
-  blog: { label: 'Blog', icon: '📝' },
+const TYPE_INFO: Record<ResultItem['type'], { label: string; icon: IconName }> = {
+  faq: { label: 'Aide', icon: 'info' },
+  blog: { label: 'Blog', icon: 'file' },
 };
 
 export default function SearchClient({ initialQuery }: { initialQuery: string }) {
@@ -105,7 +106,7 @@ export default function SearchClient({ initialQuery }: { initialQuery: string })
             color: 'var(--danger, #dc2626)',
           }}
         >
-          <div style={{ fontSize: 36, marginBottom: 8 }}>⚠️</div>
+          <div style={{ marginBottom: 8 }}><Icon name="alert" size={36} /></div>
           <p style={{ fontSize: 14, margin: '0 0 12px' }}>
             La recherche n&apos;a pas pu aboutir (problème de connexion). Réessaie dans un instant.
           </p>
@@ -126,7 +127,7 @@ export default function SearchClient({ initialQuery }: { initialQuery: string })
             color: 'var(--text-muted)',
           }}
         >
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🔍</div>
+          <div style={{ marginBottom: 8 }}><Icon name="search" size={36} /></div>
           <p style={{ fontSize: 14, margin: '0 0 12px' }}>
             Aucun résultat. Essaie un terme plus court ou différent.
           </p>
@@ -156,7 +157,7 @@ export default function SearchClient({ initialQuery }: { initialQuery: string })
                 alignItems: 'flex-start',
               }}
             >
-              <div style={{ fontSize: 24 }} aria-hidden>{info.icon}</div>
+              <div aria-hidden><Icon name={info.icon} size={24} /></div>
               <div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 6, flexWrap: 'wrap' }}>
                   <span

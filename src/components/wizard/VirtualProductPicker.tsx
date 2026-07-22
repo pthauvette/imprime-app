@@ -14,6 +14,7 @@ import {
 import { getMarginSpecBySlug } from '@/lib/products/margin-specs';
 import { finishMaterial } from '@/lib/print/finish-materials';
 import FinishPreview from '@/components/finish/FinishPreview';
+import { Icon } from '@/components/ui/Icon';
 
 /**
  * Sélecteur GÉNÉRIQUE d'un produit virtuel : Papier (axe 1) puis Finition (axe 2,
@@ -122,7 +123,7 @@ export default function VirtualProductPicker({
                 >
                   <div className={`stock-swatch ${swatchClass(p.key)}`} />
                   <div className="stock-body">
-                    <div className="stock-name">{p.label}{p.specialty ? ' ★' : ''}</div>
+                    <div className="stock-name">{p.label}{p.specialty ? <> <Icon name="star" size={12} /></> : null}</div>
                     <div className="stock-desc">{p.desc}</div>
                   </div>
                 </button>
@@ -154,7 +155,7 @@ export default function VirtualProductPicker({
               ))}
             </div>
             {finishMeta?.note && (
-              <p style={{ marginTop: 14, fontSize: 13, color: 'var(--text-secondary)' }}>💡 {finishMeta.note}</p>
+              <p style={{ marginTop: 14, fontSize: 13, color: 'var(--text-secondary)' }}><Icon name="info" size={14} /> {finishMeta.note}</p>
             )}
           </section>
         </div>
