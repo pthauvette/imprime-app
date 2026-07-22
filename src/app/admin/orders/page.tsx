@@ -22,6 +22,7 @@ import SavedFiltersBar from '@/components/admin/SavedFiltersBar';
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
 import { orderStatusTone } from '@/lib/orders/status-tone';
 import StatusPill from '@/components/ui/StatusPill';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Admin — Commandes' };
 export const dynamic = 'force-dynamic';
@@ -175,7 +176,7 @@ export default async function AdminOrdersPage({
               className="btn btn-secondary btn-sm"
               title="Exporter les commandes filtrées en CSV pour comptabilité"
             >
-              ⬇ Export CSV
+              <Icon name="download" /> Export CSV
             </a>
             <Link href={'/admin' as Route} className="btn btn-secondary btn-sm">↗ Dashboard</Link>
           </div>
@@ -361,7 +362,7 @@ function formatMoney(cents: number | null | undefined): string {
 function EmptyState() {
   return (
     <div style={{ padding: '64px 32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
+      <div style={{ marginBottom: 12 }}><Icon name="inbox" size={44} /></div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 8px', color: 'var(--text-primary)', fontWeight: 400 }}>
         Aucune commande
       </h2>

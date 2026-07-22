@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function AdminNotesPanel({
   orderId,
@@ -95,13 +96,13 @@ export default function AdminNotesPanel({
         <span>{value.length} / 5000</span>
         <span>
           {error ? (
-            <span style={{ color: 'var(--danger)' }}>✗ {error}</span>
+            <span style={{ color: 'var(--danger)' }}><Icon name="x" size={14} /> {error}</span>
           ) : saving ? (
             <span>Sauvegarde…</span>
           ) : dirty ? (
             <span>Modifications non sauvegardées</span>
           ) : value.length > 0 ? (
-            <span style={{ color: 'var(--success, #16a34a)' }}>✓ Sauvegardé</span>
+            <span style={{ color: 'var(--success, #16a34a)' }}><Icon name="check" size={14} /> Sauvegardé</span>
           ) : (
             <span>Visible uniquement aux admins</span>
           )}

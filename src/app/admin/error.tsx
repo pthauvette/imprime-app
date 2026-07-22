@@ -11,6 +11,8 @@
  * client' + props { error, reset }.
  */
 
+import { Icon } from '@/components/ui/Icon';
+
 export default function AdminError({
   error,
   reset,
@@ -39,7 +41,7 @@ export default function AdminError({
             fontWeight: 600,
           }}
         >
-          ⚠ Erreur 500 · admin
+          <Icon name="alert" size={14} /> Erreur 500 · admin
         </div>
         <h1
           style={{

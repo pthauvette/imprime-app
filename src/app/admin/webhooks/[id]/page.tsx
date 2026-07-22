@@ -19,6 +19,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Icon } from '@/components/ui/Icon';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { formatDateTime } from '@/lib/format';
@@ -138,7 +139,7 @@ export default async function AdminWebhookDetailPage({
                 textTransform: 'uppercase',
               }}
             >
-              {event.success ? `✓ ${event.statusCode ?? 200}` : `✕ ${event.statusCode ?? 500}`}
+              {event.success ? <><Icon name="check" size={12} /> {event.statusCode ?? 200}</> : <><Icon name="x" size={12} /> {event.statusCode ?? 500}</>}
             </span>
             {event.payload && (
               <ReplayButton
@@ -311,11 +312,11 @@ export default async function AdminWebhookDetailPage({
                       <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                         {r.success ? (
                           <span style={{ color: 'var(--success, #16a34a)', fontWeight: 600 }}>
-                            ✓ {r.statusCode ?? 200}
+                            <Icon name="check" size={12} /> {r.statusCode ?? 200}
                           </span>
                         ) : (
                           <span style={{ color: 'var(--danger)', fontWeight: 600 }} title={r.errorMessage ?? undefined}>
-                            ✗ {r.statusCode ?? 500}
+                            <Icon name="x" size={12} /> {r.statusCode ?? 500}
                           </span>
                         )}
                       </td>
@@ -505,7 +506,7 @@ function DiffTable({
                     fontWeight: 600,
                   }}
                 >
-                  {matches ? '✓' : '≠'}
+                  {matches ? <Icon name="check" size={11} /> : '≠'}
                 </span>
               </td>
             </tr>

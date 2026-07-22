@@ -16,6 +16,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { computeTaxReport } from '@/lib/finances/tax-report';
 import { PAID_STATUSES } from '@/lib/finances/refund-amount';
 import { formatCurrency } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Rapport de taxes' };
@@ -156,7 +157,7 @@ export default async function TaxReportPage({
           <div className="adm-topbar-actions">
             <Link href={'/admin/finances' as Route} className="btn btn-ghost btn-sm">← Finances</Link>
             <a href={downloadHref} className="btn btn-primary btn-sm" download>
-              ⬇ Télécharger CSV
+              <Icon name="download" size={14} /> Télécharger CSV
             </a>
           </div>
         </header>
@@ -194,7 +195,7 @@ export default async function TaxReportPage({
         </section>
 
         <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--accent-primary)', fontWeight: 600 }}>
-          📅 Période : <strong>{fmtDate(range.from)}</strong> → <strong>{fmtDate(range.to)}</strong> · {summary.orderCount} commande{summary.orderCount > 1 ? 's' : ''}
+          <Icon name="calendar" size={14} /> Période : <strong>{fmtDate(range.from)}</strong> → <strong>{fmtDate(range.to)}</strong> · {summary.orderCount} commande{summary.orderCount > 1 ? 's' : ''}
         </div>
 
         {/* Tax aggregates */}

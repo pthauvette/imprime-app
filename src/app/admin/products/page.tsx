@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db';
 import { sinalite, SinaliteError } from '@/lib/sinalite/client';
 import { fetchOverridesMap } from '@/lib/products/overrides';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Icon } from '@/components/ui/Icon';
 import ProductOverrideActions from './ProductOverrideActions';
 
 export const metadata = { title: 'Admin — Catalogue Sinalite' };
@@ -131,7 +132,7 @@ export default async function AdminProductsPage({
             alignItems: 'center',
           }}
         >
-          <span>ℹ️</span>
+          <span><Icon name="info" /></span>
           <span>
             <strong>Source live</strong> : <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>GET /products/en_ca</code> via le token Sinalite cached.
             Le variants-index (pricing combos) est fetch on-demand par produit lors d'un order — pas affiché ici.
@@ -151,7 +152,7 @@ export default async function AdminProductsPage({
             }}
           >
             <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}>
-              💾 Cache Sinalite — {cacheStats.totalEntries} entries
+              <Icon name="save" /> Cache Sinalite — {cacheStats.totalEntries} entries
               {cacheStats.avgAgeHours !== null && (
                 <span style={{ marginLeft: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
                   · âge moyen {cacheStats.avgAgeHours.toFixed(1)}h
@@ -275,7 +276,7 @@ export default async function AdminProductsPage({
         >
           {pageProducts.length === 0 ? (
             <div style={{ padding: '64px 32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
+              <div style={{ marginBottom: 12 }}><Icon name="inbox" size={44} /></div>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 8px', color: 'var(--text-primary)', fontWeight: 400 }}>
                 Aucun produit
               </h2>
@@ -322,11 +323,11 @@ export default async function AdminProductsPage({
                       <td style={td}>
                         {p.enabled === 1 ? (
                           <span style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em' }}>
-                            ✓ ENABLED
+                            <Icon name="check" /> ENABLED
                           </span>
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em' }}>
-                            ✕ DISABLED
+                            <Icon name="x" /> DISABLED
                           </span>
                         )}
                       </td>

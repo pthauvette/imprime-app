@@ -23,6 +23,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
 import { findStuckCarts } from '@/lib/cron/stuck-carts';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Admin — Cron monitor' };
 export const dynamic = 'force-dynamic';
@@ -214,7 +215,7 @@ export default async function AdminCronsPage() {
                 background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)',
               }}
             >
-              ✓ Aucun cart coincé sur les 30 derniers jours.
+              <Icon name="check" size={14} /> Aucun cart coincé sur les 30 derniers jours.
             </div>
           ) : (
             <>
@@ -410,7 +411,7 @@ function CronCard({
                 fontWeight: 700,
               }}
             >
-              ⚠ STALE
+              <Icon name="alert" size={14} /> STALE
             </span>
           )}
           {lastRun ? (
@@ -505,7 +506,7 @@ function StatusPill({ status }: { status: string }) {
         textTransform: 'uppercase',
       }}
     >
-      {ok ? '✓ success' : '✕ fail'}
+      {ok ? <><Icon name="check" size={14} /> success</> : <><Icon name="x" size={14} /> fail</>}
     </span>
   );
 }

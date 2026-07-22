@@ -14,6 +14,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import RefreshButton from '@/components/admin/RefreshButton';
+import { Icon } from '@/components/ui/Icon';
 import type { OrderEventKind } from '@/lib/db/orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -450,7 +451,7 @@ export default async function AdminDashboard() {
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t.label}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{t.hint}</div>
                     </div>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t.count > 0 ? 'Traiter →' : '✓'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t.count > 0 ? 'Traiter →' : <Icon name="check" size={14} />}</span>
                   </Link>
                 );
               })}

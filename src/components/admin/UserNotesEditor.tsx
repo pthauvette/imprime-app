@@ -17,6 +17,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   userId: string;
@@ -92,7 +93,7 @@ export default function UserNotesEditor({
             fontWeight: 600,
           }}
         >
-          📝 Notes internes
+          <Icon name="file" size={12} /> Notes internes
         </h3>
         {!editing && (
           <button
@@ -221,7 +222,7 @@ export default function UserNotesEditor({
                 borderRadius: 'var(--r-sm)',
               }}
             >
-              ⚠ {error}
+              <Icon name="alert" size={12} /> {error}
             </div>
           )}
         </div>

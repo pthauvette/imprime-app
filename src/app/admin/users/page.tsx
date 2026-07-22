@@ -13,6 +13,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 import UserBulkBar from './UserBulkBar';
 
 export const metadata = { title: 'Admin — Utilisateurs' };
@@ -297,7 +298,7 @@ export default async function AdminUsersPage({
           {([
             { key: null as null | 'verified' | 'auto' | 'any-reseller', label: 'Tous' },
             { key: 'any-reseller' as const, label: 'Resellers' },
-            { key: 'verified' as const, label: '✓ Vérifiés' },
+            { key: 'verified' as const, label: <><Icon name="check" size={14} /> Vérifiés</> },
             { key: 'auto' as const, label: '~ Auto-détectés' },
           ]).map((opt) => {
             const params = new URLSearchParams();
@@ -330,7 +331,7 @@ export default async function AdminUsersPage({
         {/* Audit §8.4 — troncature honnête du filtre high-value */}
         {highValueTruncated && (
           <div style={{ marginBottom: 12, padding: '10px 14px', background: 'var(--warning-soft, #fef9ec)', border: '1px solid var(--warning, #d97706)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--warning, #b45309)' }}>
-            ⚠ Vue partielle : la LTV n&apos;est évaluée que sur les {fetchSize} comptes les plus récents.
+            <Icon name="alert" size={14} /> Vue partielle : la LTV n&apos;est évaluée que sur les {fetchSize} comptes les plus récents.
             Un gros client plus ancien peut manquer — affine avec la recherche si tu cherches un compte précis.
           </div>
         )}
@@ -477,7 +478,7 @@ function formatNameFallback(u: { firstName: string | null; lastName: string | nu
 function EmptyState() {
   return (
     <div style={{ padding: '64px 32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>👤</div>
+      <div style={{ marginBottom: 12 }}><Icon name="user" size={44} /></div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 8px', color: 'var(--text-primary)', fontWeight: 400 }}>
         Aucun utilisateur
       </h2>

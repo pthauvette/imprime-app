@@ -10,6 +10,7 @@
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Route } from 'next';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   template: string;
@@ -88,7 +89,7 @@ export default function EmailPreviewForm({ template, initialVars, varsError, sub
           <span>Vars (JSON)</span>
           {varsError && (
             <span style={{ color: 'var(--danger, #dc2626)', textTransform: 'none' }}>
-              ⚠ {varsError} — sample vars utilisées
+              <Icon name="alert" /> {varsError} — sample vars utilisées
             </span>
           )}
         </span>
@@ -126,7 +127,7 @@ export default function EmailPreviewForm({ template, initialVars, varsError, sub
           style={{ flex: 1 }}
           title="Envoie le rendu à ton email admin pour valider sur Gmail/Outlook/iOS"
         >
-          {sendStatus === 'sending' ? '⏳ Envoi…' : '✉ Test à moi'}
+          {sendStatus === 'sending' ? '⏳ Envoi…' : <><Icon name="mail" /> Test à moi</>}
         </button>
       </div>
       {sendMessage && (
@@ -147,7 +148,7 @@ export default function EmailPreviewForm({ template, initialVars, varsError, sub
             lineHeight: 1.4,
           }}
         >
-          {sendStatus === 'success' ? '✓ ' : '⚠ '}
+          {sendStatus === 'success' ? <Icon name="check" /> : <Icon name="alert" />}{' '}
           {sendMessage}
         </div>
       )}

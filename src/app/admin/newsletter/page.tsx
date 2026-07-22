@@ -9,6 +9,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminPagination from '@/components/admin/AdminPagination';
+import { Icon } from '@/components/ui/Icon';
 import { formatDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -75,7 +76,7 @@ export default async function AdminNewsletterPage({
               download
               className="btn btn-secondary btn-sm"
             >
-              ⬇ Export CSV
+              <Icon name="download" /> Export CSV
             </a>
           </div>
         </header>

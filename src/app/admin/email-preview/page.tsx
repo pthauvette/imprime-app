@@ -24,6 +24,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { renderEmail, EMAIL_SUBJECTS, type EmailTemplate } from '@/lib/emails/render';
 import { ALL_TEMPLATES, getSampleVars } from '@/lib/emails/sample-vars';
 import EmailPreviewForm from './EmailPreviewForm';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Aperçu emails' };
@@ -182,7 +183,7 @@ export default async function EmailPreviewPage({
                   color: 'var(--danger, #dc2626)',
                 }}
               >
-                ⚠ Rendu KO : {renderError}
+                <Icon name="alert" size={14} /> Rendu KO : {renderError}
               </div>
             )}
           </div>

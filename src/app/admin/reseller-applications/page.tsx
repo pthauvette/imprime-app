@@ -12,6 +12,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDateTime, formatCurrency } from '@/lib/format';
 import ResellerActions from './ResellerActions';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Demandes reseller' };
@@ -130,12 +131,12 @@ export default async function AdminResellerApplicationsPage({
 
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                   <a href={`mailto:${a.email}`} style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>
-                    📧 {a.email}
+                    <Icon name="mail" size={14} /> {a.email}
                   </a>
-                  {a.phone && <span>📞 {a.phone}</span>}
+                  {a.phone && <span><Icon name="phone" size={14} /> {a.phone}</span>}
                   {a.website && (
                     <a href={a.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>
-                      🌐 {a.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                      <Icon name="globe" size={14} /> {a.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                     </a>
                   )}
                 </div>

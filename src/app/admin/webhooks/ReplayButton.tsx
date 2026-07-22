@@ -11,6 +11,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ReplayButton({
   id, hasPayload, source, eventType, replayCount,
@@ -84,7 +85,7 @@ export default function ReplayButton({
         opacity: busy ? 0.5 : 1,
       }}
     >
-      {busy ? '…' : ok ? '✓' : '↻'}
+      {busy ? '…' : ok ? <Icon name="check" size={14} /> : '↻'}
       {replayCount > 0 && !busy && !ok && (
         <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.7 }}>{replayCount}</span>
       )}

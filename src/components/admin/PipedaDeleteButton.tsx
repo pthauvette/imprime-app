@@ -12,6 +12,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useModalFocusTrap } from '@/hooks/useModalFocusTrap';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   userId: string;
@@ -81,7 +82,7 @@ export default function PipedaDeleteButton({
           fontWeight: 700,
           marginBottom: 8,
         }}>
-          ⚠ Demande PIPEDA en cours
+          <Icon name="alert" size={14} /> Demande PIPEDA en cours
         </div>
         <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--text-primary)' }}>
           Soumise le {new Date(requestCreatedAt).toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })}.
@@ -147,7 +148,7 @@ export default function PipedaDeleteButton({
               fontWeight: 400,
               letterSpacing: '-0.02em',
             }}>
-              ⚠ Suppression PIPEDA — irréversible
+              <Icon name="alert" size={14} /> Suppression PIPEDA — irréversible
             </h2>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px' }}>
               Tu vas <strong>anonymiser</strong> le compte de <code>{userEmail}</code>.

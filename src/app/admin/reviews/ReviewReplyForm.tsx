@@ -16,6 +16,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 const MAX_LEN = 1500;
 
@@ -83,7 +84,7 @@ export default function ReviewReplyForm({
         }}
       >
         <span>
-          {hasReply ? '✓ Réponse Plio publiée' : 'Réponse publique (optionnel)'}
+          {hasReply ? <><Icon name="check" size={14} /> Réponse Plio publiée</> : 'Réponse publique (optionnel)'}
           {existingReplyAt && (
             <span style={{ marginLeft: 8, color: 'var(--text-muted)', fontWeight: 500 }}>
               {new Date(existingReplyAt).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' })}

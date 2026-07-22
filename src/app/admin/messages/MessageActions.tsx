@@ -10,6 +10,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   id: string;
@@ -104,17 +105,17 @@ export default function MessageActions({ id, status, email, subject }: Props) {
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         {status !== 'CLOSED' && (
           <button onClick={() => setReplying(!replying)} disabled={busy} className="btn btn-primary btn-sm">
-            {replying ? 'Annuler' : '✉ Répondre'}
+            {replying ? 'Annuler' : <><Icon name="mail" size={14} /> Répondre</>}
           </button>
         )}
         {status === 'OPEN' && !replying && (
           <button onClick={() => patch({ action: 'answered' })} disabled={busy} className="btn btn-ghost btn-sm">
-            ✓ Marquer répondu (sans email)
+            <Icon name="check" size={14} /> Marquer répondu (sans email)
           </button>
         )}
         {status !== 'CLOSED' && (
           <button onClick={() => patch({ action: 'close' })} disabled={busy} className="btn btn-ghost btn-sm">
-            🗄 Fermer
+            <Icon name="archive" size={14} /> Fermer
           </button>
         )}
         <button onClick={openNoteForm} disabled={busy} className="btn btn-ghost btn-sm">

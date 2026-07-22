@@ -8,9 +8,10 @@
  * débloque les perks au checkout = revenue impact).
  */
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 // Round 33 — ajout PLATINUM tier (10 % off, > 20 000 $ /365j)
 type Status = 'NONE' | 'AUTO_DETECTED' | 'VERIFIED' | 'PLATINUM';
@@ -20,7 +21,7 @@ interface Props {
   initialStatus: Status;
 }
 
-const STATUS_META: Record<Status, { label: string; description: string; color: string }> = {
+const STATUS_META: Record<Status, { label: ReactNode; description: string; color: string }> = {
   NONE: {
     label: 'Aucun',
     description: 'Pas de statut reseller — pas de perks',
@@ -32,7 +33,7 @@ const STATUS_META: Record<Status, { label: string; description: string; color: s
     color: '#5B7A6A',
   },
   VERIFIED: {
-    label: '✓ Vérifié',
+    label: <><Icon name="check" size={12} /> Vérifié</>,
     description: 'Validé par admin — perks ACTIVES (5 % discount auto)',
     color: '#1F3D2B',
   },

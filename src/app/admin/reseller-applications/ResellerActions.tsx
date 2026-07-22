@@ -10,6 +10,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 type FormMode = null | 'reject' | 'note';
 
@@ -89,10 +90,10 @@ export default function ResellerActions({ id, status }: { id: string; status: st
         {status === 'PENDING' && (
           <>
             <button onClick={() => patch({ action: 'approve' })} disabled={busy} className="btn btn-primary btn-sm">
-              ✓ Approuver
+              <Icon name="check" /> Approuver
             </button>
             <button onClick={() => openInlineForm('reject')} disabled={busy} className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}>
-              ✗ Refuser
+              <Icon name="x" /> Refuser
             </button>
           </>
         )}

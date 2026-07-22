@@ -12,6 +12,7 @@ import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDateTime, formatCurrency } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 import QuoteActions from './QuoteActions';
 
 export const dynamic = 'force-dynamic';
@@ -136,9 +137,9 @@ export default async function AdminQuotesPage({
                     href={`mailto:${q.email}?subject=${encodeURIComponent('Re: Ta demande de devis sur Plio')}&body=${encodeURIComponent(`Salut ${q.name},\n\n`)}`}
                     style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
                   >
-                    📧 {q.email}
+                    <Icon name="mail" size={14} /> {q.email}
                   </a>
-                  {q.phone && <span>📞 {q.phone}</span>}
+                  {q.phone && <span><Icon name="phone" size={14} /> {q.phone}</span>}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12, padding: 12, background: 'var(--bg-sunken)', borderRadius: 'var(--r-sm)' }}>

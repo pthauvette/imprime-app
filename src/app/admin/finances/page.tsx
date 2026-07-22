@@ -28,6 +28,7 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Admin — Finances' };
 export const dynamic = 'force-dynamic';
@@ -293,7 +294,7 @@ export default async function AdminFinancesPage({
               title="Export Excel multi-sheet (Aperçu + Commandes + Par jour + Par province)"
               style={{ fontSize: 13 }}
             >
-              ⬇ XLSX
+              <Icon name="download" size={14} /> XLSX
             </a>
           </div>
         </header>
@@ -324,7 +325,7 @@ export default async function AdminFinancesPage({
               <span className="unit">$ CAD</span>
             </div>
             <div className={`adm-hero-trend ${refundRate < 2 ? 'neutral' : ''}`}>
-              {refundRate.toFixed(1)} % du brut · cible &lt; 2 % {refundRate < 2 ? '✓' : '⚠'}
+              {refundRate.toFixed(1)} % du brut · cible &lt; 2 % {refundRate < 2 ? <Icon name="check" size={14} /> : <Icon name="alert" size={14} />}
             </div>
             <div className="adm-hero-meta">
               {refundsCount} refund{refundsCount !== 1 ? 's' : ''} émis
@@ -394,7 +395,7 @@ export default async function AdminFinancesPage({
             </header>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               {([
-                { key: 'VERIFIED',      label: '✓ Resellers vérifiés', color: '#1F3D2B', subtitle: 'Perks 5% appliquées' },
+                { key: 'VERIFIED',      label: <><Icon name="check" size={14} /> Resellers vérifiés</>, color: '#1F3D2B', subtitle: 'Perks 5% appliquées' },
                 { key: 'AUTO_DETECTED', label: '~ Auto-détectés',      color: '#5B7A6A', subtitle: 'Candidats reseller' },
                 { key: 'NONE',          label: 'Standard',             color: 'var(--text-muted)', subtitle: 'Customers réguliers' },
               ] as const).map((seg) => {
@@ -536,7 +537,7 @@ export default async function AdminFinancesPage({
               >↗ Stripe Dashboard</a>
             </div>
             <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🏦</div>
+              <div style={{ marginBottom: 12 }}><Icon name="card" size={32} /></div>
               <div style={{ fontSize: 13, marginBottom: 8 }}>
                 Les payouts ne sont pas synchronisés localement.
               </div>

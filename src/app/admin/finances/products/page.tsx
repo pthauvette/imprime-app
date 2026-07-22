@@ -21,6 +21,7 @@ import type { Route } from 'next';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Icon } from '@/components/ui/Icon';
 import { parseItemsSnapshot } from '@/lib/orders/items';
 import { formatCurrency, formatNumber } from '@/lib/format';
 
@@ -195,13 +196,13 @@ export default async function ProductsReportPage({
         </section>
 
         <div style={{ marginBottom: 24, padding: '12px 16px', background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-secondary)' }}>
-          📅 Depuis : <strong>{fmtDate(since)}</strong> · {totalOrders} commande{totalOrders > 1 ? 's' : ''} · {formatCurrency(totalSubtotalCents / 100)} subtotal · {statsByProduct.size} produit{statsByProduct.size > 1 ? 's' : ''} unique{statsByProduct.size > 1 ? 's' : ''}
+          <Icon name="calendar" /> Depuis : <strong>{fmtDate(since)}</strong> · {totalOrders} commande{totalOrders > 1 ? 's' : ''} · {formatCurrency(totalSubtotalCents / 100)} subtotal · {statsByProduct.size} produit{statsByProduct.size > 1 ? 's' : ''} unique{statsByProduct.size > 1 ? 's' : ''}
         </div>
 
         <section className="adm-panel" style={{ padding: 0, overflow: 'hidden' }}>
           {stats.length === 0 ? (
             <div style={{ padding: '64px 22px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
+              <div style={{ marginBottom: 8 }}><Icon name="chart" size={44} /></div>
               Aucune commande dans cette période.
             </div>
           ) : (
@@ -247,7 +248,7 @@ export default async function ProductsReportPage({
         </section>
 
         <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 24, maxWidth: 600, marginInline: 'auto', lineHeight: 1.5 }}>
-          💡 Le revenu estimé distribue le subtotal d&apos;une commande proportionnellement
+          <Icon name="info" /> Le revenu estimé distribue le subtotal d&apos;une commande proportionnellement
           aux quantités des items. Pour des commandes multi-produits avec prix unitaires
           très différents, l&apos;estimation peut diverger du vrai split. Pour la compta
           précise, utilise le <Link href={'/admin/finances/tax-report' as Route} style={{ color: 'var(--accent-primary)' }}>rapport de taxes</Link>.

@@ -12,6 +12,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 type FormMode = null | 'ship' | 'note';
 
@@ -106,10 +107,10 @@ export default function SampleActions({ id, status }: { id: string; status: stri
         {status === 'PENDING' && (
           <>
             <button onClick={openShipForm} disabled={busy} className="btn btn-primary btn-sm">
-              ✓ Marquer expédié
+              <Icon name="check" size={14} /> Marquer expédié
             </button>
             <button onClick={cancel} disabled={busy} className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}>
-              ✗ Annuler
+              <Icon name="x" size={14} /> Annuler
             </button>
           </>
         )}

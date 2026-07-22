@@ -13,6 +13,7 @@
 import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 interface ResultItem {
   type: 'order' | 'user' | 'message' | 'quote' | 'reseller' | 'broadcast';
@@ -23,13 +24,13 @@ interface ResultItem {
   meta?: string;
 }
 
-const TYPE_ICONS: Record<ResultItem['type'], string> = {
-  order: '📦',
-  user: '👤',
-  message: '💬',
-  quote: '💰',
-  reseller: '🎯',
-  broadcast: '📨',
+const TYPE_ICONS: Record<ResultItem['type'], IconName> = {
+  order: 'package',
+  user: 'user',
+  message: 'chat',
+  quote: 'dollar',
+  reseller: 'target',
+  broadcast: 'mail',
 };
 
 export default function CommandPalette() {
@@ -154,7 +155,7 @@ export default function CommandPalette() {
         }}
       >
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span aria-hidden style={{ fontSize: 18, color: 'var(--text-muted)' }}>🔍</span>
+          <span aria-hidden style={{ fontSize: 18, color: 'var(--text-muted)' }}><Icon name="search" size={18} /></span>
           <input
             ref={inputRef}
             type="search"
@@ -228,7 +229,7 @@ export default function CommandPalette() {
                   borderBottom: i < results.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                 }}
               >
-                <span aria-hidden style={{ fontSize: 16 }}>{TYPE_ICONS[r.type]}</span>
+                <span aria-hidden style={{ fontSize: 16 }}><Icon name={TYPE_ICONS[r.type]} size={16} /></span>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {r.primary}

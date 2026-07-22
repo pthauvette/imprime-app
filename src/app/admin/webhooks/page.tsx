@@ -20,6 +20,7 @@ import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatDateTime } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 import ReplayButton from './ReplayButton';
 import BulkReplayActions from './BulkReplayActions';
 
@@ -313,7 +314,7 @@ export default async function AdminWebhooksPage({
                     'Server error (500-599)'
                   }
                 >
-                  {s === '2xx' ? '✓ 2xx' : s === '4xx' ? '⚠ 4xx' : '✕ 5xx'}
+                  {s === '2xx' ? <><Icon name="check" size={14} /> 2xx</> : s === '4xx' ? <><Icon name="alert" size={14} /> 4xx</> : <><Icon name="x" size={14} /> 5xx</>}
                 </a>
               ))}
             </div>
@@ -562,7 +563,7 @@ function LatencyCell({ latencyMs }: { latencyMs: number | null }) {
 function EmptyState() {
   return (
     <div style={{ padding: '64px 32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🔌</div>
+      <div style={{ marginBottom: 12 }}><Icon name="settings" size={44} /></div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 8px', color: 'var(--text-primary)', fontWeight: 400 }}>
         Aucun webhook
       </h2>

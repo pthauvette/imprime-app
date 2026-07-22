@@ -11,6 +11,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   experimentId: string;
@@ -90,7 +91,7 @@ export default function ExperimentToggle({ experimentId, currentlyActive }: Prop
       </button>
       {error && (
         <div style={{ fontSize: 11, color: 'var(--danger, #dc2626)', maxWidth: 200, textAlign: 'right' }}>
-          ⚠ {error}
+          <Icon name="alert" size={12} /> {error}
         </div>
       )}
     </div>

@@ -16,6 +16,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useMemo } from 'react';
 import { formatDateTime } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 import ReviewActions from './ReviewActions';
 import ReviewReplyForm from './ReviewReplyForm';
 
@@ -141,10 +142,10 @@ export default function ReviewsBulkList({
           </span>
         )}
         {lastResult && (
-          <span style={{ fontSize: 12, color: 'var(--success)', marginLeft: 'auto' }}>✓ {lastResult}</span>
+          <span style={{ fontSize: 12, color: 'var(--success)', marginLeft: 'auto' }}><Icon name="check" /> {lastResult}</span>
         )}
         {error && (
-          <span role="alert" aria-live="assertive" style={{ fontSize: 12, color: 'var(--danger)', marginLeft: 'auto' }}>✗ {error}</span>
+          <span role="alert" aria-live="assertive" style={{ fontSize: 12, color: 'var(--danger)', marginLeft: 'auto' }}><Icon name="x" /> {error}</span>
         )}
       </div>
 
@@ -181,7 +182,7 @@ export default function ReviewsBulkList({
                     <strong style={{ fontSize: 15 }}>{r.displayName}</strong>
                     {r.isFeatured && (
                       <span style={{ padding: '2px 8px', background: 'var(--accent-soft)', color: 'var(--accent-primary)', fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 700, borderRadius: 4 }}>
-                        ★ Featured
+                        <Icon name="star" /> Featured
                       </span>
                     )}
                   </div>
@@ -317,7 +318,7 @@ export default function ReviewsBulkList({
               onClick={() => bulk('approve')}
               style={bulkBtnStyle('var(--success, #16a34a)')}
             >
-              ✓ Approuver
+              <Icon name="check" /> Approuver
             </button>
           )}
           {filter !== 'REJECTED' && (
@@ -327,7 +328,7 @@ export default function ReviewsBulkList({
               onClick={openRejectForm}
               style={bulkBtnStyle('var(--danger)')}
             >
-              ✗ Rejeter
+              <Icon name="x" /> Rejeter
             </button>
           )}
           {filter === 'APPROVED' && (
@@ -338,7 +339,7 @@ export default function ReviewsBulkList({
                 onClick={() => bulkFeature(true)}
                 style={bulkBtnStyle('var(--accent-primary)')}
               >
-                ★ Featured
+                <Icon name="star" /> Featured
               </button>
               <button
                 type="button"
@@ -346,7 +347,7 @@ export default function ReviewsBulkList({
                 onClick={() => bulkFeature(false)}
                 style={bulkBtnStyle('var(--text-muted)')}
               >
-                ☆ Unfeature
+                <Icon name="star" /> Unfeature
               </button>
             </>
           )}
