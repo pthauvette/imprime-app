@@ -18,6 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { useModalFocusTrap } from '@/hooks/useModalFocusTrap';
+import { Icon } from '@/components/ui/Icon';
 
 const SNOOZE_COOKIE = 'plio_nps_snooze';
 const SNOOZE_DAYS = 30;
@@ -167,7 +168,7 @@ export default function NpsAutoPrompt({ orderId, orderLabel }: Props) {
                 color: 'var(--text-muted)',
                 fontWeight: 600,
               }}>
-                ★ Ton avis compte
+                <Icon name="star" size={12} /> Ton avis compte
               </div>
               <button
                 type="button"

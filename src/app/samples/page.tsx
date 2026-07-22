@@ -12,6 +12,7 @@
 
 import SamplesForm, { type SampleOption } from './SamplesForm';
 import { getServerLocale } from '@/lib/i18n/locale';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = {
   title: 'Échantillons gratuits — Plio',
@@ -73,7 +74,7 @@ export default async function SamplesPage() {
           lineHeight: 1.5,
         }}
       >
-        💡 <strong>Pro tip :</strong> les pros commandent toujours leurs échantillons avant
+        <Icon name="info" size={14} /> <strong>Pro tip :</strong> les pros commandent toujours leurs échantillons avant
         le premier projet. Touche le 18pt soft touch — tu comprendras pourquoi nos clients
         reviennent.
       </section>

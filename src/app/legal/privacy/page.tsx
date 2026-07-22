@@ -2,6 +2,8 @@
  * /legal/privacy — politique de confidentialité.
  */
 
+import { Icon } from '@/components/ui/Icon';
+
 export const metadata = { title: "Confidentialité — Plio" };
 
 export default function PrivacyPage() {
@@ -215,32 +217,32 @@ export default function PrivacyPage() {
       
                 <div className="rights-grid">
                   <div className="right-card">
-                    <div className="rc-icon">★ ACCÈS</div>
+                    <div className="rc-icon"><Icon name="star" size={14} /> ACCÈS</div>
                     <strong>Droit de consultation</strong>
                     <p>Obtenir une copie de toutes les données te concernant que nous détenons.</p>
                   </div>
                   <div className="right-card">
-                    <div className="rc-icon">★ RECTIFICATION</div>
+                    <div className="rc-icon"><Icon name="star" size={14} /> RECTIFICATION</div>
                     <strong>Droit de correction</strong>
                     <p>Corriger toute donnée inexacte ou incomplète.</p>
                   </div>
                   <div className="right-card">
-                    <div className="rc-icon">★ EFFACEMENT</div>
+                    <div className="rc-icon"><Icon name="star" size={14} /> EFFACEMENT</div>
                     <strong>Droit à l'oubli</strong>
                     <p>Demander la suppression de tes données (hors obligations légales).</p>
                   </div>
                   <div className="right-card">
-                    <div className="rc-icon">★ PORTABILITÉ</div>
+                    <div className="rc-icon"><Icon name="star" size={14} /> PORTABILITÉ</div>
                     <strong>Export structuré</strong>
                     <p>Recevoir tes données dans un format ouvert et réutilisable (JSON).</p>
                   </div>
                   <div className="right-card">
-                    <div className="rc-icon">★ OPPOSITION</div>
+                    <div className="rc-icon"><Icon name="star" size={14} /> OPPOSITION</div>
                     <strong>Refus de traitement</strong>
                     <p>T'opposer à un traitement particulier pour motif légitime.</p>
                   </div>
                   <div className="right-card">
-                    <div className="rc-icon">★ RETRAIT</div>
+                    <div className="rc-icon"><Icon name="star" size={14} /> RETRAIT</div>
                     <strong>Retrait du consentement</strong>
                     <p>Retirer à tout moment ton consentement aux courriels marketing.</p>
                   </div>
@@ -292,7 +294,7 @@ export default function PrivacyPage() {
       
         <footer>
           <div className="footer-bottom">
-            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
+            <span><Icon name="star" size={14} /> © Plio 2026 · Imprimé au Canada 🇨🇦</span>
             <span><a href="/legal/terms">Conditions</a> · <a href="/legal/refund-policy">Remboursements</a> · <a href="/contact">Contact</a></span>
           </div>
         </footer>

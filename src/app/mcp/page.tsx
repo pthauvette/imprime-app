@@ -12,6 +12,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = {
   title: 'Commander Plio par IA — serveur MCP',
@@ -93,7 +94,7 @@ export default function McpPage() {
 
         {/* CE QUE C'EST */}
         <section style={{ margin: '40px 0' }}>
-          <div className="mission-eyebrow">★ Comment ça marche</div>
+          <div className="mission-eyebrow"><Icon name="star" size={14} /> Comment ça marche</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, letterSpacing: '-0.01em' }}>
             Un serveur <em>distant</em>, pas une installation locale.
           </h2>
@@ -107,7 +108,7 @@ export default function McpPage() {
 
         {/* ÉTAPE 1 — CLÉ */}
         <section style={{ margin: '40px 0' }}>
-          <div className="mission-eyebrow">★ Étape 1 — ta clé API (pour commander)</div>
+          <div className="mission-eyebrow"><Icon name="star" size={14} /> Étape 1 — ta clé API (pour commander)</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, letterSpacing: '-0.01em' }}>
             Génère une clé en 10 secondes.
           </h2>
@@ -124,7 +125,7 @@ export default function McpPage() {
 
         {/* ÉTAPE 2 — BRANCHER */}
         <section style={{ margin: '40px 0' }}>
-          <div className="mission-eyebrow">★ Étape 2 — brancher ton client</div>
+          <div className="mission-eyebrow"><Icon name="star" size={14} /> Étape 2 — brancher ton client</div>
 
           <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 20, marginBottom: 4 }}>
             Claude Code <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 400 }}>· le plus simple, auth complète</span>
@@ -148,7 +149,7 @@ export default function McpPage() {
   }
 }`}</Code>
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            ⚠️ Colle <code>Authorization:Bearer …</code> <strong>sans espace</strong> après les
+            <Icon name="alert" size={14} /> Colle <code>Authorization:Bearer …</code> <strong>sans espace</strong> après les
             deux-points — <code>mcp-remote</code> découpe mal les en-têtes contenant un espace.
           </p>
 
@@ -163,7 +164,7 @@ export default function McpPage() {
 
         {/* TOOLS */}
         <section style={{ margin: '40px 0' }}>
-          <div className="mission-eyebrow">★ Les outils disponibles</div>
+          <div className="mission-eyebrow"><Icon name="star" size={14} /> Les outils disponibles</div>
           <div style={{ marginTop: 12, border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
             {TOOLS.map((t, i) => (
               <div
@@ -184,7 +185,7 @@ export default function McpPage() {
                     color: t.auth ? 'var(--accent-primary)' : 'var(--text-muted)',
                   }}
                 >
-                  {t.auth ? '🔑 clé requise' : 'public'}
+                  {t.auth ? <><Icon name="key" size={14} /> clé requise</> : 'public'}
                 </span>
               </div>
             ))}
@@ -198,7 +199,7 @@ export default function McpPage() {
             border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-xl)',
           }}
         >
-          <div className="mission-eyebrow" style={{ marginBottom: 8 }}>★ claude.ai &amp; ChatGPT (connecteurs web)</div>
+          <div className="mission-eyebrow" style={{ marginBottom: 8 }}><Icon name="star" size={14} /> claude.ai &amp; ChatGPT (connecteurs web)</div>
           <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
             Tu peux ajouter l&apos;endpoint comme <strong>connecteur personnalisé</strong> dans
             claude.ai ou ChatGPT (Paramètres → Connecteurs → URL ci-dessus). Les <strong>4 outils
@@ -250,7 +251,7 @@ export default function McpPage() {
           </div>
         </div>
         <div className="footer-bottom">
-          <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
+          <span><Icon name="star" size={14} /> © Plio 2026 · Imprimé au Canada 🇨🇦</span>
           <span>Démocratik inc. · Montréal</span>
         </div>
       </footer>

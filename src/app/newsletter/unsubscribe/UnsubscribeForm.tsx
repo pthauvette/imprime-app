@@ -9,6 +9,7 @@
  */
 
 import { useState, useTransition } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function UnsubscribeForm({ email, token }: { email: string; token: string }) {
   const [busy, startTransition] = useTransition();
@@ -48,7 +49,7 @@ export default function UnsubscribeForm({ email, token }: { email: string; token
         }}
       >
         <div style={{ fontSize: 18, color: '#1F3D2B', fontWeight: 600, marginBottom: 8 }}>
-          ✓ Désabonnement confirmé
+          <Icon name="check" size={14} /> Désabonnement confirmé
         </div>
         <p style={{ fontSize: 14, color: '#4A554D', margin: 0 }}>
           On a marqué <strong>{email}</strong> comme désabonné. Tu peux fermer cette page.

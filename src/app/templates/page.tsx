@@ -8,6 +8,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 import { ALL_TEMPLATES, listProductTypes } from '@/lib/templates/registry';
 import type { AppTemplate } from '@/lib/templates/types';
 
@@ -95,7 +96,7 @@ export default async function TemplatesPage({ searchParams }: PageProps) {
               fontWeight: 600,
             } as React.CSSProperties}
           >
-            ★ LÉGENDE
+            <Icon name="star" size={14} /> LÉGENDE
           </span>
           <span className="tpl-legend-dot bleed">Zone de bleed (0,125")</span>
           <span className="tpl-legend-dot safe">Safe zone (texte/logos)</span>

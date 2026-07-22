@@ -11,6 +11,7 @@ import type { Route } from 'next';
 import { auth } from '@/auth';
 import { safeInternalPath } from '@/lib/auth/safe-redirect';
 import SignInForm from '@/components/auth/SignInForm';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Connexion — Plio' };
 
@@ -122,7 +123,7 @@ export default async function SignInPage({
                 color: 'var(--danger, #dc2626)',
               }}
             >
-              ⚠️ {errorMessage}
+              <Icon name="alert" size={14} /> {errorMessage}
             </div>
           )}
 

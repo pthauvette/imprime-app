@@ -27,13 +27,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 import Link from 'next/link';
 import type { Route } from 'next';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 const TOUR_COOKIE = 'plio_tour';
 const TOUR_MAX_AGE = 365 * 24 * 60 * 60;
 const TOUR_DELAY_MS = 2500;
 
 interface TourStep {
-  emoji: string;
+  /** Emoji émotionnel sans équivalent icône (👋 ⚡ ✋). */
+  emoji?: string;
+  /** Icône du système quand un équivalent existe (prioritaire sur emoji). */
+  icon?: IconName;
   title: string;
   body: string;
   cta?: { label: string; href: Route };
@@ -58,7 +62,7 @@ const STEPS: TourStep[] = [
     cta: { label: 'Demander des échantillons →', href: '/samples' as Route },
   },
   {
-    emoji: '📋',
+    icon: 'clipboard',
     title: 'Projet hors catalogue ?',
     body: 'Grande quantité, signage, packaging, papier spécifique — on quote ce qui sort du wizard, sous 1-2 jours ouvrables.',
     cta: { label: 'Demander un devis sur-mesure →', href: '/quote' as Route },
@@ -193,7 +197,9 @@ export default function OnboardingTour() {
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }} aria-hidden>{current.emoji}</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }} aria-hidden>
+            {current.icon ? <Icon name={current.icon} size={44} /> : current.emoji}
+          </div>
           <h2
             id="tour-title"
             style={{
@@ -262,7 +268,7 @@ export default function OnboardingTour() {
             className="btn btn-primary btn-sm"
             style={{ fontFamily: 'inherit' }}
           >
-            {isLast ? 'Compris ✓' : 'Suivant →'}
+            {isLast ? <>Compris <Icon name="check" /></> : 'Suivant →'}
           </button>
         </div>
       </div>

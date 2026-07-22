@@ -5,6 +5,7 @@
 import ContactForm from './ContactForm';
 import MarketingFooter from '@/components/marketing/MarketingFooter';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: "Parle-nous — Plio" };
 
@@ -39,28 +40,28 @@ export default function ContactPage() {
             {/* SIDEBAR */}
             <aside className="contact-sidebar">
               <div className="info-card">
-                <div className="info-card-eyebrow">★ Support client</div>
+                <div className="info-card-eyebrow"><Icon name="star" size={14} /> Support client</div>
                 <h3>Pour les commandes en cours</h3>
                 <div className="row"><span className="ic">@</span><a href="mailto:bonjour@plio.ca">bonjour@plio.ca</a></div>
                 <div className="hours">Lun–Ven · 9 h–18 h ET · réponse en {SUPPORT_SLA}</div>
               </div>
       
               <div className="info-card">
-                <div className="info-card-eyebrow">★ Ventes &amp; partenariats</div>
+                <div className="info-card-eyebrow"><Icon name="star" size={14} /> Ventes &amp; partenariats</div>
                 <h3>Volumes, resellers, B2B</h3>
                 <div className="row"><span className="ic">@</span><a href="mailto:sales@plio.ca">sales@plio.ca</a></div>
                 <div className="hours">Lun–Ven · 9 h–17 h ET</div>
               </div>
 
               <div className="info-card">
-                <div className="info-card-eyebrow">★ Devis sur-mesure</div>
+                <div className="info-card-eyebrow"><Icon name="star" size={14} /> Devis sur-mesure</div>
                 <h3>Projets hors catalogue</h3>
-                <div className="row"><span className="ic">📋</span><a href="/quote">Demander un quote →</a></div>
+                <div className="row"><span className="ic"><Icon name="clipboard" size={14} /></span><a href="/quote">Demander un quote →</a></div>
                 <div className="hours">Réponse 1-2 jours ouvrables</div>
               </div>
       
               <div className="info-card">
-                <div className="info-card-eyebrow">★ Adresse postale</div>
+                <div className="info-card-eyebrow"><Icon name="star" size={14} /> Adresse postale</div>
                 <h3>Bureau de Montréal</h3>
                 <div className="row"><span className="ic">⌖</span>
                   <div style={{ lineHeight: "1.5" } as React.CSSProperties}>4220 boul. St-Laurent, suite 200<br />Montréal QC H2W 1Z3</div>

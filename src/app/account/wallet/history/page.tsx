@@ -15,6 +15,7 @@ import Sidebar from '@/components/account/Sidebar';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatCurrency, formatDateTime } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Historique wallet — Plio' };
 export const dynamic = 'force-dynamic';
@@ -212,7 +213,7 @@ export default async function WalletHistoryPage({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      📄 PDF
+                      <Icon name="file" size={14} /> PDF
                     </a>
                   </div>
                 );
@@ -288,7 +289,7 @@ function EmptyState() {
         color: 'var(--text-muted)',
       }}
     >
-      <div style={{ fontSize: 36, marginBottom: 8 }}>💳</div>
+      <Icon name="card" size={36} style={{ marginBottom: 8 }} />
       <p style={{ fontSize: 14, margin: '0 0 16px' }}>
         Pas de transaction wallet pour l&apos;instant. Recharge ton wallet pour commencer.
       </p>

@@ -10,6 +10,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 export default function WalletSubscriptionCard({ amountCents }: { amountCents: number }) {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function WalletSubscriptionCard({ amountCents }: { amountCents: n
     }}>
       <div>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
-          ♻ Auto-renew actif
+          <Icon name="refresh" size={14} /> Auto-renew actif
         </div>
         <div style={{ fontSize: 15, color: 'var(--text-primary)' }}>
           <strong>{(amountCents / 100).toFixed(2)} $</strong> rechargé automatiquement chaque mois.

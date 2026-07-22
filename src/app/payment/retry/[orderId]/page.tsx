@@ -24,6 +24,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { verifyPaymentRetryToken } from '@/lib/payment/retry-token';
 import { logStripe as log } from '@/lib/logger';
+import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Reprendre le paiement — Plio' };
@@ -185,7 +186,7 @@ function ErrorPage({ code }: { code: ErrCode }) {
 
   return (
     <main style={{ maxWidth: 560, margin: '0 auto', padding: '96px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>🔁</div>
+      <div style={{ marginBottom: 16 }}><Icon name="refresh" size={44} /></div>
       <h1 style={{
         fontFamily: 'var(--font-display)',
         fontSize: 32,

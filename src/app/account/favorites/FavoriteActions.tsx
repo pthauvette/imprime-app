@@ -13,6 +13,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   id: string;
@@ -199,13 +200,13 @@ export default function FavoriteActions({ id, name, folder, tags, existingFolder
         Utiliser →
       </button>
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)} disabled={busy} title="Organiser (dossier + tags)">
-        📁
+        <Icon name="folder" size={14} />
       </button>
       <button type="button" className="btn btn-ghost btn-sm" onClick={openRename} disabled={busy} title="Renommer">
         Renommer
       </button>
       <button type="button" className="btn btn-ghost btn-sm" onClick={remove} disabled={busy} title="Supprimer" style={{ color: 'var(--danger)' }}>
-        ✕
+        <Icon name="x" size={14} />
       </button>
       {error && <span style={{ fontSize: 11, color: 'var(--danger)' }} role="alert">{error}</span>}
     </div>

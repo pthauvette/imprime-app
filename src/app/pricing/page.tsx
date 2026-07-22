@@ -15,6 +15,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = {
   title: 'Tarifs — Plio',
@@ -206,7 +207,7 @@ export default function PricingPage() {
                               position: 'absolute', top: 6, right: 8,
                               fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em',
                               textTransform: 'uppercase', color: 'var(--accent-primary)', fontWeight: 700,
-                            }}>★ Best</span>
+                            }}><Icon name="star" /> Best</span>
                           )}
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                             {p.qty.toLocaleString('fr-CA')} u

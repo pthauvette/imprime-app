@@ -10,6 +10,7 @@
 
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { Icon } from '@/components/ui/Icon';
 
 // Fallback shape pour quand la DB est unreachable (build local sans DB,
 // CI without DB, prod transient errors). Section sera "On vient de
@@ -88,8 +89,10 @@ export default async function TestimonialsSection() {
         <div className="testimonials-grid">
           {reviews.map((r) => (
             <div key={r.id} className="testimonial-card">
-              <div className="testimonial-stars">
-                {'★'.repeat(r.rating)}
+              <div className="testimonial-stars" aria-label={`${r.rating} sur 5`}>
+                {Array.from({ length: r.rating }, (_, i) => (
+                  <Icon key={i} name="star" />
+                ))}
               </div>
               {r.comment && (
                 <p className="testimonial-quote">« {r.comment} »</p>

@@ -12,6 +12,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function SignInForm({
   callbackUrl,
@@ -99,7 +100,7 @@ export default function SignInForm({
       </button>
 
       <div className="auth-footer" style={{ marginTop: 24 }}>
-        🔒 Authentification sécurisée · Connexion sans mot de passe
+        <Icon name="lock" size={14} /> Authentification sécurisée · Connexion sans mot de passe
       </div>
     </form>
   );

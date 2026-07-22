@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
+import { Icon } from '@/components/ui/Icon';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatRelative } from '@/lib/format';
@@ -66,7 +67,7 @@ export default async function DraftsPage() {
         ) : (
           <>
             <div className="draft-info-banner">
-              <span className="draft-info-banner-icon">💾</span>
+              <span className="draft-info-banner-icon"><Icon name="save" /></span>
               <span>
                 Chaque design que tu finalises est conservé ici tant que tu ne l'as
                 pas commandé. Clique « Continuer » pour rouvrir le wizard avec tes
@@ -126,7 +127,7 @@ function EmptyState() {
         margin: '0 auto',
       }}
     >
-      <div style={{ fontSize: 48 }}>📝</div>
+      <div><Icon name="file" size={44} /></div>
       <h2
         style={{
           fontFamily: 'var(--font-display)',

@@ -12,6 +12,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressForm from './AddressForm';
+import { Icon } from '@/components/ui/Icon';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import FormError from '@/components/forms/FormError';
 
@@ -108,11 +109,11 @@ export default function AddressActionsBar({ addresses }: { addresses: AddressDat
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
               <div>
                 <strong style={{ fontSize: 14 }}>
-                  {addr.kind === 'BILLING' ? '📄' : '📦'} {addr.label ?? (addr.kind === 'BILLING' ? 'Facturation' : 'Expédition')}
+                  {addr.kind === 'BILLING' ? <Icon name="file" size={14} /> : <Icon name="package" size={14} />} {addr.label ?? (addr.kind === 'BILLING' ? 'Facturation' : 'Expédition')}
                 </strong>
                 {addr.isDefault && (
                   <span style={{ marginLeft: 12, fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
-                    ★ Défaut
+                    <Icon name="star" size={12} /> Défaut
                   </span>
                 )}
               </div>
@@ -124,7 +125,7 @@ export default function AddressActionsBar({ addresses }: { addresses: AddressDat
               <strong>{addr.firstName} {addr.lastName}</strong>{addr.company ? ` · ${addr.company}` : ''}<br />
               {addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}<br />
               {addr.city}, {addr.province} {addr.postalCode}
-              {addr.phone && <><br /><span style={{ color: 'var(--text-muted)' }}>📞 {addr.phone}</span></>}
+              {addr.phone && <><br /><span style={{ color: 'var(--text-muted)' }}><Icon name="phone" size={14} /> {addr.phone}</span></>}
             </div>
             <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               {!addr.isDefault && (
@@ -134,7 +135,7 @@ export default function AddressActionsBar({ addresses }: { addresses: AddressDat
                   disabled={busy}
                   onClick={() => action(addr.id, { action: 'set-default' }, 'PATCH', `Définir cette adresse comme défaut ${addr.kind}`)}
                 >
-                  ★ Faire défaut
+                  <Icon name="star" size={14} /> Faire défaut
                 </button>
               )}
               <button
@@ -143,7 +144,7 @@ export default function AddressActionsBar({ addresses }: { addresses: AddressDat
                 disabled={busy}
                 onClick={() => setEditing(addr)}
               >
-                ✎ Modifier
+                <Icon name="edit" size={14} /> Modifier
               </button>
               <button
                 type="button"
@@ -152,7 +153,7 @@ export default function AddressActionsBar({ addresses }: { addresses: AddressDat
                 disabled={busy}
                 onClick={() => action(addr.id, null, 'DELETE', 'Supprimer cette adresse')}
               >
-                🗑 Supprimer
+                <Icon name="trash" size={14} /> Supprimer
               </button>
             </div>
           </div>

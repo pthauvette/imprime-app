@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 import type { AppTemplate } from '@/lib/templates/types';
+import { Icon } from '@/components/ui/Icon';
 
 interface Field {
   name: string;
@@ -265,7 +266,7 @@ export default function DesignEditor({
             borderTop: '1px solid var(--border-subtle)',
           }}
         >
-          📐 {template.variant}" · 300 DPI · bleed 1/8" inclus
+          <Icon name="pin" size={12} /> {template.variant}" · 300 DPI · bleed 1/8" inclus
         </div>
       </aside>
 

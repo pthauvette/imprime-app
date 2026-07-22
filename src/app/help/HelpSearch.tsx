@@ -8,6 +8,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { faqSlug } from '@/lib/help/faq-slug';
+import { Icon } from '@/components/ui/Icon';
 
 export interface FaqItem {
   category: string;
@@ -89,11 +90,10 @@ export default function HelpSearch({ items }: { items: FaqItem[] }) {
             right: 18,
             top: '50%',
             transform: 'translateY(-50%)',
-            fontSize: 16,
             color: 'var(--text-muted)',
           }}
         >
-          🔍
+          <Icon name="search" size={16} />
         </span>
       </div>
 
@@ -143,7 +143,7 @@ export default function HelpSearch({ items }: { items: FaqItem[] }) {
               href={`/contact?subject=${encodeURIComponent(`Q: ${query || activeCategory || 'Aide générale'}`)}`}
               className="btn btn-primary"
             >
-              📩 Poser la question
+              <Icon name="send" size={14} /> Poser la question
             </a>
             <a
               href={`mailto:bonjour@plio.ca?subject=${encodeURIComponent(`Q: ${query || activeCategory || 'Aide'}`)}`}

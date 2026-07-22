@@ -25,6 +25,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MarginSpec } from '@/lib/products/margin-specs';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   thumbnailDataUrl: string;
@@ -146,7 +147,7 @@ export default function PdfMarginOverlay({ thumbnailDataUrl, filename, marginSpe
           textTransform: 'uppercase', cursor: 'pointer', backdropFilter: 'blur(4px)',
         }}
       >
-        {showOverlay ? '✓ Marges' : '🎯 Marges'}
+        {showOverlay ? <><Icon name="check" size={14} /> Marges</> : <><Icon name="target" size={14} /> Marges</>}
       </button>
 
       <div

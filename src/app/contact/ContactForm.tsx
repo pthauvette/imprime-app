@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
 import FormError from '@/components/forms/FormError';
+import { Icon } from '@/components/ui/Icon';
 
 const SUBJECTS = [
   'Question avant achat',
@@ -81,7 +82,7 @@ export default function ContactForm() {
   if (done) {
     return (
       <div className="form-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
+        <div style={{ marginBottom: 16 }}><Icon name="check" size={44} /></div>
         <h2 style={{ marginBottom: 8 }}>Message envoyé.</h2>
         <p>On te répond en {SUPPORT_SLA} (Lun–Ven · 9h–18h ET).</p>
         <p style={{ marginTop: 16, fontSize: 13, color: 'var(--text-muted)' }}>

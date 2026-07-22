@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import FormError from '@/components/forms/FormError';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ReviewSubmitForm({
   orderId,
@@ -51,7 +52,7 @@ export default function ReviewSubmitForm({
   if (done) {
     return (
       <div style={{ padding: 32, background: 'var(--success-soft, #f0fdf4)', border: '1px solid var(--success, #16a34a)', borderRadius: 'var(--r-lg)', textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>✓</div>
+        <div style={{ marginBottom: 8 }}><Icon name="check" size={44} /></div>
         <h2 style={{ margin: '8px 0', fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400 }}>Merci !</h2>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
           Ton avis est en modération — il sera publié dans les 24h ouvrables.
@@ -96,7 +97,7 @@ export default function ReviewSubmitForm({
                   transition: 'color 0.15s',
                 }}
               >
-                ★
+                <Icon name="star" />
               </button>
             ))}
           </div>

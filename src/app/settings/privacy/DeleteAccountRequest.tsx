@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 /**
  * Bouton de demande de suppression de compte. POST /api/account/delete-request
@@ -60,7 +61,7 @@ export default function DeleteAccountRequest() {
           fontSize: 14,
         }}
       >
-        ✓ Ta demande de suppression a été enregistrée. On la traite manuellement et
+        <Icon name="check" size={14} /> Ta demande de suppression a été enregistrée. On la traite manuellement et
         on te recontacte sous 1-2 jours ouvrables à ton email d&apos;inscription.
       </div>
     );

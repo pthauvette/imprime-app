@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 
 interface KeyRow {
   id: string;
@@ -112,7 +113,7 @@ export default function ApiKeysClient({ initialKeys, availableScopes }: Props) {
             gap: 12,
           }}
         >
-          <strong style={{ color: 'var(--success, #16a34a)' }}>✓ Clé « {revealed.name} » créée</strong>
+          <strong style={{ color: 'var(--success, #16a34a)' }}><Icon name="check" size={14} /> Clé « {revealed.name} » créée</strong>
           <p style={{ margin: 0, fontSize: 14 }}>
             Copie-la <strong>maintenant</strong> : par sécurité, elle ne sera <strong>plus jamais affichée</strong>.
           </p>
@@ -133,7 +134,7 @@ export default function ApiKeysClient({ initialKeys, availableScopes }: Props) {
               {revealed.token}
             </code>
             <button type="button" className="btn btn-primary btn-sm" onClick={copyToken}>
-              {copied ? '✓ Copié' : 'Copier'}
+              {copied ? <><Icon name="check" size={14} /> Copié</> : 'Copier'}
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRevealed(null)}>
               J&apos;ai copié, fermer

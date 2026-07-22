@@ -12,6 +12,7 @@ import FormatPreview from '@/components/wizard/FormatPreview';
 import { previewKindForSinaliteCategory } from '@/lib/products/format-preview';
 import { getMarginSpecBySinaliteCategory } from '@/lib/products/margin-specs';
 import { parseSizeLabel } from '@/lib/products/parse-size';
+import { Icon } from '@/components/ui/Icon';
 
 type OptionGroupMap = Record<string, SinaliteOption[]>;
 
@@ -314,7 +315,7 @@ export default function ConfigureClient({
                 )}
                 {maxQty && maxQtyPrice !== null && maxQtyUnit !== null && unitPrice !== null && maxQtyUnit < unitPrice && (
                   <div style={{ paddingTop: 12, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    💡 À <strong>{formatNumber(Number(maxQty.name))}</strong> unités : <strong>{formatCurrency(maxQtyUnit)}</strong>/u
+                    <Icon name="info" size={14} /> À <strong>{formatNumber(Number(maxQty.name))}</strong> unités : <strong>{formatCurrency(maxQtyUnit)}</strong>/u
                     <span style={{ color: 'var(--success)', fontWeight: 600 }}>
                       {' '}(-{Math.round(((unitPrice - maxQtyUnit) / unitPrice) * 100)}%)
                     </span>
@@ -522,7 +523,7 @@ function BinarySwitch({ options, selectedId, onPick }: PickerProps) {
 function CustomSizeHint() {
   return (
     <div style={{ marginTop: 32, padding: 20, background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-primary)' }}>
-      💡 <strong>Format personnalisé disponible</strong> — ce produit accepte des dimensions WxH custom (ex. 5x6). À configurer plus tard via le BFF.
+      <Icon name="info" size={14} /> <strong>Format personnalisé disponible</strong> — ce produit accepte des dimensions WxH custom (ex. 5x6). À configurer plus tard via le BFF.
     </div>
   );
 }

@@ -8,6 +8,8 @@
  * Pure Server Component (pas de hooks, pas d'interaction).
  */
 
+import { Icon } from '@/components/ui/Icon';
+
 export default function MarketingFooter() {
   return (
     <footer>
@@ -47,7 +49,7 @@ export default function MarketingFooter() {
         </div>
       </div>
       <div className="footer-bottom">
-        <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
+        <span><Icon name="star" size={14} /> © Plio 2026 · Imprimé au Canada 🇨🇦</span>
         <span>Démocratik inc. · Montréal</span>
       </div>
     </footer>

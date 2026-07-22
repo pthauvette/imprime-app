@@ -2,10 +2,13 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import ScrollActiveNavIntoView from './ScrollActiveNavIntoView';
 import SignOutButton from './SignOutButton';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 type Item = {
   href: Route;
   label: string;
+  /** Icône optionnelle rendue avant le label. */
+  icon?: IconName;
   /** Badge optionnel. Round 2 audit — NE PAS hardcoder une valeur : elle
    *  s'afficherait à tous les users (un compte neuf voyait « 12 commandes »).
    *  À remplir avec un vrai compte Prisma par userId si on veut les badges. */
@@ -18,15 +21,15 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     items: [
       { href: '/account' as Route, label: '⌂ Tableau de bord' },
       { href: '/orders', label: 'Mes commandes' },
-      { href: '/account/favorites' as Route, label: '★ Configurations sauvées' },
+      { href: '/account/favorites' as Route, label: 'Configurations sauvées', icon: 'star' },
       { href: '/drafts' as Route, label: 'Brouillons' },
       { href: '/addresses' as Route, label: 'Adresses' },
       { href: '/wallet' as Route, label: 'Portefeuille' },
       { href: '/payments' as Route, label: 'Paiements' },
-      { href: '/account/referrals' as Route, label: '🎁 Parrainage' },
+      { href: '/account/referrals' as Route, label: 'Parrainage', icon: 'gift' },
       { href: '/settings' as Route, label: 'Paramètres' },
-      { href: '/settings/privacy' as Route, label: '🔒 Confidentialité' },
-      { href: '/account/api-keys' as Route, label: '🔑 Clés API' },
+      { href: '/settings/privacy' as Route, label: 'Confidentialité', icon: 'lock' },
+      { href: '/account/api-keys' as Route, label: 'Clés API', icon: 'key' },
     ],
   },
   {
@@ -63,7 +66,7 @@ export default function Sidebar({ active }: { active: string }) {
                   href={item.href}
                   className={`acct-nav-link ${item.href === active ? 'active' : ''}`}
                 >
-                  <span>{item.label}</span>
+                  <span>{item.icon && <><Icon name={item.icon} size={14} /> </>}{item.label}</span>
                   {item.count !== undefined && (
                     <span className="count">{item.count}</span>
                   )}

@@ -3,6 +3,7 @@
  */
 
 import MarketingFooter from '@/components/marketing/MarketingFooter';
+import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: "Remboursement — Plio" };
 
@@ -32,8 +33,8 @@ export default function RefundPolicyPage() {
           <section className="scenarios">
             <div className="scenarios-grid">
               <div className="scenario green">
-                <div className="scenario-icon">✓</div>
-                <div className="scenario-num">★ Cas 01</div>
+                <div className="scenario-icon"><Icon name="check" /></div>
+                <div className="scenario-num"><Icon name="star" size={14} /> Cas 01</div>
                 <h2>Erreur de prepress</h2>
                 <p>Si l'erreur vient de <strong>chez nous</strong> — une bévue de notre opérateur ou de la presse — on <strong>réimprime gratuitement</strong>, généralement mis en production sous 48 h ouvrables. Si la réimpression n'est pas possible, on te rembourse.</p>
                 <p>Aucune question, aucun formulaire. Une photo suffit.</p>
@@ -45,7 +46,7 @@ export default function RefundPolicyPage() {
       
               <div className="scenario warning">
                 <div className="scenario-icon">!</div>
-                <div className="scenario-num">★ Cas 02</div>
+                <div className="scenario-num"><Icon name="star" size={14} /> Cas 02</div>
                 <h2>Défaut de qualité</h2>
                 <p>Inspecte ton colis à la réception. Si tu trouves un défaut imputable à la presse (taches, coupe hors tolérance, papier abîmé), envoie une photo dans les <strong>10 jours ouvrables</strong> à <a href="mailto:bonjour@plio.ca" style={{ color: "var(--accent-primary)", textDecoration: "underline" } as React.CSSProperties}>bonjour@plio.ca</a>. Un dommage visible à la réception se signale dans les 24 h.</p>
                 <p>On réimprime le tirage. Si la réimpression n'est pas possible, on rembourse (délai bancaire <strong>5 à 10 jours</strong> après acceptation).</p>
@@ -57,7 +58,7 @@ export default function RefundPolicyPage() {
       
               <div className="scenario info">
                 <div className="scenario-icon">i</div>
-                <div className="scenario-num">★ Cas 03</div>
+                <div className="scenario-num"><Icon name="star" size={14} /> Cas 03</div>
                 <h2>Changement d'avis</h2>
                 <p>Tu peux <strong>demander l&apos;annulation</strong> depuis ton compte tant que ta commande n&apos;a pas été <strong>lancée en production</strong> chez notre imprimeur — ce qui survient souvent quelques minutes après le paiement. Si la production n&apos;a pas commencé, on rembourse sur ta carte d&apos;origine (délai bancaire 5 à 10 jours).</p>
                 <p>Une fois la production commencée, l&apos;annulation devient plus difficile : notre imprimeur applique des <strong>frais d&apos;annulation (min. 25 $ par article)</strong> lorsque le travail est déjà en préparation, et elle peut ne plus être possible selon l&apos;avancement. Ces frais, ainsi que le matériel et le temps machine engagés, sont déduits du remboursement.</p>
@@ -72,7 +73,7 @@ export default function RefundPolicyPage() {
           {/* TIMELINE */}
           <section className="timeline-section">
             <div className="timeline-inner">
-              <div className="timeline-eyebrow">★ Comment ça se passe</div>
+              <div className="timeline-eyebrow"><Icon name="star" size={14} /> Comment ça se passe</div>
               <h2 className="timeline-title">Quand tu réclames, <em>voici le flux.</em></h2>
               <div className="timeline">
                 <div className="timeline-step done">
@@ -114,7 +115,7 @@ export default function RefundPolicyPage() {
           {/* FAQ */}
           <section id="faq" className="refund-faq">
             <div className="refund-faq-head">
-              <div className="refund-faq-eyebrow">★ Détails et cas particuliers</div>
+              <div className="refund-faq-eyebrow"><Icon name="star" size={14} /> Détails et cas particuliers</div>
               <h2 className="refund-faq-title">Les cas <em>moins évidents.</em></h2>
               <p className="refund-faq-lede">Tout ce qui ne tient pas dans les trois cartes ci-dessus, on l'a documenté ici.</p>
             </div>

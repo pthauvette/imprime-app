@@ -19,6 +19,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { statusLabel } from '@/lib/orders/status-labels';
+import { Icon } from '@/components/ui/Icon';
 
 interface TimelineStep {
   label: string;
@@ -187,7 +188,7 @@ export default function TrackingForm() {
             lineHeight: 1.5,
           }}
         >
-          <strong style={{ color: 'var(--danger, #dc2626)' }}>⚠ </strong>
+          <strong style={{ color: 'var(--danger, #dc2626)' }}><Icon name="alert" size={14} /> </strong>
           {error}
         </div>
       )}
@@ -286,7 +287,7 @@ function TrackResult({ order }: { order: OrderResult }) {
           }}
         >
           {order.status === 'DELIVERED' ? (
-            <>✓ Livrée le <strong>{order.eta.day}</strong>.</>
+            <><Icon name="check" size={14} /> Livrée le <strong>{order.eta.day}</strong>.</>
           ) : (
             <>
               ETA : <strong>{order.eta.day}</strong> ({order.eta.relative})

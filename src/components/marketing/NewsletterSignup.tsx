@@ -13,6 +13,7 @@
 
 import { useState } from 'react';
 import FormError from '@/components/forms/FormError';
+import { Icon } from '@/components/ui/Icon';
 
 export default function NewsletterSignup({ source = 'landing-footer' }: { source?: string }) {
   const [email, setEmail] = useState('');
@@ -45,7 +46,7 @@ export default function NewsletterSignup({ source = 'landing-footer' }: { source
   if (done) {
     return (
       <div style={{ padding: '16px 20px', background: 'var(--success-soft, #f0fdf4)', border: '1px solid var(--success, #16a34a)', borderRadius: 'var(--r-md)', fontSize: 13 }}>
-        ✓ <strong>Merci !</strong> Tu vas recevoir une confirmation par email. Si tu as commandé sans avoir reçu cet email, vérifie tes spams.
+        <Icon name="check" size={14} /> <strong>Merci !</strong> Tu vas recevoir une confirmation par email. Si tu as commandé sans avoir reçu cet email, vérifie tes spams.
       </div>
     );
   }

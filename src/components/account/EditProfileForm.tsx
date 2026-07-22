@@ -8,6 +8,7 @@
  */
 import { useActionState } from 'react';
 import { updateProfile, type ProfileFormState } from '@/app/settings/profile-actions';
+import { Icon } from '@/components/ui/Icon';
 
 interface Props {
   initial: { firstName: string; lastName: string; phone: string };
@@ -71,7 +72,7 @@ export default function EditProfileForm({ initial }: Props) {
           role="status"
           style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}
         >
-          ✓ Modifications enregistrées.
+          <Icon name="check" size={14} /> Modifications enregistrées.
         </div>
       )}
 

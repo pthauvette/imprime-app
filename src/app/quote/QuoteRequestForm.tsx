@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function QuoteRequestForm() {
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +63,7 @@ export default function QuoteRequestForm() {
           textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 48, marginBottom: 8 }}>✓</div>
+        <div style={{ marginBottom: 8 }}><Icon name="check" size={44} /></div>
         <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 400, margin: '8px 0' }}>
           Demande reçue.
         </h3>

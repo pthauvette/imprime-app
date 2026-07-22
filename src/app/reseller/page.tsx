@@ -8,6 +8,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import { Icon } from '@/components/ui/Icon';
 import ResellerApplicationForm from './ResellerApplicationForm';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 
@@ -70,7 +71,7 @@ export default function ResellerPage() {
             padding: '0 28px',
           }}
         >
-          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Ce que tu obtiens</div>
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}><Icon name="star" size={14} /> Ce que tu obtiens</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
             Quatre <em>avantages concrets.</em>
           </h2>
@@ -105,7 +106,7 @@ export default function ResellerPage() {
             padding: '0 28px',
           }}
         >
-          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Comment ça marche</div>
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}><Icon name="star" size={14} /> Comment ça marche</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 32px' }}>
             Trois étapes, <em>aucune friction.</em>
           </h2>
@@ -134,7 +135,7 @@ export default function ResellerPage() {
             padding: '0 28px',
           }}
         >
-          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Questions fréquentes</div>
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}><Icon name="star" size={14} /> Questions fréquentes</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 24px' }}>
             Avant de postuler.
           </h2>
@@ -169,7 +170,7 @@ export default function ResellerPage() {
             padding: '0 28px',
           }}
         >
-          <div className="mission-eyebrow" style={{ marginBottom: 12 }}>★ Postuler</div>
+          <div className="mission-eyebrow" style={{ marginBottom: 12 }}><Icon name="star" size={14} /> Postuler</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 400, letterSpacing: '-0.02em', margin: '0 0 12px' }}>
             Application reseller.
           </h2>
