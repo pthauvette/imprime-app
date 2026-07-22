@@ -6,7 +6,6 @@ import NewsletterSignup from '@/components/marketing/NewsletterSignup';
 import TestimonialsSection from '@/components/marketing/TestimonialsSection';
 import ReviewsWidget from '@/components/marketing/ReviewsWidget';
 import LangSwitch from '@/components/i18n/LangSwitch';
-import OnboardingTour from '@/components/onboarding/OnboardingTour';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import ProductMockup from '@/components/wizard/ProductMockup';
 import { getServerLocale } from '@/lib/i18n/locale';
@@ -37,11 +36,9 @@ export default async function LandingPage() {
 
   return (
     <>
-      {/* Onboarding modal pour les 1ers visites (cookie plio_tour).
-          Affiché uniquement sur la home — pas sur les landing pages
-          (blog, /samples, /quote) où le user arrive avec une intent
-          précise et ne veut pas être interrompu. */}
-      <OnboardingTour />
+      {/* Modal d'accueil retiré (nettoyage design 2026-07) : le tour « 👋 Bienvenue »
+          lisait comme un onboarding généré. Le composant OnboardingTour reste dans
+          le dépôt, simplement plus monté ici — remontage trivial si on le veut. */}
 
       <nav className="mkt-nav">
           <a href="/" className="mkt-brand">Plio.</a>
@@ -101,17 +98,17 @@ export default async function LandingPage() {
               </div>
               <div className="floating-badge b1">
                 {cardPrice
-                  ? <>★ <strong>{formatCents(cardPrice.unitPriceCents, fmtLocale)}</strong>/carte à {formatNumber(cardPrice.atQuantity, fmtLocale)} u.</>
-                  : <>★ <strong>Prix dégressif</strong> au volume</>}
+                  ? <><strong>{formatCents(cardPrice.unitPriceCents, fmtLocale)}</strong>/carte à {formatNumber(cardPrice.atQuantity, fmtLocale)} u.</>
+                  : <><strong>Prix dégressif</strong> au volume</>}
               </div>
-              <div className="floating-badge b2">🚚 <strong>UPS Standard</strong> dès 9,10 $</div>
-              <div className="floating-badge b3">⚡ Devis en <strong>2 minutes</strong></div>
+              <div className="floating-badge b2"><strong>UPS Standard</strong> dès 9,10 $</div>
+              <div className="floating-badge b3">Devis en <strong>2 minutes</strong></div>
             </div>
           </section>
       
           {/* Trust bar */}
           <div className="trust-bar">
-            <span className="trust-label">★ Carriers</span>
+            <span className="trust-label">Transporteurs</span>
             {/* Round 45 #1 — « 4,9/5 » + « Trustpilot 12k+ avis » étaient
                 inventés (aucun compte Trustpilot). Retirés ; on garde les
                 transporteurs/processeur réels (vrais partenaires) + un fait. */}
@@ -324,7 +321,7 @@ export default async function LandingPage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <span>★ © Plio 2026 · Imprimé au Canada 🇨🇦</span>
+            <span>© Plio 2026 · Imprimé au Canada</span>
             <span><a href="/legal/privacy" style={{ color: 'inherit' }}>Confidentialité</a> · <a href="/legal/terms" style={{ color: 'inherit' }}>Conditions</a> · <a href="/legal/refund-policy" style={{ color: 'inherit' }}>Remboursement</a></span>
           </div>
         </footer>
