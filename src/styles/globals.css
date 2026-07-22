@@ -9954,3 +9954,33 @@ a, button, [role="button"], input[type="checkbox"] {
   box-shadow: none;
   border: 1px solid var(--border-default);
 }
+
+/* ── Aplatissement des cartes de contenu app + admin (nettoyage design 2026-07, PR 3) ──
+   Même geste que la home (#474) étendu au reste : les cartes blanches (#FFFFFF via
+   --bg-surface) ombrées « poppent » sur le fond crème = esthétique carte Material.
+   → panneau crème plat (--bg-sunken), défini par son FILET (renforcé à
+   --border-default pour rester lisible sur crème), sans ombre.
+
+   SCOPE PRUDENT — on NE touche PAS :
+   · les OVERLAYS (.toast, .adm-nav-burger, dropdowns) : l'ombre porte l'élévation ;
+   · les CHAMPS et focus-rings (.field, :focus-within) : blanc conventionnel + a11y ;
+   · les cartes-PRODUIT du wizard (.format-card, .stock-card, .cat-card, .product-row) :
+     leur fond porte le contraste du mockup ;
+   · les états .active/.selected : l'ombre est une affordance de sélection.
+   Toutes les cibles ci-dessous ont DÉJÀ `border: 1px solid` → aplaties, elles
+   restent définies (jamais invisibles). Override EOF = gagne par ordre source. */
+.panel,
+.order-card,
+.order-row,
+.draft-card,
+.sample-card,
+.tpl-card,
+.extras-card,
+.product-promo,
+.founder-card,
+.form-card,
+.scenario {
+  background: var(--bg-sunken);
+  box-shadow: none;
+  border-color: var(--border-default);
+}
