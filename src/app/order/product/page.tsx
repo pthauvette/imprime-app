@@ -9,6 +9,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { notFound } from 'next/navigation';
 import { sinalite } from '@/lib/sinalite/client';
+import { Icon } from '@/components/ui/Icon';
 import { applyProductOverrides } from '@/lib/products/overrides';
 import { findCategoryGroup } from '@/lib/catalogue';
 import JsonLd, { breadcrumbSchema, itemListSchema } from '@/components/seo/JsonLd';
@@ -172,7 +173,7 @@ export default async function ProductPickerPage({
                       })()}
                     </div>
                     <div className="stock-body">
-                      <div className="stock-name">{vp.name} <span style={{ color: 'var(--accent-primary)' }}>★</span></div>
+                      <div className="stock-name">{vp.name} <Icon name="star" size={13} style={{ color: 'var(--accent-primary)' }} aria-hidden /></div>
                       <div className="stock-desc">
                         {fromCents !== null && (
                           <strong style={{ color: 'var(--text-primary)' }}>À partir de {formatCents(fromCents)} · </strong>
@@ -229,7 +230,7 @@ export default async function ProductPickerPage({
           </div>
 
           <div className="expert-tip">
-            <span className="expert-tip-label">★ Conseil d'expert</span>
+            <span className="expert-tip-label"><Icon name="star" size={12} /> Conseil d'expert</span>
             <p className="expert-tip-text">
               {family.slug === 'cartes-de-visite'
                 ? '« Le 14pt est notre standard — léger, économique. Le 18pt soft touch est l\'option signature pour les pros. »'
@@ -256,7 +257,7 @@ function EmptyProducts({ familyName }: { familyName: string }) {
         marginTop: 24,
       }}
     >
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🤔</div>
+      <Icon name="info" size={44} style={{ marginBottom: 12, color: 'var(--text-muted)' }} />
       <h2
         style={{
           fontFamily: 'var(--font-display)',

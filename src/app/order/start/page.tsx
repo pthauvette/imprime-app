@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import { sinalite, SinaliteError } from '@/lib/sinalite/client';
+import { Icon } from '@/components/ui/Icon';
 import { applyProductOverrides } from '@/lib/products/overrides';
 import { groupProductsByFamily } from '@/lib/catalogue';
 import { VIRTUAL_PRODUCT_SLUGS } from '@/lib/products/virtual-products';
@@ -201,7 +202,7 @@ export default async function OrderStartPage({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-primary)', fontWeight: 600 }}>
-                  ★ Reprends une configuration sauvée
+                  Reprends une configuration sauvée
                 </div>
                 <Link href={'/account/favorites' as Route} style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                   Tout voir →
@@ -255,7 +256,7 @@ export default async function OrderStartPage({
               }}
             >
               <div style={{ fontWeight: 600, color: 'var(--warning, #D97706)' }}>
-                ⚠ Catalogue temporairement indisponible
+                <Icon name="alert" size={13} /> Catalogue temporairement indisponible
               </div>
               <div>
                 Notre API de catalogue ne répond pas. On a été notifiés et on
