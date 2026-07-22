@@ -21,6 +21,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { useCart, type CartItem } from '@/lib/cart/store';
+import { Icon } from '@/components/ui/Icon';
 import ProductMockup from '@/components/wizard/ProductMockup';
 import { mockupForProductName, specForProductName } from '@/lib/products/product-mockup';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
@@ -522,7 +523,7 @@ function ReviewPageInner() {
                   alignItems: 'center',
                   gap: 8,
                 }}>
-                  <span aria-hidden>🥇</span>
+                  <Icon name="award" size={16} aria-hidden />
                   <span>
                     Livraison <strong>offerte</strong> avec ton statut OR
                     {typeof breakdown.originalShipping === 'number' && breakdown.originalShipping > 0 && (
@@ -580,7 +581,7 @@ function ReviewPageInner() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '-0.02em', fontWeight: 400, margin: 0 }}>Paiement</h2>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em', color: 'var(--success)', fontWeight: 600 }}>
-                🔒 Stripe
+                <Icon name="lock" size={13} /> Stripe
               </span>
             </div>
 
@@ -620,9 +621,9 @@ function ReviewPageInner() {
             )}
           </div>
           <div style={{ padding: '0 32px 32px', display: 'grid', gap: 8, fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
-            <div>★ Production démarre sous 2h</div>
-            <div>★ Annulation possible avant production</div>
-            <div>★ Tracking par courriel sous 24h</div>
+            <div><Icon name="check" size={11} /> Production démarre sous 2h</div>
+            <div><Icon name="check" size={11} /> Annulation possible avant production</div>
+            <div><Icon name="check" size={11} /> Tracking par courriel sous 24h</div>
           </div>
         </aside>
       </main>
@@ -799,10 +800,10 @@ function PaymentForm({ total }: { total: number }) {
           lineHeight: 1.5,
         }}
       >
-        <li>🔒 Paiement chiffré par Stripe — ta carte ne transite jamais par nos serveurs.</li>
-        <li>↩ Annulation gratuite tant que la production n&apos;a pas démarré.</li>
+        <li><Icon name="lock" size={13} /> Paiement chiffré par Stripe — ta carte ne transite jamais par nos serveurs.</li>
+        <li><Icon name="arrow-right" size={13} style={{transform:"scaleX(-1)"}} /> Annulation gratuite tant que la production n&apos;a pas démarré.</li>
         <li>
-          ✉ Une question ?{' '}
+          <Icon name="mail" size={13} /> Une question ?{' '}
           <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>
             bonjour@plio.ca
           </a>{' '}
@@ -888,7 +889,7 @@ function PromoCodeField({
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--success-soft, #f0fdf4)', border: '1px solid var(--success, #16a34a)', borderRadius: 'var(--r-md)', marginBottom: 24, fontSize: 13 }}>
         <span>
-          <strong style={{ color: 'var(--success, #16a34a)' }}>✓ {appliedPromo}</strong> appliqué
+          <strong style={{ color: 'var(--success, #16a34a)' }}><Icon name="check" size={13} /> {appliedPromo}</strong> appliqué
         </span>
         <button onClick={handleRemove} aria-label="Retirer le code promo" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', minHeight: 44, padding: '0 8px', display: 'inline-flex', alignItems: 'center' }}>
           Retirer
@@ -925,7 +926,7 @@ function PromoCodeField({
         </div>
         {feedback && (
           <div style={{ marginTop: 8, fontSize: 12, color: feedback.ok ? 'var(--success, #16a34a)' : 'var(--danger)' }}>
-            {feedback.ok ? '✓' : '✗'} {feedback.message}
+            <Icon name={feedback.ok ? 'check' : 'x'} size={12} /> {feedback.message}
           </div>
         )}
       </details>

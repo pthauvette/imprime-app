@@ -13,6 +13,7 @@
  */
 
 import { useEffect } from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export default function OrderError({
   error,
@@ -36,7 +37,7 @@ export default function OrderError({
         fontFamily: 'var(--font-display)',
       }}
     >
-      <div style={{ fontSize: 64, marginBottom: 16, lineHeight: 1 }}>⚠️</div>
+      <Icon name="alert" size={56} style={{ marginBottom: 16 }} />
       <h1 style={{ fontSize: 28, fontWeight: 400, margin: '0 0 12px', letterSpacing: '-0.02em' }}>
         Service temporairement indisponible
       </h1>

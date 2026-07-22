@@ -17,6 +17,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useEffect, useRef, Suspense, type ChangeEvent, type DragEvent } from 'react';
 import PdfMarginOverlay from '@/components/upload/PdfMarginOverlay';
+import { Icon } from '@/components/ui/Icon';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import {
   getMarginSpecBySinaliteCategory,
@@ -231,7 +232,7 @@ function UploadPageInner() {
                 lineHeight: 1.5,
               }}
             >
-              ⚠️ {templateError}
+              <Icon name="alert" size={13} /> {templateError}
             </div>
           )}
 
@@ -279,9 +280,9 @@ function UploadPageInner() {
               lineHeight: 1.5,
             }}
           >
-            🔒 Fichiers stockés sur AWS S3 ca-central-1.<br />
-            🗑 Lifecycle policy : supprimés après 90 jours.<br />
-            💬 Notre prépresse les revoit avant impression.
+            <Icon name="lock" size={12} /> Fichiers stockés sur AWS S3 ca-central-1.<br />
+            <Icon name="trash" size={12} /> Lifecycle policy : supprimés après 90 jours.<br />
+            <Icon name="chat" size={12} /> Notre prépresse les revoit avant impression.
           </div>
         </aside>
       </main>
@@ -477,7 +478,7 @@ function Dropzone({
           {required ? ' · requis' : ' · optionnel'}
         </span>
         {isUploaded && (
-          <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>✓ Validé</span>
+          <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}><Icon name="check" size={12} /> Validé</span>
         )}
       </div>
 
@@ -524,7 +525,7 @@ function Dropzone({
             color: 'var(--danger)',
           }}
         >
-          ❌ {error}
+          <Icon name="alert" size={13} /> {error}
         </div>
       )}
 
@@ -542,7 +543,7 @@ function Dropzone({
           }}
         >
           <div style={{ fontWeight: 600, color: 'var(--warning, #D97706)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>⚠</span>
+            <span><Icon name="alert" size={14} /></span>
             <span>{pending.result.issues.length} avertissement{pending.result.issues.length > 1 ? 's' : ''} sur ton fichier</span>
           </div>
           <ul style={{ margin: 0, paddingLeft: 16, display: 'grid', gap: 4 }}>
@@ -572,7 +573,7 @@ function Dropzone({
         {isUploaded ? (
           <>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-              ✓ {file?.isTemplate ? 'design-template.pdf' : file?.name} {file && !file.isTemplate && file.size > 0 ? `· ${formatSize(file.size)}` : ''}
+              <Icon name="check" size={12} /> {file?.isTemplate ? 'design-template.pdf' : file?.name} {file && !file.isTemplate && file.size > 0 ? `· ${formatSize(file.size)}` : ''}
             </span>
             <button
               onClick={onClear}
@@ -588,7 +589,7 @@ function Dropzone({
             style={{ width: '100%' }}
             disabled={isUploading}
           >
-            {isUploading ? '⏳ Upload en cours…' : '📎 Choisir un fichier'}
+            {isUploading ? 'Upload en cours…' : <><Icon name="clip" size={14} /> Choisir un fichier</>}
           </button>
         )}
       </div>
@@ -744,7 +745,7 @@ function FileStatus({ label, file }: { label: string; file: UploadedFile | null 
           {file.isTemplate ? 'design-template.pdf' : file.name}
         </div>
       </div>
-      <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600, whiteSpace: 'nowrap' }}>✓</span>
+      <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600, whiteSpace: 'nowrap' }}><Icon name="check" size={12} /></span>
     </div>
   );
 }

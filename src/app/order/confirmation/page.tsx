@@ -14,6 +14,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import Stripe from 'stripe';
 import CartClearOnMount from '@/components/cart/CartClearOnMount';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { getStripe } from '@/lib/stripe/client';
 
 export const metadata = { title: "C'est imprimé — Plio" };
@@ -96,7 +97,7 @@ export default async function ConfirmationPage({
           <Row label="Méthode de livraison" value={shippingMethod} />
           <Row label="Province (taxes)" value={province} />
           <div style={{ padding: '16px 20px', background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>
-            ★ <strong>Production démarre sous 2h.</strong> Tu vas recevoir un email avec ton numéro de commande dès que notre prépresse a validé tes fichiers.
+            <Icon name="info" size={14} /> <strong>Production démarre sous 2h.</strong> Tu vas recevoir un email avec ton numéro de commande dès que notre prépresse a validé tes fichiers.
           </div>
         </div>
 
@@ -106,7 +107,7 @@ export default async function ConfirmationPage({
         </div>
 
         <footer style={{ paddingTop: 24, borderTop: '1px solid var(--border-subtle)', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-          ★ bonjour@plio.ca · © Plio 2026 🇨🇦
+          bonjour@plio.ca · © Plio 2026
         </footer>
       </main>
     </div>
@@ -143,40 +144,40 @@ function describePendingStatus(status: string): {
   title: string;
   body: string;
   retryable: boolean;
-  emoji: string;
+  icon: IconName;
 } {
   switch (status) {
     case 'requires_payment_method':
       return {
-        emoji: '💳',
+        icon: 'card',
         title: 'Carte refusée',
         body: 'Ta banque a refusé le paiement. Essaie une autre carte ou contacte ton émetteur. Ton panier est conservé.',
         retryable: true,
       };
     case 'requires_action':
       return {
-        emoji: '🔐',
+        icon: 'lock',
         title: 'Vérification 3D Secure requise',
         body: 'Ta banque demande une vérification supplémentaire. Retourne au checkout pour compléter.',
         retryable: true,
       };
     case 'processing':
       return {
-        emoji: '⏳',
+        icon: 'info',
         title: 'Paiement en cours…',
         body: 'Stripe finalise la transaction. Cette page se met à jour automatiquement dans quelques secondes.',
         retryable: false,
       };
     case 'canceled':
       return {
-        emoji: '✕',
+        icon: 'x',
         title: 'Paiement annulé',
         body: "Le paiement a été annulé avant d'être confirmé. Tu peux relancer la commande depuis ton panier.",
         retryable: true,
       };
     default:
       return {
-        emoji: '⏳',
+        icon: 'info',
         title: 'Paiement en attente',
         body: `Statut Stripe : ${status}. Si tu vois ce message plus de quelques minutes, contacte-nous.`,
         retryable: false,
@@ -190,7 +191,7 @@ function PendingState({ status, intentId }: { status: string; intentId: string }
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 48, textAlign: 'center' }}>
       <div style={{ maxWidth: 520 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>{d.emoji}</div>
+        <Icon name={d.icon} size={44} style={{ marginBottom: 16, color: 'var(--text-secondary)' }} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 40, letterSpacing: '-0.025em', fontWeight: 400, margin: '0 0 16px' }}>
           {d.title}
         </h1>
@@ -238,7 +239,7 @@ function ErrorState({
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 48, textAlign: 'center' }}>
       <div style={{ maxWidth: 480 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>{isInfo ? 'ℹ️' : '⚠️'}</div>
+        <Icon name={isInfo ? 'info' : 'alert'} size={44} style={{ marginBottom: 16 }} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 40, letterSpacing: '-0.025em', fontWeight: 400, margin: '0 0 16px' }}>
           {isInfo ? 'Confirmation' : 'Erreur'}
         </h1>

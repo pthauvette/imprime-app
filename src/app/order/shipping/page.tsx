@@ -13,6 +13,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import type { CaProvince } from '@/lib/sinalite/types';
+import { Icon } from '@/components/ui/Icon';
 import { readSavedShip, writeSavedShip } from '@/lib/cart/ship-store';
 import { buildShipPayload } from '@/lib/order/ship-payload';
 import AddressAutocomplete from '@/components/order/AddressAutocomplete';
@@ -283,7 +284,7 @@ function ShippingPageInner() {
             ) : loading ? (
               <PromptCard message="⏳ Calcul des méthodes de livraison…" />
             ) : error ? (
-              <PromptCard message={`❌ Erreur : ${error}`} variant="danger" />
+              <PromptCard message={`Erreur : ${error}`} variant="danger" />
             ) : methods.length === 0 ? (
               <PromptCard message="Aucune méthode disponible pour cette adresse." />
             ) : (
@@ -364,7 +365,7 @@ function ShippingPageInner() {
               </span>
               {selectedMethod && (
                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-muted)' }}>
-                  🚚 <strong style={{ color: 'var(--text-primary)' }}>{selectedMethod}</strong> · {selectedShippingPrice.toFixed(2)} $
+                  <Icon name="truck" size={14} /> <strong style={{ color: 'var(--text-primary)' }}>{selectedMethod}</strong> · {selectedShippingPrice.toFixed(2)} $
                 </div>
               )}
             </div>
