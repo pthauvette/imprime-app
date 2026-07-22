@@ -9921,3 +9921,36 @@ a, button, [role="button"], input[type="checkbox"] {
 @media (min-width: 901px) {
   .product-list .product-row.product-row { grid-template-columns: 210px minmax(0, 1fr) 200px; gap: 20px; }
 }
+
+/* ── Nettoyage des tics « génériques » de la page d'accueil (audit design 2026-07) ──
+   Mesuré à l'audit : 22 éléments en blanc pur (#FFFFFF) qui « poppent » sur le
+   fond crème, + des cartes à ombre douce = esthétique carte Bootstrap/Material.
+   Correctif SCOPÉ à la home (le token --bg-surface sert 111× ailleurs, on n'y
+   touche pas) : cartes en panneau crème plat (--bg-sunken) délimitées par leur
+   filet, sans ombre. Override EOF (gagne par ordre source ; .floating-badge a
+   des doublons legacy plus haut dans le fichier). */
+.feature-card,
+.how-card {
+  background: var(--bg-sunken);
+  box-shadow: none;
+}
+.how-card:hover {
+  box-shadow: none;
+}
+/* Chip d'icône arrondie teintée → l'icône seule (le « rounded icon box » est un
+   tic IA typique). On garde le pictogramme, on retire la boîte. */
+.feature-icon {
+  background: transparent;
+  border-radius: 0;
+  width: auto;
+  height: auto;
+  place-items: start;
+  margin-bottom: 12px;
+}
+/* Badges flottants du hero : plus de grosse ombre portée blanche ; panneau crème
+   + filet suffisent à les détacher du visuel. */
+.floating-badge {
+  background: var(--bg-sunken);
+  box-shadow: none;
+  border: 1px solid var(--border-default);
+}
