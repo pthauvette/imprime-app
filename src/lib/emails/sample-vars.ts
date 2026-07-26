@@ -109,7 +109,6 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     REFUND_AMOUNT: '105,22',
     CANCEL_REASON: 'Stock papier 14pt UV temporairement épuisé chez notre presse partenaire.',
     CARD_LAST4_DISPLAY: 'Visa •••• 4242',
-    APOLOGY_PROMO_CODE: 'DESOLE20',
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
   },
   'payment-failed': {

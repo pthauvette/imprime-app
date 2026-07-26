@@ -282,7 +282,7 @@ function UploadPageInner() {
           >
             <Icon name="lock" size={12} /> Fichiers stockés sur AWS S3 ca-central-1.<br />
             <Icon name="trash" size={12} /> Lifecycle policy : supprimés après 90 jours.<br />
-            <Icon name="chat" size={12} /> Notre prépresse les revoit avant impression.
+            <Icon name="chat" size={12} /> Vérification automatique (fond perdu, dimensions, résolution) avant impression.
           </div>
         </aside>
       </main>
