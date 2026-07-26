@@ -34,6 +34,16 @@ export interface MarginSpec {
     bleedPercent: number;
     safePercent: number;
   };
+  /**
+   * Plafond de pages PDF pour le validator upload (pdf-validator.ts
+   * DEFAULTS.maxPages=2 sinon). Seuls les produits RÉELLEMENT multi-pages
+   * (livrets — cf. LIVRETS dans virtual-products.ts : la « size » Sinalite
+   * EST le nombre de pages, 8→64pg) doivent lever ce plafond ; sinon on perd
+   * le signal utile (« as-tu oublié des pages ? ») pour tout le reste.
+   * Finding [24] : le warning « seules les 2 premières seront imprimées »
+   * était vrai en dur pour ce produit alors qu'il est VENDU multi-pages.
+   */
+  maxPrintPages?: number;
 }
 
 /**
@@ -72,6 +82,8 @@ export const MARGIN_SPECS_BY_FAMILY: Record<string, MarginSpec> = {
     safeInches: 0.25,
     typicalTrim: { widthIn: 8.5, heightIn: 11 },
     overlay: { bleedPercent: 3, safePercent: 6 },
+    // Fourchette Sinalite réelle (cf. virtual-products.ts LIVRETS) : 8→64pg.
+    maxPrintPages: 64,
   },
   'banners': {
     bleedInches: 0.5,

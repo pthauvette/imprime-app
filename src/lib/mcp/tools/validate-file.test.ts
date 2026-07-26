@@ -12,6 +12,13 @@ async function pdfBytes(widthIn: number, heightIn: number): Promise<Uint8Array> 
   return doc.save();
 }
 
+/** Génère un PDF multi-pages (pour tester le plafond maxPages). */
+async function multiPagePdfBytes(pageCount: number, widthIn = 8.5, heightIn = 11): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  for (let i = 0; i < pageCount; i++) doc.addPage([widthIn * 72, heightIn * 72]);
+  return doc.save();
+}
+
 function mockFetch(bytes: Uint8Array, contentType = 'application/pdf', ok = true, status = 200) {
   vi.stubGlobal('fetch', vi.fn(async () => ({
     ok, status,
@@ -67,6 +74,21 @@ describe('validatePrintFile — PDF', () => {
     mockFetch(await pdfBytes(8.5, 11));
     const r = await validatePrintFile({ fileUrl: okUrl(), slug: 'totally-fake' });
     expect(r.issues.some((i) => i.code === 'dimensions-mismatch')).toBe(false);
+  });
+
+  // Finding [24] : un livret 16 pages est un fichier VALIDE pour ce produit —
+  // pas un « as-tu oublié des pages ? ».
+  it('livret 16 pages (slug=livrets) → PAS de warning too-many-pages', async () => {
+    mockFetch(await multiPagePdfBytes(16));
+    const r = await validatePrintFile({ fileUrl: okUrl(), slug: 'livrets' });
+    expect(r.issues.some((i) => i.code === 'too-many-pages')).toBe(false);
+    expect(r.meta?.pageCount).toBe(16);
+  });
+
+  it('même fichier 16 pages, produit NON multi-pages (carte de visite) → warning conservé', async () => {
+    mockFetch(await multiPagePdfBytes(16));
+    const r = await validatePrintFile({ fileUrl: okUrl(), slug: 'cartes-de-visite' });
+    expect(r.issues.some((i) => i.code === 'too-many-pages')).toBe(true);
   });
 });
 

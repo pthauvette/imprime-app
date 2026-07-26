@@ -70,6 +70,19 @@ describe('MARGIN_SPECS_BY_FAMILY', () => {
     const b = MARGIN_SPECS_BY_FAMILY['banners'];
     expect(b.bleedInches).toBeGreaterThan(MARGIN_SPECS_BY_FAMILY['cartes-de-visite'].bleedInches);
   });
+
+  // Finding [24] : livrets = vendus 8→64 pages (cf. virtual-products.ts LIVRETS), le
+  // plafond upload par défaut (2 pages) ne doit PAS s'appliquer à cette famille.
+  it('livrets : maxPrintPages relevé (produit réellement multi-pages)', () => {
+    expect(MARGIN_SPECS_BY_FAMILY['livrets'].maxPrintPages).toBe(64);
+  });
+
+  it('toutes les AUTRES familles gardent le défaut pdf-validator (pas de maxPrintPages)', () => {
+    for (const [slug, spec] of Object.entries(MARGIN_SPECS_BY_FAMILY)) {
+      if (slug === 'livrets') continue;
+      expect(spec.maxPrintPages).toBeUndefined();
+    }
+  });
 });
 
 describe('getMarginSpecBySlug', () => {
