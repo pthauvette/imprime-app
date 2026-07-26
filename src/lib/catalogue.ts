@@ -157,3 +157,13 @@ export function groupProductsByFamily(
 export function findCategoryGroup(slug: string): CategoryGroup | null {
   return CATEGORY_GROUPS.find((g) => g.slug === slug) ?? null;
 }
+
+/**
+ * Retrouve la famille UX d'une catégorie Sinalite EXACTE (ex. "Business Cards").
+ * Remplace `guessCategorySlug` (ConfigureClient.tsx) qui devinait par
+ * sous-chaîne et retombait sur « cartes-de-visite » par défaut pour ~44 % du
+ * catalogue — cf. docs/experience-client-2026-07.md finding [13].
+ */
+export function findCategoryGroupBySinaliteCategory(category: string): CategoryGroup | null {
+  return CATEGORY_GROUPS.find((g) => g.sinaliteCategories.includes(category)) ?? null;
+}

@@ -11,6 +11,7 @@ import SaveConfigButton from '@/components/wizard/SaveConfigButton';
 import FormatPreview from '@/components/wizard/FormatPreview';
 import { previewKindForSinaliteCategory } from '@/lib/products/format-preview';
 import { getMarginSpecBySinaliteCategory } from '@/lib/products/margin-specs';
+import { findCategoryGroupBySinaliteCategory } from '@/lib/catalogue';
 import { parseSizeLabel } from '@/lib/products/parse-size';
 import { Icon } from '@/components/ui/Icon';
 
@@ -174,7 +175,10 @@ export default function ConfigureClient({
 
   const designSuffix = designId ? `&designId=${designId}` : '';
   const nextHref = `/order/upload?productId=${product.id}&options=${allOptionIds.join(',')}${designSuffix}` as Route;
-  const prevHref = `/order/product?category=${guessCategorySlug(product.category)}` as Route;
+  const prevCategoryGroup = findCategoryGroupBySinaliteCategory(product.category);
+  const prevHref = (
+    prevCategoryGroup ? `/order/product?category=${prevCategoryGroup.slug}` : '/order/start'
+  ) as Route;
 
   // Aperçu 2D du format : nature du substrat (souple/rigide/étiquette/plié) + taille
   // RÉELLE sélectionnée (fallback typicalTrim) + marges de la famille. Réactif au choix
@@ -637,14 +641,3 @@ function stockDesc(name: string): string {
   return 'Voir specs détaillées';
 }
 
-function guessCategorySlug(category: string): string {
-  const lower = category.toLowerCase();
-  if (lower.includes('business card')) return 'cartes-de-visite';
-  if (lower.includes('postcard')) return 'cartes-postales';
-  if (lower.includes('flyer')) return 'flyers';
-  if (lower.includes('brochure') || lower.includes('booklet')) return 'brochures';
-  if (lower.includes('banner') || lower.includes('sign')) return 'bannieres';
-  if (lower.includes('label') || lower.includes('sticker') || lower.includes('decal') || lower.includes('vinyl')) return 'etiquettes';
-  if (lower.includes('letterhead') || lower.includes('envelope') || lower.includes('notepad') || lower.includes('ncr')) return 'stationnerie';
-  return 'cartes-de-visite';
-}
