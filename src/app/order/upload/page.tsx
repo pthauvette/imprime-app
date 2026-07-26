@@ -389,12 +389,31 @@ function Dropzone({
     result: { issues: ValidationIssue[] };
     realDimsIn?: { width: number; height: number };
   } | null>(null);
+  // finding [73] — l'analyse (parse PDF + DPI des images embarquées) peut
+  // prendre un moment sur un gros fichier ; avant, l'écran restait sur
+  // l'EmptyState (cliquable) pendant ce temps → pas de feedback ET rien
+  // n'empêchait un 2e clic de lancer une validation concurrente.
+  const [validating, setValidating] = useState(false);
+  const [validatingFilename, setValidatingFilename] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isUploaded = file !== null;
   const isUploading = progress !== null;
 
   async function handleFile(f: File) {
+    // Anti double-soumission : une validation ou un upload est déjà en cours.
+    if (validating || isUploading) return;
+    setValidating(true);
+    setValidatingFilename(f.name);
+    try {
+      await runValidationAndUpload(f);
+    } finally {
+      setValidating(false);
+      setValidatingFilename(null);
+    }
+  }
+
+  async function runValidationAndUpload(f: File) {
     setError(null);
     setErrorIsSizeIssue(false);
     setPending(null);
@@ -549,6 +568,8 @@ function Dropzone({
       >
         {isUploading ? (
           <UploadingState progress={progress!} />
+        ) : validating ? (
+          <ValidatingState filename={validatingFilename} />
         ) : isUploaded ? (
           <UploadedPreview file={file!} label={label} marginSpec={marginSpec} />
         ) : (
@@ -749,6 +770,22 @@ function formatIn(inches: number): string {
 
 function formatMm(inches: number): string {
   return (inches * 25.4).toLocaleString('fr-CA', { maximumFractionDigits: 1 });
+}
+
+function ValidatingState({ filename }: { filename: string | null }) {
+  return (
+    <div style={{ width: '100%', display: 'grid', placeItems: 'center', gap: 16 }}>
+      <div style={{ fontSize: 32 }}>⏳</div>
+      {filename && (
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+          {filename}
+        </div>
+      )}
+      <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500, textAlign: 'center' }}>
+        Analyse du fichier…
+      </div>
+    </div>
+  );
 }
 
 function UploadingState({ progress }: { progress: UploadProgress }) {
