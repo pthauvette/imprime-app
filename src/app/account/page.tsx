@@ -77,6 +77,9 @@ export default async function AccountDashboardPage() {
         productSummary: true,
         itemsCount: true,
         sinaliteOrderId: true,
+        // Round tracking/ETA (finding [44]) — asc pour extractTracking/
+        // computeOrderEta, qui scannent en supposant oldest→newest.
+        events: { orderBy: { createdAt: 'asc' }, select: { kind: true, data: true, createdAt: true } },
       },
     }),
     prisma.order.aggregate({
@@ -228,7 +231,7 @@ export default async function AccountDashboardPage() {
         <MonthlySpendChart orders={last6mOrders} />
 
         {/* Grid : Recent orders + Side widgets */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'start' }}>
+        <div className="acct-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'start' }}>
           {/* Recent orders */}
           <section
             style={{
@@ -324,7 +327,7 @@ export default async function AccountDashboardPage() {
           </section>
 
           {/* Side widgets */}
-          <aside style={{ display: 'grid', gap: 16, position: 'sticky', top: 24 }}>
+          <aside className="acct-dashboard-aside" style={{ display: 'grid', gap: 16, position: 'sticky', top: 24 }}>
             {/* New order quick action */}
             <Link
               href={'/order/start' as Route}

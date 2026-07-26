@@ -26,7 +26,7 @@ const ParamsSchema = z.object({
 export default async function ConfigurePage({
   searchParams,
 }: {
-  searchParams: Promise<{ productId?: string; designId?: string; options?: string }>;
+  searchParams: Promise<{ productId?: string; designId?: string; options?: string; files?: string }>;
 }) {
   const params = await searchParams;
   const parsed = ParamsSchema.safeParse(params);
@@ -34,6 +34,11 @@ export default async function ConfigurePage({
 
   const { productId } = parsed.data;
   const designId = params.designId ?? null;
+  // Round-trip upload↔configure : le client a pu déjà téléverser recto/verso
+  // avant de revenir ajuster une option. Sans ce paramètre porté à l'aller
+  // ET au retour, `?files=` (upload/page.tsx) se perdait au clic « Précédent »
+  // et forçait un re-téléversement. Cf. docs/experience-client-2026-07.md [27].
+  const filesParam = params.files ?? '';
 
   let product, detail, enrichedIndex;
   try {
@@ -155,6 +160,7 @@ export default async function ConfigurePage({
         metadata={detail.metadata}
         defaultSelection={defaultSelection}
         designId={designId}
+        filesParam={filesParam}
         variantIndex={variantIndex}
       />
     </>

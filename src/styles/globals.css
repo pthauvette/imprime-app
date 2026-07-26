@@ -9989,3 +9989,15 @@ a, button, [role="button"], input[type="checkbox"] {
   box-shadow: none;
   border-color: var(--border-default);
 }
+
+/* ── /account : grille tableau de bord jamais collapsée (2026-07, finding [57]) ──
+   `.acct-shell` (le shell de nav) collapse déjà proprement ≤900px (l.9829), mais
+   la grille INTERNE « commandes récentes + widgets » (account/page.tsx) est un
+   `grid-template-columns: 1.5fr 1fr` en style INLINE, sans le moindre @media —
+   seule page du compte dans ce cas (les autres passent déjà par des classes
+   responsive). Sur mobile, les deux colonnes s'écrasent côte à côte. On donne
+   une classe à la grille + à l'aside sticky pour pouvoir les cibler ici. */
+@media (max-width: 900px) {
+  .acct-dashboard-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .acct-dashboard-aside { position: static !important; }
+}

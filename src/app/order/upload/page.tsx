@@ -160,8 +160,12 @@ function UploadPageInner() {
   const filesParam = buildFilesParam(recto?.url, verso?.url);
 
   const designSuffix = designId ? `&designId=${designId}` : '';
+  const filesSuffix = filesParam ? `&files=${filesParam}` : '';
   const nextHref = `/order/shipping?productId=${productId}&options=${options}&files=${filesParam}${designSuffix}` as Route;
-  const prevHref = `/order/configure?productId=${productId}&options=${options}${designSuffix}` as Route;
+  // Porte aussi `files` vers l'ARRIÈRE (pas juste vers l'avant) — sinon un
+  // aller-retour configure↔upload pour ajuster une option forçait un
+  // re-téléversement. Cf. docs/experience-client-2026-07.md finding [27].
+  const prevHref = `/order/configure?productId=${productId}&options=${options}${designSuffix}${filesSuffix}` as Route;
   const canContinue = recto !== null;
 
   return (

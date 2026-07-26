@@ -13,6 +13,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { formatDate } from '@/lib/format';
 import { Icon } from '@/components/ui/Icon';
+import { computeOrderEta, extractTracking } from '@/lib/orders/timeline';
 
 interface OrderForWidget {
   id: string;
@@ -22,6 +23,8 @@ interface OrderForWidget {
   itemsCount: number;
   createdAt: Date;
   paidAt: Date | null;
+  /** Triés ASC (oldest→newest) — même contrat que computeOrderEta/extractTracking. */
+  events: { kind: string; data: string | null; createdAt: Date }[];
 }
 
 /**
@@ -57,15 +60,20 @@ export default function ProductionStatusWidget({ orders }: { orders: OrderForWid
         }}>
           <Icon name="printer" size={14} /> En production · {orders.length}
         </h2>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-          Refresh la page pour update
-        </span>
       </header>
 
       <div style={{ display: 'grid', gap: 12 }}>
         {orders.map((o) => {
           const meta = STATUS_STEPS[o.status] ?? { step: 0, label: o.status };
           const displayId = o.sinaliteOrderId ?? o.id.slice(-6).toUpperCase();
+          // Round expérience-client [44] — le widget disait « refresh la page »
+          // au lieu d'afficher ce qu'on sait déjà (ETA + tracking, mêmes
+          // helpers que /orders/[id]).
+          const shippedEvent = [...o.events].reverse().find(
+            (e) => e.kind === 'SINALITE_STATUS_CHANGED' && e.data?.includes('SHIPPED'),
+          );
+          const tracking = extractTracking(o.events);
+          const eta = computeOrderEta(o, shippedEvent?.createdAt);
           return (
             <Link
               key={o.id}
@@ -126,6 +134,8 @@ export default function ProductionStatusWidget({ orders }: { orders: OrderForWid
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
                 Commandée le {formatDate(o.createdAt.toISOString())}
                 {o.paidAt && ` · payée le ${formatDate(o.paidAt.toISOString())}`}
+                {eta && ` · reçue ${eta.relative}`}
+                {tracking && ` · suivi ${tracking.carrier} ${tracking.number}`}
               </div>
             </Link>
           );
