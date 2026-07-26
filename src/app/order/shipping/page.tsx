@@ -46,6 +46,20 @@ interface ShippingMethod {
 
 const POSTAL_REGEX = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
 
+interface SavedAddress {
+  id: string;
+  label: string | null;
+  isDefault: boolean;
+  firstName: string;
+  lastName: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  province: string;
+  postalCode: string;
+  phone: string | null;
+}
+
 export default function ShippingPage() {
   // useSearchParams() oblige un Suspense boundary en build (CSR bailout).
   return (
@@ -77,6 +91,21 @@ function ShippingPageInner() {
   const [postalCode, setPostalCode] = useState('');
   // Round 26 #2 — instructions de livraison optionnelles (max 200 chars)
   const [shippingNote, setShippingNote] = useState('');
+
+  // finding [34]/[53]/[126] — carnet d'adresses : avant, ce formulaire ne
+  // lisait QUE le localStorage, jamais /addresses (pourtant déjà écrit par
+  // le compte). Fetch silencieux : 401 (invité) → carnet vide, pas d'erreur.
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/addresses', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { addresses: [] }))
+      .then((data: { addresses?: SavedAddress[] }) => {
+        if (!cancelled) setSavedAddresses(data.addresses ?? []);
+      })
+      .catch(() => { /* invité ou panne réseau : carnet vide, formulaire manuel reste dispo */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Hydrate depuis localStorage au mount (post-hydration pour éviter mismatch)
   useEffect(() => {
@@ -234,6 +263,32 @@ function ShippingPageInner() {
 
           <Section roman="II." title="Adresse d'expédition">
             <div style={{ display: 'grid', gap: 16 }}>
+              {savedAddresses.length > 0 && (
+                <FieldWrapper label="Adresses sauvegardées">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {savedAddresses.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ fontSize: 13 }}
+                        onClick={() => {
+                          setFirstName(a.firstName);
+                          setLastName(a.lastName);
+                          setLine1(a.line1);
+                          setLine2(a.line2 ?? '');
+                          setCity(a.city);
+                          setProvince(a.province as CaProvince);
+                          setPostalCode(a.postalCode);
+                          if (a.phone) setPhone(a.phone);
+                        }}
+                      >
+                        {a.label ?? `${a.line1}, ${a.city}`}{a.isDefault ? ' ★' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </FieldWrapper>
+              )}
               <FieldWrapper label="Adresse">
                 <AddressAutocomplete
                   value={line1}
