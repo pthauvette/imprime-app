@@ -131,6 +131,12 @@ export const limiters = {
   // et l'invocation a déjà eu lieu. La saturation du pool de concurrence, qui
   // ferait tomber le checkout et le webhook Stripe à côté, se traite à l'edge
   // (règle WAF) ou se surveille (alarme CloudWatch). Risque ACCEPTÉ, pas couvert.
+  // Prix live du configurateur — proxie vers Sinalite (API payante) SANS auth,
+  // même profil de risque que `shipping`. Appelé uniquement quand la combinaison
+  // manque à l'index local (produits custom_size/shapes, combos partiels), donc
+  // rare en trafic normal ; 30/min laisse largement passer un client qui joue
+  // avec les options.
+  productPrice: makeLimiter(30, '1 m', 'product-price'),
   artwork: makeLimiter(60, '1 m', 'artwork'),
   // Plafond agrégé : `/api/uploads/presign` n'étant pas authentifiée, un
   // attaquant mint autant de clés valides qu'il veut et ouvre autant de budgets

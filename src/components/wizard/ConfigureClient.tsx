@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
@@ -95,9 +95,65 @@ export default function ConfigureClient({
     return variantIndex[key] ?? null;
   };
 
+  // Toutes les options choisies (hors qty) + la qty sélectionnée → /upload.
+  const selectedOptionIds = orderedGroups
+    .map((g) => selection[g])
+    .filter((v): v is number => typeof v === 'number');
+
   const currentQty = sortedQty[qtyIdx];
   const qtyValue = currentQty ? Number(currentQty.name) : 0;
-  const currentPrice = currentQty ? lookupPrice(currentQty.id) : null;
+  const localPrice = currentQty ? lookupPrice(currentQty.id) : null;
+
+  // ─── Repli prix distant ────────────────────────────────────────────────
+  // L'index local ne couvre PAS toutes les combinaisons : produits `custom_size`
+  // / `shapes`, ou matrice de variantes partielle chez Sinalite. Sans repli, le
+  // configurateur affichait « Prix indisponible » ET désactivait « Continuer » —
+  // donc un produit que le CHECKOUT sait tarifer (price-order.ts fait déjà ce
+  // repli) devenait incommandable. On rétablit la symétrie.
+  const [remotePrice, setRemotePrice] = useState<number | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceError, setPriceError] = useState(false);
+
+  // Clé stable de la combinaison courante — c'est ELLE qui pilote l'effet, pas
+  // les objets de sélection (qui changent d'identité à chaque rendu).
+  const comboKey = currentQty
+    ? [...selectedOptionIds, currentQty.id].sort((a, b) => a - b).join('-')
+    : '';
+
+  useEffect(() => {
+    // Index local suffisant, ou combinaison incomplète → rien à demander.
+    if (localPrice !== null || !comboKey) {
+      setRemotePrice(null);
+      setPriceError(false);
+      setPriceLoading(false);
+      return;
+    }
+    const ids = comboKey.split('-').map(Number);
+    // AbortController : l'utilisateur peut enchaîner les options plus vite que
+    // le réseau ; sans annulation, une réponse périmée écraserait la fraîche.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => {
+      setPriceLoading(true);
+      setPriceError(false);
+      fetch(`/api/products/${product.id}/price`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionIds: ids }),
+        signal: ctrl.signal,
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((d: { price?: number }) => {
+          if (typeof d.price === 'number' && d.price > 0) setRemotePrice(d.price);
+          else setPriceError(true);
+        })
+        .catch((err) => { if ((err as Error).name !== 'AbortError') setPriceError(true); })
+        .finally(() => setPriceLoading(false));
+    }, 250); // debounce : ne pas tirer sur Sinalite à chaque clic d'option
+
+    return () => { clearTimeout(timer); ctrl.abort(); };
+  }, [comboKey, localPrice, product.id]);
+
+  const currentPrice = localPrice ?? remotePrice;
   const unitPrice = currentPrice && qtyValue > 0 ? currentPrice / qtyValue : null;
 
   // Économie vs le palier de qty précédent (en $/unité).
@@ -114,10 +170,6 @@ export default function ConfigureClient({
   // Remplissage du slider (%).
   const snapPct = sortedQty.length > 1 ? (qtyIdx / (sortedQty.length - 1)) * 100 : 50;
 
-  // Toutes les options choisies (hors qty) + la qty sélectionnée → /upload.
-  const selectedOptionIds = orderedGroups
-    .map((g) => selection[g])
-    .filter((v): v is number => typeof v === 'number');
   const allOptionIds = currentQty ? [...selectedOptionIds, currentQty.id] : selectedOptionIds;
 
   const designSuffix = designId ? `&designId=${designId}` : '';
@@ -327,7 +379,14 @@ export default function ConfigureClient({
               </div>
             ) : (
               <div style={{ marginTop: 20, padding: 16, background: 'var(--bg-sunken)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Prix indisponible pour cette combinaison — ajuste une option.
+                {priceLoading
+                  ? 'Calcul du prix en cours…'
+                  : priceError
+                    // Message HONNÊTE : le repli distant a échoué, « ajuster une
+                    // option » n'y changera probablement rien (le trou est
+                    // structurel). On oriente vers l'action utile.
+                    ? <>Prix temporairement indisponible chez l&apos;imprimeur. Réessaie dans un instant — si ça persiste, écris-nous à <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)' }}>bonjour@plio.ca</a>.</>
+                    : 'Calcul du prix…'}
               </div>
             )}
           </div>
