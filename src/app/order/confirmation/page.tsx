@@ -16,6 +16,9 @@ import Stripe from 'stripe';
 import CartClearOnMount from '@/components/cart/CartClearOnMount';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { getStripe } from '@/lib/stripe/client';
+import { prisma } from '@/lib/db';
+import { auth } from '@/auth';
+import { resolveConfirmationView } from '@/lib/orders/confirmation-view';
 
 export const metadata = { title: "C'est imprimé — Plio" };
 export const dynamic = 'force-dynamic';
@@ -54,6 +57,25 @@ export default async function ConfirmationPage({
   const province = intent.metadata.province ?? 'CA';
   const shippingMethod = intent.metadata.shippingMethod ?? 'UPS Standard';
 
+  // finding [40]/[59] — avant, cette page n'affichait que l'identifiant
+  // Stripe brut ("PaymentIntent pi_3Rk…"), aucun article, aucun lien vers
+  // la vraie commande. L'Order existe déjà à ce stade : createReservedOrder
+  // (orders/create/route.ts) le crée AVANT la redirection Stripe, avec
+  // paymentIntentId déjà posé — pas besoin d'attendre le webhook.
+  const order = await prisma.order.findUnique({
+    where: { paymentIntentId: intent.id },
+    select: { id: true, sinaliteOrderId: true, productSummary: true, itemsCount: true, userId: true },
+  });
+  const session = await auth();
+  const view = resolveConfirmationView(order, session?.user?.id);
+  const displayId = view?.displayId ?? null;
+  const productLabel = view?.productLabel ?? null;
+  const isOwner = view?.isOwner ?? false;
+  // /track n'a pas de PII en paramètre d'URL (déjà évité ailleurs dans ce
+  // fichier pour ne pas logger l'email dans les access logs) — self-serve,
+  // le customer entre numéro + email sur la page.
+  const trackingHref = (view?.trackingHref ?? '/track') as Route;
+
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, var(--bg-canvas) 0%, var(--accent-soft) 50%, var(--bg-canvas) 100%)' }}>
       {/* Vide le cart localStorage maintenant que le payment est confirmé */}
@@ -86,12 +108,13 @@ export default async function ConfirmationPage({
               C'est <em style={{ color: 'var(--accent-primary)' }}>imprimé.</em>
             </h1>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
-              PaymentIntent <strong style={{ color: 'var(--text-primary)' }}>{intent.id.slice(0, 20)}…</strong> · {intent.status.toUpperCase()}
+              {displayId ? <>Commande <strong style={{ color: 'var(--text-primary)' }}>{displayId}</strong></> : 'Paiement confirmé'}
             </div>
           </div>
         </div>
 
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-xl)', padding: 32, boxShadow: 'var(--shadow-md)', display: 'grid', gap: 20 }}>
+          {productLabel && <Row label="Commande" value={productLabel} />}
           <Row label="Total payé" value={`${amountCAD} $ CAD`} />
           <Row label="Email de confirmation" value={receiptEmail} />
           <Row label="Méthode de livraison" value={shippingMethod} />
@@ -102,7 +125,9 @@ export default async function ConfirmationPage({
         </div>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Link href={'/orders' as Route} className="btn btn-primary">Voir mes commandes →</Link>
+          <Link href={trackingHref} className="btn btn-primary">
+            {isOwner ? 'Voir ma commande →' : 'Suivre ma commande →'}
+          </Link>
           <Link href={'/order/start' as Route} className="btn btn-secondary">Commander à nouveau</Link>
         </div>
 
