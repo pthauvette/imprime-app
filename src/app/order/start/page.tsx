@@ -46,14 +46,14 @@ export default async function OrderStartPage({
     }
     const order = await prisma.order.findUnique({
       where: { id: reorder },
-      select: { userId: true, sinalitePayload: true },
+      select: { userId: true, sinalitePayload: true, createdAt: true },
     });
     // Si pas trouvé OU pas owner OU pas admin → fall through au flow normal
     // (silencieusement — on ne leak pas l'existence de l'id).
     const isOwner = order?.userId === session.user.id;
     const isAdmin = session.user.role === 'ADMIN';
     if (order && (isOwner || isAdmin)) {
-      const link = buildReorderDeepLink(order.sinalitePayload);
+      const link = buildReorderDeepLink(order.sinalitePayload, order.createdAt);
       if (link.ok) redirect(link.url as Route);
       // Si payload corrompu : on continue sur la page normale, l'user
       // verra son catalog et choisira manuellement.
