@@ -1,11 +1,16 @@
 /**
+ * GET /api/addresses — carnet du user connecté (SHIPPING par défaut).
  * POST /api/addresses
  *
  * Crée une adresse SHIPPING ou BILLING dans le carnet du user.
  * Si isDefault=true, on unset le default des autres adresses du même kind
  * (transactionnel — un seul default par kind à la fois).
  *
- * Auth requise — le user crée pour lui-même uniquement (pas d'admin override).
+ * Auth requise — le user lit/crée pour lui-même uniquement (pas d'admin override).
+ *
+ * Round expérience-client [34]/[53]/[126] — avant ce GET, /order/shipping ne
+ * lisait QUE le localStorage : un client fidèle retapait 8 champs à chaque
+ * commande alors que le carnet (/addresses) existait déjà côté écriture.
  */
 
 import { NextResponse } from 'next/server';
@@ -15,6 +20,22 @@ import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 
 const PROVINCES = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'] as const;
+
+export const GET = withErrorHandler(async (req: Request) => {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+  }
+  const kindParam = new URL(req.url).searchParams.get('kind');
+  const kind = kindParam === 'BILLING' ? 'BILLING' : 'SHIPPING';
+
+  const addresses = await prisma.address.findMany({
+    where: { userId: session.user.id, kind },
+    orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+  });
+
+  return NextResponse.json({ addresses });
+});
 
 const BodySchema = z.object({
   kind: z.enum(['SHIPPING', 'BILLING']),
