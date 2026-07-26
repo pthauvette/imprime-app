@@ -40,6 +40,15 @@ describe('describeEvent', () => {
       });
       expect(out).toContain('Tracking : Carrier XYZ789');
     });
+
+    it('ancien format imbriqué {payload:{...}} (commandes déjà en base avant le fix) reste lisible', () => {
+      const out = describeEvent({
+        kind: 'SINALITE_STATUS_CHANGED',
+        data: JSON.stringify({ payload: { status: 'SHIPPED', trackingNumber: '1Z123ABC', carrier: 'UPS' } }),
+      });
+      expect(out).toContain('Statut : SHIPPED');
+      expect(out).toContain('Tracking : UPS 1Z123ABC');
+    });
   });
 
   describe('REFUND_ISSUED', () => {

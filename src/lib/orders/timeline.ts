@@ -91,11 +91,16 @@ export function buildOrderTimeline(
   ];
 }
 
-/** Lit le `status` à partir du payload JSON d'un SINALITE_STATUS_CHANGED. */
+/**
+ * Lit le `status` à partir du payload JSON d'un SINALITE_STATUS_CHANGED.
+ * Tolère l'ancien format imbriqué `{payload:{status}}` écrit avant le fix
+ * du format plat (docs/experience-client-2026-07.md Foyer 5) — les commandes
+ * déjà en base ne doivent pas perdre leur historique.
+ */
 export function extractSinaliteStatus(data: string): string | null {
   try {
-    const parsed = JSON.parse(data) as { status?: string };
-    return parsed.status ?? null;
+    const parsed = JSON.parse(data) as { status?: string; payload?: { status?: string } };
+    return parsed.status ?? parsed.payload?.status ?? null;
   } catch {
     return null;
   }
@@ -120,11 +125,18 @@ export function extractTracking(
     const e = events[i];
     if (e.kind !== 'SINALITE_STATUS_CHANGED' || !e.data) continue;
     try {
-      const parsed = JSON.parse(e.data) as { trackingNumber?: string; carrier?: string };
-      if (!parsed.trackingNumber) continue;
-      const carrier = parsed.carrier ?? 'UPS';
-      const url = trackingDeepLink(carrier, parsed.trackingNumber);
-      return { number: parsed.trackingNumber, carrier, url };
+      const parsed = JSON.parse(e.data) as {
+        trackingNumber?: string;
+        carrier?: string;
+        payload?: { trackingNumber?: string; carrier?: string };
+      };
+      // Tolère l'ancien format imbriqué (cf. extractSinaliteStatus).
+      const trackingNumber = parsed.trackingNumber ?? parsed.payload?.trackingNumber;
+      const carrierRaw = parsed.carrier ?? parsed.payload?.carrier;
+      if (!trackingNumber) continue;
+      const carrier = carrierRaw ?? 'UPS';
+      const url = trackingDeepLink(carrier, trackingNumber);
+      return { number: trackingNumber, carrier, url };
     } catch {
       continue;
     }

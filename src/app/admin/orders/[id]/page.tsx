@@ -18,6 +18,7 @@ import SendCustomMessageButton from '@/components/admin/SendCustomMessageButton'
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
+import { extractTracking } from '@/lib/orders/timeline';
 import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
@@ -83,19 +84,17 @@ export default async function AdminOrderDetailPage({
   const displayId = order.sinaliteOrderId ? `#SIN-${order.sinaliteOrderId}` : `#${order.id.slice(-6).toUpperCase()}`;
 
   // Audit admin 2026-07 §8.5 — le tracking était ENFOUI dans le JSON brut de la
-  // timeline : on remonte le dernier SINALITE_STATUS_CHANGED qui en porte un
-  // (écrit par le bulk, la route /status ou les webhooks Sinalite).
-  let shipping: { trackingNumber: string; carrier?: string } | null = null;
-  for (const e of order.events) { // déjà triés desc
-    if (e.kind !== 'SINALITE_STATUS_CHANGED' || !e.data) continue;
-    try {
-      const d = JSON.parse(e.data) as { trackingNumber?: unknown; carrier?: unknown };
-      if (typeof d.trackingNumber === 'string' && d.trackingNumber) {
-        shipping = { trackingNumber: d.trackingNumber, carrier: typeof d.carrier === 'string' ? d.carrier : undefined };
-        break;
-      }
-    } catch { /* data malformé → event suivant */ }
-  }
+  // timeline. `extractTracking` (déjà utilisé par /orders/[id] et /track) gère
+  // aussi bien le format plat que l'ancien format imbriqué (commandes déjà en
+  // base avant le fix Foyer 5 de docs/experience-client-2026-07.md).
+  //
+  // `extractTracking` scanne en arrière en supposant un ordre ASCENDANT
+  // (oldest→newest, comme /orders/[id] le trie) pour trouver le tracking le
+  // plus récent en premier. `order.events` ici est trié `desc` (pour l'affichage
+  // de la timeline admin newest-first) — on lui passe donc une copie inversée,
+  // sans toucher à l'ordre utilisé ailleurs dans cette page.
+  const tracking = extractTracking([...order.events].reverse());
+  const shipping = tracking ? { trackingNumber: tracking.number, carrier: tracking.carrier } : null;
 
   // §8.5 — restant remboursable : somme des REFUND_ISSUED (montant réel via
   // data.amountCents ; fallback total pour les vieux events), plafonnée au total.
