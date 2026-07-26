@@ -749,7 +749,7 @@ function PaymentForm({ total }: { total: number }) {
         </span>
       </label>
       {stripeError && (
-        <div style={{ padding: 12, background: 'var(--danger-soft)', color: 'var(--danger)', borderRadius: 'var(--r-md)', fontSize: 13, marginBottom: 12 }}>
+        <div role="alert" aria-live="assertive" style={{ padding: 12, background: 'var(--danger-soft)', color: 'var(--danger)', borderRadius: 'var(--r-md)', fontSize: 13, marginBottom: 12 }}>
           {stripeError}
         </div>
       )}
