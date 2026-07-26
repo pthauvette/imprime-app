@@ -160,7 +160,7 @@ export default function VirtualProductPicker({
           </section>
         </div>
 
-        <aside className="recap">
+        <aside className="recap recap-preview">
           <div>
             {/* Aperçu 3D de la finition — montre l'EFFET (vernis/velours/foil) que le
                 libellé texte ne disait pas. Le format/quantité se choisissent après. */}
