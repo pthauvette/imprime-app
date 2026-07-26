@@ -20,6 +20,7 @@ vi.mock('@/lib/sinalite/client', () => ({
         ['FedEx', 'FedEx Economy', 24.99, 2], // valeur RÉELLE de l'enum ShipMethod
       ],
     })),
+    getProductDetail: vi.fn(async () => ({ options: [], pricing: [], metadata: [] })),
   },
 }));
 
@@ -100,6 +101,75 @@ describe('/api/shipping/estimate', () => {
     // mauvais productIds ou mauvais prix → la vérif échoue (anti-tamper).
     expect(verifyShippingQuoteToken({ method: m.method, price: m.price, country: 'CA', province: 'QC', postal: 'H2X 1Y4', productIds: [7] }, m.sig)).toBe(false);
     expect(verifyShippingQuoteToken({ method: m.method, price: m.price + 1, country: 'CA', province: 'QC', postal: 'H2X 1Y4', productIds: [7, 8] }, m.sig)).toBe(false);
+  });
+});
+
+describe('finding [17] — ETA = production + transit, pas juste transit', () => {
+  it("ajoute le délai de production (Turnaround sélectionné) à l'ETA, expose les segments", async () => {
+    const { sinalite } = await import('@/lib/sinalite/client');
+    // Turnaround "2 - 3 Business Days" (id 99), sélectionné via opt_0.
+    vi.mocked(sinalite.getProductDetail).mockResolvedValueOnce({
+      options: [
+        { id: 99, group: 'Turnaround', name: '2 - 3 Business Days' },
+        { id: 1, group: 'Stock', name: '14pt' },
+      ],
+      pricing: [],
+      metadata: [],
+    } as never);
+    const { POST } = await import('@/app/api/shipping/estimate/route');
+    const res = await POST(
+      makeReq({
+        items: [{ productId: 7, options: { opt_0: '99' } }],
+        shippingInfo: { ShipState: 'QC', ShipZip: 'H2X 1Y4', ShipCountry: 'CA' },
+      }),
+    );
+    const methods = (await res.json()).methods;
+    // UPS Standard : transit 3j. Production 3j (max de la plage 2-3) + transit 3j = 6j ouvrables.
+    const ups = methods.find((m: { method: string }) => m.method === 'UPS Standard');
+    expect(ups.productionDays).toBe(3);
+    expect(ups.transitDays).toBe(3);
+    expect(ups.etaIncludesProduction).toBe(true);
+  });
+
+  it('aucun Turnaround résolu (échec Sinalite, ou libellé non reconnu) → productionDays=0, comportement historique préservé', async () => {
+    const { sinalite } = await import('@/lib/sinalite/client');
+    vi.mocked(sinalite.getProductDetail).mockRejectedValueOnce(new Error('timeout'));
+    const { POST } = await import('@/app/api/shipping/estimate/route');
+    const res = await POST(
+      makeReq({
+        items: [{ productId: 7, options: {} }],
+        shippingInfo: { ShipState: 'QC', ShipZip: 'H2X 1Y4', ShipCountry: 'CA' },
+      }),
+    );
+    expect(res.status).toBe(200); // jamais bloquant
+    const m = (await res.json()).methods[0];
+    expect(m.productionDays).toBe(0);
+    expect(m.etaIncludesProduction).toBe(false);
+  });
+
+  it('panier multi-items : prend le PIRE délai de production (le colis part quand TOUT est prêt)', async () => {
+    const { sinalite } = await import('@/lib/sinalite/client');
+    vi.mocked(sinalite.getProductDetail)
+      .mockResolvedValueOnce({
+        options: [{ id: 10, group: 'Turnaround', name: 'Next Business Day' }],
+        pricing: [], metadata: [],
+      } as never)
+      .mockResolvedValueOnce({
+        options: [{ id: 20, group: 'Turnaround', name: '5 jours' }],
+        pricing: [], metadata: [],
+      } as never);
+    const { POST } = await import('@/app/api/shipping/estimate/route');
+    const res = await POST(
+      makeReq({
+        items: [
+          { productId: 7, options: { opt_0: '10' } },
+          { productId: 8, options: { opt_0: '20' } },
+        ],
+        shippingInfo: { ShipState: 'QC', ShipZip: 'H2X 1Y4', ShipCountry: 'CA' },
+      }),
+    );
+    const m = (await res.json()).methods[0];
+    expect(m.productionDays).toBe(5); // pas 1 — le pire des deux items
   });
 });
 

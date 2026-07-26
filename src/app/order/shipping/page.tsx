@@ -33,8 +33,13 @@ interface ShippingMethod {
   carrier: string;
   method: string;
   price: number;
+  /** Transit transporteur seul (jours ouvrables) — PAS l'ETA complète. */
   days: number;
+  /** ETA = production + transit (finding [17]). */
   eta: string;
+  productionDays: number;
+  transitDays: number;
+  etaIncludesProduction: boolean;
   /** Round 1 audit — devis signé (HMAC) porté jusqu'au create pour anti-tamper. */
   sig: string;
 }
@@ -576,7 +581,13 @@ function ShippingRow({ method, selected, recommended, onClick }: { method: Shipp
           )}
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-          {eta} · {method.days} jour{method.days > 1 ? 's' : ''} ouvrable{method.days > 1 ? 's' : ''}
+          {/* finding [17] — deux segments distincts (production + transport),
+              pas une seule date opaque qui ne comptait que le transport. */}
+          {method.etaIncludesProduction && method.productionDays > 0 ? (
+            <>{eta} · {method.productionDays} j production + {method.transitDays} j transport</>
+          ) : (
+            <>{eta} · {method.days} jour{method.days > 1 ? 's' : ''} ouvrable{method.days > 1 ? 's' : ''} de transport</>
+          )}
         </div>
       </div>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 17, fontWeight: 600, color: 'var(--text-primary)' }}>
