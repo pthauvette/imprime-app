@@ -335,6 +335,13 @@ export async function sendOrderDeliveredEmail(input: {
     return { sent: false, optedOut: true };
   }
   const deliveredAt = input.deliveredAt ?? new Date();
+  // finding [105] — FEEDBACK_URL pointait vers `/orders/[id]?feedback=true`,
+  // un paramètre que rien ne lit ; le template y ajoutait EN PLUS `?r=N` par
+  // étoile (email-order-delivered.html) → double « ? », URL invalide. Le
+  // lien fonctionnel existe déjà (sendReviewRequestEmail) : même token, même
+  // destination, pour ne pas avoir DEUX mécaniques d'avis qui divergent.
+  const { reviewSubmitToken } = await import('@/lib/reviews/token');
+  const reviewToken = reviewSubmitToken(order.id);
   const vars: OrderDeliveredVars = {
     CUSTOMER_FIRST_NAME: firstName(user),
     CUSTOMER_NAME: fullName(user),
@@ -344,7 +351,7 @@ export async function sendOrderDeliveredEmail(input: {
     PRODUCT_NAME: order.productSummary ?? 'Ta commande Plio',
     TOTAL: cad(order.amountCents),
     REORDER_URL: `${APP_URL}/order/start?reorder=${order.id}`,
-    FEEDBACK_URL: `${APP_URL}/orders/${order.id}?feedback=true`,
+    FEEDBACK_URL: `${APP_URL}/reviews/submit?orderId=${order.id}&token=${reviewToken}`,
     // Mini-timeline 4 étapes — toutes done à ce stade (livraison = closure
     // visuelle satisfaisante du workflow customer).
     LIFECYCLE_TIMELINE_HTML: renderLifecycleTimeline(4),

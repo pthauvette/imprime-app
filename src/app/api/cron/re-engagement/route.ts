@@ -78,7 +78,25 @@ export async function GET(req: NextRequest) {
   });
   summary.followUp.eligible = followUpCandidates.length;
 
+  // finding [106] — avant, cette relance ignorait qu'un avis avait déjà été
+  // laissé (via le premier email post-livraison, ou en self-serve) : le
+  // texte de l'email dit pourtant « on ne re-demande pas ». Un seul query
+  // groupé (pas de N+1) pour savoir quels orders de ce batch ont déjà un
+  // Review — Review.orderId est @unique, donc « a une review » = un id.
+  const alreadyReviewed = new Set(
+    (
+      await prisma.review.findMany({
+        where: { orderId: { in: followUpCandidates.map((o) => o.id) } },
+        select: { orderId: true },
+      })
+    ).map((r) => r.orderId),
+  );
+
   for (const order of followUpCandidates) {
+    if (alreadyReviewed.has(order.id)) {
+      summary.followUp.skipped++;
+      continue;
+    }
     const label = `reengagement-follow-up:${order.id}`;
     // Dedup : EmailDelivery existant avec ce label = déjà envoyé.
     const existing = await prisma.emailDelivery.findFirst({
