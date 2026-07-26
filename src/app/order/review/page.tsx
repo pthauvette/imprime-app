@@ -25,6 +25,7 @@ import { Icon } from '@/components/ui/Icon';
 import ProductMockup from '@/components/wizard/ProductMockup';
 import { mockupForProductName, specForProductName } from '@/lib/products/product-mockup';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
+import { buildOptionSummary } from '@/lib/products/option-labels';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 function getStripe() {
@@ -175,7 +176,9 @@ function ReviewPageInner() {
       productId: currentItem.productId,
       productName: currentSnapshot?.productName ?? `Produit #${currentItem.productId}`,
       optionIds: currentItem.optionIds,
-      optionLabels: [],
+      // finding [26]/[31]/[115] — currentItem est toujours le DERNIER de
+      // allItems (cartItems + currentItem), donc son index y est stable.
+      optionLabels: itemOptionLabels[allItems.length - 1] ?? [],
       qty: 1, // qty réelle est encodée dans optionIds (Sinalite)
       unitPriceCents: currentSnapshot?.unitPriceCents ?? 0, // recalculé serveur-side au submit
       files: currentItem.files,
@@ -217,6 +220,42 @@ function ReviewPageInner() {
         .join('||'),
     [allItems],
   );
+
+  // finding [26]/[31]/[115] — avant, le récap disait « 6 options · 1
+  // fichier(s) » : sur une commande non annulable de 200$+, impossible de
+  // vérifier qu'on n'a pas payé pour la mauvaise finition. Résout les VRAIES
+  // options (papier, finition, recto/verso, délai…) par item, une seule
+  // requête GET par productId (cache Sinalite 10 min côté serveur). Best-
+  // effort : un item sans label résolu retombe sur le compte (jamais bloquant).
+  const [itemOptionLabels, setItemOptionLabels] = useState<Record<number, string[]>>({});
+  useEffect(() => {
+    if (allItems.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const uniqueProductIds = [...new Set(allItems.map((it) => it.productId))];
+      const detailsByProductId = new Map<number, Record<string, { id: number; group: string; name: string }[]>>();
+      await Promise.all(
+        uniqueProductIds.map(async (pid) => {
+          try {
+            const res = await fetch(`/api/products/${pid}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data?.optionGroups) detailsByProductId.set(pid, data.optionGroups);
+          } catch {
+            // best-effort — cet item retombe sur le fallback "N options"
+          }
+        }),
+      );
+      if (cancelled) return;
+      const labels: Record<number, string[]> = {};
+      allItems.forEach((it, i) => {
+        const groups = detailsByProductId.get(it.productId);
+        if (groups) labels[i] = buildOptionSummary(it.optionIds, groups);
+      });
+      setItemOptionLabels(labels);
+    })();
+    return () => { cancelled = true; };
+  }, [allItems]);
 
   // Résout nom + prix réels de l'item courant (pour le snapshot cart). GET pour
   // le nom, POST (avec optionIds) pour le prix de la variante. Best-effort.
@@ -428,7 +467,14 @@ function ReviewPageInner() {
                     <span style={{ width: 46, flexShrink: 0 }} aria-hidden>
                       {(() => { const m = mockupForProductName(it.productName); return <ProductMockup shape={m.shape} finish={m.finish} spec={specForProductName(it.productName)} seed={it.productName} height={30} />; })()}
                     </span>
-                    <span><strong>Article {i + 1}</strong> · {it.productName} · {it.optionIds.length} options · {it.files.length} fichier(s)</span>
+                    <span>
+                      <strong>Article {i + 1}</strong> · {it.productName}
+                      {' · '}
+                      {(itemOptionLabels[i] ?? it.optionLabels).length > 0
+                        ? (itemOptionLabels[i] ?? it.optionLabels).join(' · ')
+                        : `${it.optionIds.length} options`}
+                      {' · '}{it.files.length} fichier(s)
+                    </span>
                   </span>
                   <button
                     onClick={() => cart.remove(it.id)}
@@ -450,7 +496,12 @@ function ReviewPageInner() {
                     </span>
                     <span>
                       <strong>{cart.items.length > 0 ? `Article ${cart.items.length + 1}` : 'Cet article'}</strong>{' '}
-                      · {currentSnapshot?.productName ?? `Produit #${currentItem.productId}`} · {currentItem.optionIds.length} options · {currentItem.files.length} fichier(s)
+                      · {currentSnapshot?.productName ?? `Produit #${currentItem.productId}`}
+                      {' · '}
+                      {(itemOptionLabels[cart.items.length] ?? []).length > 0
+                        ? itemOptionLabels[cart.items.length]!.join(' · ')
+                        : `${currentItem.optionIds.length} options`}
+                      {' · '}{currentItem.files.length} fichier(s)
                     </span>
                   </span>
                 </div>
