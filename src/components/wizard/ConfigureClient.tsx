@@ -12,6 +12,7 @@ import FormatPreview from '@/components/wizard/FormatPreview';
 import { previewKindForSinaliteCategory } from '@/lib/products/format-preview';
 import { getMarginSpecBySinaliteCategory } from '@/lib/products/margin-specs';
 import { findCategoryGroupBySinaliteCategory } from '@/lib/catalogue';
+import { isSidednessGroup, classifySidedness, sidednessDesc, SIDEDNESS_LABEL } from '@/lib/products/sidedness';
 import { parseSizeLabel } from '@/lib/products/parse-size';
 import { Icon } from '@/components/ui/Icon';
 
@@ -449,12 +450,20 @@ function ConfigSection({
   onPick: (id: number) => void;
 }) {
   const isSize = groupName === 'size';
-  const isStock = groupName === 'Stock' || groupName.toLowerCase().includes('paper');
+  // finding [97]/[10] — pour certains produits, `Stock` encode recto/recto-
+  // verso, pas le papier. Priorité à cette détection AVANT isStock : sinon
+  // le groupe s'affiche comme un choix de papier (StockGrid), avec la même
+  // description générique pour les deux options et un défaut arbitraire.
+  const isSidedness = groupName === 'Stock' && isSidednessGroup(options.map((o) => o.name));
+  const isStock = !isSidedness && (groupName === 'Stock' || groupName.toLowerCase().includes('paper'));
   const isCoating = groupName === 'Coating' || groupName.toLowerCase().includes('coat');
   const isBinary = options.length === 2 && options.every((o) => /^(yes|no|none|aucun)$/i.test(o.name.trim()));
 
-  const sectionLabel = friendlyLabel(groupName);
-  const currentName = options.find((o) => o.id === selectedId)?.name ?? '—';
+  const sectionLabel = isSidedness ? SIDEDNESS_LABEL : friendlyLabel(groupName);
+  const selectedOption = options.find((o) => o.id === selectedId);
+  const currentName = isSidedness && selectedOption
+    ? (classifySidedness(selectedOption.name) === 'double' ? 'Recto-verso' : 'Recto seulement')
+    : selectedOption?.name ?? '—';
 
   return (
     <section style={{ padding: '40px 0', borderTop: index > 1 ? '1px solid var(--border-subtle)' : 'none' }}>
@@ -477,6 +486,8 @@ function ConfigSection({
 
       {isSize ? (
         <SizeGrid options={options} selectedId={selectedId} onPick={onPick} />
+      ) : isSidedness ? (
+        <SidednessGrid options={options} selectedId={selectedId} onPick={onPick} />
       ) : isStock ? (
         <StockGrid options={options} selectedId={selectedId} onPick={onPick} />
       ) : isCoating ? (
@@ -516,6 +527,36 @@ function SizeGrid({ options, selectedId, onPick }: PickerProps) {
             </div>
             <div className="format-card-name">{opt.name}{dims ? '"' : ''}</div>
             <div className="format-card-desc">{dims ? labelForFormat(dims) : 'Format'}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Recto / recto-verso — cas où le groupe Sinalite `Stock` encode en réalité
+ * le nombre de faces, pas le papier (cf. lib/products/sidedness.ts). Deux
+ * cartes avec un libellé + une description DISTINCTS (contrairement à
+ * StockGrid, qui retombait sur la même description générique pour les deux
+ * quand le nom d'option ne matchait aucun grammage connu).
+ */
+function SidednessGrid({ options, selectedId, onPick }: PickerProps) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(options.length, 2)}, 1fr)`, gap: 16 }}>
+      {options.map((opt) => {
+        const kind = classifySidedness(opt.name);
+        const label = kind === 'double' ? 'Recto-verso' : 'Recto seulement';
+        return (
+          <button
+            key={opt.id}
+            className={`stock-card${selectedId === opt.id ? ' selected' : ''}`}
+            onClick={() => onPick(opt.id)}
+          >
+            <div className="stock-body">
+              <div className="stock-name">{label}</div>
+              <div className="stock-desc">{kind ? sidednessDesc(kind) : opt.name}</div>
+            </div>
           </button>
         );
       })}

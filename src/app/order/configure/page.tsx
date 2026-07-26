@@ -15,6 +15,7 @@ import type { SinaliteOption } from '@/lib/sinalite/types';
 import JsonLd, { breadcrumbSchema, productSchema } from '@/components/seo/JsonLd';
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
+import { isSidednessGroup, classifySidedness } from '@/lib/products/sidedness';
 
 export const metadata = { title: "Configure ta commande" };
 export const dynamic = 'force-dynamic';
@@ -120,6 +121,13 @@ export default async function ConfigurePage({
       const sorted = [...opts].sort((a, b) => Number(a.name) - Number(b.name));
       const popular = sorted[Math.min(2, sorted.length - 1)];
       if (popular) defaultSelection[group] = popular.id;
+    } else if (group === 'Stock' && isSidednessGroup(opts.map((o) => o.name))) {
+      // finding [10] — quand `Stock` encode en réalité recto/recto-verso (pas
+      // le papier), le défaut ne doit JAMAIS être le premier de la liste :
+      // un client qui a conçu un recto-verso paierait une impression recto
+      // sans le savoir. On biaise vers double face.
+      const double = opts.find((o) => classifySidedness(o.name) === 'double');
+      defaultSelection[group] = (double ?? opts[0]!).id;
     } else if (opts[0]) {
       defaultSelection[group] = opts[0].id;
     }
