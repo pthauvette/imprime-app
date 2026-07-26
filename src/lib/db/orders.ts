@@ -448,15 +448,24 @@ export async function applySinaliteStatusChange(input: {
 
     // OrderEvent enregistré TOUJOURS (audit du webhook reçu, même no-op) — utile
     // pour debug des out-of-order / replays. On stamp le résultat de transition.
+    //
+    // Format PLAT (pas imbriqué sous `payload`) : timeline.ts/event-describe.ts
+    // lisent `status`/`trackingNumber`/`carrier` à la racine, comme le fait déjà
+    // le chemin admin manuel (status/route.ts). Un ancien format imbriqué aurait
+    // rendu le numéro de suivi invisible dans le portail — cf.
+    // docs/experience-client-2026-07.md Foyer 5.
+    const rawPayload =
+      input.data && typeof input.data === 'object' ? (input.data as Record<string, unknown>) : {};
     await tx.orderEvent.create({
       data: {
         orderId: order.id,
         kind: 'SINALITE_STATUS_CHANGED',
         data: JSON.stringify({
-          payload: input.data,
+          ...rawPayload,
           transitioned,
           fromStatus: order.status,
           toStatus: nextStatus,
+          source: 'sinalite_webhook',
         }).slice(0, 2000),
       },
     });

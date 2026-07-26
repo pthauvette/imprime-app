@@ -27,8 +27,10 @@ export function describeEvent(event: DescribableEvent): string | null {
 
   if (event.kind === 'SINALITE_STATUS_CHANGED') {
     const status = extractSinaliteStatus(event.data);
-    const tracking = parsed.trackingNumber as string | undefined;
-    const carrier = parsed.carrier as string | undefined;
+    // Tolère l'ancien format imbriqué `{payload:{...}}` (cf. extractSinaliteStatus).
+    const legacyPayload = parsed.payload as Record<string, unknown> | undefined;
+    const tracking = (parsed.trackingNumber ?? legacyPayload?.trackingNumber) as string | undefined;
+    const carrier = (parsed.carrier ?? legacyPayload?.carrier) as string | undefined;
     const parts: string[] = [];
     if (status) parts.push(`Statut : ${status}`);
     if (tracking) parts.push(`Tracking : ${carrier ?? 'Carrier'} ${tracking}`);

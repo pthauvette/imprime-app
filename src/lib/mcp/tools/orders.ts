@@ -179,8 +179,10 @@ function extractShippedAt(events: { kind: string; data: string | null; createdAt
     const e = events[i];
     if (e.kind !== 'SINALITE_STATUS_CHANGED' || !e.data) continue;
     try {
-      const parsed = JSON.parse(e.data) as { status?: string };
-      if (String(parsed.status ?? '').toUpperCase() === 'SHIPPED') return e.createdAt;
+      // Tolère l'ancien format imbriqué `{payload:{status}}` (cf. extractSinaliteStatus).
+      const parsed = JSON.parse(e.data) as { status?: string; payload?: { status?: string } };
+      const status = parsed.status ?? parsed.payload?.status;
+      if (String(status ?? '').toUpperCase() === 'SHIPPED') return e.createdAt;
     } catch {
       continue;
     }
