@@ -47,14 +47,24 @@ export default async function PaymentRetryPage({
   searchParams,
 }: {
   params: Promise<{ orderId: string }>;
-  searchParams: Promise<{ t?: string }>;
+  searchParams: Promise<{ t?: string; cancelled?: string }>;
 }) {
   const { orderId } = await params;
-  const { t: token } = await searchParams;
+  const { t: token, cancelled } = await searchParams;
 
   // 1. Token vérification (constant-time)
   if (!token || !verifyPaymentRetryToken(orderId, token)) {
     return <ErrorPage code="invalid_token" />;
+  }
+
+  // finding [47] — `cancel_url` de Stripe pointe VERS CETTE PAGE avec
+  // `&cancelled=1`. Avant, ce paramètre n'était jamais lu : la page
+  // redirigeait automatiquement vers une NOUVELLE session Stripe dès le
+  // chargement, donc « annuler » sur Stripe → retour ici → re-redirect
+  // immédiat vers Stripe → boucle. On casse la boucle en s'arrêtant ici :
+  // il faut un clic explicite pour relancer un essai de paiement.
+  if (cancelled === '1') {
+    return <PaymentCancelledPage orderId={orderId} token={token} />;
   }
 
   // 2. Order lookup + state check
@@ -141,6 +151,44 @@ export default async function PaymentRetryPage({
   //    Cast nécessaire car typedRoutes (next.config) restreint redirect()
   //    aux routes internes — Stripe Checkout est externe par construction.
   redirect(session.url as unknown as Route);
+}
+
+function PaymentCancelledPage({ orderId, token }: { orderId: string; token: string }) {
+  // Lien SANS `cancelled=1` : un clic relance le flow normal (auto-redirect
+  // vers une nouvelle session Stripe), mais seulement sur action explicite.
+  const retryHref = `/payment/retry/${orderId}?t=${token}` as unknown as Route;
+  return (
+    <main style={{ maxWidth: 560, margin: '0 auto', padding: '96px 24px', textAlign: 'center' }}>
+      <div style={{ marginBottom: 16 }}><Icon name="info" size={44} /></div>
+      <h1 style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: 32,
+        fontWeight: 400,
+        letterSpacing: '-0.02em',
+        margin: '0 0 12px',
+      }}>
+        Paiement annulé
+      </h1>
+      <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 24px' }}>
+        Ta commande n&apos;a pas été facturée. Tu peux réessayer quand tu veux — le lien reste valide.
+      </p>
+      <Link
+        href={retryHref}
+        style={{
+          display: 'inline-block',
+          padding: '12px 24px',
+          background: 'var(--accent-primary)',
+          color: '#fff',
+          borderRadius: 'var(--r-pill)',
+          textDecoration: 'none',
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        Réessayer le paiement →
+      </Link>
+    </main>
+  );
 }
 
 function ErrorPage({ code }: { code: ErrCode }) {

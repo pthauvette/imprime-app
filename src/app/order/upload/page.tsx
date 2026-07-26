@@ -507,6 +507,8 @@ function Dropzone({
           <EmptyState
             onClick={() => inputRef.current?.click()}
             dragging={dragging}
+            expectedDims={expectedDims}
+            bleedInches={marginSpec.bleedInches}
           />
         )}
         <input
@@ -601,7 +603,17 @@ function Dropzone({
   );
 }
 
-function EmptyState({ onClick, dragging }: { onClick: () => void; dragging: boolean }) {
+function EmptyState({
+  onClick, dragging, expectedDims, bleedInches,
+}: {
+  onClick: () => void;
+  dragging: boolean;
+  /** finding [19] — taille EXACTE déjà résolue (options choisies), pour
+   *  afficher au client à quel format exporter AVANT qu'il se fasse rejeter
+   *  (le message d'erreur était jusqu'ici le SEUL endroit où ce chiffre apparaissait). */
+  expectedDims: ParsedSize | null;
+  bleedInches: number;
+}) {
   return (
     <>
       <svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth={1.5}>
@@ -625,11 +637,28 @@ function EmptyState({ onClick, dragging }: { onClick: () => void; dragging: bool
       >
         ou clique pour parcourir
       </button>
+      {expectedDims && (
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.5, maxWidth: 260 }}>
+          Format demandé : <strong>{formatIn(expectedDims.widthIn)} × {formatIn(expectedDims.heightIn)} po</strong>
+          <br />
+          Exporte à <strong>{formatIn(expectedDims.widthIn + 2 * bleedInches)} × {formatIn(expectedDims.heightIn + 2 * bleedInches)} po</strong>
+          {' '}({formatMm(expectedDims.widthIn + 2 * bleedInches)} × {formatMm(expectedDims.heightIn + 2 * bleedInches)} mm)
+          {bleedInches > 0 && <> — {formatIn(bleedInches)} po de fond perdu par côté</>}
+        </div>
+      )}
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em', textAlign: 'center' }}>
         PDF · AI · EPS · PSD · JPG · PNG · TIFF · max 150 MB
       </div>
     </>
   );
+}
+
+function formatIn(inches: number): string {
+  return inches.toLocaleString('fr-CA', { maximumFractionDigits: 3 });
+}
+
+function formatMm(inches: number): string {
+  return (inches * 25.4).toLocaleString('fr-CA', { maximumFractionDigits: 1 });
 }
 
 function UploadingState({ progress }: { progress: UploadProgress }) {

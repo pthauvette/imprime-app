@@ -94,6 +94,10 @@ function ShippingPageInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  // finding [32]/[48] — bouton « Réessayer » : incrémenter force le re-fetch
+  // même si l'adresse n'a pas changé (sinon l'effet ci-dessous ne se relance
+  // pas, cul-de-sac sur une erreur transitoire).
+  const [retryKey, setRetryKey] = useState(0);
 
   const postalValid = POSTAL_REGEX.test(postalCode);
   // Round 7 #5 — `email.includes('@')` était trop laxe ('@' seul passait, on
@@ -155,7 +159,7 @@ function ShippingPageInner() {
     };
     fetchMethods();
     return () => { cancelled = true; };
-  }, [postalValid, province, postalCode, productId, optionsByName]);
+  }, [postalValid, province, postalCode, productId, optionsByName, retryKey]);
 
   const canContinue = contactValid && postalValid && selectedMethod && methods.length > 0;
   const selectedShippingPrice = methods.find((m) => m.method === selectedMethod)?.price ?? 0;
@@ -279,12 +283,15 @@ function ShippingPageInner() {
               </span>
             </div>
 
+            {/* finding [83] — aria-live : le chargement/résultat des méthodes de
+                livraison changeait silencieusement pour un lecteur d'écran. */}
+            <div aria-live="polite" aria-atomic="true">
             {!postalValid ? (
               <PromptCard message="Entre un code postal valide pour voir les méthodes disponibles." />
             ) : loading ? (
               <PromptCard message="⏳ Calcul des méthodes de livraison…" />
             ) : error ? (
-              <PromptCard message={`Erreur : ${error}`} variant="danger" />
+              <PromptCard message={`Erreur : ${error}`} variant="danger" onRetry={() => setRetryKey((k) => k + 1)} />
             ) : methods.length === 0 ? (
               <PromptCard message="Aucune méthode disponible pour cette adresse." />
             ) : (
@@ -300,6 +307,7 @@ function ShippingPageInner() {
                 ))}
               </div>
             )}
+            </div>
           </Section>
 
           {/* Round 26 #2 — Instructions de livraison optionnelles */}
@@ -490,7 +498,9 @@ function FieldWrapper({ label, error, children }: { label: string; error?: strin
   );
 }
 
-function PromptCard({ message, variant = 'info' }: { message: string; variant?: 'info' | 'danger' }) {
+function PromptCard({
+  message, variant = 'info', onRetry,
+}: { message: string; variant?: 'info' | 'danger'; onRetry?: () => void }) {
   const bg = variant === 'danger' ? 'var(--danger-soft)' : 'var(--bg-canvas)';
   const border = variant === 'danger' ? 'var(--danger)' : 'var(--border-default)';
   return (
@@ -503,9 +513,20 @@ function PromptCard({ message, variant = 'info' }: { message: string; variant?: 
         fontSize: 14,
         color: 'var(--text-secondary)',
         textAlign: 'center',
+        display: 'grid',
+        gap: 12,
+        justifyItems: 'center',
       }}
     >
       {message}
+      {/* finding [32]/[48] — avant, un échec de calcul de livraison était un
+          cul-de-sac total : rien ne relançait le fetch sans retoucher le code
+          postal. */}
+      {onRetry && (
+        <button type="button" className="btn btn-secondary" onClick={onRetry} style={{ fontSize: 13 }}>
+          Réessayer
+        </button>
+      )}
     </div>
   );
 }

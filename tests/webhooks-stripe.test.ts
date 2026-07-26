@@ -339,11 +339,15 @@ describe('D. Sinalite failure → auto-refund (CRITICAL)', () => {
         data: expect.objectContaining({ refundId: 're_test123' }),
       }),
     );
+    // finding [50] — le client ne doit JAMAIS voir l'erreur technique brute
+    // ("Sinalite 500: internal" révèle le nom du fournisseur) : reason
+    // générique côté email, le détail brut reste dans Slack (l.324) et
+    // l'audit admin markOrderFailed (l.338) ci-dessus.
     expect(emails.sendOrderCancelledEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         order: expect.objectContaining({ id: order.id }),
         user: baseUser,
-        reason: 'Sinalite 500: internal',
+        reason: expect.not.stringContaining('Sinalite'),
         refundAmountCents: order.amountCents,
       }),
     );
@@ -352,7 +356,7 @@ describe('D. Sinalite failure → auto-refund (CRITICAL)', () => {
         order: expect.objectContaining({ id: order.id }),
         user: baseUser,
         refundAmountCents: order.amountCents,
-        reason: 'Sinalite 500: internal',
+        reason: expect.not.stringContaining('Sinalite'),
       }),
     );
     expect(orders.updateWebhookOutcome).toHaveBeenCalledWith(

@@ -524,7 +524,13 @@ async function handlePaymentSucceeded(
         include: { user: true },
       });
       if (fresh) {
-        const reason = err instanceof Error ? err.message : 'Erreur de production interne';
+        // finding [50] — `err.message` (ex. « Sinalite POST order/new → 500 »)
+        // révèle le nom du fournisseur au client, alors que le reste du site
+        // l'anonymise soigneusement (aucune mention de « Sinalite » côté
+        // customer-facing). Le détail technique reste dans le Slack alert
+        // ci-dessous, les logs (l.471) et l'audit admin (markOrderFailed) —
+        // seul le texte envoyé AU CLIENT est généralisé.
+        const reason = 'Un problème technique est survenu au moment de lancer la production.';
         const cardLast4 = extractCardLast4(intent);
         await sendOrderCancelledEmail({
           order: fresh,
