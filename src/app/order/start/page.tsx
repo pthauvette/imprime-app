@@ -13,7 +13,6 @@ import { sinalite, SinaliteError } from '@/lib/sinalite/client';
 import { Icon } from '@/components/ui/Icon';
 import { applyProductOverrides } from '@/lib/products/overrides';
 import { groupProductsByFamily } from '@/lib/catalogue';
-import { VIRTUAL_PRODUCT_SLUGS } from '@/lib/products/virtual-products';
 import CategoryIcon from '@/components/wizard/CategoryIcon';
 import { formatNumber } from '@/lib/format';
 import { auth } from '@/auth';
@@ -280,11 +279,15 @@ export default async function OrderStartPage({
             {families.map((family, i) => (
               <Link
                 key={family.slug}
-                // Produit virtuel : les familles « flat-print » (cartes de visite,
-                // cartes postales, …) ouvrent le sélecteur Papier × Finition
-                // (/order/v/<slug>) au lieu de lister N productId Sinalite
-                // quasi-identiques. Les autres familles : flow normal /order/product.
-                href={(VIRTUAL_PRODUCT_SLUGS.has(family.slug) ? `/order/v/${family.slug}` : `/order/product?category=${family.slug}`) as Route}
+                // Toujours /order/product : cette page fait déjà le collapse
+                // virtuel+brut (tuile Papier × Finition pour les productId
+                // couverts par un produit virtuel + liste normale pour le
+                // reste). Court-circuiter directement vers /order/v/<slug>
+                // ici sautait les productId NON couverts par le produit
+                // virtuel (ex. Foil métallique/Die Cut/pliées pour les cartes
+                // de visite — vendus sur la landing, injoignables depuis ce
+                // picker). Cf. docs/experience-client-2026-07.md Foyer 4.1.
+                href={`/order/product?category=${family.slug}` as Route}
                 className="cat-card"
                 style={{ '--i': String(i) } as React.CSSProperties}
               >
