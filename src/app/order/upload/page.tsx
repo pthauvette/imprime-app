@@ -341,6 +341,11 @@ interface UploadedFile {
   /** Data URL JPEG (~50KB) de la page 1 si PDF rendu avec succès. */
   thumbnailDataUrl?: string;
   confidence?: FileConfidence;
+  /** Dimensions RÉELLES mesurées (TrimBox/BleedBox, pouces) de la page 1 du PDF —
+   *  cf. pdf-validator.ts meta.firstPageInches. Absent si non-PDF ou mesure
+   *  impossible. Finding [21] : sert à dessiner l'overlay bleed/trim/safe sur la
+   *  VRAIE taille du fichier plutôt que la taille typique de la famille. */
+  realDimsIn?: { width: number; height: number };
 }
 
 interface UploadProgress {
@@ -379,7 +384,11 @@ function Dropzone({
   // résultat affiché sous la dropzone. Si level=error on bloque l'upload.
   // Si level=warning on demande confirmation explicite avant upload.
   // Staging warning : PDF OU image (les deux exposent `issues` structurellement).
-  const [pending, setPending] = useState<{ file: File; result: { issues: ValidationIssue[] } } | null>(null);
+  const [pending, setPending] = useState<{
+    file: File;
+    result: { issues: ValidationIssue[] };
+    realDimsIn?: { width: number; height: number };
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isUploaded = file !== null;
@@ -421,9 +430,11 @@ function Dropzone({
       const dpi = await assessPdfImageDpi(f);
       const issues = [...result.issues, ...dpi.issues];
       if (issues.length > 0) {
-        setPending({ file: f, result: { issues } });
+        setPending({ file: f, result: { issues }, realDimsIn: result.meta?.firstPageInches });
         return;
       }
+      await doUpload(f, 'verified', result.meta?.firstPageInches);
+      return;
     } else if (isRaster) {
       // Images raster (JPG/PNG) : vérif résolution (DPI à la taille d'impression).
       // AVANT : aucune validation → une image écran 72 DPI passait. Les formats pro
@@ -447,7 +458,7 @@ function Dropzone({
     await doUpload(f, isPdf || isRaster ? 'verified' : 'unverified');
   }
 
-  async function doUpload(f: File, confidence: FileConfidence) {
+  async function doUpload(f: File, confidence: FileConfidence, realDimsIn?: { width: number; height: number }) {
     setPending(null);
     setProgress({ pct: 0, filename: f.name });
     try {
@@ -465,7 +476,12 @@ function Dropzone({
         thumbnailPromise,
       ]);
 
-      onChange({ ...uploaded, confidence, ...(thumbnailDataUrl ? { thumbnailDataUrl } : {}) });
+      onChange({
+        ...uploaded,
+        confidence,
+        ...(thumbnailDataUrl ? { thumbnailDataUrl } : {}),
+        ...(realDimsIn ? { realDimsIn } : {}),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur upload');
     } finally {
@@ -610,7 +626,7 @@ function Dropzone({
               Choisir un autre fichier
             </button>
             <button
-              onClick={() => void doUpload(pending.file, 'warned')}
+              onClick={() => void doUpload(pending.file, 'warned', pending.realDimsIn)}
               className="btn btn-secondary btn-sm"
               style={{ padding: '6px 12px' }}
             >
@@ -777,6 +793,7 @@ function UploadedPreview({
         thumbnailDataUrl={file.thumbnailDataUrl}
         filename={file.name}
         marginSpec={marginSpec}
+        realDimsIn={file.realDimsIn}
       />
     );
   }
