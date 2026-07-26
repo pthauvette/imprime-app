@@ -232,10 +232,17 @@ export async function assessPdfBytes(
       // les marques d'imprimante, et détecte le VRAI fond perdu.
       const t = dimsOf(trimBox), b = dimsOf(bleedBox);
       if (!matchesSize(t.w, t.h, pw, ph)) {
+        // finding [100] — le message brut ("TrimBox 3.60\" × 2.10\" ≠ attendu…")
+        // était un blocage dur SANS AUCUNE issue : pas de lien, pas d'action.
+        // Message CLAIR en `message` (le vocabulaire technique PDF va dans
+        // `detail`, affiché en "voir détails" — cf. le type ValidationIssue) ;
+        // les 3 sorties (gabarit/éditeur/contact) sont ajoutées CÔTÉ UI
+        // (upload/page.tsx) sur `code === 'dimensions-mismatch'`.
         issues.push({
           level: opts.strictDimensions ? 'error' : 'warning',
           code: 'dimensions-mismatch',
-          message: `Format de coupe (TrimBox) ${f(t.w)}" × ${f(t.h)}" ≠ attendu ${f(pw)}" × ${f(ph)}". Réexporte à la bonne taille.`,
+          message: `Ton fichier fait ${f(t.w)}" × ${f(t.h)}", mais ce produit demande ${f(pw)}" × ${f(ph)}" (fond perdu compris). Corrige la taille d'export dans ton logiciel de design.`,
+          detail: `Format de coupe (TrimBox) mesuré : ${f(t.w)}" × ${f(t.h)}". Attendu : ${f(pw)}" × ${f(ph)}".`,
         });
       } else if ((b.w - t.w) < bleed || (b.h - t.h) < bleed) {
         // TrimBox correct mais BleedBox ≈ TrimBox → pas de fond perdu exploitable.
@@ -259,7 +266,8 @@ export async function assessPdfBytes(
           issues.push({
             level: opts.strictDimensions ? 'error' : 'warning',
             code: 'dimensions-mismatch',
-            message: `Dimensions ${f(wInches)}" × ${f(hInches)}" (${wMm.toFixed(0)}mm × ${hMm.toFixed(0)}mm) ≠ attendu ${f(targetW)}" × ${f(targetH)}" (format ${pw}" × ${ph}" + ${bleed}" de bleed par côté). Réexporte à la bonne taille.`,
+            message: `Ton fichier fait ${f(wInches)}" × ${f(hInches)}", mais ce produit demande ${f(targetW)}" × ${f(targetH)}" (le format ${pw}" × ${ph}" + ${bleed}" de fond perdu par côté). Corrige la taille d'export dans ton logiciel de design.`,
+            detail: `Mesuré : ${f(wInches)}" × ${f(hInches)}" (${wMm.toFixed(0)}mm × ${hMm.toFixed(0)}mm). Attendu : ${f(targetW)}" × ${f(targetH)}".`,
           });
         }
       }

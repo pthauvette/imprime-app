@@ -371,6 +371,10 @@ function Dropzone({
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // finding [100] — un blocage dur sur la taille n'avait AUCUNE sortie (ni
+  // lien, ni action) : juste un message. On distingue ce cas précis pour
+  // offrir 2 sorties concrètes (éditeur en ligne, contact) sous le message.
+  const [errorIsSizeIssue, setErrorIsSizeIssue] = useState(false);
   // Validation result : null = pas encore validé / pas un PDF, sinon
   // résultat affiché sous la dropzone. Si level=error on bloque l'upload.
   // Si level=warning on demande confirmation explicite avant upload.
@@ -383,6 +387,7 @@ function Dropzone({
 
   async function handleFile(f: File) {
     setError(null);
+    setErrorIsSizeIssue(false);
     setPending(null);
 
     // Taille produit EXACTE (si résolue) → permet le hard-block dimension/DPI.
@@ -401,6 +406,7 @@ function Dropzone({
       const result = await validatePdf(f, { expected, strictDimensions: Boolean(expected) });
       if (result.level === 'error') {
         setError(result.issues.map((i) => i.message).join(' '));
+        setErrorIsSizeIssue(result.issues.some((i) => i.code === 'dimensions-mismatch'));
         return;
       }
       // Audit #4 — DPI des images EMBARQUÉES (pdfjs getOperatorList). Warning-only,
@@ -420,6 +426,7 @@ function Dropzone({
       const result = await validateImage(f, expected);
       if (result.level === 'error') {
         setError(result.issues.map((i) => i.message).join(' '));
+        setErrorIsSizeIssue(result.issues.some((i) => i.code === 'dimensions-mismatch'));
         return;
       }
       if (result.level === 'warning') {
@@ -548,9 +555,22 @@ function Dropzone({
             borderRadius: 'var(--r-md)',
             fontSize: 12,
             color: 'var(--danger)',
+            display: 'grid',
+            gap: 8,
           }}
         >
-          <Icon name="alert" size={13} /> {error}
+          <div><Icon name="alert" size={13} /> {error}</div>
+          {/* finding [100] — 2 sorties concrètes au lieu d'un blocage sec. */}
+          {errorIsSizeIssue && (
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
+              <a href="/templates" style={{ color: 'var(--danger)', textDecoration: 'underline', fontWeight: 600 }}>
+                Utiliser notre éditeur en ligne
+              </a>
+              <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--danger)', textDecoration: 'underline', fontWeight: 600 }}>
+                Besoin d&apos;aide ? Écris-nous
+              </a>
+            </div>
+          )}
         </div>
       )}
 
