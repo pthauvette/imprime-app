@@ -129,6 +129,14 @@ export default function ConfigureClient({
       setPriceLoading(false);
       return;
     }
+    // Reset IMMÉDIAT (avant le debounce) — sinon le prix affiché reste celui
+    // de la COMBINAISON PRÉCÉDENTE pendant tout le calcul du repli distant
+    // (qty ou option changée, remotePrice ne se remet pas à zéro tant que le
+    // nouveau fetch n'a pas résolu). Cf. docs/experience-client-2026-07.md
+    // finding [11] — le client pouvait croire payer un prix qui n'était déjà
+    // plus le bon.
+    setRemotePrice(null);
+    setPriceError(false);
     const ids = comboKey.split('-').map(Number);
     // AbortController : l'utilisateur peut enchaîner les options plus vite que
     // le réseau ; sans annulation, une réponse périmée écraserait la fraîche.
@@ -603,7 +611,7 @@ function friendlyLabel(group: string): string {
     Stock: 'Papier',
     Coating: 'Finition',
     Turnaround: 'Délai',
-    'Rounded Corners': 'Coins arrondis',
+    'Round Corners': 'Coins arrondis',
     Scoring: 'Pliage (scoring)',
     Bundling: 'Bundling',
     Folding: 'Pliage',
