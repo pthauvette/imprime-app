@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/db', () => ({
   prisma: {
     order: { findMany: vi.fn(async () => []), groupBy: vi.fn() },
+    review: { findMany: vi.fn(async () => []) },
     emailDelivery: { findFirst: vi.fn(async () => null) },
     user: { findUnique: vi.fn() },
     promoCode: { create: vi.fn(async () => ({ id: 'promo_1' })) },
@@ -29,7 +30,7 @@ vi.mock('@/lib/logger', () => {
 });
 
 import { prisma } from '@/lib/db';
-import { sendReengagementWinbackEmail } from '@/lib/emails/send';
+import { sendReengagementWinbackEmail, sendReengagementFollowUpEmail } from '@/lib/emails/send';
 
 const ORIG_ENV = { ...process.env };
 function makeReq() {
@@ -91,5 +92,37 @@ describe('cron/re-engagement winback — #7.2', () => {
 
     expect(res.status).toBe(200);
     expect(json.summary.winback.failed).toBe(1);
+  });
+});
+
+describe('cron/re-engagement follow-up — finding [106]', () => {
+  const candidateOrder = {
+    id: 'ord_1',
+    user: { id: 'u_1', email: 'x@plio.ca', emailDeliveryNotifications: true },
+  };
+
+  it('avis DÉJÀ laissé pour cette commande → skip, aucun email envoyé', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValueOnce([candidateOrder] as never);
+    vi.mocked(prisma.review.findMany).mockResolvedValueOnce([{ orderId: 'ord_1' }] as never);
+
+    const { GET } = await import('@/app/api/cron/re-engagement/route');
+    const res = await GET(makeReq());
+    const json = await res.json();
+
+    expect(sendReengagementFollowUpEmail).not.toHaveBeenCalled();
+    expect(json.summary.followUp.skipped).toBe(1);
+    expect(json.summary.followUp.sent).toBe(0);
+  });
+
+  it('aucun avis laissé → la relance part normalement', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValueOnce([candidateOrder] as never);
+    vi.mocked(prisma.review.findMany).mockResolvedValueOnce([] as never); // aucune review pour ce batch
+
+    const { GET } = await import('@/app/api/cron/re-engagement/route');
+    const res = await GET(makeReq());
+    const json = await res.json();
+
+    expect(sendReengagementFollowUpEmail).toHaveBeenCalledTimes(1);
+    expect(json.summary.followUp.sent).toBe(1);
   });
 });
