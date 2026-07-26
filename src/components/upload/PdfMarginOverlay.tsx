@@ -19,12 +19,23 @@
  *   3. Pas de fond perdu (enveloppes, bleed=0) → on ne dessine ni le rect bleed
  *      rouge ni une ligne de trim dupliquée.
  *
+ * Corrigé (finding [21]) :
+ *   4. TAILLE DE RÉFÉRENCE = LE VRAI FICHIER quand on l'a mesuré (`realDimsIn`,
+ *      TrimBox/BleedBox pdf-lib — cf. pdf-validator.ts). Avant : les insets
+ *      étaient calculés contre la taille TYPIQUE de la famille (`typicalTrim`),
+ *      donc pour le cas le plus fréquent — un fichier livré pile au format,
+ *      sans bleed — le texte avertissait correctement mais l'overlay dessinait
+ *      quand même une marge de bleed qui n'existe pas dans le fichier réel.
+ *      Fallback sur `typicalTrim` seulement si la mesure réelle est absente
+ *      (non-PDF, parse échoué) — jamais de régression.
+ *
  * Légende : Rouge = bord/bleed (sera coupé) · Noir = trim (coupe finale) ·
  * Tirets = safe (garde le texte ici).
  */
 
 import { useEffect, useRef, useState } from 'react';
 import type { MarginSpec } from '@/lib/products/margin-specs';
+import { computeOverlayGeometry } from '@/lib/products/margin-overlay';
 import { Icon } from '@/components/ui/Icon';
 
 interface Props {
@@ -32,23 +43,22 @@ interface Props {
   filename: string;
   /** Spec du produit : bleed/safe en pouces + taille typique → insets métriques. */
   marginSpec: MarginSpec;
+  /** Dimensions RÉELLES mesurées de la page 1 du fichier uploadé (pouces).
+   *  Prioritaire sur `marginSpec.typicalTrim` — finding [21]. */
+  realDimsIn?: { width: number; height: number };
 }
 
-/** % minimum d'un inset pour rester VISIBLE même sur grand format. */
-const MIN_VISIBLE_PCT = 2.2;
 /** Bornes d'affichage : on plafonne par la LARGEUR (jamais la hauteur — ça
  *  violerait aspect-ratio et re-letterboxerait l'image). */
 const MAX_H = 420;
 const MAX_W = 520;
 
-export default function PdfMarginOverlay({ thumbnailDataUrl, filename, marginSpec }: Props) {
+export default function PdfMarginOverlay({ thumbnailDataUrl, filename, marginSpec, realDimsIn }: Props) {
   const [showOverlay, setShowOverlay] = useState(false);
 
-  const bleedIn = marginSpec.bleedInches;
-  const safeIn = marginSpec.safeInches;
-  // Taille de page = trim typique + bleed sur chaque côté (= ce que le PDF DEVRAIT faire).
-  const pageW = marginSpec.typicalTrim.widthIn + bleedIn * 2;
-  const pageH = marginSpec.typicalTrim.heightIn + bleedIn * 2;
+  // Taille de page + insets % : VRAIE mesure du fichier si on l'a (finding [21]),
+  // sinon repli sur le trim typique de la famille + bleed sur chaque côté.
+  const { pageW, pageH, hasBleed, trimX, trimY, safeX, safeY } = computeOverlayGeometry(marginSpec, realDimsIn);
   // Ratio initial = ratio de page (évite le saut de layout) ; affiné au vrai ratio image.
   const [aspect, setAspect] = useState<number>(pageW / pageH || 7 / 4);
 
@@ -71,17 +81,6 @@ export default function PdfMarginOverlay({ thumbnailDataUrl, filename, marginSpe
   // Plafond de largeur dérivé du ratio : pour un portrait, on borne la largeur à
   // MAX_H·aspect → la hauteur reste ≤ MAX_H sans jamais brider aspect-ratio.
   const maxWidthPx = aspect < 1 ? Math.min(MAX_W, MAX_H * aspect) : MAX_W;
-
-  // Inset % par axe. floored = avec plancher de visibilité (lignes safe/trim).
-  const pct = (insetIn: number, page: number, floor = true) => {
-    const raw = (insetIn / page) * 100;
-    return floor && raw > 0 ? Math.max(raw, MIN_VISIBLE_PCT) : raw;
-  };
-  const hasBleed = bleedIn > 0;
-  const trimX = pct(bleedIn, pageW);
-  const trimY = pct(bleedIn, pageH);
-  const safeX = pct(bleedIn + safeIn, pageW);
-  const safeY = pct(bleedIn + safeIn, pageH);
 
   return (
     <div
