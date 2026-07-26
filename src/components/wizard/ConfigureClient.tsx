@@ -26,6 +26,10 @@ interface Props {
   /** Si set, l'utilisateur arrive depuis /design/[slug] et son PDF est déjà
    *  généré — on propage l'ID jusqu'à /order/upload qui auto-load le fichier. */
   designId: string | null;
+  /** `?files=` déjà porté par l'URL entrante (round-trip upload↔configure) —
+   *  vide si le client n'a pas encore téléversé. Reporté sur `nextHref` pour
+   *  ne pas forcer un re-téléversement au retour vers /order/upload. */
+  filesParam: string;
   /** Index pré-construit : `sortedIds.join('-')` → prix CAD (matrice COMPLÈTE,
    *  toutes options + qty + turnaround). Pilote le prix LIVE : à mesure que
    *  l'utilisateur change une option OU déplace le slider de quantité, on relit
@@ -49,6 +53,7 @@ export default function ConfigureClient({
   metadata,
   defaultSelection,
   designId,
+  filesParam,
   variantIndex,
 }: Props) {
   const router = useRouter();
@@ -182,7 +187,8 @@ export default function ConfigureClient({
   const allOptionIds = currentQty ? [...selectedOptionIds, currentQty.id] : selectedOptionIds;
 
   const designSuffix = designId ? `&designId=${designId}` : '';
-  const nextHref = `/order/upload?productId=${product.id}&options=${allOptionIds.join(',')}${designSuffix}` as Route;
+  const filesSuffix = filesParam ? `&files=${filesParam}` : '';
+  const nextHref = `/order/upload?productId=${product.id}&options=${allOptionIds.join(',')}${designSuffix}${filesSuffix}` as Route;
   const prevCategoryGroup = findCategoryGroupBySinaliteCategory(product.category);
   const prevHref = (
     prevCategoryGroup ? `/order/product?category=${prevCategoryGroup.slug}` : '/order/start'
