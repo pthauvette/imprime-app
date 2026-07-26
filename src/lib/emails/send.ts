@@ -18,6 +18,7 @@ import { getCompanyIdentity } from '@/lib/company/identity';
 import { logEmail } from '@/lib/logger';
 import { parseItemsSnapshot, type DisplayItem } from '@/lib/orders/items';
 import { renderLifecycleTimeline } from './lifecycle-timeline';
+import { computeOrderEta } from '@/lib/orders/timeline';
 import type {
   OrderConfirmationVars,
   OrderShippedVars,
@@ -282,7 +283,17 @@ export async function sendOrderShippedEmail(input: {
     logEmail.info({ userId: user.id, kind: 'shipped' }, 'skipping notification — user opted out');
     return { sent: false, optedOut: true };
   }
-  const eta = input.estimatedDelivery ?? new Date(Date.now() + 2 * 24 * 3600 * 1000);
+  // finding [41] — avant, ce courriel annonçait TOUJOURS +2 jours
+  // CALENDAIRES en dur, quel que soit le transporteur/service réel, et
+  // contredisait la date affichée sur /orders/[id]. On réutilise le MÊME
+  // helper que le portail (computeOrderEta) pour que les deux s'accordent
+  // toujours — même heuristique, même texte, plus de contradiction email/
+  // portail. `estimatedDelivery` reste overridable par un futur appelant qui
+  // calculerait une ETA plus précise (production+transit réels).
+  const etaFormatted = input.estimatedDelivery
+    ? dateFrLong(input.estimatedDelivery)
+    : (computeOrderEta({ createdAt: order.createdAt, status: 'SHIPPED' }, new Date())?.day
+        ?? dateFrLong(new Date(Date.now() + 3 * 24 * 3600 * 1000)));
   const carrier = input.carrier ?? extractCarrier(order.shippingMethod);
   const tracking = input.trackingNumber ?? '';
   // Audit v2 #7.5 — si SHIPPED arrive sans numéro de tracking (ou carrier
@@ -299,7 +310,7 @@ export async function sendOrderShippedEmail(input: {
     CARRIER_SERVICE: extractService(order.shippingMethod, carrier),
     TRACKING_NUMBER: tracking,
     TRACK_URL: trackUrl,
-    ETA_FORMATTED: dateFrLong(eta),
+    ETA_FORMATTED: etaFormatted,
     SHIP_ADDRESS_HTML: shipAddressHtml(order),
     ORDER_URL: orderUrl(order),
     UNSUBSCRIBE_URL: unsubscribeUrl(),

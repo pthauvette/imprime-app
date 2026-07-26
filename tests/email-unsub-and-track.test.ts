@@ -14,6 +14,7 @@ vi.mock('@/lib/logger', () => {
 
 import { sendAbandonedCartEmail, sendOrderShippedEmail } from '@/lib/emails/send';
 import { queueEmail } from '@/lib/emails/queue';
+import { computeOrderEta } from '@/lib/orders/timeline';
 import { makeTestUser } from './factories/user';
 import { makeTestOrder } from './factories/order';
 
@@ -68,5 +69,30 @@ describe('#7.5 — order-shipped : bouton track ne pointe plus dans le vide', ()
     const trackUrl = String(lastVars().TRACK_URL);
     expect(trackUrl).toContain('ups.com/track');
     expect(trackUrl).toContain('1Z999AA10123456784');
+  });
+});
+
+describe('finding [41] — ETA du courriel « en route » = même calcul que /orders/[id], plus de +2j calendaires en dur', () => {
+  it("ETA_FORMATTED matche exactement computeOrderEta (le même helper que le portail), pas un +2 jours fixe", async () => {
+    const order = makeTestOrder({ shippingMethod: 'FedEx Express Saver' });
+    await sendOrderShippedEmail({
+      order,
+      user: makeTestUser({ emailDeliveryNotifications: true }),
+    });
+    const etaFormatted = String(lastVars().ETA_FORMATTED);
+    const expected = computeOrderEta({ createdAt: order.createdAt, status: 'SHIPPED' }, new Date())?.day;
+    expect(etaFormatted).toBe(expected);
+  });
+
+  it('estimatedDelivery explicite reste overridable (futur appelant avec une ETA calculée précisément)', async () => {
+    const order = makeTestOrder({ shippingMethod: 'UPS Standard' });
+    const explicit = new Date('2026-03-10T00:00:00.000Z');
+    await sendOrderShippedEmail({
+      order,
+      user: makeTestUser({ emailDeliveryNotifications: true }),
+      estimatedDelivery: explicit,
+    });
+    const etaFormatted = String(lastVars().ETA_FORMATTED);
+    expect(etaFormatted).toContain('mars');
   });
 });
