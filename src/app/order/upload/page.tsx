@@ -403,7 +403,13 @@ function Dropzone({
       const { validatePdf } = await import('@/lib/print/pdf-validator');
       // strictDimensions : bloque une MAUVAISE taille — sûr car `expected` est la
       // taille EXACTE sélectionnée (sinon undefined → mismatch reste en warning).
-      const result = await validatePdf(f, { expected, strictDimensions: Boolean(expected) });
+      // maxPages : 2 par défaut (pdf-validator DEFAULTS), sauf produit RÉELLEMENT
+      // multi-pages (livrets) — finding [24], cf. margin-specs.ts maxPrintPages.
+      const result = await validatePdf(f, {
+        expected,
+        strictDimensions: Boolean(expected),
+        maxPages: marginSpec.maxPrintPages ?? 2,
+      });
       if (result.level === 'error') {
         setError(result.issues.map((i) => i.message).join(' '));
         setErrorIsSizeIssue(result.issues.some((i) => i.code === 'dimensions-mismatch'));

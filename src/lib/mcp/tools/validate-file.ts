@@ -80,7 +80,9 @@ export async function validatePrintFile(input: { fileUrl: string; slug?: string 
     : undefined;
   // strictDimensions FALSE : on n'a que la taille TYPIQUE (pas la taille exacte choisie)
   // → un écart est un WARNING informatif, jamais un blocage (anti faux-blocage).
-  const r = await assessPdfBytes(bytes, { expected, strictDimensions: false });
+  // maxPages : idem web (finding [24]) — un livret vendu 8-64pg ne doit pas se faire
+  // avertir « seules les 2 premières seront imprimées ».
+  const r = await assessPdfBytes(bytes, { expected, strictDimensions: false, maxPages: spec?.maxPrintPages ?? 2 });
   return {
     level: r.level,
     blocking: r.level === 'error',
