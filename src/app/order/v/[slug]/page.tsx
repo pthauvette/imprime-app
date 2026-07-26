@@ -12,6 +12,7 @@ import VirtualProductPicker from '@/components/wizard/VirtualProductPicker';
 import { getVirtualProduct } from '@/lib/products/virtual-products';
 import { sinalite } from '@/lib/sinalite/client';
 import { applyProductOverrides } from '@/lib/products/overrides';
+import { getStartingPrices } from '@/lib/products/starting-price-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,21 @@ export default async function VirtualProductPage({
   // Tout le produit virtuel est désactivé → indisponible.
   if (allowedProductIds.length === 0) notFound();
 
+  // finding [3]/[15] — 20 combinaisons papier × finition sans un seul prix
+  // affiché ; `getStartingPrices` (table ProductStartingPrice, remplie par le
+  // cron refresh-product-prices) sert déjà /order/product, jamais ce picker.
+  // Best-effort : Map non sérialisable telle quelle vers un Client Component
+  // → converti en objet simple ; un id absent (pas encore balayé par le cron)
+  // garde son fallback « Voir prix → » côté client, jamais de chiffre inventé.
+  const priceMap = await getStartingPrices(allowedProductIds);
+  const pricesByProductId = Object.fromEntries(priceMap);
+
   return (
-    <VirtualProductPicker slug={slug} designId={designId ?? null} allowedProductIds={allowedProductIds} />
+    <VirtualProductPicker
+      slug={slug}
+      designId={designId ?? null}
+      allowedProductIds={allowedProductIds}
+      pricesByProductId={pricesByProductId}
+    />
   );
 }

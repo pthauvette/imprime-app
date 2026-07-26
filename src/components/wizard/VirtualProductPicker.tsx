@@ -15,6 +15,7 @@ import { getMarginSpecBySlug } from '@/lib/products/margin-specs';
 import { finishMaterial } from '@/lib/print/finish-materials';
 import FinishPreview from '@/components/finish/FinishPreview';
 import { Icon } from '@/components/ui/Icon';
+import { formatCents } from '@/lib/format';
 
 /**
  * Sélecteur GÉNÉRIQUE d'un produit virtuel : Papier (axe 1) puis Finition (axe 2,
@@ -26,14 +27,20 @@ export default function VirtualProductPicker({
   slug,
   designId,
   allowedProductIds,
+  pricesByProductId,
 }: {
   slug: string;
   designId: string | null;
   /** Audit v3 L1 — productId réellement actifs (filtrage enabled/overrides). */
   allowedProductIds?: number[];
+  /** finding [3]/[15] — productId → minTotalCents (table ProductStartingPrice,
+   *  cron refresh-product-prices). Un id absent = pas encore balayé, on garde
+   *  le fallback texte plutôt qu'un chiffre inventé. */
+  pricesByProductId?: Record<number, number>;
 }) {
   const router = useRouter();
   const vp = getVirtualProduct(slug)!; // la route valide l'existence en amont
+  const prices = pricesByProductId ?? {};
   const allowed = useMemo(
     () => (allowedProductIds ? new Set(allowedProductIds) : undefined),
     [allowedProductIds],
@@ -59,6 +66,16 @@ export default function VirtualProductPicker({
 
   const paperMeta = papers.find((p) => p.key === paper);
   const finishMeta = finishes.find((f) => f.finish === finish);
+
+  // finding [3]/[15] — « dès X $ » par papier (min sur toutes ses finitions),
+  // prix exact par finition (une fois le papier fixé, un seul productId).
+  function paperStartingCents(paperKey: string): number | null {
+    const cents = vp.variants
+      .filter((v) => v.paper === paperKey)
+      .map((v) => prices[v.productId])
+      .filter((c): c is number => c !== undefined);
+    return cents.length > 0 ? Math.min(...cents) : null;
+  }
 
   // 2e axe : « Finition » par défaut, « Format » pour les livrets (dimension).
   const axis2Label = vp.axis2Label ?? 'Finition';
@@ -125,6 +142,14 @@ export default function VirtualProductPicker({
                   <div className="stock-body">
                     <div className="stock-name">{p.label}{p.specialty ? <> <Icon name="star" size={12} /></> : null}</div>
                     <div className="stock-desc">{p.desc}</div>
+                    {(() => {
+                      const cents = paperStartingCents(p.key);
+                      return cents !== null ? (
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-primary)', marginTop: 4 }}>
+                          dès {formatCents(cents)}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 </button>
               ))}
@@ -151,6 +176,7 @@ export default function VirtualProductPicker({
                   onClick={() => setFinish(f.finish)}
                 >
                   {f.finishLabel}
+                  {prices[f.productId] !== undefined && ` · ${formatCents(prices[f.productId]!)}`}
                 </button>
               ))}
             </div>
