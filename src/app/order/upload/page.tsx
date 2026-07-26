@@ -92,6 +92,7 @@ function UploadPageInner() {
           size: 0,
           contentType: 'application/pdf',
           isTemplate: true,
+          confidence: 'verified',
         });
       })
       .catch(() => {
@@ -123,6 +124,9 @@ function UploadPageInner() {
       name: decodeURIComponent(url.split('/').pop()?.split('?')[0] ?? 'fichier.pdf'),
       size: 0,
       contentType: 'application/pdf',
+      // Réhydraté depuis un upload déjà validé plus tôt dans le même parcours
+      // (retour « Précédent », ou réachat via ?files= — cf. finding [54]).
+      confidence: 'verified',
     });
     if (frontUrl) setRecto((cur) => cur ?? toFile(frontUrl));
     if (backUrl) setVerso((cur) => cur ?? toFile(backUrl));
@@ -315,6 +319,19 @@ function UploadPageInner() {
 
 // ─── Upload state ─────────────────────────────────────────────────────────
 
+/**
+ * Niveau de confiance RÉEL derrière le badge affiché — finding [20],
+ * docs/experience-client-2026-07.md : trois situations très différentes
+ * produisaient jusqu'ici le MÊME badge vert « ✓ Validé ».
+ *   - verified   : PDF/image passé par la validation, zéro avertissement.
+ *   - warned     : avertissement(s) affichés, client a confirmé quand même
+ *                  (« Continuer quand même ») — ex. fond perdu manquant.
+ *   - unverified : format .AI/.EPS/.PSD/.TIFF — zéro contrôle ne tourne
+ *                  dessus (Sinalite reste le gate final), on ne peut pas
+ *                  prétendre l'avoir vérifié.
+ */
+type FileConfidence = 'verified' | 'warned' | 'unverified';
+
 interface UploadedFile {
   url: string;
   name: string;
@@ -323,6 +340,7 @@ interface UploadedFile {
   isTemplate?: boolean;
   /** Data URL JPEG (~50KB) de la page 1 si PDF rendu avec succès. */
   thumbnailDataUrl?: string;
+  confidence?: FileConfidence;
 }
 
 interface UploadProgress {
@@ -410,10 +428,13 @@ function Dropzone({
       }
     }
 
-    await doUpload(f);
+    // Zéro avertissement — soit un PDF/raster réellement vérifié PROPRE, soit
+    // un format pro (.AI/.EPS/.PSD/.TIFF) sur lequel aucun contrôle ne tourne
+    // du tout. Ce sont deux niveaux de confiance différents (finding [20]).
+    await doUpload(f, isPdf || isRaster ? 'verified' : 'unverified');
   }
 
-  async function doUpload(f: File) {
+  async function doUpload(f: File, confidence: FileConfidence) {
     setPending(null);
     setProgress({ pct: 0, filename: f.name });
     try {
@@ -431,7 +452,7 @@ function Dropzone({
         thumbnailPromise,
       ]);
 
-      onChange({ ...uploaded, ...(thumbnailDataUrl ? { thumbnailDataUrl } : {}) });
+      onChange({ ...uploaded, confidence, ...(thumbnailDataUrl ? { thumbnailDataUrl } : {}) });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur upload');
     } finally {
@@ -481,9 +502,7 @@ function Dropzone({
           {label}
           {required ? ' · requis' : ' · optionnel'}
         </span>
-        {isUploaded && (
-          <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}><Icon name="check" size={12} /> Validé</span>
-        )}
+        {isUploaded && <ConfidenceBadge confidence={file?.confidence} />}
       </div>
 
       <div
@@ -565,7 +584,7 @@ function Dropzone({
               Choisir un autre fichier
             </button>
             <button
-              onClick={() => void doUpload(pending.file)}
+              onClick={() => void doUpload(pending.file, 'warned')}
               className="btn btn-secondary btn-sm"
               style={{ padding: '6px 12px' }}
             >
@@ -600,6 +619,35 @@ function Dropzone({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Badge de confiance HONNÊTE (finding [20]) — trois libellés distincts au
+ * lieu d'un seul « ✓ Validé » qui mentait sur ce qui a réellement été
+ * vérifié. `confidence` absent (upload en cours d'un ancien état/edge case)
+ * retombe sur « verified » plutôt que d'afficher rien — le fichier EST bien
+ * là, mieux vaut un badge par défaut que du texte manquant.
+ */
+function ConfidenceBadge({ confidence = 'verified' }: { confidence?: FileConfidence }) {
+  if (confidence === 'warned') {
+    return (
+      <span style={{ fontSize: 12, color: 'var(--warning)', fontWeight: 600 }}>
+        <Icon name="alert" size={12} /> Accepté avec réserve
+      </span>
+    );
+  }
+  if (confidence === 'unverified') {
+    return (
+      <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+        <Icon name="clip" size={12} /> Reçu — non vérifié
+      </span>
+    );
+  }
+  return (
+    <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
+      <Icon name="check" size={12} /> Validé
+    </span>
   );
 }
 
@@ -757,12 +805,17 @@ function FileStatus({ label, file }: { label: string; file: UploadedFile | null 
       </div>
     );
   }
+  // finding [20] — même geste que le badge de la dropzone : le filet vert
+  // + coche ne veut dire « vérifié » QUE si confidence === 'verified'.
+  const confidence = file.confidence ?? 'verified';
+  const accent = confidence === 'warned' ? 'var(--warning)' : confidence === 'unverified' ? 'var(--border-default)' : 'var(--success)';
+  const bg = confidence === 'warned' ? 'var(--warning-soft)' : confidence === 'unverified' ? 'var(--bg-sunken)' : 'var(--success-soft)';
   return (
     <div
       style={{
         padding: '10px 14px',
-        background: 'var(--success-soft)',
-        border: '1px solid var(--success)',
+        background: bg,
+        border: `1px solid ${accent}`,
         borderRadius: 'var(--r-md)',
         fontSize: 13,
         color: 'var(--text-primary)',
@@ -778,7 +831,7 @@ function FileStatus({ label, file }: { label: string; file: UploadedFile | null 
           {file.isTemplate ? 'design-template.pdf' : file.name}
         </div>
       </div>
-      <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600, whiteSpace: 'nowrap' }}><Icon name="check" size={12} /></span>
+      <ConfidenceBadge confidence={confidence} />
     </div>
   );
 }
