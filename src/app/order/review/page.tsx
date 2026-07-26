@@ -621,7 +621,7 @@ function ReviewPageInner() {
             )}
           </div>
           <div style={{ padding: '0 32px 32px', display: 'grid', gap: 8, fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
-            <div><Icon name="check" size={11} /> Production démarre sous 2h</div>
+            <div><Icon name="check" size={11} /> Fichier vérifié automatiquement avant impression</div>
             <div><Icon name="check" size={11} /> Annulation possible avant production</div>
             <div><Icon name="check" size={11} /> Tracking par courriel sous 24h</div>
           </div>

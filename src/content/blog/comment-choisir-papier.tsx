@@ -92,7 +92,7 @@ export default function Post() {
           industrie. Le saut perceptuel par rapport au 14pt en vaut le coût.
         </li>
         <li>
-          <strong>Premium (~120$/250 cartes)</strong> : 18pt soft touch. Tu vas obtenir des
+          <strong>Premium (~120$/250 cartes)</strong> : 16pt soft touch. Tu vas obtenir des
           commentaires à chaque échange. Investissement marketing déguisé en carte de visite.
         </li>
       </ul>

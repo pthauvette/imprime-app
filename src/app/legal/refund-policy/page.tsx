@@ -158,7 +158,7 @@ export default function RefundPolicyPage() {
       
               <details className="faq-item">
                 <summary className="faq-q">Combien de fois puis-je faire réimprimer une commande ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Sur un défaut de fabrication confirmé, on réimprime. Si la réimpression présente encore le <strong>même défaut confirmé</strong>, on te rembourse intégralement plutôt que de relancer indéfiniment. En pratique, un deuxième défaut arrive dans moins de 0,3 % des cas grâce au contrôle qualité de la presse.</div>
+                <div className="faq-a">Sur un défaut de fabrication confirmé, on réimprime. Si la réimpression présente encore le <strong>même défaut confirmé</strong>, on te rembourse intégralement plutôt que de relancer indéfiniment.</div>
               </details>
             </div>
           </section>

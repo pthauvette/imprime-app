@@ -258,8 +258,7 @@ export default function PrivacyPage() {
                   <li>Chiffrement TLS 1.3 pour toutes les communications client-serveur;</li>
                   <li>Chiffrement au repos (AES-256) des bases de données et des sauvegardes;</li>
                   <li>Connexion sans mot de passe par lien magique à usage unique (expiration 24 h) — aucun mot de passe à stocker, voler ou réutiliser;</li>
-                  <li>Sauvegardes chiffrées quotidiennes avec rétention de 30 jours;</li>
-                  <li>Audits de sécurité externes annuels par cabinet indépendant.</li>
+                  <li>Sauvegardes chiffrées quotidiennes avec rétention de 30 jours.</li>
                 </ul>
                 <p>Aucun système n'étant infaillible, nous ne pouvons garantir une sécurité absolue. Toutefois, nous nous engageons à appliquer en permanence l'état de l'art en matière de cybersécurité pour les services SaaS canadiens.</p>
               </section>

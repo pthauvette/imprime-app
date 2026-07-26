@@ -97,7 +97,7 @@ export default async function ConfirmationPage({
           <Row label="Méthode de livraison" value={shippingMethod} />
           <Row label="Province (taxes)" value={province} />
           <div style={{ padding: '16px 20px', background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>
-            <Icon name="info" size={14} /> <strong>Production démarre sous 2h.</strong> Tu vas recevoir un email avec ton numéro de commande dès que notre prépresse a validé tes fichiers.
+            <Icon name="info" size={14} /> <strong>Ta commande est en route vers l'impression.</strong> Tu vas recevoir un email avec ton numéro de commande dès que ton fichier a passé la vérification automatique.
           </div>
         </div>
 

@@ -118,8 +118,6 @@ export type OrderCancelledVars = {
   CANCEL_REASON: string;
   /** Pre-formatted card display (e.g. "Visa •••• 4242"). */
   CARD_LAST4_DISPLAY: string;
-  /** Promo code to be shown in the apology block (e.g. "DÉSOLÉ20"). */
-  APOLOGY_PROMO_CODE: string;
   UNSUBSCRIBE_URL: string;
 };
 

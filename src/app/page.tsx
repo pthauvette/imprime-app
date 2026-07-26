@@ -141,7 +141,7 @@ export default async function LandingPage() {
               <div className="how-card">
                 <div className="how-card-num">03</div>
                 <h3 className="how-card-title">Reçois</h3>
-                <p className="how-card-text">Paiement Stripe sécurisé. Production démarre dans l'heure. UPS ou FedEx te livre en {DELIVERY_WINDOW} selon ta sélection.</p>
+                <p className="how-card-text">Paiement Stripe sécurisé. Production lancée dès que ton fichier est validé. UPS ou FedEx te livre en {DELIVERY_WINDOW} selon ta sélection.</p>
                 <div className="how-card-time">Tracking par courriel</div>
               </div>
             </div>
@@ -166,7 +166,7 @@ export default async function LandingPage() {
                   <div className="product-promo-visual"><ProductMockup shape="card" finish="soft" title="Cartes Soft Touch" /></div>
                   <div className="product-promo-info">
                     <div className="product-promo-name">Cartes Soft Touch</div>
-                    <div className="product-promo-meta">18pt · velouté · premium</div>
+                    <div className="product-promo-meta">16pt · velouté · premium</div>
                   </div>
                   <div className="product-promo-price">à partir de 58,40 $</div>
                 </a>
@@ -219,8 +219,8 @@ export default async function LandingPage() {
               </div>
               <div className="feature-card">
                 <div className="feature-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg></div>
-                <h3 className="feature-title">Prépresse incluse</h3>
-                <p className="feature-text">Notre équipe vérifie ton fichier (bleed, dimensions, résolution) avant la presse. Inclus dans le prix, pas en sus.</p>
+                <h3 className="feature-title">Vérification de fichier incluse</h3>
+                <p className="feature-text">Notre système vérifie ton fichier (fond perdu, dimensions, résolution) avant la presse. Inclus dans le prix, pas en sus.</p>
               </div>
               <div className="feature-card">
                 <div className="feature-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="2" y1="20" x2="22" y2="20" /></svg></div>
@@ -264,7 +264,7 @@ export default async function LandingPage() {
               </details>
               <details className="faq-item">
                 <summary className="faq-q">Comment fonctionne le remboursement ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Annulation possible jusqu'au moment où la production démarre (généralement sous 2h). Après production, remplacement gratuit si le fichier validé par notre prépresse n'est pas respecté.</div>
+                <div className="faq-a">Demande l'annulation depuis ton compte tant que la production n'a pas démarré — ça se joue souvent en quelques minutes après le paiement, alors fais vite si besoin ; remboursement complet dans ce cas. Une fois la production lancée, des frais d'annulation s'appliquent (min. 25 $/article). Si le résultat livré ne respecte pas ta configuration, on corrige en réimpression ou en remboursement.</div>
               </details>
               <details className="faq-item">
                 <summary className="faq-q">Êtes-vous une vraie imprimerie ?<span className="faq-toggle">+</span></summary>

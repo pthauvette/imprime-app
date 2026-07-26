@@ -357,7 +357,6 @@ export async function sendOrderCancelledEmail(input: {
   reason: string;
   refundAmountCents?: number;
   cardLast4?: string;
-  apologyPromoCode?: string;
 }) {
   const { order, user } = input;
   const refundCents = input.refundAmountCents ?? order.amountCents;
@@ -368,7 +367,6 @@ export async function sendOrderCancelledEmail(input: {
     REFUND_AMOUNT: cad(refundCents),
     CANCEL_REASON: input.reason,
     CARD_LAST4_DISPLAY: input.cardLast4 ? `•••• ${input.cardLast4}` : 'ta carte de paiement',
-    APOLOGY_PROMO_CODE: input.apologyPromoCode ?? 'DÉSOLÉ20',
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
   return queueEmail({

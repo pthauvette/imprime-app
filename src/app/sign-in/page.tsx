@@ -71,13 +71,6 @@ export default async function SignInPage({
           <p className="auth-side-quote">
             Le print qui prenait 3 jours prend maintenant <em>30 secondes.</em>
           </p>
-          <div className="auth-side-author">
-            <div className="auth-side-avatar"></div>
-            <div className="auth-side-author-info">
-              <strong>Maxime Roy</strong>
-              <span>Agence Boréal · Québec</span>
-            </div>
-          </div>
         </div>
 
         {/* Round 45 #1 — « 12k+ resellers actifs » et « 4,9 ★ Trustpilot »

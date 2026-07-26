@@ -52,7 +52,7 @@ const PRICING_EXAMPLES: PricingRow[] = [
     ],
   },
   {
-    product: 'Cartes de visite 18pt Soft Touch',
+    product: 'Cartes de visite 16pt Soft Touch',
     spec: '3,5 × 2 po · finition soft touch',
     pricesPerQty: [
       { qty: 100, price: 85 },
