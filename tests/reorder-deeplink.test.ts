@@ -18,7 +18,7 @@ describe('buildReorderDeepLink', () => {
         options: { Stock: '30', size: '4', coating: '107' },
       }],
     });
-    const r = buildReorderDeepLink(payload);
+    const r = buildReorderDeepLink(payload, new Date());
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('expected ok');
     expect(r.url).toBe('/order/configure?productId=7&options=30,4,107');
@@ -31,7 +31,7 @@ describe('buildReorderDeepLink', () => {
         options: { Stock: '30', custom: 'abc', size: '4' },
       }],
     });
-    const r = buildReorderDeepLink(payload);
+    const r = buildReorderDeepLink(payload, new Date());
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('expected ok');
     expect(r.url).toContain('options=30,4');
@@ -44,7 +44,7 @@ describe('buildReorderDeepLink', () => {
         { productId: 99, options: { id: '88' } },
       ],
     });
-    const r = buildReorderDeepLink(payload);
+    const r = buildReorderDeepLink(payload, new Date());
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('expected ok');
     expect(r.url).toContain('productId=7');
@@ -52,28 +52,28 @@ describe('buildReorderDeepLink', () => {
   });
 
   it('parse-error si JSON invalide', () => {
-    const r = buildReorderDeepLink('not json {');
+    const r = buildReorderDeepLink('not json {', new Date());
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('expected fail');
     expect(r.reason).toBe('parse-error');
   });
 
   it('no-items si items array vide', () => {
-    const r = buildReorderDeepLink(JSON.stringify({ items: [] }));
+    const r = buildReorderDeepLink(JSON.stringify({ items: [] }), new Date());
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('expected fail');
     expect(r.reason).toBe('no-items');
   });
 
   it('no-items si items pas un array', () => {
-    const r = buildReorderDeepLink(JSON.stringify({ items: 'not an array' }));
+    const r = buildReorderDeepLink(JSON.stringify({ items: 'not an array' }), new Date());
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('expected fail');
     expect(r.reason).toBe('no-items');
   });
 
   it('no-items si pas de field items du tout', () => {
-    const r = buildReorderDeepLink(JSON.stringify({ other: 'shape' }));
+    const r = buildReorderDeepLink(JSON.stringify({ other: 'shape' }), new Date());
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('expected fail');
     expect(r.reason).toBe('no-items');
@@ -82,7 +82,7 @@ describe('buildReorderDeepLink', () => {
   it('invalid-payload si productId pas numérique', () => {
     const r = buildReorderDeepLink(JSON.stringify({
       items: [{ productId: 'oops', options: { id: '30' } }],
-    }));
+    }), new Date());
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('expected fail');
     expect(r.reason).toBe('invalid-payload');
@@ -91,7 +91,7 @@ describe('buildReorderDeepLink', () => {
   it('invalid-payload si options manquantes', () => {
     const r = buildReorderDeepLink(JSON.stringify({
       items: [{ productId: 7 }],
-    }));
+    }), new Date());
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('expected fail');
     expect(r.reason).toBe('invalid-payload');
@@ -100,7 +100,7 @@ describe('buildReorderDeepLink', () => {
   it('invalid-payload si zéro options valides après filter', () => {
     const r = buildReorderDeepLink(JSON.stringify({
       items: [{ productId: 7, options: { Stock: 'foo', size: 'bar' } }],
-    }));
+    }), new Date());
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('expected fail');
     expect(r.reason).toBe('invalid-payload');
@@ -109,7 +109,7 @@ describe('buildReorderDeepLink', () => {
   it('skip valeurs négatives ou zéro dans options', () => {
     const r = buildReorderDeepLink(JSON.stringify({
       items: [{ productId: 7, options: { a: '0', b: '-5', c: '12' } }],
-    }));
+    }), new Date());
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('expected ok');
     expect(r.url).toContain('options=12');

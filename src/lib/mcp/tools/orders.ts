@@ -148,7 +148,7 @@ export async function buildUserReorderLink(userId: string, orderId: string): Pro
   const order = await getOrderById(orderId);
   if (!order || order.userId !== userId) return { ok: false, notFound: true };
 
-  const link = buildReorderDeepLink(order.sinalitePayload);
+  const link = buildReorderDeepLink(order.sinalitePayload, order.createdAt);
   if (!link.ok) {
     // Payload illisible → fallback : la page start résout ce qu'elle peut.
     return { ok: false, notFound: false, reason: link.reason };
