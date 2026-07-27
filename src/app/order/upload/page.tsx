@@ -657,7 +657,7 @@ function Dropzone({
             onClick={() => inputRef.current?.click()}
             dragging={dragging}
             expectedDims={expectedDims}
-            bleedInches={marginSpec.bleedInches}
+            marginSpec={marginSpec}
           />
         )}
         <input
@@ -797,7 +797,7 @@ function ConfidenceBadge({ confidence = 'verified' }: { confidence?: FileConfide
 }
 
 function EmptyState({
-  onClick, dragging, expectedDims, bleedInches,
+  onClick, dragging, expectedDims, marginSpec,
 }: {
   onClick: () => void;
   dragging: boolean;
@@ -805,8 +805,15 @@ function EmptyState({
    *  afficher au client à quel format exporter AVANT qu'il se fasse rejeter
    *  (le message d'erreur était jusqu'ici le SEUL endroit où ce chiffre apparaissait). */
   expectedDims: ParsedSize | null;
-  bleedInches: number;
+  marginSpec: MarginSpec;
 }) {
+  const bleedInches = marginSpec.bleedInches;
+  // finding [22]/[116]/[130] — gabarit téléchargeable : taille EXACTE si connue
+  // (expectedDims), sinon repli sur le trim typique de la famille — jamais
+  // bloqué par l'absence de résolution (même fallback que l'overlay, PR #501).
+  const gabaritWidthIn = expectedDims?.widthIn ?? marginSpec.typicalTrim.widthIn;
+  const gabaritHeightIn = expectedDims?.heightIn ?? marginSpec.typicalTrim.heightIn;
+  const gabaritUrl = `/api/templates/gabarit.pdf?w=${gabaritWidthIn}&h=${gabaritHeightIn}&bleed=${marginSpec.bleedInches}&safe=${marginSpec.safeInches}`;
   return (
     <>
       <svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth={1.5}>
@@ -839,6 +846,13 @@ function EmptyState({
           {bleedInches > 0 && <> — {formatIn(bleedInches)} po de fond perdu par côté</>}
         </div>
       )}
+      <a
+        href={gabaritUrl}
+        download
+        style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 500, textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        <Icon name="download" size={12} /> Télécharger un gabarit (PDF)
+      </a>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em', textAlign: 'center' }}>
         PDF · AI · EPS · PSD · JPG · PNG · TIFF · max 150 MB
       </div>
