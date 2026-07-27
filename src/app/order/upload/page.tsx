@@ -26,6 +26,7 @@ import {
 } from '@/lib/products/margin-specs';
 import { resolveSelectedSize, type ParsedSize } from '@/lib/products/parse-size';
 import { buildFilesParam, parseFilesParam } from '@/lib/order/files-param';
+import { isSidednessGroup, classifySidedness } from '@/lib/products/sidedness';
 
 export default function UploadPage() {
   return (
@@ -53,6 +54,13 @@ function UploadPageInner() {
   // (taille custom / label non parsable) → on retombe sur un warning, jamais un
   // faux blocage.
   const [expectedDims, setExpectedDims] = useState<ParsedSize | null>(null);
+  // finding [23] — le verso était TOUJOURS optionnel (`required={false}` en
+  // dur), même quand la config PAYÉE est recto-verso (groupe Stock encode la
+  // face, cf. sidedness.ts). Un client pouvait donc valider une commande
+  // recto-verso sans jamais fournir le verso. true seulement si la config
+  // exacte sélectionnée classe "double" — jamais un faux positif qui
+  // bloquerait un vrai recto seulement.
+  const [versoRequired, setVersoRequired] = useState(false);
   // Auto-fill depuis l'éditeur de template : état de la VÉRIF du PDF (cf. effet
   // ci-dessous). Tant que ce n'est pas confirmé 200+PDF, on ne marque PAS le
   // recto « Validé ».
@@ -152,6 +160,16 @@ function UploadPageInner() {
         const sizeGroup = data?.optionGroups?.size ?? data?.optionGroups?.Size;
         const sz = resolveSelectedSize(sizeGroup, selectedIds);
         if (sz) setExpectedDims(sz);
+        // finding [23] — même détection que configure/page.tsx (groupe Stock
+        // qui encode en réalité recto/recto-verso). Requis SEULEMENT si
+        // l'option SÉLECTIONNÉE (pas juste le groupe) classe "double".
+        const stockGroup: { id: number; name: string }[] | undefined = data?.optionGroups?.Stock;
+        if (stockGroup && isSidednessGroup(stockGroup.map((o) => o.name))) {
+          const selected = stockGroup.find((o) => selectedIds.includes(o.id));
+          if (selected && classifySidedness(selected.name) === 'double') {
+            setVersoRequired(true);
+          }
+        }
       })
       .catch(() => {
         // Garde le default — overlay reste visuellement utile
@@ -170,7 +188,8 @@ function UploadPageInner() {
   // aller-retour configure↔upload pour ajuster une option forçait un
   // re-téléversement. Cf. docs/experience-client-2026-07.md finding [27].
   const prevHref = `/order/configure?productId=${productId}&options=${options}${designSuffix}${filesSuffix}` as Route;
-  const canContinue = recto !== null;
+  // finding [23] — verso obligatoire seulement si la config payée l'exige.
+  const canContinue = recto !== null && (!versoRequired || verso !== null);
   // finding [74] — l'URL de CETTE étape porte déjà tout l'état (productId,
   // options, fichiers déjà uploadés) : c'est exactement ce qu'il faut envoyer
   // pour « continuer sur un autre appareil ».
@@ -265,7 +284,7 @@ function UploadPageInner() {
             <Dropzone
               label="Verso"
               kind="back"
-              required={false}
+              required={versoRequired}
               file={verso}
               onChange={setVerso}
               onClear={() => setVerso(null)}
@@ -307,7 +326,9 @@ function UploadPageInner() {
             <span style={{ fontFamily: 'var(--font-mono)' }}>←</span> Précédent
           </Link>
         </div>
-        <div className="shell-footer-center">↵ Entrée pour continuer · Téléverse au moins le recto</div>
+        <div className="shell-footer-center">
+          ↵ Entrée pour continuer · {versoRequired ? 'Téléverse le recto ET le verso (recto-verso choisi)' : 'Téléverse au moins le recto'}
+        </div>
         <div className="shell-footer-right">
           <button
             className="btn btn-primary"
