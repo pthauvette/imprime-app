@@ -15,6 +15,7 @@ import { findCategoryGroupBySinaliteCategory } from '@/lib/catalogue';
 import { isSidednessGroup, classifySidedness, sidednessDesc, SIDEDNESS_LABEL } from '@/lib/products/sidedness';
 import { parseSizeLabel } from '@/lib/products/parse-size';
 import { pickDefaultQuantityOption } from '@/lib/products/default-quantity';
+import { computeOptionPriceDelta } from '@/lib/products/option-price-delta';
 import { Icon } from '@/components/ui/Icon';
 
 type OptionGroupMap = Record<string, SinaliteOption[]>;
@@ -126,6 +127,22 @@ export default function ConfigureClient({
   const currentQty = sortedQty[qtyIdx];
   const qtyValue = currentQty ? Number(currentQty.name) : 0;
   const localPrice = currentQty ? lookupPrice(currentQty.id) : null;
+
+  // finding [15] — delta de prix par option, O(1) via l'index déjà en
+  // navigateur (zéro appel réseau). Uniquement quand le prix COURANT vient de
+  // l'index local (pas du repli distant) — sinon on risquerait de mélanger
+  // deux bases de calcul différentes. Combinaison résultante absente de
+  // l'index → null (le caller n'affiche alors AUCUN chiffre pour cette
+  // option, jamais un chiffre deviné).
+  const getOptionDelta = (groupName: string, optionId: number): number | null => {
+    if (localPrice === null || !currentQty) return null;
+    return computeOptionPriceDelta(
+      { orderedGroups, selection, qtyOptionId: currentQty.id, variantIndex },
+      groupName,
+      optionId,
+      localPrice,
+    );
+  };
 
   // ─── Repli prix distant ────────────────────────────────────────────────
   // L'index local ne couvre PAS toutes les combinaisons : produits `custom_size`
@@ -278,6 +295,7 @@ export default function ConfigureClient({
               options={optionGroups[groupName]!}
               selectedId={selection[groupName]}
               onPick={(id) => pick(groupName, id)}
+              getDelta={(optionId) => getOptionDelta(groupName, optionId)}
             />
           ))}
 
@@ -463,13 +481,14 @@ export default function ConfigureClient({
 // ─── ConfigSection — picker UI selon le type de groupe ───────────────────
 
 function ConfigSection({
-  groupName, index, options, selectedId, onPick,
+  groupName, index, options, selectedId, onPick, getDelta,
 }: {
   groupName: string;
   index: number;
   options: SinaliteOption[];
   selectedId?: number;
   onPick: (id: number) => void;
+  getDelta: (optionId: number) => number | null;
 }) {
   const isSize = groupName === 'size';
   // finding [97]/[10] — pour certains produits, `Stock` encode recto/recto-
@@ -507,17 +526,17 @@ function ConfigSection({
       </div>
 
       {isSize ? (
-        <SizeGrid options={options} selectedId={selectedId} onPick={onPick} />
+        <SizeGrid options={options} selectedId={selectedId} onPick={onPick} getDelta={getDelta} />
       ) : isSidedness ? (
-        <SidednessGrid options={options} selectedId={selectedId} onPick={onPick} />
+        <SidednessGrid options={options} selectedId={selectedId} onPick={onPick} getDelta={getDelta} />
       ) : isStock ? (
-        <StockGrid options={options} selectedId={selectedId} onPick={onPick} />
+        <StockGrid options={options} selectedId={selectedId} onPick={onPick} getDelta={getDelta} />
       ) : isCoating ? (
-        <Pills options={options} selectedId={selectedId} onPick={onPick} />
+        <Pills options={options} selectedId={selectedId} onPick={onPick} getDelta={getDelta} />
       ) : isBinary ? (
         <BinarySwitch options={options} selectedId={selectedId} onPick={onPick} />
       ) : (
-        <Pills options={options} selectedId={selectedId} onPick={onPick} />
+        <Pills options={options} selectedId={selectedId} onPick={onPick} getDelta={getDelta} />
       )}
     </section>
   );
@@ -529,9 +548,28 @@ interface PickerProps {
   options: SinaliteOption[];
   selectedId?: number;
   onPick: (id: number) => void;
+  /** finding [15] — delta $ vs le prix courant ; null = combinaison inconnue
+   *  de l'index local, ne rien afficher (jamais un chiffre deviné). */
+  getDelta?: (optionId: number) => number | null;
 }
 
-function SizeGrid({ options, selectedId, onPick }: PickerProps) {
+/** « +2,50 $ » / « -1,00 $ » / « Inclus » (delta 0, l'option courante) — ou
+ *  rien si le delta est inconnu (fail-safe, cf. computeOptionPriceDelta). */
+function DeltaLabel({ delta }: { delta: number | null }) {
+  if (delta === null) return null;
+  const style = {
+    display: 'block',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 11,
+    fontWeight: 600,
+    marginTop: 2,
+    color: delta === 0 ? 'var(--text-muted)' : delta > 0 ? 'var(--text-secondary)' : 'var(--success, #1F3D2B)',
+  };
+  if (delta === 0) return <span style={style}>Inclus</span>;
+  return <span style={style}>{delta > 0 ? '+' : ''}{formatCurrency(delta)}</span>;
+}
+
+function SizeGrid({ options, selectedId, onPick, getDelta }: PickerProps) {
   return (
     <div className="format-grid">
       {options.map((opt) => {
@@ -551,6 +589,7 @@ function SizeGrid({ options, selectedId, onPick }: PickerProps) {
             </div>
             <div className="format-card-name">{opt.name}{dims ? '"' : ''}</div>
             <div className="format-card-desc">{dims ? labelForFormat(dims) : 'Format'}</div>
+            <DeltaLabel delta={getDelta?.(opt.id) ?? null} />
           </button>
         );
       })}
@@ -565,7 +604,7 @@ function SizeGrid({ options, selectedId, onPick }: PickerProps) {
  * StockGrid, qui retombait sur la même description générique pour les deux
  * quand le nom d'option ne matchait aucun grammage connu).
  */
-function SidednessGrid({ options, selectedId, onPick }: PickerProps) {
+function SidednessGrid({ options, selectedId, onPick, getDelta }: PickerProps) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(options.length, 2)}, 1fr)`, gap: 16 }}>
       {options.map((opt) => {
@@ -582,6 +621,7 @@ function SidednessGrid({ options, selectedId, onPick }: PickerProps) {
             <div className="stock-body">
               <div className="stock-name">{label}</div>
               <div className="stock-desc">{kind ? sidednessDesc(kind) : opt.name}</div>
+              <DeltaLabel delta={getDelta?.(opt.id) ?? null} />
             </div>
           </button>
         );
@@ -590,7 +630,7 @@ function SidednessGrid({ options, selectedId, onPick }: PickerProps) {
   );
 }
 
-function StockGrid({ options, selectedId, onPick }: PickerProps) {
+function StockGrid({ options, selectedId, onPick, getDelta }: PickerProps) {
   return (
     <div className="stock-grid">
       {options.map((opt) => {
@@ -607,6 +647,7 @@ function StockGrid({ options, selectedId, onPick }: PickerProps) {
             <div className="stock-body">
               <div className="stock-name">{opt.name}</div>
               <div className="stock-desc">{stockDesc(opt.name)}</div>
+              <DeltaLabel delta={getDelta?.(opt.id) ?? null} />
             </div>
           </button>
         );
@@ -615,7 +656,7 @@ function StockGrid({ options, selectedId, onPick }: PickerProps) {
   );
 }
 
-function Pills({ options, selectedId, onPick }: PickerProps) {
+function Pills({ options, selectedId, onPick, getDelta }: PickerProps) {
   // Round 30 #5 — Avant <div role="tab" onClick>. Le footer wizard
   // disait "Tab pour naviguer · ↵ Entrée pour continuer" mais ce composant
   // n'était pas focusable et Enter ne marchait pas. Maintenant <button>
@@ -631,7 +672,7 @@ function Pills({ options, selectedId, onPick }: PickerProps) {
           aria-selected={selectedId === opt.id}
           onClick={() => onPick(opt.id)}
         >
-          {opt.name}
+          {opt.name} <DeltaLabel delta={getDelta?.(opt.id) ?? null} />
         </button>
       ))}
     </div>
