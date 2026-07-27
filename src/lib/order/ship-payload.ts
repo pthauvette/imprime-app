@@ -26,6 +26,11 @@ export interface ShipPayloadInput {
   sig: string;
   /** Instructions de livraison libres (optionnel). */
   note?: string;
+  /** finding [17] — jours production/transit du devis choisi (déjà calculés
+   *  par /api/shipping/estimate), portés jusqu'à /order/review pour l'ETA
+   *  honnête post-achat. PAS couverts par `sig` (n'affectent pas le prix). */
+  productionDays?: number;
+  transitDays?: number;
 }
 
 export function buildShipPayload(input: ShipPayloadInput): string {
@@ -44,5 +49,7 @@ export function buildShipPayload(input: ShipPayloadInput): string {
     price: input.price,
     sig: input.sig,
     ...(trimmedNote ? { note: trimmedNote.slice(0, 200) } : {}),
+    ...(typeof input.productionDays === 'number' ? { productionDays: input.productionDays } : {}),
+    ...(typeof input.transitDays === 'number' ? { transitDays: input.transitDays } : {}),
   });
 }

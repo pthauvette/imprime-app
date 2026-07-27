@@ -123,6 +123,11 @@ export type CreateOrderInput = {
   walletCreditAppliedCents?: number;
   /** Round 22 #2 — Reseller 5% discount snapshot. 0 si pas VERIFIED. */
   resellerDiscountCents?: number;
+  /** finding [17] — jours de production/transit RÉELS captés à la commande
+   *  (cf. migration 20260727160000). Undefined/null → computeOrderEta
+   *  retombe sur l'heuristique forfaitaire, jamais de régression. */
+  productionDays?: number | null;
+  transitDays?: number | null;
 };
 
 export async function createPendingOrder(input: CreateOrderInput) {
@@ -156,6 +161,9 @@ export async function createPendingOrder(input: CreateOrderInput) {
     shipPhone: input.shipPhone,
     // Round 26 #2 — optional shipping note
     shippingNote: input.shippingNote ?? null,
+    // finding [17] — jours production/transit réels (undefined/null → colonne NULL)
+    productionDays: input.productionDays ?? null,
+    transitDays: input.transitDays ?? null,
   };
 
   // Audit v2 #5.2 — on n'incrémente PLUS PromoCode.usesCount ici. Avant :

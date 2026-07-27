@@ -84,6 +84,14 @@ const CreateOrderSchema = z.object({
    *  Forwardé à Sinalite + persisté sur Order.shippingNote. */
   shippingNote: z.string().trim().max(200).optional(),
 
+  /** finding [17] — jours production/transit du devis choisi (déjà calculés et
+   *  affichés au client sur /order/shipping via /api/shipping/estimate). PAS
+   *  signés (contrairement à shippingQuoteSig qui protège le PRIX) : une
+   *  valeur falsifiée ici n'affecte qu'un affichage d'ETA sur SA PROPRE
+   *  commande, aucun impact financier. Bornées par sécurité (0-90j). */
+  productionDays: z.number().int().min(0).max(90).optional(),
+  transitDays: z.number().int().min(0).max(90).optional(),
+
   /** Sub-total computed by client — server WILL recompute and verify. */
   expectedSubtotal: z.number().nonnegative(),
 
@@ -378,6 +386,9 @@ export const POST = withErrorHandler(async (req: Request) => {
     shipPhone: payload.contact.phone,
     // Round 26 #2 — instructions livraison customer (Order column)
     shippingNote: payload.shippingNote || null,
+    // finding [17] — jours production/transit réels du devis choisi
+    productionDays: payload.productionDays ?? null,
+    transitDays: payload.transitDays ?? null,
     sinalitePayload,
     productSummary,
     itemsSnapshot,

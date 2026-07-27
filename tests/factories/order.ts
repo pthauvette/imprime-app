@@ -42,6 +42,10 @@ export const DEFAULT_TEST_ORDER: Order = {
   promoCodeId: null,
   adminNotes: null,
   shippingMethod: 'UPS Standard',
+  // finding [17] — jours production/transit réels (default null = commande
+  // pré-migration, computeOrderEta retombe sur l'heuristique forfaitaire)
+  productionDays: null,
+  transitDays: null,
   province: 'QC',
   shipName: 'Test User',
   shipLine1: '123 rue Test',

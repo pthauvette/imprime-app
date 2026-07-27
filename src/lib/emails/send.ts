@@ -325,8 +325,10 @@ export async function sendOrderShippedEmail(input: {
   // calculerait une ETA plus précise (production+transit réels).
   const etaFormatted = input.estimatedDelivery
     ? dateFrLong(input.estimatedDelivery)
-    : (computeOrderEta({ createdAt: order.createdAt, status: 'SHIPPED' }, new Date())?.day
-        ?? dateFrLong(new Date(Date.now() + 3 * 24 * 3600 * 1000)));
+    : (computeOrderEta(
+        { createdAt: order.createdAt, status: 'SHIPPED', productionDays: order.productionDays, transitDays: order.transitDays },
+        new Date(),
+      )?.day ?? dateFrLong(new Date(Date.now() + 3 * 24 * 3600 * 1000)));
   const carrier = input.carrier ?? extractCarrier(order.shippingMethod);
   const tracking = input.trackingNumber ?? '';
   // Audit v2 #7.5 — si SHIPPED arrive sans numéro de tracking (ou carrier
