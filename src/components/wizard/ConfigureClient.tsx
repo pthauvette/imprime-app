@@ -70,6 +70,17 @@ export default function ConfigureClient({
       .sort((a, b) => (priority[a] ?? 50) - (priority[b] ?? 50));
   }, [optionGroups]);
 
+  // finding [16] — 151/164 produits ont des groupes à UNE SEULE option (« Papier »
+  // avec 1 seul grammage, etc.) : une section entière avec une seule carte déjà
+  // cochée n'offre aucun choix, juste du bruit visuel (l'option reste sélectionnée
+  // via defaultSelection côté serveur, RIEN ne change côté logique/prix — seul le
+  // RENDU est filtré). `orderedGroups` reste la source de vérité pour la sélection,
+  // le pricing et le payload envoyé à /upload.
+  const visibleGroups = useMemo(
+    () => orderedGroups.filter((g) => (optionGroups[g]?.length ?? 0) > 1),
+    [orderedGroups, optionGroups],
+  );
+
   const pick = (group: string, id: number) => {
     setSelection((s) => ({ ...s, [group]: id }));
   };
@@ -254,7 +265,7 @@ export default function ConfigureClient({
             />
           </div>
 
-          {orderedGroups.map((groupName, idx) => (
+          {visibleGroups.map((groupName, idx) => (
             <ConfigSection
               key={groupName}
               groupName={groupName}
@@ -271,7 +282,7 @@ export default function ConfigureClient({
             <section style={{ padding: '40px 0', borderTop: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr auto', gap: 16, alignItems: 'baseline', marginBottom: 24 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600 }}>
-                  {romanize(orderedGroups.length + 1)}.
+                  {romanize(visibleGroups.length + 1)}.
                 </span>
                 <div>
                   <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '-0.01em', margin: '0 0 4px', fontWeight: 400 }}>
