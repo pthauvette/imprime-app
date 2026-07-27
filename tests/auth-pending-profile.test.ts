@@ -73,6 +73,28 @@ describe('parsePendingProfileCookie (auth.ts signIn snippet)', () => {
     expect(parsePendingProfileCookie(encodeURIComponent('{}'))).toEqual({});
   });
 
+  // finding [127] — companyName était capté par le formulaire de sign-up
+  // mais jamais persisté (silencieusement perdu). Verrouille que le champ
+  // est bien inclus dans le patch User, avec la même borne 100 chars.
+  it('inclut companyName dans le patch User', () => {
+    const cookie = encodeURIComponent(JSON.stringify({
+      firstName: 'Patrick',
+      companyName: 'Agence Boréal',
+    }));
+    expect(parsePendingProfileCookie(cookie).companyName).toBe('Agence Boréal');
+  });
+
+  it('slice companyName à 100 chars', () => {
+    const big = 'a'.repeat(200);
+    const cookie = encodeURIComponent(JSON.stringify({ companyName: big }));
+    expect(parsePendingProfileCookie(cookie).companyName?.length).toBe(100);
+  });
+
+  it('companyName absent du payload → absent du patch', () => {
+    const cookie = encodeURIComponent(JSON.stringify({ firstName: 'Solo' }));
+    expect(parsePendingProfileCookie(cookie).companyName).toBeUndefined();
+  });
+
   it('ignore les champs hors-spec', () => {
     const cookie = encodeURIComponent(JSON.stringify({
       firstName: 'P',
