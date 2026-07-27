@@ -15,7 +15,7 @@ import Nodemailer from 'next-auth/providers/nodemailer';
 import { prisma } from '@/lib/db';
 import { authConfig } from '@/auth.config';
 import { renderEmail } from '@/lib/emails/render';
-import { sendWelcomeEmail } from '@/lib/emails/send';
+import { sendWelcomeEmail, unsubscribeUrlFor } from '@/lib/emails/send';
 import { logAuth } from '@/lib/logger';
 import { buildSignupUpdateData } from '@/lib/auth/pending-profile';
 
@@ -106,7 +106,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { createTransport } = await import('nodemailer');
         const transport = createTransport(provider.server);
         const host = new URL(url).host;
-        const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca'}/settings#email-preferences`;
+        // finding [111] — /settings est auth-gated ; le destinataire d'un
+        // magic-link n'a PAS de session (c'est justement pour ça qu'il reçoit
+        // ce courriel) → l'ancien lien menait à sign-in : désabonnement
+        // circulaire. Même token HMAC sans-auth que les invités abandoned-cart.
+        const unsubscribeUrl = unsubscribeUrlFor(identifier);
         const html = renderEmail('magic-link', {
           MAGIC_LINK_URL: url,
           UNSUBSCRIBE_URL: unsubscribeUrl,
