@@ -51,6 +51,12 @@ export const limiters = {
   // emailSentAt → re-éligible recovery → spam CASL). 5/h/email couvre le va-et-
   // vient légitime dans le wizard tout en bloquant l'abus multi-IP.
   abandonedCart: makeLimiter(5, '1 h', 'abcart'),
+  // Finding [74] — « envoie-moi le lien pour continuer sur un autre appareil »
+  // (/order/upload). Endpoint anonyme qui envoie un courriel à une adresse
+  // arbitraire → même profil de risque qu'abandonedCart (spam d'une victime).
+  // Keyé PAR EMAIL, même raisonnement : borne le ré-enrôlement répété d'une
+  // même boîte, indépendamment du nombre d'IP utilisées.
+  continueLink: makeLimiter(5, '1 h', 'continue-link'),
   // MCP — endpoint public (/api/mcp) dont les tools proxient Sinalite (API
   // payante, get_print_quote/estimate_shipping NON cachés). Pas d'auth sur les
   // read-only → DEUX gardes complémentaires :

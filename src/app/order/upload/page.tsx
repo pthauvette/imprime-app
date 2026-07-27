@@ -171,6 +171,10 @@ function UploadPageInner() {
   // re-téléversement. Cf. docs/experience-client-2026-07.md finding [27].
   const prevHref = `/order/configure?productId=${productId}&options=${options}${designSuffix}${filesSuffix}` as Route;
   const canContinue = recto !== null;
+  // finding [74] — l'URL de CETTE étape porte déjà tout l'état (productId,
+  // options, fichiers déjà uploadés) : c'est exactement ce qu'il faut envoyer
+  // pour « continuer sur un autre appareil ».
+  const currentPath = `/order/upload?productId=${productId}&options=${options}${designSuffix}${filesSuffix}`;
 
   return (
     <div className="shell">
@@ -209,6 +213,8 @@ function UploadPageInner() {
             les dimensions et la résolution avant la production. Fournis un fichier CMYK : la
             conversion des couleurs se fait à la presse.
           </p>
+
+          <ContinueOnDeviceLink path={currentPath} />
 
           {designId && templateLoading && (
             <div
@@ -358,6 +364,80 @@ interface UploadProgress {
 // est chargé via `await import('@/lib/print/pdf-validator')` à la première
 // sélection d'un PDF, jamais au load de la page.
 import type { ValidationIssue } from '@/lib/print/pdf-validator';
+
+// ─── Continuer sur un autre appareil (finding [74]) ────────────────────────
+
+function ContinueOnDeviceLink({ path }: { path: string }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  async function handleSend() {
+    setStatus('sending');
+    try {
+      const res = await fetch('/api/order/send-continue-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, path }),
+      });
+      setStatus(res.ok ? 'sent' : 'error');
+    } catch {
+      setStatus('error');
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          background: 'transparent', border: 0, padding: 0, marginBottom: 20,
+          fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'underline', cursor: 'pointer',
+        }}
+      >
+        Pas au bon endroit pour téléverser ? Envoie-toi le lien →
+      </button>
+    );
+  }
+
+  if (status === 'sent') {
+    return (
+      <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--success, #1F3D2B)' }}>
+        <Icon name="check" size={13} /> Courriel envoyé — ouvre-le depuis l'autre appareil pour continuer ici.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="ton@courriel.com"
+        style={{
+          padding: '8px 12px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-default)',
+          fontSize: 13, minWidth: 220,
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => void handleSend()}
+        disabled={status === 'sending' || !email}
+        className="btn btn-secondary btn-sm"
+        style={{ padding: '6px 14px' }}
+      >
+        {status === 'sending' ? 'Envoi…' : 'Envoie-moi le lien'}
+      </button>
+      {status === 'error' && (
+        <span role="alert" style={{ fontSize: 12, color: 'var(--danger)' }}>
+          Échec de l'envoi — réessaie dans un instant.
+        </span>
+      )}
+    </div>
+  );
+}
 
 // ─── Dropzone ─────────────────────────────────────────────────────────────
 
