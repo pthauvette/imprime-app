@@ -97,6 +97,9 @@ export type OrderDeliveredVars = {
   /** Bloc HTML de la mini-timeline 4 étapes (toutes done à ce stade).
    *  Généré par renderLifecycleTimeline(4). */
   LIFECYCLE_TIMELINE_HTML: string;
+  /** finding [42] — sujet mailto pré-rempli du bloc recours qualité, déjà
+   *  URL-encodé (posé directement dans le href du template). */
+  REPORT_PROBLEM_SUBJECT: string;
   UNSUBSCRIBE_URL: string;
 };
 
