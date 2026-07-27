@@ -139,9 +139,13 @@ function EmptyState() {
       >
         Pas de brouillon.
       </h2>
+      {/* finding [58]/[117] — contredisait le commentaire du haut de ce
+          fichier : il n'y a PAS d'autosave en cours d'édition, le brouillon
+          n'est persisté qu'au clic « Commander » (/api/designs/finalize). */}
       <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, maxWidth: 320 }}>
-        Crée un design depuis nos templates — tes modifications sont sauvegardées au fur
-        et à mesure.
+        Crée un design depuis nos templates — il apparaîtra ici une fois que tu
+        cliques « Commander », pour reprendre plus tard si tu n&apos;as pas
+        terminé.
       </p>
       <Link
         href={'/templates' as Route}

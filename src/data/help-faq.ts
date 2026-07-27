@@ -54,7 +54,11 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     category: 'Fichiers',
     q: 'Mon fichier a été refusé — que faire ?',
-    a: 'Notre validateur upload te dit précisément ce qui cloche (résolution trop basse, CMYK manquant, polices non-embarquées, etc.). Corrige le fichier et re-upload — pas besoin de re-payer.',
+    // finding [46]/[101] — le validateur upload ne détecte PAS la résolution
+    // DPI, le CMYK/RGB ni les polices non-embarquées (cf. pdf-validator.ts,
+    // « Ce qu'on ne valide PAS (encore) ») : il vérifie que le PDF parse, le
+    // nombre de pages, les dimensions/bleed et la taille du fichier.
+    a: 'Notre validateur upload te dit précisément ce qui cloche (mauvais nombre de pages, dimensions ou bleed incorrects, fichier trop lourd, etc.). Corrige le fichier et re-upload — pas besoin de re-payer.',
   },
 
   // ─── Livraison ────────────────────────────────────────────────────────
@@ -66,7 +70,10 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     category: 'Livraison',
     q: 'Vous livrez partout au Canada ?',
-    a: 'Oui — UPS Standard et Postes Canada disponibles partout, incluant les territoires (avec délais étendus). Pas de livraison hors Canada pour MVP.',
+    // finding [46]/[101] — seuls UPS et FedEx existent réellement (cf.
+    // ShipMethod dans sinalite/types.ts) ; Postes Canada n'est PAS un
+    // transporteur disponible au checkout.
+    a: 'Oui — UPS et FedEx disponibles partout, incluant les territoires (avec délais étendus). Pas de livraison hors Canada pour MVP.',
   },
   {
     category: 'Livraison',
@@ -76,7 +83,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     category: 'Livraison',
     q: 'Que se passe-t-il si ma commande arrive endommagée ?',
-    a: 'Écris-nous avec une photo du colis + du produit endommagé dans les 7 jours. On réimprime sans frais. C\'est rare (UPS/Postes Canada sont fiables) mais on couvre.',
+    a: 'Écris-nous avec une photo du colis + du produit endommagé dans les 7 jours. On réimprime sans frais. C\'est rare (UPS/FedEx sont fiables) mais on couvre.',
   },
 
   // ─── Paiement ─────────────────────────────────────────────────────────
