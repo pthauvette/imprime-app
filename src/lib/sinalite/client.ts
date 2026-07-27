@@ -186,7 +186,12 @@ function decodeJwtExp(jwt: string): number | null {
 
 async function request<T>(
   endpoint: string,
-  init: RequestInit & { schema: z.ZodType<T> },
+  // schema: z.ZodType<T, z.ZodTypeDef, any> — PAS `z.ZodType<T>` seul : ce
+  // dernier fixe implicitement Input = T, ce qui casse l'inférence dès
+  // qu'un schema contient un `.transform()` (Input ≠ Output, ex.
+  // SinaliteOption/finding [12]) — T se retrouve élargi vers la forme
+  // PRÉ-transform partout en aval au lieu du type transformé attendu.
+  init: RequestInit & { schema: z.ZodType<T, z.ZodTypeDef, any> },
 ): Promise<T> {
   const token = await getToken();
   const env = getEnv();
