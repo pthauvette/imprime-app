@@ -211,6 +211,15 @@ export type EmailVarsMap = {
   'reengagement-winback': ReengagementWinbackVars;
   'abandoned-cart': AbandonedCartVars;
   'reseller-monthly-stats': ResellerMonthlyStatsVars;
+  'continue-on-device': ContinueOnDeviceVars;
+};
+
+/** Finding [74] — « envoie-moi le lien » depuis /order/upload, déclenché
+ *  explicitement par le client (≠ recovery automatique abandoned-cart). */
+export type ContinueOnDeviceVars = {
+  /** URL absolue vers l'étape exacte du wizard (query string déjà incluse). */
+  CONTINUE_URL: string;
+  UNSUBSCRIBE_URL: string;
 };
 
 export type ReengagementFollowUpVars = {

@@ -28,7 +28,8 @@ export type EmailTemplate =
   | 'reengagement-follow-up'
   | 'reengagement-winback'
   | 'abandoned-cart'
-  | 'reseller-monthly-stats';
+  | 'reseller-monthly-stats'
+  | 'continue-on-device';
 
 /**
  * Templates marketing (par opposition aux transactionnels). Source unique
@@ -98,6 +99,7 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
   'reengagement-winback': () => `On t'a manqué ? Voici 10 % pour célébrer ton retour.`,
   'abandoned-cart': (v) => `Ta commande ${v.PRODUCT_NAME ?? 'Plio'} t'attend`,
   'reseller-monthly-stats': (v) => `Ton récap reseller — ${v.MONTH_LABEL ?? ''}`,
+  'continue-on-device': () => `Ton lien pour continuer ta commande Plio`,
 };
 
 // ─── ACTUAL SEND (via SES SMTP) ───────────────────────────────────────────

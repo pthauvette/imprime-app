@@ -34,6 +34,7 @@ import type {
   AbandonedCartVars,
   ResellerMonthlyStatsVars,
   ResellerApprovedVars,
+  ContinueOnDeviceVars,
 } from './vars';
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────
@@ -585,6 +586,27 @@ export async function sendAbandonedCartEmail(input: {
     template: 'abandoned-cart',
     vars: vars as unknown as Record<string, string | number>,
     label: `abandoned-cart:${input.cartId}`,
+  });
+}
+
+/**
+ * Finding [74] — « envoie-moi le lien pour continuer sur un autre appareil ».
+ * Déclenché explicitement par un clic du client sur /order/upload (≠ recovery
+ * automatique abandoned-cart) : ton honnête « voici ton lien », pas un texte
+ * de relance marketing. `continueUrl` DOIT déjà avoir été validée côté
+ * appelant (chemin interne /order/... uniquement — cf. send-continue-link/route.ts)
+ * avant d'arriver ici : cette fonction ne revalide rien.
+ */
+export async function sendContinueOnDeviceEmail(input: { to: string; continueUrl: string }) {
+  const vars: ContinueOnDeviceVars = {
+    CONTINUE_URL: input.continueUrl,
+    UNSUBSCRIBE_URL: unsubscribeUrlFor(input.to),
+  };
+  return queueEmail({
+    to: input.to,
+    template: 'continue-on-device',
+    vars: vars as unknown as Record<string, string | number>,
+    label: `continue-on-device:${input.to}`,
   });
 }
 
