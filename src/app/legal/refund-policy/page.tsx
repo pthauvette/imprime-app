@@ -143,7 +143,10 @@ export default function RefundPolicyPage() {
       
               <details className="faq-item">
                 <summary className="faq-q">Et si la couleur imprimée ne correspond pas à mon écran ?<span className="faq-toggle">+</span></summary>
-                <div className="faq-a">Ton écran utilise un profil RVB rétro-éclairé, la presse imprime en CMJN sur papier réflectif — il y aura toujours un écart, c'est de la physique. La reproduction exacte des couleurs <strong>n'est pas garantie</strong> et une variation raisonnable est normale (elle ne constitue pas un défaut), en particulier sur les produits à vernis ou pelliculage. Pour une couleur critique (logo de marque, packaging), commande un <strong>tirage d'épreuve physique</strong> à 18 $ avant la grande série — c'est le seul moyen fiable de valider le rendu réel.</div>
+                <div className="faq-a">Ton écran utilise un profil RVB rétro-éclairé, la presse imprime en CMJN sur papier réflectif — il y aura toujours un écart, c'est de la physique. La reproduction exacte des couleurs <strong>n'est pas garantie</strong> et une variation raisonnable est normale (elle ne constitue pas un défaut), en particulier sur les produits à vernis ou pelliculage. {/* finding [65] — "tirage d'épreuve physique à 18$" ne correspond à AUCUN
+                    SKU du catalogue (vérifié) ; on renvoie vers un vrai geste possible :
+                    commander d'abord la plus petite quantité disponible du même produit. */}
+                Pour une couleur critique (logo de marque, packaging), commande d'abord la <strong>plus petite quantité disponible</strong> pour ce produit avant la grande série — c'est le moyen le plus fiable de valider le rendu réel avec notre catalogue actuel.</div>
               </details>
       
               <details className="faq-item">

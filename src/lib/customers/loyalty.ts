@@ -93,16 +93,22 @@ export const TIER_LABELS: Record<LoyaltyTier, string> = {
   GOLD: 'Or',
 };
 
+// finding [55] — 2 promesses ici ne correspondaient à AUCUNE logique de prix
+// réelle (risque LPC, représentation trompeuse) : le « 5 % de remise auto »
+// SILVER n'existe nulle part dans price-order.ts (seul GOLD a un perk de
+// livraison, cf. applyShippingPerks dans perks.ts), et le « peu importe le
+// montant » GOLD est en fait plafonné (GOLD_FREE_SHIPPING_CAP_CENTS, 25 $ par
+// défaut — le surplus est facturé). Retiré/corrigé plutôt qu'inventé une
+// remise qui n'existe pas.
 export const TIER_PERKS: Record<LoyaltyTier, string[]> = {
   BRONZE: ['Accès aux promos saisonnières'],
   SILVER: [
     'Tout ce que BRONZE a',
-    '5 % de remise auto sur les commandes > 100 $',
     'Service support prioritaire (réponse < 1 h ouvrable)',
   ],
   GOLD: [
     'Tout ce que SILVER a',
-    'Livraison standard gratuite, peu importe le montant',
+    'Livraison standard gratuite, avec un plafond pour les envois exceptionnels (grand format, régions éloignées)',
     'Accès aux nouveaux produits en avant-première',
     'Production prioritaire (passe en tête de file)',
   ],
