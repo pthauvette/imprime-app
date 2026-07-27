@@ -105,6 +105,27 @@ describe('queueEmail', () => {
     expect(prisma.emailDelivery.create).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
   });
+
+  // finding [112] — avant, un transactionnel bloqué disparaissait sans
+  // qu'aucun humain ne le sache (client sans nouvelle, admin dans le noir).
+  it('finding [112] : template TRANSACTIONNEL suppressed → alerte Slack', async () => {
+    vi.mocked(prisma.emailSuppression.findUnique).mockResolvedValueOnce({ id: 'sup1' } as never);
+    await queueEmail({
+      to: 'gone@nowhere.ca', template: 'order-shipped', vars: {}, label: 'order-shipped:ord_1',
+    });
+    expect(sendCriticalAlert).toHaveBeenCalledOnce();
+    const alert = vi.mocked(sendCriticalAlert).mock.calls[0][0];
+    expect(alert.severity).toBe('warning');
+    expect(alert.context).toMatchObject({ to: 'gone@nowhere.ca', template: 'order-shipped' });
+  });
+
+  it('finding [112] : template MARKETING suppressed → PAS d\'alerte (désabonnement voulu)', async () => {
+    vi.mocked(prisma.emailSuppression.findUnique).mockResolvedValueOnce({ id: 'sup1' } as never);
+    await queueEmail({
+      to: 'gone@nowhere.ca', template: 'reengagement-winback', vars: {},
+    });
+    expect(sendCriticalAlert).not.toHaveBeenCalled();
+  });
 });
 
 describe('processDelivery — retry backoff', () => {
