@@ -361,7 +361,12 @@ export default function ConfigureClient({
 
             {/* Prix LIVE — total + prix/unité pour la qty SÉLECTIONNÉE (le slider
                 ci-contre le pilote), + l'économie vs le palier précédent et un
-                teaser gros volume. Plus de « prix à l'étape suivante ». */}
+                teaser gros volume. Plus de « prix à l'étape suivante ».
+                finding [81] — aria-live sur un wrapper STABLE (le ternaire swap
+                de div sinon certains lecteurs d'écran ratent l'annonce) : le
+                lede promet « le prix s'ajuste en temps réel », mais rien n'était
+                audible sans regarder l'écran. */}
+            <div aria-live="polite" aria-atomic="true">
             {currentQty && currentPrice !== null ? (
               <div
                 style={{
@@ -419,6 +424,7 @@ export default function ConfigureClient({
                     : 'Calcul du prix…'}
               </div>
             )}
+            </div>
           </div>
         </aside>
       </main>
@@ -530,7 +536,9 @@ function SizeGrid({ options, selectedId, onPick }: PickerProps) {
         return (
           <button
             key={opt.id}
+            type="button"
             className={`format-card${selectedId === opt.id ? ' selected' : ''}`}
+            aria-pressed={selectedId === opt.id}
             onClick={() => onPick(opt.id)}
           >
             <div className="format-card-rect-wrap">
@@ -561,7 +569,9 @@ function SidednessGrid({ options, selectedId, onPick }: PickerProps) {
         return (
           <button
             key={opt.id}
+            type="button"
             className={`stock-card${selectedId === opt.id ? ' selected' : ''}`}
+            aria-pressed={selectedId === opt.id}
             onClick={() => onPick(opt.id)}
           >
             <div className="stock-body">
@@ -583,7 +593,9 @@ function StockGrid({ options, selectedId, onPick }: PickerProps) {
         return (
           <button
             key={opt.id}
+            type="button"
             className={`stock-card${selectedId === opt.id ? ' selected' : ''}`}
+            aria-pressed={selectedId === opt.id}
             onClick={() => onPick(opt.id)}
           >
             <div className={`stock-swatch ${cls}`} />
