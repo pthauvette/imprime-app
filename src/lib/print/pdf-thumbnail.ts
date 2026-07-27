@@ -6,8 +6,9 @@
  * l'user upload un PDF dans /order/upload.
  *
  * Stratégie :
- *   1. Configure pdfjs-dist worker source pour pointer vers le CDN
- *      (évite d'avoir à copier le worker.js dans /public)
+ *   1. Configure pdfjs-dist worker source en 1st-party (finding [93]/[94] —
+ *      pointait vers un CDN tiers jsdelivr.net, cassait dès CSP enforce ;
+ *      copie statique dans /public/vendor, cf. commentaire plus bas)
  *   2. Parse le PDF depuis ArrayBuffer
  *   3. Render page 1 sur canvas à largeur 400px
  *   4. Export en data URL JPEG quality 0.75 (compact pour state React)
@@ -46,10 +47,13 @@ export async function renderPdfThumbnail(
     // Dynamic import — ~1MB, on charge seulement quand on en a besoin
     const pdfjs = await import('pdfjs-dist');
 
-    // Worker source via CDN — évite de servir worker.js depuis /public
-    // (le bundler Next.js a parfois du mal avec les workers).
+    // finding [93]/[94] — 1st-party (avant : CDN jsdelivr.net, cassait dès
+    // CSP enforce sur worker-src/script-src). Copie statique dans
+    // /public/vendor/pdf.worker.min.mjs — À RE-COPIER si pdfjs-dist est
+    // upgradé (cf. node_modules/pdfjs-dist/build/pdf.worker.min.mjs), sinon
+    // désalignement de version worker/lib.
     if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.mjs';
     }
 
     const bytes = await file.arrayBuffer();
