@@ -31,6 +31,7 @@ export const DEFAULT_TEST_USER: User = {
   firstName: 'Test',
   lastName: 'User',
   phone: null,
+  companyName: null,
   role: 'USER',
   emailDeliveryNotifications: true,
   emailMarketing: true,

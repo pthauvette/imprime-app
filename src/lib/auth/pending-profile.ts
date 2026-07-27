@@ -22,6 +22,7 @@ export interface SignupUpdateData {
   firstName?: string;
   lastName?: string;
   name?: string;
+  companyName?: string;
   emailMarketing?: boolean;
 }
 
@@ -40,7 +41,10 @@ export function buildSignupUpdateData(cookieValue: string | undefined | null): S
   if (pending.firstName || pending.lastName) {
     updateData.name = composeName(pending.firstName, pending.lastName) ?? undefined;
   }
-  // companyName est stocké dans Address (pas sur User pour MVP) → ignoré ici.
+  // finding [127] — était capturé puis silencieusement perdu (le
+  // commentaire précédent prétendait "stocké dans Address", faux). Persisté
+  // sur User.companyName maintenant (1 valeur par compte, cf. schema.prisma).
+  if (pending.companyName) updateData.companyName = pending.companyName.slice(0, 100);
   // Loi 25 — opt-in AFFIRMATIF : seulement si la case a été explicitement cochée.
   if (pending.emailMarketing === true) updateData.emailMarketing = true;
   return updateData;

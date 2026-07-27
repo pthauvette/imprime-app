@@ -41,6 +41,13 @@ model User {
   firstName String?
   lastName  String?
   phone     String?
+  // finding [127] — capté au sign-up (cookie plio_pending_profile) mais
+  // jamais persisté nulle part avant ce fix (le commentaire de
+  // pending-profile.ts prétendait "stocké dans Address" — faux, Address
+  // n'a même pas de champ `companyName`, juste `company` non branché au
+  // formulaire de livraison). Un seul nom de compagnie par compte (pas par
+  // adresse) : reflète le cas d'usage sign-up (une fois, à la création).
+  companyName String?
 
   // USER | ADMIN — gating le portail /admin/*. Bootstrap via env ADMIN_EMAILS,
   // ensuite mutable via une UI admin (pas encore implémentée).
