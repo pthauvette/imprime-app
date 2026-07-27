@@ -14,11 +14,12 @@
  * Three.js ne touche jamais le SSR ni le bundle principal.
  */
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, type ThreeElements } from '@react-three/fiber';
 import { Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import { finishMaterial, fitCardDimensions, type FinishMaterial } from '@/lib/print/finish-materials';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 export interface FinishPreview3DProps {
   finishKey: string | null;
@@ -116,12 +117,18 @@ function Card({ finishKey, paperKey, aspect }: { finishKey: string | null; paper
   const mat = useMemo(() => finishMaterial(finishKey, paperKey), [finishKey, paperKey]);
   const { map, mask } = useMemo(() => makeCardTextures(mat, aspect), [mat, aspect]);
   const ref = useRef<THREE.Mesh>(null);
+  // finding [86] — la boucle useFrame ci-dessous est une animation JS continue
+  // (rAF), hors de portée de la règle CSS globale @media(prefers-reduced-motion)
+  // (globals.css) qui ne neutralise que animation/transition CSS. On la
+  // désactive nous-même quand l'utilisateur préfère moins de mouvement.
+  const reducedMotion = usePrefersReducedMotion();
 
   // Angle de REPOS en 3/4 (les reflets accrochent mal de face) + inclinaison vers
   // le pointeur + léger flottement → le highlight BALAYE la surface (sans mouvement
   // un gloss est invisible, et mat vs brillant se distingue par la façon dont la
   // lumière glisse).
   useFrame((state) => {
+    if (reducedMotion) return; // pose fixe posée une fois ci-dessous, aucune oscillation
     const mesh = ref.current;
     if (!mesh) return;
     const t = state.clock.elapsedTime;
@@ -130,6 +137,16 @@ function Card({ finishKey, paperKey, aspect }: { finishKey: string | null; paper
     mesh.rotation.y = THREE.MathUtils.lerp(mesh.rotation.y, targetY, 0.07);
     mesh.rotation.x = THREE.MathUtils.lerp(mesh.rotation.x, targetX, 0.07);
   });
+
+  // Pose statique équivalente au repos animé, posée UNE fois (pas de transition
+  // ni d'oscillation) quand le mouvement réduit est préféré.
+  useEffect(() => {
+    if (!reducedMotion) return;
+    const mesh = ref.current;
+    if (!mesh) return;
+    mesh.rotation.y = 0.32;
+    mesh.rotation.x = -0.16;
+  }, [reducedMotion]);
 
   // Boîte normalisée : le grand côté tient dans le cadre, ratio réel préservé.
   const { w, h } = fitCardDimensions(aspect);
@@ -163,7 +180,13 @@ function Card({ finishKey, paperKey, aspect }: { finishKey: string | null; paper
 
 export default function FinishPreview3D({ finishKey, paperKey, aspect = 3.5 / 2, height = 280 }: FinishPreview3DProps) {
   return (
-    <div style={{ width: '100%', height, borderRadius: 12, overflow: 'hidden' }}>
+    // finding [86] — un <canvas> nu n'a aucun nom accessible : un lecteur
+    // d'écran ne signale rien de ce que ce bloc représente.
+    <div
+      role="img"
+      aria-label="Aperçu 3D de la finition sélectionnée"
+      style={{ width: '100%', height, borderRadius: 12, overflow: 'hidden' }}
+    >
       <Canvas
         camera={{ position: [0, 0, 5], fov: 28 }}
         gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false }}
