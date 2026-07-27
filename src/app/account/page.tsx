@@ -166,7 +166,11 @@ export default async function AccountDashboardPage() {
         />
       )}
 
-      <main style={{ padding: '40px 48px 80px', maxWidth: 1200 }}>
+      {/* finding [57] — seule page du compte encore en padding/maxWidth
+          inline figés ; toutes les autres (/settings, /payments,
+          /templates, /orders…) utilisent déjà .acct-main, qui collapse en
+          mobile via @media (max-width: 900px). */}
+      <main className="acct-main">
         {/* Greeting */}
         <header style={{ marginBottom: 32 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
