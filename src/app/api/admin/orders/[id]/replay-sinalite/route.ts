@@ -42,6 +42,17 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
       { status: 400 },
     );
   }
+  // finding [129] — commande manuelle depuis un devis sur mesure (production
+  // hors Sinalite) : sinalitePayload est un JSON inerte, jamais un vrai
+  // SinaliteOrderRequest. Sans ce guard, on tombe quand même proprement sur
+  // l'erreur de parse ci-dessous (fail-safe), mais avec un message cryptique —
+  // défense en profondeur explicite ici.
+  if (order.skipSinaliteSubmission) {
+    return NextResponse.json(
+      { error: 'Commande manuelle (devis sur mesure) — production gérée hors Sinalite, rien à soumettre.' },
+      { status: 400 },
+    );
+  }
 
   let payload;
   try {

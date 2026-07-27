@@ -13,10 +13,13 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminPagination from '@/components/admin/AdminPagination';
 import { formatDateTime, formatCurrency } from '@/lib/format';
 import { Icon } from '@/components/ui/Icon';
+import { paymentRetryToken } from '@/lib/payment/retry-token';
 import QuoteActions from './QuoteActions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin — Devis sur-mesure' };
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 
 const STATUS_TABS = [
   { key: 'PENDING', label: 'À quoter', urgent: true },
@@ -178,7 +181,14 @@ export default async function AdminQuotesPage({
                 )}
 
                 <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                  <QuoteActions id={q.id} status={q.status} />
+                  <QuoteActions
+                    id={q.id}
+                    status={q.status}
+                    orderId={q.orderId}
+                    // finding [129] — lien déterministe (HMAC), reconstructible
+                    // à chaque reload sans re-générer ni re-stocker de secret.
+                    paymentUrl={q.orderId ? `${APP_URL}/payment/retry/${q.orderId}?t=${paymentRetryToken(q.orderId)}` : null}
+                  />
                 </div>
               </div>
             ))}

@@ -17,15 +17,52 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { Icon } from '@/components/ui/Icon';
 
-type FormMode = null | 'quoted' | 'reject' | 'note';
+type FormMode = null | 'quoted' | 'reject' | 'note' | 'create-order';
 
-export default function QuoteActions({ id, status }: { id: string; status: string }) {
+// finding [129] — devis ACCEPTED → commande payable (production hors
+// Sinalite). Form séparé du pattern textarea unique (formText) : plusieurs
+// champs structurés (montant + adresse de livraison).
+interface CreateOrderFields {
+  quotedAmountDollars: string;
+  shipName: string;
+  shipLine1: string;
+  shipLine2: string;
+  shipCity: string;
+  shipProvince: string;
+  shipPostalCode: string;
+  shipPhone: string;
+}
+
+const EMPTY_ORDER_FIELDS: CreateOrderFields = {
+  quotedAmountDollars: '', shipName: '', shipLine1: '', shipLine2: '',
+  shipCity: '', shipProvince: '', shipPostalCode: '', shipPhone: '',
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: '8px 10px',
+  fontSize: 13,
+  border: '1px solid var(--border-default)',
+  borderRadius: 'var(--r-sm)',
+};
+
+export default function QuoteActions({
+  id, status, orderId, paymentUrl,
+}: {
+  id: string;
+  status: string;
+  /** Commande déjà créée depuis ce devis, si applicable. */
+  orderId?: string | null;
+  /** Lien de paiement retourné par create-order (best-effort, pas re-généré au reload). */
+  paymentUrl?: string | null;
+}) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Round 40 #5 — One state, one form visible at a time.
   const [openForm, setOpenForm] = useState<FormMode>(null);
   const [formText, setFormText] = useState('');
+  const [orderFields, setOrderFields] = useState<CreateOrderFields>(EMPTY_ORDER_FIELDS);
+  const [createdPaymentUrl, setCreatedPaymentUrl] = useState<string | null>(paymentUrl ?? null);
 
   async function patch(body: Record<string, unknown>) {
     setError(null);
@@ -50,7 +87,49 @@ export default function QuoteActions({ id, status }: { id: string; status: strin
   function openInlineForm(mode: FormMode) {
     setOpenForm(mode);
     setFormText('');
+    setOrderFields(EMPTY_ORDER_FIELDS);
     setError(null);
+  }
+
+  // finding [129] — form séparé (champs structurés, pas le textarea unique
+  // des 3 autres modes).
+  async function handleCreateOrderSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const dollars = Number(orderFields.quotedAmountDollars);
+    if (!Number.isFinite(dollars) || dollars <= 0) {
+      setError('Montant invalide');
+      return;
+    }
+    if (!orderFields.shipName || !orderFields.shipLine1 || !orderFields.shipCity || !orderFields.shipProvince || !orderFields.shipPostalCode || !orderFields.shipPhone) {
+      setError('Tous les champs d\'adresse sont requis');
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/admin/quotes/${id}/create-order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quotedAmountCents: Math.round(dollars * 100),
+            shipName: orderFields.shipName,
+            shipLine1: orderFields.shipLine1,
+            shipLine2: orderFields.shipLine2 || undefined,
+            shipCity: orderFields.shipCity,
+            shipProvince: orderFields.shipProvince.toUpperCase(),
+            shipPostalCode: orderFields.shipPostalCode,
+            shipPhone: orderFields.shipPhone,
+          }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`);
+        setOpenForm(null);
+        setCreatedPaymentUrl(j.paymentUrl ?? null);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur');
+      }
+    });
   }
 
   async function handleFormSubmit(e: React.FormEvent) {
@@ -106,7 +185,9 @@ export default function QuoteActions({ id, status }: { id: string; status: strin
     },
   } as const;
 
-  const meta = openForm ? formMeta[openForm] : null;
+  // 'create-order' a son propre form (champs structurés, pas de textarea) —
+  // exclu de formMeta, rendu séparément ci-dessous via openForm === 'create-order'.
+  const meta = openForm && openForm !== 'create-order' ? formMeta[openForm] : null;
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
@@ -131,6 +212,13 @@ export default function QuoteActions({ id, status }: { id: string; status: strin
             </button>
           </>
         )}
+        {/* finding [129] — devis ACCEPTED sans commande encore créée : lancer
+            le paiement (production hors Sinalite, cf. db/orders.ts). */}
+        {status === 'ACCEPTED' && !orderId && (
+          <button onClick={() => openInlineForm('create-order')} disabled={busy} className="btn btn-primary btn-sm">
+            <Icon name="card" size={14} /> Créer la commande
+          </button>
+        )}
         {(status === 'ACCEPTED' || status === 'REJECTED' || status === 'QUOTED') && (
           <button onClick={() => patch({ action: 'archive' })} disabled={busy} className="btn btn-ghost btn-sm">
             Archiver
@@ -141,6 +229,74 @@ export default function QuoteActions({ id, status }: { id: string; status: strin
         </button>
         {error && <span role="alert" aria-live="assertive" style={{ fontSize: 11, color: 'var(--danger)' }}>{error}</span>}
       </div>
+
+      {/* finding [129] — commande créée : lien de paiement à copier/renvoyer
+          (déjà envoyé au client par email best-effort côté serveur). */}
+      {orderId && (
+        <div style={{ padding: 12, background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', fontSize: 12, display: 'grid', gap: 6 }}>
+          <div>
+            <Icon name="check" size={14} /> Commande créée —{' '}
+            <a href={`/admin/orders/${orderId}`} style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+              voir la commande →
+            </a>
+          </div>
+          {createdPaymentUrl && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Lien de paiement (déjà envoyé par courriel) :</span>
+              <code style={{ fontSize: 11, padding: '2px 6px', background: 'var(--bg-surface)', borderRadius: 'var(--r-sm)', wordBreak: 'break-all' }}>
+                {createdPaymentUrl}
+              </code>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* finding [129] — form structuré (montant + adresse), séparé du
+          textarea générique des 3 autres modes. */}
+      {openForm === 'create-order' && (
+        <form
+          onSubmit={handleCreateOrderSubmit}
+          style={{
+            display: 'grid',
+            gap: 8,
+            padding: 12,
+            background: 'var(--bg-sunken)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--r-md)',
+          }}
+        >
+          <label style={{ fontSize: 11, fontWeight: 600 }}>Montant final négocié ($ CAD, taxes incluses) :</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            value={orderFields.quotedAmountDollars}
+            onChange={(e) => setOrderFields({ ...orderFields, quotedAmountDollars: e.target.value })}
+            placeholder="1250.00"
+            required
+            autoFocus
+            style={{ padding: '8px 10px', fontSize: 13, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
+          />
+          <label style={{ fontSize: 11, fontWeight: 600, marginTop: 4 }}>Adresse de livraison :</label>
+          <input placeholder="Nom complet" required value={orderFields.shipName} onChange={(e) => setOrderFields({ ...orderFields, shipName: e.target.value })} style={inputStyle} />
+          <input placeholder="Adresse" required value={orderFields.shipLine1} onChange={(e) => setOrderFields({ ...orderFields, shipLine1: e.target.value })} style={inputStyle} />
+          <input placeholder="Suite / app (optionnel)" value={orderFields.shipLine2} onChange={(e) => setOrderFields({ ...orderFields, shipLine2: e.target.value })} style={inputStyle} />
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+            <input placeholder="Ville" required value={orderFields.shipCity} onChange={(e) => setOrderFields({ ...orderFields, shipCity: e.target.value })} style={inputStyle} />
+            <input placeholder="Prov (QC)" required maxLength={2} value={orderFields.shipProvince} onChange={(e) => setOrderFields({ ...orderFields, shipProvince: e.target.value })} style={inputStyle} />
+            <input placeholder="Code postal" required value={orderFields.shipPostalCode} onChange={(e) => setOrderFields({ ...orderFields, shipPostalCode: e.target.value })} style={inputStyle} />
+          </div>
+          <input placeholder="Téléphone" required value={orderFields.shipPhone} onChange={(e) => setOrderFields({ ...orderFields, shipPhone: e.target.value })} style={inputStyle} />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button type="button" onClick={() => setOpenForm(null)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}>
+              Annuler
+            </button>
+            <button type="submit" disabled={busy} style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              {busy ? '⏳ …' : 'Créer la commande + envoyer le lien'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Round 40 #5 — Inline form (replaces window.prompt × 3) */}
       {openForm && meta && (

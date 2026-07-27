@@ -35,6 +35,7 @@ const KIND_TONES: Record<OrderEventKind, 'success' | 'danger' | 'info' | 'warnin
   REFUND_ISSUED: 'warning',
   ERROR: 'danger',
   CANCEL_REQUESTED: 'warning',
+  MANUAL_ORDER_CREATED: 'info',
 };
 
 const KIND_DOTS: Record<OrderEventKind, string> = {
@@ -45,6 +46,7 @@ const KIND_DOTS: Record<OrderEventKind, string> = {
   REFUND_ISSUED: '↩',
   ERROR: '!',
   CANCEL_REQUESTED: '⚠',
+  MANUAL_ORDER_CREATED: '✎',
 };
 
 const TONE_COLORS: Record<'success' | 'danger' | 'info' | 'warning' | 'muted', { bg: string; color: string }> = {

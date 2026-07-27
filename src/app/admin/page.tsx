@@ -29,6 +29,7 @@ const EVENT_DOT: Record<OrderEventKind, string> = {
   REFUND_ISSUED: 'refund',
   ERROR: 'failed',
   CANCEL_REQUESTED: 'failed',
+  MANUAL_ORDER_CREATED: 'submitted',
 };
 
 const EVENT_LABEL: Record<OrderEventKind, string> = {
@@ -39,6 +40,7 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
   REFUND_ISSUED: 'refund émis',
   ERROR: 'erreur',
   CANCEL_REQUESTED: 'annulation demandée',
+  MANUAL_ORDER_CREATED: 'commande créée depuis un devis',
 };
 
 export default async function AdminDashboard() {
@@ -663,6 +665,7 @@ function eventIcon(k: OrderEventKind): string {
     REFUND_ISSUED: '↩',
     ERROR: '!',
     CANCEL_REQUESTED: '⚠',
+    MANUAL_ORDER_CREATED: '✎',
   }[k] ?? '·';
 }
 

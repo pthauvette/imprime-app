@@ -437,6 +437,27 @@ async function handlePaymentSucceeded(
     logStripe.error({ err, orderId: order.id }, 'referral award threw (non-fatal)');
   }
 
+  // finding [129] — commande manuelle créée depuis un devis sur mesure
+  // ACCEPTED (production hors Sinalite, cf. db/orders.ts createManualOrder).
+  // `order.sinalitePayload` n'est ici qu'un descriptif inerte — JAMAIS un
+  // SinaliteOrderRequest valide — le parser plus bas planterait à tort.
+  // On s'arrête à PAID ; l'admin fait avancer le statut manuellement via
+  // /api/admin/orders/[id]/status (déjà existant, accepte PAID→IN_PRODUCTION).
+  if (order.skipSinaliteSubmission) {
+    const fresh = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: { user: true },
+    });
+    if (fresh) {
+      await sendOrderConfirmationEmail({ order: fresh, user: fresh.user });
+    }
+    logStripe.info(
+      { orderId: order.id, intentId: intent.id },
+      'manual order (skipSinaliteSubmission) — paiement confirmé, aucune soumission Sinalite',
+    );
+    return;
+  }
+
   let sinalitePayload: SinaliteOrderRequest;
   try {
     sinalitePayload = SinaliteOrderRequest.parse(JSON.parse(order.sinalitePayload));
