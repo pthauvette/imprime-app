@@ -35,12 +35,24 @@ export type SinaliteProduct = z.infer<typeof SinaliteProduct>;
 
 export const SinaliteProductList = z.array(SinaliteProduct);
 
-/** One option from /product/{id}/{storeCode} array[0]. */
+/**
+ * One option from /product/{id}/{storeCode} array[0].
+ *
+ * finding [12] — `group` était requis STRICT : quelques produits (ex. Roll
+ * Labels / Stickers) renvoient au moins une option SANS `group` côté
+ * Sinalite, et un array Zod échoue EN ENTIER si UN SEUL item ne matche pas
+ * → toute la fiche produit crash à chaque clic client (error.tsx + alerte
+ * Slack, cf. configure/page.tsx), pour un produit qui ne sera JAMAIS
+ * corrigé côté code (c'est une donnée fournisseur). `group` manquant/null
+ * retombe sur un groupe générique plutôt que de faire échouer tout le parse
+ * — le seul call site qui lit `.group` (configure/page.tsx:96) groupe déjà
+ * par clé arbitraire, donc une clé de repli ne casse rien.
+ */
 export const SinaliteOption = z.object({
   id: z.number(),
-  group: z.string(),
+  group: z.string().nullish(),
   name: z.string(),
-});
+}).transform((o) => ({ ...o, group: o.group ?? 'Autre' }));
 export type SinaliteOption = z.infer<typeof SinaliteOption>;
 
 /** One pricing combination — md5(sortedOptionIds) → value. */
