@@ -19,6 +19,7 @@ import Sidebar from '@/components/account/Sidebar';
 import CancelRequestButton from '@/components/account/CancelRequestButton';
 import ShippingEditButton from '@/components/account/ShippingEditButton';
 import NpsWidget from '@/components/account/NpsWidget';
+import ReportProblemLink from '@/components/account/ReportProblemLink';
 import OrderEventsTimeline from '@/components/account/OrderEventsTimeline';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
@@ -533,11 +534,14 @@ export default async function CustomerOrderDetailPage({
             </Link>
 
             {status === 'DELIVERED' && (
-              <NpsWidget
-                orderId={order.id}
-                existingScore={existingNps?.score ?? null}
-                existingComment={existingNps?.comment ?? null}
-              />
+              <>
+                <NpsWidget
+                  orderId={order.id}
+                  existingScore={existingNps?.score ?? null}
+                  existingComment={existingNps?.comment ?? null}
+                />
+                <ReportProblemLink displayId={displayId} />
+              </>
             )}
 
             {/* Round 32 — self-serve modification d'adresse avant SUBMITTED.
