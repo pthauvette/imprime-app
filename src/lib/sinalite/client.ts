@@ -270,13 +270,24 @@ export const sinalite = {
     );
   },
 
-  /** GET /product/{id}. Pas cacheable agressivement — appelé rarement. */
+  /**
+   * GET /product/{id}. finding [89]/[90] — seul point du catalogue SANS
+   * repli en cas de panne Sinalite (getProductDetail juste en dessous en a
+   * un) : /order/configure appelle les deux en Promise.all, donc un outage
+   * faisait crasher toute la page même quand getProductDetail aurait pu
+   * servir du stale. Même pattern que getProductDetail/listProducts.
+   */
   async getProduct(id: number) {
-    const result = await request(`/product/${id}`, {
-      method: 'GET',
-      schema: z.array(SinaliteProduct).min(1),
-    });
-    return result[0];
+    return withSinaliteCache(`/product/${id}`,
+      async () => {
+        const result = await request(`/product/${id}`, {
+          method: 'GET',
+          schema: z.array(SinaliteProduct).min(1),
+        });
+        return result[0];
+      },
+      { ttlMs: SINALITE_CATALOG_TTL_MS },
+    );
   },
 
   /**
@@ -305,12 +316,21 @@ export const sinalite = {
   /**
    * GET /variants/{id}/{offset} → jusqu'à 1000 variantes {price, key}.
    * key = sortedOptionIds.join('-') côté client pour O(1) lookup.
+   *
+   * finding [89]/[90] — index de variantes = la source de TOUS les prix
+   * affichés (getEnrichedVariantIndex) ; sans repli, un outage Sinalite
+   * cassait la tarification même quand le reste du catalogue avait déjà
+   * un fallback stale. Même pattern/TTL que le reste du catalogue —
+   * conforme au commentaire SINALITE_CATALOG_TTL_MS (prix update mensuel).
    */
   async listVariants(productId: number, offset = 0) {
-    return request(`/variants/${productId}/${offset}`, {
-      method: 'GET',
-      schema: z.array(SinaliteVariant),
-    });
+    return withSinaliteCache(`/variants/${productId}/${offset}`,
+      () => request(`/variants/${productId}/${offset}`, {
+        method: 'GET',
+        schema: z.array(SinaliteVariant),
+      }),
+      { ttlMs: SINALITE_CATALOG_TTL_MS },
+    );
   },
 
   /** GET /pricebykey/{id}/{key} (note: PAS /pricedbykey, doc obsolète). */
