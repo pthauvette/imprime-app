@@ -23,6 +23,9 @@ interface OrderForWidget {
   itemsCount: number;
   createdAt: Date;
   paidAt: Date | null;
+  /** finding [17] — jours production/transit réels (ETA honnête). */
+  productionDays: number | null;
+  transitDays: number | null;
   /** Triés ASC (oldest→newest) — même contrat que computeOrderEta/extractTracking. */
   events: { kind: string; data: string | null; createdAt: Date }[];
 }

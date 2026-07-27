@@ -593,6 +593,39 @@ describe('/api/orders/create — réservation crédit M2/M3', () => {
   });
 });
 
+// finding [17] — jours production/transit réels du devis, persistés sur Order
+// pour une ETA honnête sur toutes les surfaces post-achat.
+describe('/api/orders/create — productionDays/transitDays (finding [17])', () => {
+  it('présents dans le payload → passés à createReservedOrder', async () => {
+    reservedMock.fn.mockResolvedValueOnce({ order: { id: 'order_test' }, replay: false });
+    const { POST } = await import('@/app/api/orders/create/route');
+    await POST(makeReq({ ...validPayload, productionDays: 2, transitDays: 5 }));
+    expect(reservedMock.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ productionDays: 2, transitDays: 5 }),
+    );
+  });
+
+  it('absents du payload → null (jamais undefined, jamais 0 par défaut trompeur)', async () => {
+    reservedMock.fn.mockResolvedValueOnce({ order: { id: 'order_test' }, replay: false });
+    const { POST } = await import('@/app/api/orders/create/route');
+    await POST(makeReq(validPayload));
+    expect(reservedMock.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ productionDays: null, transitDays: null }),
+    );
+  });
+
+  it('hors bornes (> 90 jours) → 400, requête rejetée avant réservation', async () => {
+    // mockClear : les tests précédents de ce fichier ont déjà appelé
+    // reservedMock.fn (jamais reset entre tests dans ce fichier) — sans ça,
+    // l'assertion not.toHaveBeenCalled() serait un faux négatif hérité.
+    reservedMock.fn.mockClear();
+    const { POST } = await import('@/app/api/orders/create/route');
+    const res = await POST(makeReq({ ...validPayload, productionDays: 999 }));
+    expect(res.status).toBe(400);
+    expect(reservedMock.fn).not.toHaveBeenCalled();
+  });
+});
+
 /**
  * Audit pré-lancement 2026-07 (P2) — bornes du checkout WEB.
  *

@@ -50,4 +50,19 @@ describe('buildShipPayload', () => {
       method: 'EXPEDITED', price: 14.99, sig: 'sig_abc123',
     });
   });
+
+  // finding [17] — ETA honnête post-achat : jours production/transit du devis.
+  describe('productionDays/transitDays — finding [17]', () => {
+    it('absents → clés omises (pas de 0 par défaut trompeur)', () => {
+      const p = JSON.parse(buildShipPayload(BASE));
+      expect(p).not.toHaveProperty('productionDays');
+      expect(p).not.toHaveProperty('transitDays');
+    });
+
+    it('présents (y compris 0) → portés tels quels', () => {
+      const p = JSON.parse(buildShipPayload({ ...BASE, productionDays: 0, transitDays: 5 }));
+      expect(p.productionDays).toBe(0);
+      expect(p.transitDays).toBe(5);
+    });
+  });
 });

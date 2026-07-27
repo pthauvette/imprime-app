@@ -77,6 +77,9 @@ export default async function AccountDashboardPage() {
         productSummary: true,
         itemsCount: true,
         sinaliteOrderId: true,
+        // finding [17] — jours production/transit réels (ETA honnête)
+        productionDays: true,
+        transitDays: true,
         // Round tracking/ETA (finding [44]) — asc pour extractTracking/
         // computeOrderEta, qui scannent en supposant oldest→newest.
         events: { orderBy: { createdAt: 'asc' }, select: { kind: true, data: true, createdAt: true } },

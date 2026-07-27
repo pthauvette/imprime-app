@@ -61,6 +61,9 @@ function buildOrderData(input: CreateOrderInput) {
     shipPostalCode: input.shipPostalCode,
     shipPhone: input.shipPhone,
     shippingNote: input.shippingNote ?? null,
+    // finding [17] — jours production/transit réels (undefined/null → colonne NULL)
+    productionDays: input.productionDays ?? null,
+    transitDays: input.transitDays ?? null,
   };
 }
 

@@ -20,6 +20,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { buildOrderIcs } from '@/lib/orders/ics';
+import { computeOrderEtaDate } from '@/lib/orders/timeline';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -44,6 +45,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       sinaliteOrderId: true,
       productSummary: true,
       createdAt: true,
+      // finding [17] — jours production/transit réels (ETA honnête)
+      productionDays: true,
+      transitDays: true,
       events: {
         where: { kind: 'SINALITE_STATUS_CHANGED' },
         orderBy: { createdAt: 'asc' },
@@ -68,12 +72,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: 'Pas d\'ICS pour cette order' }, { status: 410 });
   }
 
-  // Compute ETA date — même règle que computeOrderEta mais on retourne le Date
+  // finding [17] — computeOrderEtaDate (source unique, plus de duplication
+  // de l'heuristique ici — cf. timeline.ts).
   const shippedEvent = order.events.find((e) => e.data?.includes('SHIPPED'));
-  const base = shippedEvent?.createdAt ?? order.createdAt;
-  const daysAhead = shippedEvent ? 3 : 7;
-  const etaDate = new Date(base);
-  etaDate.setDate(etaDate.getDate() + daysAhead);
+  const etaDate = computeOrderEtaDate(order, shippedEvent?.createdAt) ?? order.createdAt;
 
   const displayId = order.sinaliteOrderId
     ? `#${order.sinaliteOrderId}`

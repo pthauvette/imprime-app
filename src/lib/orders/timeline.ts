@@ -157,24 +157,51 @@ export function trackingDeepLink(carrier: string, tracking: string): string | un
   return undefined;
 }
 
+export interface EtaOrderInput {
+  createdAt: Date;
+  status: string;
+  productionDays?: number | null;
+  transitDays?: number | null;
+}
+
 /**
- * Estime un ETA à partir des timestamps disponibles. Conservative :
- *   - Si pas encore expédiée → createdAt + 7 jours
- *   - Si expédiée → shippedAt + 3 jours
+ * Calcule la date brute d'ETA (ou de livraison si déjà livrée). Extrait de
+ * computeOrderEta pour être réutilisé par le générateur .ics (finding [17])
+ * qui a besoin du `Date`, pas du texte formaté — avant, calendar.ics/route.ts
+ * DUPLIQUAIT cette heuristique inline (dérive garantie au premier changement
+ * de l'une des deux copies).
+ *
+ * finding [17] — utilise les jours de production/transit RÉELS captés à la
+ * commande (order.productionDays/transitDays, cf. migration
+ * 20260727160000) quand ils sont connus. Sinon repli sur l'heuristique
+ * forfaitaire d'origine (4j production + 3j transit = 7j avant expédition,
+ * 3j transit après) — EXACTEMENT le même total qu'avant ce fix, donc aucune
+ * régression pour les commandes sans données réelles (pré-migration, MCP
+ * headless, résolution Sinalite indisponible à la commande).
  * Returns null si l'order est annulée/échouée.
  */
+export function computeOrderEtaDate(order: EtaOrderInput, shippedAt?: Date | null): Date | null {
+  if (order.status === 'CANCELLED' || order.status === 'FAILED') return null;
+  if (order.status === 'DELIVERED' && shippedAt) return shippedAt;
+  const base = shippedAt ?? order.createdAt;
+  const daysAhead = shippedAt
+    ? (order.transitDays ?? 3)
+    : (order.productionDays ?? 4) + (order.transitDays ?? 3);
+  const eta = new Date(base);
+  eta.setDate(eta.getDate() + daysAhead);
+  return eta;
+}
+
+/** Estime un ETA formaté (jour + texte relatif) à partir des timestamps disponibles. */
 export function computeOrderEta(
-  order: { createdAt: Date; status: string },
+  order: EtaOrderInput,
   shippedAt?: Date | null,
 ): { day: string; relative: string } | null {
-  if (order.status === 'CANCELLED' || order.status === 'FAILED') return null;
   if (order.status === 'DELIVERED' && shippedAt) {
     return { day: formatDateShort(shippedAt), relative: 'livrée' };
   }
-  const base = shippedAt ?? order.createdAt;
-  const daysAhead = shippedAt ? 3 : 7;
-  const eta = new Date(base);
-  eta.setDate(eta.getDate() + daysAhead);
+  const eta = computeOrderEtaDate(order, shippedAt);
+  if (!eta) return null;
   const today = new Date();
   const diffDays = Math.round((eta.getTime() - today.getTime()) / (24 * 3600 * 1000));
   const relative =

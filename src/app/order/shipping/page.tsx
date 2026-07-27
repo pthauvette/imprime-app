@@ -196,9 +196,10 @@ function ShippingPageInner() {
   }, [postalValid, province, postalCode, productId, optionsByName, retryKey]);
 
   const canContinue = contactValid && postalValid && selectedMethod && methods.length > 0;
-  const selectedShippingPrice = methods.find((m) => m.method === selectedMethod)?.price ?? 0;
+  const selectedMethodDetail = methods.find((m) => m.method === selectedMethod);
+  const selectedShippingPrice = selectedMethodDetail?.price ?? 0;
   // Round 1 audit — sig du devis choisi, portée jusqu'au create (anti-tamper).
-  const selectedSig = methods.find((m) => m.method === selectedMethod)?.sig ?? '';
+  const selectedSig = selectedMethodDetail?.sig ?? '';
 
   const nextHref = canContinue
     ? `/order/review?productId=${productId}&options=${options}&files=${files}&ship=${encodeURIComponent(
@@ -207,6 +208,9 @@ function ShippingPageInner() {
           line1, line2, city, province, postalCode,
           method: selectedMethod, price: selectedShippingPrice, sig: selectedSig,
           note: shippingNote,
+          // finding [17] — jours production/transit du devis choisi
+          productionDays: selectedMethodDetail?.productionDays,
+          transitDays: selectedMethodDetail?.transitDays,
         }),
       )}` as Route
     : null;

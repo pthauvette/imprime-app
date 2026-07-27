@@ -54,6 +54,9 @@ interface ShipState {
   sig?: string;
   /** Round 26 #2 — instructions livraison (max 200 chars). Optional. */
   note?: string;
+  /** finding [17] — jours production/transit du devis choisi (ETA honnête post-achat). */
+  productionDays?: number;
+  transitDays?: number;
 }
 
 interface Breakdown {
@@ -338,6 +341,11 @@ function ReviewPageInner() {
         // du shipping step couvre déjà tout → on la réutilise telle quelle.
         let effectiveShipPrice = ship.price;
         let effectiveShipSig = ship.sig;
+        // finding [17] — jours production/transit du devis MONO-produit (déjà
+        // portés depuis /order/shipping). Écrasés ci-dessous si multi-items
+        // (le devis re-estimé pour le panier complet est le bon).
+        let effectiveProductionDays = ship.productionDays;
+        let effectiveTransitDays = ship.transitDays;
         if (allItems.length > 1) {
           const estRes = await fetch('/api/shipping/estimate', {
             method: 'POST',
@@ -364,6 +372,8 @@ function ReviewPageInner() {
           }
           effectiveShipPrice = match.price;
           effectiveShipSig = match.sig;
+          effectiveProductionDays = match.productionDays;
+          effectiveTransitDays = match.transitDays;
         }
 
         const createRes = await fetch('/api/orders/create', {
@@ -385,6 +395,9 @@ function ReviewPageInner() {
             ...(effectiveShipSig ? { shippingQuoteSig: effectiveShipSig } : {}),
             // Round 26 #2 — instructions livraison customer (optional)
             ...(ship.note ? { shippingNote: ship.note } : {}),
+            // finding [17] — jours production/transit réels du devis choisi
+            ...(typeof effectiveProductionDays === 'number' ? { productionDays: effectiveProductionDays } : {}),
+            ...(typeof effectiveTransitDays === 'number' ? { transitDays: effectiveTransitDays } : {}),
             expectedSubtotal,
             notes: `Commande Plio ${new Date().toISOString()}`,
             idempotencyKey,

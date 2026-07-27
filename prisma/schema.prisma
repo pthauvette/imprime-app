@@ -225,6 +225,15 @@ model Order {
   // Sinalite — null jusqu'à ce que /order/new ait répondu
   sinaliteOrderId  String?  @unique
 
+  // finding [17] — jours de production/transit RÉELS captés au moment de la
+  // commande (Turnaround sélectionné + devis transporteur signé, cf.
+  // /api/shipping/estimate). NULL = commande créée avant ce fix, résolution
+  // Sinalite indisponible à la commande, ou commande créée via MCP headless
+  // (create_order Mode B ne les capte pas encore) → computeOrderEta retombe
+  // sur l'heuristique forfaitaire 7j/3j, jamais de régression.
+  productionDays   Int?
+  transitDays      Int?
+
   // Lifecycle: PENDING | PAID | SUBMITTED | IN_PRODUCTION | SHIPPED | DELIVERED | CANCELLED | FAILED
   status           String   @default("PENDING")
   failureReason    String?
