@@ -313,7 +313,11 @@ function ShippingPageInner() {
               <div className="ship-addr-grid">
                 <Field label="Ville" value={city} onChange={setCity} autoComplete="address-level2" />
                 <FieldWrapper label="Province">
+                  {/* finding [82] — même piège que Round 7 #5 sur `Field` : le
+                      <label> de FieldWrapper n'est pas associé (pas de
+                      htmlFor/id) → nom accessible explicite. */}
                   <select
+                    aria-label="Province"
                     value={province}
                     onChange={(e) => setProvince(e.target.value as CaProvince)}
                     style={{
@@ -326,8 +330,15 @@ function ShippingPageInner() {
                     ))}
                   </select>
                 </FieldWrapper>
-                <FieldWrapper label="Code postal" error={postalCode && !postalValid ? 'Format A1A 1A1' : null}>
+                <FieldWrapper
+                  label="Code postal"
+                  error={postalCode && !postalValid ? 'Format A1A 1A1' : null}
+                  errorId="shipping-postal-error"
+                >
                   <input
+                    aria-label="Code postal"
+                    aria-invalid={postalCode && !postalValid ? true : undefined}
+                    aria-describedby={postalCode && !postalValid ? 'shipping-postal-error' : undefined}
                     value={postalCode}
                     onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                     placeholder="A1A 1A1"
@@ -550,14 +561,18 @@ function Field({ label, value, onChange, type = 'text', invalid, autoComplete, i
   );
 }
 
-function FieldWrapper({ label, error, children }: { label: string; error?: string | null; children: React.ReactNode }) {
+function FieldWrapper({ label, error, errorId, children }: { label: string; error?: string | null; errorId?: string; children: React.ReactNode }) {
   return (
     <div>
       <div className={`field${error ? ' field-error' : ''}`}>
         <label>{label}</label>
         {children}
       </div>
-      {error && <div className="field-helper error">{error}</div>}
+      {/* finding [82] — le message d'erreur n'était lié à aucun champ
+          (pas d'aria-describedby côté input) ; aria-live annonce le
+          changement sans interrompre la saisie (comme le style déjà
+          établi ailleurs sur cette page, cf. finding [83]). */}
+      {error && <div id={errorId} className="field-helper error" aria-live="polite">{error}</div>}
     </div>
   );
 }
