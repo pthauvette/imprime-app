@@ -178,6 +178,19 @@ export async function queueEmail(input: QueueEmailInput): Promise<{
         { to: input.to, template: input.template, label: input.label },
         'email suppressed (hard bounce or complaint)',
       );
+      // finding [112] — avant, un transactionnel bloqué (confirmation, expédition,
+      // paiement échoué, refund…) disparaissait silencieusement : le client ne
+      // reçoit rien et ne sait pas pourquoi, l'admin ne l'apprend qu'en creusant
+      // les logs. Un marketing suppressed est le comportement VOULU (le user
+      // s'est désabonné) → pas d'alerte pour ces templates-là.
+      if (!MARKETING_TEMPLATES.has(input.template)) {
+        await sendCriticalAlert({
+          severity: 'warning',
+          title: `Courriel transactionnel bloqué (suppression) — ${input.template}`,
+          body: `${input.to} est sur la liste de suppression (hard bounce ou plainte) — l'email ${input.template} n'a PAS été envoyé. Le client ne sait pas pourquoi il ne reçoit rien. Vérifier l'adresse et lever la suppression si c'était une erreur.`,
+          context: { to: input.to, template: input.template, label: input.label },
+        });
+      }
       return { sent: false, id: 'suppressed', skipped: 'suppressed' };
     }
   } catch (err) {
