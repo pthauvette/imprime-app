@@ -110,8 +110,13 @@ function unsubscribeUrl(): string {
  * /settings/email-preferences est auth-gated → un invité ne pouvait PAS se
  * désabonner (non-conformité CASL). Même endpoint que le header
  * List-Unsubscribe (cf. queue.ts oneClickUnsubscribeUrl).
+ *
+ * Exportée (finding [111]) : le magic-link (auth.ts) a EXACTEMENT le même
+ * problème — par définition, le destinataire n'a PAS encore de session au
+ * moment où il reçoit ce courriel, donc l'ancien `/settings#email-
+ * preferences` (auth-gated) le renvoyait à sign-in : désabonnement circulaire.
  */
-function unsubscribeUrlFor(email: string): string {
+export function unsubscribeUrlFor(email: string): string {
   const normalized = email.toLowerCase().trim();
   const params = new URLSearchParams({ email: normalized, token: newsletterUnsubscribeToken(normalized) });
   return `${APP_URL}/api/newsletter/unsubscribe?${params.toString()}`;
