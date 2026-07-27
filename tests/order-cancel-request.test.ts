@@ -9,6 +9,7 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     order: { findUnique: vi.fn(async () => null) },
     adminAuditEvent: { create: vi.fn(async () => ({})) },
+    orderEvent: { create: vi.fn(async () => ({})) },
   },
 }));
 
@@ -57,6 +58,7 @@ async function importFresh() {
     prisma: {
       order: { findUnique: vi.fn() },
       adminAuditEvent: { create: vi.fn(async () => ({})) },
+      orderEvent: { create: vi.fn(async () => ({})) },
     },
   }));
   return (await import('@/app/api/orders/[id]/cancel-request/route')).POST;
@@ -207,5 +209,26 @@ describe('POST /api/orders/[id]/cancel-request', () => {
     expect(audit.data.kind).not.toBe('ADMIN_MANUAL_CANCEL');
     const data = JSON.parse(audit.data.data as string);
     expect(data.status).toBe('PAID');
+  });
+
+  // finding [49] — trace CLIENT persistante (visible sur /orders/[id] même
+  // après fermeture de la modale), distincte de l'AdminAudit (admin-only).
+  it('finding [49] : écrit un OrderEvent CANCEL_REQUESTED visible du client', async () => {
+    const { POST } = await import('@/app/api/orders/[id]/cancel-request/route');
+    await POST(makeReq({ reason: 'changement de plan' }), ctxFor('order_1'));
+    expect(prisma.orderEvent.create).toHaveBeenCalledOnce();
+    const args = vi.mocked(prisma.orderEvent.create).mock.calls[0][0];
+    expect(args.data.orderId).toBe('order_1');
+    expect(args.data.kind).toBe('CANCEL_REQUESTED');
+    const data = JSON.parse(args.data.data as string);
+    expect(data.reason).toBe('changement de plan');
+  });
+
+  it('finding [49] : OrderEvent écrit même si TOUS les envois admin échouent', async () => {
+    vi.mocked(sendAdminCustomMessageEmail).mockResolvedValue({ sent: false } as never);
+    const { POST } = await import('@/app/api/orders/[id]/cancel-request/route');
+    const res = await POST(makeReq({ reason: 'changement de plan' }), ctxFor('order_1'));
+    expect(res.status).toBe(502); // l'envoi admin a échoué...
+    expect(prisma.orderEvent.create).toHaveBeenCalledOnce(); // ...mais la trace client existe déjà
   });
 });

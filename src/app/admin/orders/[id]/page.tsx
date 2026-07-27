@@ -52,6 +52,7 @@ const EVENT_LABEL: Record<OrderEventKind, { title: string; type: string; dot: st
   SINALITE_STATUS_CHANGED: { title: 'Mise à jour Sinalite', type: 'SINALITE_STATUS_CHANGED', dot: 'production', icon: '⚙' },
   REFUND_ISSUED: { title: 'Remboursement émis', type: 'REFUND_ISSUED', dot: 'failed', icon: '↩' },
   ERROR: { title: 'Erreur enregistrée', type: 'ERROR', dot: 'failed', icon: '!' },
+  CANCEL_REQUESTED: { title: 'Annulation demandée par le client', type: 'CANCEL_REQUESTED', dot: 'failed', icon: '⚠' },
 };
 
 export default async function AdminOrderDetailPage({

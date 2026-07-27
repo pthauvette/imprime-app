@@ -162,6 +162,18 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
     },
   });
 
+  // finding [49] — trace CLIENT persistante (avant : seul AdminAudit + email
+  // admin, rien de visible sur /orders/[id] une fois la modale fermée).
+  // Écrit même si l'email admin échoue plus bas — la DEMANDE du client est
+  // réelle indépendamment de la livraison de la notification interne.
+  await prisma.orderEvent.create({
+    data: {
+      orderId: id,
+      kind: 'CANCEL_REQUESTED',
+      data: JSON.stringify({ actor: 'customer', reason: body.reason.slice(0, 500) }),
+    },
+  });
+
   // Slack alert si SUBMITTED ou IN_PRODUCTION (= action rapide requise
   // côté Patrick pour éviter qu'on imprime un truc que le client veut
   // annuler).
