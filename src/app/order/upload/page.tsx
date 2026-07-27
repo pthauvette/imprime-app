@@ -671,6 +671,7 @@ function Dropzone({
 
       {error && (
         <div
+          role="alert"
           style={{
             padding: '10px 14px',
             background: 'var(--danger-soft)',
@@ -699,6 +700,7 @@ function Dropzone({
 
       {pending && (
         <div
+          role="status"
           style={{
             padding: '12px 14px',
             background: 'var(--warning-soft, #FFF6E5)',
@@ -854,7 +856,7 @@ function formatMm(inches: number): string {
 
 function ValidatingState({ filename }: { filename: string | null }) {
   return (
-    <div style={{ width: '100%', display: 'grid', placeItems: 'center', gap: 16 }}>
+    <div role="status" style={{ width: '100%', display: 'grid', placeItems: 'center', gap: 16 }}>
       <div style={{ fontSize: 32 }}>⏳</div>
       {filename && (
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
