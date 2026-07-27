@@ -28,6 +28,7 @@ const EVENT_DOT: Record<OrderEventKind, string> = {
   SINALITE_STATUS_CHANGED: 'shipped',
   REFUND_ISSUED: 'refund',
   ERROR: 'failed',
+  CANCEL_REQUESTED: 'failed',
 };
 
 const EVENT_LABEL: Record<OrderEventKind, string> = {
@@ -37,6 +38,7 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
   SINALITE_STATUS_CHANGED: 'statut Sinalite mis à jour',
   REFUND_ISSUED: 'refund émis',
   ERROR: 'erreur',
+  CANCEL_REQUESTED: 'annulation demandée',
 };
 
 export default async function AdminDashboard() {
@@ -660,6 +662,7 @@ function eventIcon(k: OrderEventKind): string {
     SINALITE_STATUS_CHANGED: '↗',
     REFUND_ISSUED: '↩',
     ERROR: '!',
+    CANCEL_REQUESTED: '⚠',
   }[k] ?? '·';
 }
 

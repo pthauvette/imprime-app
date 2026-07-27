@@ -34,6 +34,10 @@ export const ORDER_EVENT_KIND = [
   'SINALITE_STATUS_CHANGED',
   'REFUND_ISSUED',
   'ERROR',
+  // finding [49] — trace client d'une demande d'annulation (avant : seul un
+  // email admin + AdminAudit existaient, RIEN de visible pour le client sur
+  // /orders/[id] une fois la modale fermée).
+  'CANCEL_REQUESTED',
 ] as const;
 export type OrderEventKind = (typeof ORDER_EVENT_KIND)[number];
 

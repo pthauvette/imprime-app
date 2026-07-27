@@ -34,6 +34,7 @@ const KIND_TONES: Record<OrderEventKind, 'success' | 'danger' | 'info' | 'warnin
   SINALITE_STATUS_CHANGED: 'info',
   REFUND_ISSUED: 'warning',
   ERROR: 'danger',
+  CANCEL_REQUESTED: 'warning',
 };
 
 const KIND_DOTS: Record<OrderEventKind, string> = {
@@ -43,6 +44,7 @@ const KIND_DOTS: Record<OrderEventKind, string> = {
   SINALITE_STATUS_CHANGED: '⟳',
   REFUND_ISSUED: '↩',
   ERROR: '!',
+  CANCEL_REQUESTED: '⚠',
 };
 
 const TONE_COLORS: Record<'success' | 'danger' | 'info' | 'warning' | 'muted', { bg: string; color: string }> = {

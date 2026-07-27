@@ -61,6 +61,11 @@ export function describeEvent(event: DescribableEvent): string | null {
     return message ?? null;
   }
 
+  if (event.kind === 'CANCEL_REQUESTED') {
+    const reason = parsed.reason as string | undefined;
+    return reason ? `Raison : ${reason}` : null;
+  }
+
   return null;
 }
 
@@ -71,4 +76,5 @@ export const KIND_LABELS: Record<OrderEventKind, string> = {
   SINALITE_STATUS_CHANGED: 'Statut presse',
   REFUND_ISSUED: 'Remboursement émis',
   ERROR: 'Erreur',
+  CANCEL_REQUESTED: 'Annulation demandée',
 };

@@ -107,6 +107,25 @@ describe('describeEvent', () => {
       expect(out).toBe('Timeout');
     });
   });
+
+  // finding [49] — trace client d'une demande d'annulation.
+  describe('CANCEL_REQUESTED', () => {
+    it('affiche la raison du client', () => {
+      const out = describeEvent({
+        kind: 'CANCEL_REQUESTED',
+        data: JSON.stringify({ actor: 'customer', reason: 'changement de plan' }),
+      });
+      expect(out).toBe('Raison : changement de plan');
+    });
+
+    it('null si pas de raison dans le payload', () => {
+      const out = describeEvent({
+        kind: 'CANCEL_REQUESTED',
+        data: JSON.stringify({ actor: 'customer' }),
+      });
+      expect(out).toBeNull();
+    });
+  });
 });
 
 describe('KIND_LABELS', () => {
@@ -114,7 +133,7 @@ describe('KIND_LABELS', () => {
     const required = [
       'PAYMENT_SUCCEEDED', 'PAYMENT_FAILED',
       'SINALITE_SUBMITTED', 'SINALITE_STATUS_CHANGED',
-      'REFUND_ISSUED', 'ERROR',
+      'REFUND_ISSUED', 'ERROR', 'CANCEL_REQUESTED',
     ] as const;
     for (const k of required) {
       expect(KIND_LABELS[k]).toBeTruthy();

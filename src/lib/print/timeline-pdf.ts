@@ -17,6 +17,10 @@ const PAGE_W = 612; // US Letter portrait (72dpi)
 const PAGE_H = 792;
 const MARGIN = 60;
 
+// finding [49] money-path-reviewer — Record<string,...> (pas
+// Record<OrderEventKind,...>) donc tsc ne signale PAS une entrée manquante :
+// CANCEL_REQUESTED tombait dans le fallback `?? ev.kind` (route.ts ligne 129),
+// affichant le littéral brut dans ce PDF téléchargeable par le client.
 const EVENT_LABELS: Record<string, string> = {
   PAYMENT_SUCCEEDED: '💳 Paiement confirmé',
   PAYMENT_FAILED: '❌ Paiement échoué',
@@ -24,6 +28,7 @@ const EVENT_LABELS: Record<string, string> = {
   SINALITE_STATUS_CHANGED: '🔄 Mise à jour statut',
   REFUND_ISSUED: '↩ Remboursement émis',
   ERROR: '⚠ Erreur',
+  CANCEL_REQUESTED: '⚠ Annulation demandée',
 };
 
 export interface TimelinePdfInput {

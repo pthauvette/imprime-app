@@ -44,6 +44,7 @@ const EVENT_DOT: Record<OrderEventKind, string> = {
   SINALITE_STATUS_CHANGED: 'commerce',
   REFUND_ISSUED: 'commerce',
   ERROR: 'security',
+  CANCEL_REQUESTED: 'commerce',
 };
 
 const EVENT_LABEL: Record<OrderEventKind, string> = {
@@ -53,6 +54,7 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
   SINALITE_STATUS_CHANGED: 'Statut Sinalite mis à jour',
   REFUND_ISSUED: 'Refund émis',
   ERROR: 'Erreur de traitement',
+  CANCEL_REQUESTED: 'Annulation demandée',
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -954,6 +956,7 @@ function eventIcon(k: OrderEventKind): string {
     SINALITE_STATUS_CHANGED: '↗',
     REFUND_ISSUED: '↩',
     ERROR: '!',
+    CANCEL_REQUESTED: '⚠',
   }[k] ?? '·';
 }
 
