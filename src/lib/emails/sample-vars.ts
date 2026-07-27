@@ -100,6 +100,7 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     // Rendu via renderLifecycleTimeline(4) qui est dans @/lib/emails/
     // lifecycle-timeline (importé inline pour pas créer une circular).
     LIFECYCLE_TIMELINE_HTML: renderLifecycleTimeline(4),
+    REPORT_PROBLEM_SUBJECT: encodeURIComponent('Problème avec ma commande #SIN-48312'),
     UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
   },
   'order-cancelled': {

@@ -348,10 +348,11 @@ export async function sendOrderDeliveredEmail(input: {
   // destination, pour ne pas avoir DEUX mécaniques d'avis qui divergent.
   const { reviewSubmitToken } = await import('@/lib/reviews/token');
   const reviewToken = reviewSubmitToken(order.id);
+  const displayId = order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase();
   const vars: OrderDeliveredVars = {
     CUSTOMER_FIRST_NAME: firstName(user),
     CUSTOMER_NAME: fullName(user),
-    ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
+    ORDER_ID: displayId,
     DELIVERED_AT_FORMATTED: `${timeFr(deliveredAt)} le ${dateFr(deliveredAt)}`,
     QUANTITY: order.itemsCount,
     PRODUCT_NAME: order.productSummary ?? 'Ta commande Plio',
@@ -361,6 +362,9 @@ export async function sendOrderDeliveredEmail(input: {
     // Mini-timeline 4 étapes — toutes done à ce stade (livraison = closure
     // visuelle satisfaisante du workflow customer).
     LIFECYCLE_TIMELINE_HTML: renderLifecycleTimeline(4),
+    // finding [42] — bloc recours qualité, mailto pré-rempli (déjà encodé,
+    // posé directement dans le href du template).
+    REPORT_PROBLEM_SUBJECT: encodeURIComponent(`Problème avec ma commande #${displayId}`),
     UNSUBSCRIBE_URL: unsubscribeUrl(),
   };
   return queueEmail({
