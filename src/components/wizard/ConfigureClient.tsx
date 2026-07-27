@@ -14,6 +14,7 @@ import { getMarginSpecBySinaliteCategory } from '@/lib/products/margin-specs';
 import { findCategoryGroupBySinaliteCategory } from '@/lib/catalogue';
 import { isSidednessGroup, classifySidedness, sidednessDesc, SIDEDNESS_LABEL } from '@/lib/products/sidedness';
 import { parseSizeLabel } from '@/lib/products/parse-size';
+import { pickDefaultQuantityOption } from '@/lib/products/default-quantity';
 import { Icon } from '@/components/ui/Icon';
 
 type OptionGroupMap = Record<string, SinaliteOption[]>;
@@ -95,13 +96,17 @@ export default function ConfigureClient({
     return [...opts].sort((a, b) => Number(a.name) - Number(b.name));
   }, [optionGroups]);
 
-  // Default qty : le palier pré-rempli (flow reorder) sinon un palier « populaire »
-  // (3e plus petit, ou le plus petit s'il y a peu de paliers) — pour que le prix
-  // affiché d'emblée soit réaliste plutôt que le minimum trompeur.
+  // Default qty : le palier pré-rempli (flow reorder OU défaut serveur — cf.
+  // configure/page.tsx pickDefaultQuantityOption) ; ce fallback ne devrait
+  // normalement jamais s'exécuter (le serveur pose toujours un id valide), mais
+  // finding [18] — s'il le fallait, on choisit aussi par VALEUR (~500), jamais
+  // par position fixe.
   const [qtyIdx, setQtyIdx] = useState<number>(() => {
     const prefilledQtyId = defaultSelection['qty'];
     const i = prefilledQtyId ? sortedQty.findIndex((o) => o.id === prefilledQtyId) : -1;
-    return i >= 0 ? i : Math.min(2, Math.max(0, sortedQty.length - 1));
+    if (i >= 0) return i;
+    const popular = pickDefaultQuantityOption(sortedQty);
+    return popular ? sortedQty.findIndex((o) => o.id === popular.id) : 0;
   });
 
   const lookupPrice = (qtyOptId: number): number | null => {

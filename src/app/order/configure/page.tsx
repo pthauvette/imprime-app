@@ -16,6 +16,7 @@ import JsonLd, { breadcrumbSchema, productSchema } from '@/components/seo/JsonLd
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { isSidednessGroup, classifySidedness } from '@/lib/products/sidedness';
+import { pickDefaultQuantityOption } from '@/lib/products/default-quantity';
 
 export const metadata = { title: "Configure ta commande" };
 export const dynamic = 'force-dynamic';
@@ -114,12 +115,13 @@ export default async function ConfigurePage({
     if (prefilled) {
       defaultSelection[group] = prefilled.id;
     } else if (group === 'qty') {
-      // Depuis la fusion qty↔config, le slider démarre sur ce défaut. On choisit
-      // un palier « populaire » (3e plus petit) plutôt que le minimum, pour que le
-      // prix affiché d'emblée reflète la vraie valeur dégressive (et n'ancre pas
-      // le client sur 25 unités). Le reorder override déjà via prefilled ci-dessus.
-      const sorted = [...opts].sort((a, b) => Number(a.name) - Number(b.name));
-      const popular = sorted[Math.min(2, sorted.length - 1)];
+      // Depuis la fusion qty↔config, le slider démarre sur ce défaut. finding [18] —
+      // palier choisi par VALEUR (le plus proche de ~500), pas par position : les
+      // listes de paliers diffèrent selon le produit/la finition, donc une position
+      // fixe (« 3e plus petit ») donnait des ancrages 6× différents (75u vs 750u)
+      // entre deux finitions du MÊME produit. Le reorder override déjà via prefilled
+      // ci-dessus.
+      const popular = pickDefaultQuantityOption(opts);
       if (popular) defaultSelection[group] = popular.id;
     } else if (group === 'Stock' && isSidednessGroup(opts.map((o) => o.name))) {
       // finding [10] — quand `Stock` encode en réalité recto/recto-verso (pas
