@@ -130,6 +130,17 @@ export default function VirtualProductPicker({
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{papers.length} papiers disponibles</div>
               </div>
             </div>
+            {/* finding [8] — aucun lien vers /samples dans tout le picker, alors que
+                c'est PILE le moment où le doute sur le papier se pose. */}
+            <Link
+              href={'/samples' as Route}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 20,
+                fontSize: 13, color: 'var(--accent-primary)', textDecoration: 'underline', fontWeight: 500,
+              }}
+            >
+              <Icon name="package" size={14} /> Pas sûr du papier ? Commande un échantillon gratuit
+            </Link>
             <div className="stock-grid">
               {papers.map((p) => (
                 <button
