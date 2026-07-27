@@ -53,6 +53,7 @@ vi.mock('@/lib/alerting/slack', () => ({
 }));
 
 vi.mock('@/lib/emails/send', () => ({
+  sendOrderInProductionEmail: vi.fn(async () => ({ sent: true, id: 'del_0' })),
   sendOrderShippedEmail: vi.fn(async () => ({ sent: true, id: 'del_1' })),
   sendOrderDeliveredEmail: vi.fn(async () => ({ sent: true, id: 'del_2' })),
   sendOrderCancelledEmail: vi.fn(async () => ({ sent: true, id: 'del_3' })),
@@ -441,13 +442,12 @@ describe('P. OrderNotFoundError → unknown:true', () => {
   });
 });
 
-// ─── Q. IN_PRODUCTION (no email) — but orderId still set for outcome ────────
-describe('Q. status=IN_PRODUCTION (no email needed)', () => {
-  it('calls applySinaliteStatusChange + populates dbOrderId via secondary findUnique', async () => {
+// ─── Q. IN_PRODUCTION — finding [110] : courriel court (avant : silence) ────
+describe('Q. status=IN_PRODUCTION (courriel court — finding [110])', () => {
+  it('applique le changement de statut + envoie le courriel « en production »', async () => {
     const { POST } = await import('@/app/api/webhooks/sinalite/route');
-    // The "no email" branch uses findUnique with select: { id: true }
     vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
-      { id: baseOrder.id } as never,
+      { ...baseOrder, user: baseUser } as never,
     );
 
     const res = await POST(makeReq(validPayload({ status: 'IN_PRODUCTION' })));
@@ -455,6 +455,10 @@ describe('Q. status=IN_PRODUCTION (no email needed)', () => {
     expect(orders.applySinaliteStatusChange).toHaveBeenCalledWith(
       expect.objectContaining({ sinaliteOrderId: 48312, status: 'IN_PRODUCTION' }),
     );
+    expect(emails.sendOrderInProductionEmail).toHaveBeenCalledWith({
+      order: expect.objectContaining({ id: baseOrder.id }),
+      user: baseUser,
+    });
     expect(emails.sendOrderShippedEmail).not.toHaveBeenCalled();
     expect(emails.sendOrderDeliveredEmail).not.toHaveBeenCalled();
     expect(emails.sendOrderCancelledEmail).not.toHaveBeenCalled();
@@ -466,6 +470,21 @@ describe('Q. status=IN_PRODUCTION (no email needed)', () => {
         orderId: baseOrder.id,
       }),
     );
+    expect(res.status).toBe(200);
+  });
+
+  it('rejoué (transitioned=false) → aucun courriel (anti double-envoi)', async () => {
+    const { POST } = await import('@/app/api/webhooks/sinalite/route');
+    vi.mocked(orders.applySinaliteStatusChange).mockResolvedValueOnce(
+      { transitioned: false, orderId: 'order_db_1', fromStatus: 'IN_PRODUCTION', toStatus: 'IN_PRODUCTION' } as never,
+    );
+    vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(
+      { ...baseOrder, user: baseUser } as never,
+    );
+
+    const res = await POST(makeReq(validPayload({ status: 'IN_PRODUCTION' })));
+
+    expect(emails.sendOrderInProductionEmail).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
   });
 });

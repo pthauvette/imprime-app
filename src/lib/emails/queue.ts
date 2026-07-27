@@ -105,6 +105,7 @@ const THROTTLE_WINDOW_MS = 24 * 3600 * 1000;
 
 const THROTTLE_EXEMPT_TEMPLATES: ReadonlySet<EmailTemplate> = new Set([
   'order-confirmation',
+  'order-in-production',
   'order-shipped',
   'order-delivered',
   'order-cancelled',

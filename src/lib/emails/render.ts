@@ -19,6 +19,7 @@ export type EmailTemplate =
   | 'welcome'
   | 'reseller-approved'
   | 'order-confirmation'
+  | 'order-in-production'
   | 'order-shipped'
   | 'order-delivered'
   | 'order-cancelled'
@@ -88,6 +89,7 @@ export const EMAIL_SUBJECTS: Record<EmailTemplate, (vars: Record<string, string 
   'welcome': () => 'Bienvenue chez Plio · 3 trucs avant ta première commande',
   'reseller-approved': (v) => `C'est officiel — ${v.COMPANY_NAME ?? 'ton compte'} est reseller Plio ✓`,
   'order-confirmation': (v) => `C'est imprimé. Confirmation #${v.ORDER_ID ?? ''}`,
+  'order-in-production': (v) => `Ta commande #${v.ORDER_ID ?? ''} est en production`,
   'order-shipped': (v) => `Ta commande #${v.ORDER_ID ?? ''} est en route`,
   'order-delivered': (v) => `C'est arrivé. Merci #${v.ORDER_ID ?? ''}`,
   'order-cancelled': (v) => `Ta commande #${v.ORDER_ID ?? ''} a été annulée`,

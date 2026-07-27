@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  sendOrderInProductionEmail,
   sendOrderShippedEmail,
   sendOrderDeliveredEmail,
   sendOrderConfirmationEmail,
@@ -29,6 +30,30 @@ import { makeTestOrder } from './factories/order';
 // Round 19 #1 + Round 21 #1 — factories replace les fixtures inline.
 const baseUser: User = makeTestUser({ id: 'user_1' });
 const baseOrder: Order = makeTestOrder({ id: 'order_1', userId: 'user_1', status: 'SHIPPED' });
+
+describe('sendOrderInProductionEmail — opt-out gating — finding [110]', () => {
+  beforeEach(() => {
+    vi.mocked(render.sendEmail).mockClear();
+  });
+
+  it('envoie l\'email si emailDeliveryNotifications=true', async () => {
+    const r = await sendOrderInProductionEmail({
+      order: baseOrder,
+      user: { ...baseUser, emailDeliveryNotifications: true },
+    });
+    expect(render.sendEmail).toHaveBeenCalledOnce();
+    expect(r).toMatchObject({ sent: true });
+  });
+
+  it('SKIP l\'email si emailDeliveryNotifications=false', async () => {
+    const r = await sendOrderInProductionEmail({
+      order: baseOrder,
+      user: { ...baseUser, emailDeliveryNotifications: false },
+    });
+    expect(render.sendEmail).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ sent: false, optedOut: true });
+  });
+});
 
 describe('sendOrderShippedEmail — opt-out gating', () => {
   beforeEach(() => {

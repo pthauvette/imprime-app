@@ -66,6 +66,17 @@ export type OrderConfirmationVars = {
   COMPANY_QST_NUMBER: string;
 };
 
+// finding [110] — courriel COURT au passage IN_PRODUCTION (2-3 jours de
+// silence total entre le paiement et l'expédition, sinon). Volontairement
+// minimal : pas de promesse de prépresse humaine/BAT (cf. finding [62]/[25],
+// point ouvert), juste « c'est en cours, prochaine étape l'expédition ».
+export type OrderInProductionVars = {
+  CUSTOMER_FIRST_NAME: string;
+  ORDER_ID: string | number;
+  ORDER_URL: string;
+  UNSUBSCRIBE_URL: string;
+};
+
 export type OrderShippedVars = {
   CUSTOMER_FIRST_NAME: string;
   CUSTOMER_NAME: string;
@@ -203,6 +214,7 @@ export type EmailVarsMap = {
   'welcome': WelcomeVars;
   'reseller-approved': ResellerApprovedVars;
   'order-confirmation': OrderConfirmationVars;
+  'order-in-production': OrderInProductionVars;
   'order-shipped': OrderShippedVars;
   'order-delivered': OrderDeliveredVars;
   'order-cancelled': OrderCancelledVars;

@@ -73,6 +73,12 @@ export const SAMPLE_VARS: { [K in keyof EmailVarsMap]: EmailVarsMap[K] } = {
     COMPANY_GST_NUMBER: '123456789 RT0001',
     COMPANY_QST_NUMBER: '1234567890 TQ0001',
   },
+  'order-in-production': {
+    CUSTOMER_FIRST_NAME: 'Sophie',
+    ORDER_ID: 'SIN-48312',
+    ORDER_URL: `${APP_URL}/orders/example`,
+    UNSUBSCRIBE_URL: `${APP_URL}/settings/email-preferences`,
+  },
   'order-shipped': {
     CUSTOMER_FIRST_NAME: 'Sophie',
     CUSTOMER_NAME: 'Sophie Beauchamp',
@@ -203,6 +209,7 @@ export const ALL_TEMPLATES: EmailTemplate[] = [
   'welcome',
   'reseller-approved',
   'order-confirmation',
+  'order-in-production',
   'order-shipped',
   'order-delivered',
   'order-cancelled',

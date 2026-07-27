@@ -21,6 +21,7 @@ import { renderLifecycleTimeline } from './lifecycle-timeline';
 import { computeOrderEta } from '@/lib/orders/timeline';
 import type {
   OrderConfirmationVars,
+  OrderInProductionVars,
   OrderShippedVars,
   OrderDeliveredVars,
   OrderCancelledVars,
@@ -273,6 +274,32 @@ export async function sendOrderConfirmationEmail(input: {
     // sans avoir à cliquer "Télécharger" sur le portail. Best-effort : si
     // la génération PDF fail, l'email part quand même sans attachment.
     attachOrderId: order.id,
+  });
+}
+
+/**
+ * Envoyé sur webhook Sinalite status=IN_PRODUCTION — finding [110] : avant,
+ * 2-3 jours de silence total entre le paiement et l'expédition. Volontairement
+ * court, aucune promesse de délai ni de prépresse humaine (cf. finding
+ * [62]/[25], point ouvert séparé). Skip si user opt-out.
+ */
+export async function sendOrderInProductionEmail(input: { order: Order; user: User }) {
+  const { order, user } = input;
+  if (!user.emailDeliveryNotifications) {
+    logEmail.info({ userId: user.id, kind: 'in-production' }, 'skipping notification — user opted out');
+    return { sent: false, optedOut: true };
+  }
+  const vars: OrderInProductionVars = {
+    CUSTOMER_FIRST_NAME: firstName(user),
+    ORDER_ID: order.sinaliteOrderId ?? order.id.slice(-6).toUpperCase(),
+    ORDER_URL: orderUrl(order),
+    UNSUBSCRIBE_URL: unsubscribeUrl(),
+  };
+  return queueEmail({
+    to: user.email,
+    template: 'order-in-production',
+    vars: vars as unknown as Record<string, string | number>,
+    label: `order-in-production:${order.id}`,
   });
 }
 
