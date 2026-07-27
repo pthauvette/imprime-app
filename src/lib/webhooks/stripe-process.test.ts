@@ -54,12 +54,13 @@ const VALID_PAYLOAD = {
   billingInfo: { BillFName: 'A', BillLName: 'B', BillEmail: 'a@b.ca', BillAddr: '1 rue', BillAddr2: '', BillCity: 'Mtl', BillState: 'QC', BillZip: 'H2X1Y7', BillCountry: 'CA', BillPhone: '5145551234' },
 };
 
-function pendingOrder(amountCents: number) {
+function pendingOrder(amountCents: number, overrides: Record<string, unknown> = {}) {
   return {
     id: 'ord_1', paymentIntentId: 'pi_1', status: 'PENDING', amountCents,
     walletCreditAppliedCents: 0, userId: 'u1', sinaliteOrderId: null,
     sinalitePayload: JSON.stringify(VALID_PAYLOAD),
     user: { id: 'u1', email: 'owner@plio.ca', name: 'Owner' },
+    ...overrides,
   };
 }
 
@@ -179,6 +180,30 @@ describe('webhook payment_intent.succeeded — garde transitioned (#3a, anti dou
     expect(m.markOrderPaidWithWalletDebit).toHaveBeenCalledTimes(1); // l'appel a bien eu lieu
     expect(m.createOrder).not.toHaveBeenCalled(); // mais PAS de double production
     expect(m.awardReferral).not.toHaveBeenCalled();
+    expect(m.sendOrderConfirmationEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('webhook payment_intent.succeeded — finding [129] devis sur mesure (skipSinaliteSubmission)', () => {
+  it('order.skipSinaliteSubmission=true → PAS de soumission Sinalite, mais confirmation envoyée', async () => {
+    m.findUnique.mockResolvedValue(pendingOrder(5000, { skipSinaliteSubmission: true }));
+    await processStripeEvent(succeededEvent(5000), {});
+    expect(m.markOrderPaidWithWalletDebit).toHaveBeenCalledTimes(1);
+    expect(m.createOrder).not.toHaveBeenCalled(); // JAMAIS soumis à Sinalite
+    expect(m.sendOrderConfirmationEmail).toHaveBeenCalledTimes(1);
+    expect(m.sendCriticalAlert).not.toHaveBeenCalled();
+  });
+
+  it('order.skipSinaliteSubmission=false (défaut) → soumission Sinalite normale (non-régression)', async () => {
+    m.findUnique.mockResolvedValue(pendingOrder(5000, { skipSinaliteSubmission: false }));
+    await processStripeEvent(succeededEvent(5000), {});
+    expect(m.createOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('garde montant reste active même avec skipSinaliteSubmission=true (C1 non contourné)', async () => {
+    m.findUnique.mockResolvedValue(pendingOrder(5000, { skipSinaliteSubmission: true }));
+    await expect(processStripeEvent(succeededEvent(3000), {})).rejects.toThrow(/amount mismatch/);
+    expect(m.markOrderPaidWithWalletDebit).not.toHaveBeenCalled();
     expect(m.sendOrderConfirmationEmail).not.toHaveBeenCalled();
   });
 });

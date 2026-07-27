@@ -45,6 +45,7 @@ const EVENT_DOT: Record<OrderEventKind, string> = {
   REFUND_ISSUED: 'commerce',
   ERROR: 'security',
   CANCEL_REQUESTED: 'commerce',
+  MANUAL_ORDER_CREATED: 'commerce',
 };
 
 const EVENT_LABEL: Record<OrderEventKind, string> = {
@@ -55,6 +56,7 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
   REFUND_ISSUED: 'Refund émis',
   ERROR: 'Erreur de traitement',
   CANCEL_REQUESTED: 'Annulation demandée',
+  MANUAL_ORDER_CREATED: 'Commande créée depuis un devis sur mesure',
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -957,6 +959,7 @@ function eventIcon(k: OrderEventKind): string {
     REFUND_ISSUED: '↩',
     ERROR: '!',
     CANCEL_REQUESTED: '⚠',
+    MANUAL_ORDER_CREATED: '✎',
   }[k] ?? '·';
 }
 

@@ -26,6 +26,9 @@ export const DEFAULT_TEST_ORDER: Order = {
   currency: 'CAD',
   paidAt: new Date('2026-01-01T12:00:00.000Z'),
   sinaliteOrderId: '48312',
+  // finding [129] — devis sur mesure : production hors Sinalite (default
+  // false = flux normal, soumission Sinalite automatique au paiement)
+  skipSinaliteSubmission: false,
   status: 'PAID',
   failureReason: null,
   sinalitePayload: '{}',

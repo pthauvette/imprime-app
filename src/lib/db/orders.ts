@@ -38,6 +38,9 @@ export const ORDER_EVENT_KIND = [
   // email admin + AdminAudit existaient, RIEN de visible pour le client sur
   // /orders/[id] une fois la modale fermée).
   'CANCEL_REQUESTED',
+  // finding [129] — commande créée manuellement par un admin depuis un devis
+  // sur mesure accepté (production hors Sinalite).
+  'MANUAL_ORDER_CREATED',
 ] as const;
 export type OrderEventKind = (typeof ORDER_EVENT_KIND)[number];
 
@@ -173,6 +176,62 @@ export async function createPendingOrder(input: CreateOrderInput) {
   // désormais dans markOrderPaidWithWalletDebit, au passage PAID, gardé.
   // Le promoCodeId reste persté sur l'Order (intention) pour l'increment.
   return prisma.order.create({ data: orderData });
+}
+
+// finding [129] — commande créée par un admin depuis un devis sur mesure
+// ACCEPTED, PAS depuis le wizard. Distincte de createPendingOrder :
+//   - `sinalitePayload` reste NOT NULL (contrainte schema) mais n'est ici
+//     qu'un descriptif inerte JAMAIS parsé — `skipSinaliteSubmission: true`
+//     fait sauter TOUT le bloc Sinalite du webhook Stripe (stripe-process.ts).
+//   - Pas de shippingNote/promoCode/wallet/referral/reseller (aucun de ces
+//     concepts n'existe pour un devis négocié manuellement).
+//   - subtotalCents = amountCents entier (tax/shipping = 0) : le montant
+//     quoté par l'admin est le total déjà négocié avec le client — pas de
+//     recalcul tax ici. Simplification assumée pour ce chemin peu fréquent.
+export type CreateManualOrderInput = {
+  userId: string;
+  paymentIntentId: string;
+  amountCents: number;
+  productSummary: string;
+  shippingMethod: string;
+  province: string;
+  shipName: string;
+  shipLine1: string;
+  shipLine2?: string;
+  shipCity: string;
+  shipProvince: string;
+  shipPostalCode: string;
+  shipPhone: string;
+};
+
+export async function createManualOrder(input: CreateManualOrderInput) {
+  return prisma.order.create({
+    data: {
+      userId: input.userId,
+      paymentIntentId: input.paymentIntentId,
+      amountCents: input.amountCents,
+      status: 'PENDING',
+      skipSinaliteSubmission: true,
+      sinalitePayload: JSON.stringify({
+        manual: true,
+        note: 'Devis sur mesure — production hors Sinalite, jamais soumis.',
+      }),
+      productSummary: input.productSummary,
+      itemsCount: 1,
+      subtotalCents: input.amountCents,
+      shippingCents: 0,
+      taxCents: 0,
+      shippingMethod: input.shippingMethod,
+      province: input.province,
+      shipName: input.shipName,
+      shipLine1: input.shipLine1,
+      shipLine2: input.shipLine2,
+      shipCity: input.shipCity,
+      shipProvince: input.shipProvince,
+      shipPostalCode: input.shipPostalCode,
+      shipPhone: input.shipPhone,
+    },
+  });
 }
 
 // ─── ORDER TRANSITIONS ────────────────────────────────────────────────────

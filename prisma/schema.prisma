@@ -232,6 +232,16 @@ model Order {
   // Sinalite — null jusqu'à ce que /order/new ait répondu
   sinaliteOrderId  String?  @unique
 
+  // finding [129] — devis sur mesure : production gérée manuellement HORS
+  // Sinalite (ex. signage extérieur, projet qui n'existe pas au catalogue).
+  // Quand true, le webhook Stripe (payment_intent.succeeded) s'arrête à PAID
+  // — il ne parse JAMAIS `sinalitePayload` comme un SinaliteOrderRequest ni
+  // n'appelle sinalite.createOrder(). L'admin fait avancer le statut
+  // manuellement ensuite via /api/admin/orders/[id]/status (déjà existant).
+  skipSinaliteSubmission Boolean @default(false)
+  /** Devis sur mesure d'origine, si cette commande a été créée depuis un. */
+  customQuoteRequest     CustomQuoteRequest?
+
   // finding [17] — jours de production/transit RÉELS captés au moment de la
   // commande (Turnaround sélectionné + devis transporteur signé, cf.
   // /api/shipping/estimate). NULL = commande créée avant ce fix, résolution
@@ -1120,6 +1130,14 @@ model CustomQuoteRequest {
   /** IP + UA pour anti-spam. */
   requestIp           String?
   requestUa           String?
+
+  // finding [129] — le montant FINAL négocié (distinct de `budgetCents`, qui
+  // est le budget ESTIMÉ par le client à la demande). Posé par l'admin au
+  // moment de créer la commande, jamais deviné depuis budgetCents.
+  quotedAmountCents   Int?
+  /** Commande créée depuis ce devis (paiement encaissé, prod hors Sinalite). */
+  orderId             String?   @unique
+  order               Order?    @relation(fields: [orderId], references: [id])
 
   createdAt           DateTime  @default(now())
   quotedAt            DateTime?

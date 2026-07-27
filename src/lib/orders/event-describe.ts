@@ -66,6 +66,11 @@ export function describeEvent(event: DescribableEvent): string | null {
     return reason ? `Raison : ${reason}` : null;
   }
 
+  if (event.kind === 'MANUAL_ORDER_CREATED') {
+    const quoteId = parsed.quoteId as string | undefined;
+    return quoteId ? `Devis : #${quoteId.slice(-6).toUpperCase()}` : null;
+  }
+
   return null;
 }
 
@@ -77,4 +82,5 @@ export const KIND_LABELS: Record<OrderEventKind, string> = {
   REFUND_ISSUED: 'Remboursement émis',
   ERROR: 'Erreur',
   CANCEL_REQUESTED: 'Annulation demandée',
+  MANUAL_ORDER_CREATED: 'Commande créée depuis un devis sur mesure',
 };
