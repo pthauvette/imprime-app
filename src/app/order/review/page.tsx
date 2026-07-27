@@ -150,6 +150,14 @@ function ReviewPageInner() {
   // Promo code : code appliqué + status (ok/error/checking) + message FR
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
 
+  // finding [128] — l'API MCP expose déjà une référence/PO custom
+  // (`internalRef` → Sinalite `extra`, cf. place-order.ts), mais le web
+  // n'avait aucun champ pour la saisir : chaque item recevait un
+  // `internalRef` auto-généré (PLIO-<timestamp>-<i>) sans lien avec le bon
+  // de commande réel du client. Optionnel — vide = comportement identique
+  // (auto-généré), donc zéro régression pour qui ne l'utilise pas.
+  const [poReference, setPoReference] = useState('');
+
   // Round 3 #5 — vrai nom + prix de l'item courant, pour enrichir le snapshot
   // cart quand on « Ajoute un autre » (sinon « Produit #ID · 0 $ » → récap peu
   // rassurant à l'écran de paiement). Best-effort : si pas encore résolu,
@@ -389,7 +397,10 @@ function ReviewPageInner() {
               productId: it.productId,
               optionIds: it.optionIds,
               files: it.files,
-              internalRef: `PLIO-${Date.now()}-${i}`,
+              // finding [128] — référence client (bon de commande) si fournie,
+              // même valeur pour tous les items (un seul PO par commande) ;
+              // sinon repli identique à avant (auto-généré, unique par item).
+              internalRef: poReference.trim() ? poReference.trim().slice(0, 60) : `PLIO-${Date.now()}-${i}`,
             })),
             contact: { firstName: ship.firstName, lastName: ship.lastName, email: ship.email, phone: ship.phone },
             shippingAddress: { line1: ship.line1, line2: ship.line2, city: ship.city, province: ship.province, postalCode: ship.postalCode },
@@ -529,6 +540,32 @@ function ReviewPageInner() {
                 <Row label="Destinataire" value={`${ship.firstName} ${ship.lastName}`} />
                 <Row label="Adresse" value={`${ship.line1}, ${ship.city} ${ship.province} ${ship.postalCode}`} />
                 <Row label="Livraison" value={`${ship.method} · ${(breakdown?.shipping ?? ship.price).toFixed(2)} $`} />
+              </div>
+
+              {/* finding [128] — référence / bon de commande (optionnel),
+                  transmise à l'imprimeur (Sinalite `extra`) pour matcher tes
+                  propres dossiers. Déjà supporté côté API MCP (internalRef). */}
+              <div style={{ marginTop: 12 }}>
+                <label htmlFor="po-reference" style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Référence / bon de commande (optionnel)
+                </label>
+                <input
+                  id="po-reference"
+                  type="text"
+                  value={poReference}
+                  onChange={(e) => setPoReference(e.target.value)}
+                  placeholder="ex. BC-2026-0417"
+                  maxLength={60}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    fontSize: 13,
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--r-sm)',
+                    background: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
               </div>
 
               {/* "Ajouter un autre produit" — visible si pas full */}
