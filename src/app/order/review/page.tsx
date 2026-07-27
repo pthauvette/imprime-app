@@ -153,12 +153,20 @@ function ReviewPageInner() {
   // Round 3 #5 — vrai nom + prix de l'item courant, pour enrichir le snapshot
   // cart quand on « Ajoute un autre » (sinon « Produit #ID · 0 $ » → récap peu
   // rassurant à l'écran de paiement). Best-effort : si pas encore résolu,
-  // handleAddAnother retombe sur le placeholder. Le nom vient du GET
-  // /api/products/[id] (product.name), le prix du POST (variante, en dollars).
-  const [currentSnapshot, setCurrentSnapshot] = useState<{
-    productName: string;
-    unitPriceCents: number;
-  } | null>(null);
+  // handleAddAnother retombe sur le placeholder.
+  // finding [91] — le nom vient de `productNames` (déjà résolu par le GET
+  // /api/products/[id] de l'effet itemOptionLabels ci-dessous, pour TOUS les
+  // items) au lieu d'un 2e GET identique rien que pour le nom de l'item
+  // courant ; le prix reste son propre POST (variante, en dollars).
+  const [productNames, setProductNames] = useState<Record<number, string>>({});
+  const [currentUnitPriceCents, setCurrentUnitPriceCents] = useState<number | null>(null);
+  const currentSnapshot = useMemo(() => {
+    if (!currentItem) return null;
+    return {
+      productName: productNames[currentItem.productId] || `Produit #${currentItem.productId}`,
+      unitPriceCents: currentUnitPriceCents ?? 0,
+    };
+  }, [currentItem, productNames, currentUnitPriceCents]);
 
   // Handler : sauve l'item courant dans le cart + navigate vers /order/start
   // pour que l'user puisse en ajouter un autre. Pas de double-add si l'user
@@ -237,6 +245,7 @@ function ReviewPageInner() {
     (async () => {
       const uniqueProductIds = [...new Set(allItems.map((it) => it.productId))];
       const detailsByProductId = new Map<number, Record<string, { id: number; group: string; name: string }[]>>();
+      const namesByProductId = new Map<number, string>();
       await Promise.all(
         uniqueProductIds.map(async (pid) => {
           try {
@@ -244,8 +253,10 @@ function ReviewPageInner() {
             if (!res.ok) return;
             const data = await res.json();
             if (data?.optionGroups) detailsByProductId.set(pid, data.optionGroups);
+            const name = (data?.product?.name as string | undefined)?.trim();
+            if (name) namesByProductId.set(pid, name);
           } catch {
-            // best-effort — cet item retombe sur le fallback "N options"
+            // best-effort — cet item retombe sur le fallback "N options"/"Produit #ID"
           }
         }),
       );
@@ -256,36 +267,30 @@ function ReviewPageInner() {
         if (groups) labels[i] = buildOptionSummary(it.optionIds, groups);
       });
       setItemOptionLabels(labels);
+      setProductNames(Object.fromEntries(namesByProductId));
     })();
     return () => { cancelled = true; };
   }, [allItems]);
 
-  // Résout nom + prix réels de l'item courant (pour le snapshot cart). GET pour
-  // le nom, POST (avec optionIds) pour le prix de la variante. Best-effort.
+  // Résout le prix réel de l'item courant (pour le snapshot cart) — POST avec
+  // optionIds pour le prix de la variante. Best-effort. Le nom vient de
+  // `productNames` (cf. finding [91] ci-dessus), plus de GET dupliqué ici.
   useEffect(() => {
     if (!currentItem) return;
     let cancelled = false;
     (async () => {
       try {
-        const [gRes, pRes] = await Promise.all([
-          fetch(`/api/products/${currentItem.productId}`),
-          fetch(`/api/products/${currentItem.productId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ optionIds: currentItem.optionIds }),
-          }),
-        ]);
-        const g = gRes.ok ? await gRes.json() : null;
+        const pRes = await fetch(`/api/products/${currentItem.productId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ optionIds: currentItem.optionIds }),
+        });
         const p = pRes.ok ? await pRes.json() : null;
         if (cancelled) return;
-        const name = (g?.product?.name as string | undefined)?.trim();
         const priceDollars = Number(p?.price);
-        setCurrentSnapshot({
-          productName: name || `Produit #${currentItem.productId}`,
-          unitPriceCents: Number.isFinite(priceDollars) ? Math.round(priceDollars * 100) : 0,
-        });
+        setCurrentUnitPriceCents(Number.isFinite(priceDollars) ? Math.round(priceDollars * 100) : 0);
       } catch {
-        // garde le fallback placeholder dans handleAddAnother
+        // garde le fallback placeholder (currentSnapshot mémoïsé)
       }
     })();
     return () => {
