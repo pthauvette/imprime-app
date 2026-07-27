@@ -294,7 +294,10 @@ function UploadPageInner() {
           </div>
         </div>
 
-        <aside className="recap">
+        {/* finding [77] — même trou CSS que [2] : `.recap` masqué sous 1100px
+            sans exception dédiée faisait disparaître le bloc de réassurance
+            (S3/90j/prépresse) sur mobile, sans repli visible ailleurs. */}
+        <aside className="recap recap-upload">
           <div>
             <div className="recap-section-label">Fichiers</div>
             <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>

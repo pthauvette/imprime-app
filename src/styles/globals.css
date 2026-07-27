@@ -2596,10 +2596,12 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
          docs/experience-client-2026-07.md finding [2]). On les ré-affiche, empilés
          sous le contenu (grille déjà en 1 colonne), en annulant le sticky + le
          plafond de hauteur du `.recap` de base (sinon le contenu scrollerait dans
-         une boîte cappée à 100vh). */
+         une boîte cappée à 100vh). `recap-upload` (finding [77] — /order/upload :
+         le bloc de réassurance S3/90j/prépresse) ajouté au même groupe. */
       .recap.recap-payment,
       .recap.recap-config,
-      .recap.recap-preview {
+      .recap.recap-preview,
+      .recap.recap-upload {
         display: block;
         position: static;
         max-height: none;
