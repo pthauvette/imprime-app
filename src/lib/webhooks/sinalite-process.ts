@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/orders';
 import { prisma } from '@/lib/db';
 import {
+  sendOrderInProductionEmail,
   sendOrderShippedEmail,
   sendOrderDeliveredEmail,
   sendOrderCancelledEmail,
@@ -70,7 +71,9 @@ export async function processSinaliteEvent(
 
   // Email notifications (best-effort, on fetch order + user pour avoir
   // le contexte que le payload Sinalite n'a pas — customer email, adresse).
-  if (payload.status === 'SHIPPED' || payload.status === 'DELIVERED' || payload.status === 'CANCELLED') {
+  // finding [110] — IN_PRODUCTION ajouté : avant, 2-3 jours de silence total
+  // entre le paiement et l'expédition (aucun email entre les deux).
+  if (payload.status === 'IN_PRODUCTION' || payload.status === 'SHIPPED' || payload.status === 'DELIVERED' || payload.status === 'CANCELLED') {
     const order = await prisma.order.findUnique({
       where: { sinaliteOrderId: String(payload.orderId) },
       include: { user: true },
@@ -89,6 +92,9 @@ export async function processSinaliteEvent(
         return;
       }
       switch (payload.status) {
+        case 'IN_PRODUCTION':
+          await sendOrderInProductionEmail({ order, user: order.user });
+          break;
         case 'SHIPPED':
           await sendOrderShippedEmail({
             order,

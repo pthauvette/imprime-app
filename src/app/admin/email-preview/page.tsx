@@ -34,6 +34,7 @@ const TEMPLATE_LABELS: Record<EmailTemplate, string> = {
   'welcome': 'Bienvenue (nouveau user)',
   'reseller-approved': 'Reseller approuvé',
   'order-confirmation': 'Confirmation commande',
+  'order-in-production': 'En production (IN_PRODUCTION)',
   'order-shipped': 'Expédition (SHIPPED)',
   'order-delivered': 'Livraison (DELIVERED)',
   'order-cancelled': 'Annulation + refund',
