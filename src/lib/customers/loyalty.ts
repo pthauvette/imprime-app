@@ -29,17 +29,31 @@ export function computeLoyaltyTier(input: LoyaltyTierInput): LoyaltyTier {
   return 'BRONZE';
 }
 
+export interface NextTierProgressInput extends LoyaltyTierInput {
+  /**
+   * finding [56] — tier ACTUEL autoritaire (`User.loyaltyTier`, recomputé
+   * mensuellement par le cron — cf. perks.ts « source de vérité »).
+   * `revenueLast365dCents` est en temps réel et peut donc déjà dépasser ce
+   * tier (ou être retombé dessous) : on affiche quand même la progression
+   * à partir de ce tier confirmé, JAMAIS un tier recalculé en direct qui
+   * contredirait le badge affiché ailleurs sur la même page (avant ce fix,
+   * `LoyaltyCard` (tier DB) et `LoyaltyTierProgress` (tier recalculé ici)
+   * pouvaient afficher deux paliers différents).
+   */
+  currentTier: LoyaltyTier;
+}
+
 /**
  * Combien le user doit dépenser de plus pour atteindre le tier supérieur.
  * Retourne null si déjà au top tier (GOLD).
  */
-export function nextTierProgress(input: LoyaltyTierInput): {
+export function nextTierProgress(input: NextTierProgressInput): {
   current: LoyaltyTier;
   next: LoyaltyTier | null;
   needsCents: number | null;
   progressPct: number;
 } {
-  const current = computeLoyaltyTier(input);
+  const current = input.currentTier;
   if (current === 'GOLD') {
     return { current, next: null, needsCents: null, progressPct: 100 };
   }
@@ -47,26 +61,29 @@ export function nextTierProgress(input: LoyaltyTierInput): {
     return {
       current,
       next: 'GOLD',
-      needsCents: GOLD_THRESHOLD_CENTS - input.revenueLast365dCents,
-      progressPct: Math.min(
+      // Math.max(0, …) — le revenu live peut être sous OU au-dessus du seuil
+      // du tier confirmé (tier pas encore recalculé par le cron mensuel) ;
+      // on ne veut jamais un "besoin" négatif ou un % hors [0, 100].
+      needsCents: Math.max(0, GOLD_THRESHOLD_CENTS - input.revenueLast365dCents),
+      progressPct: Math.max(0, Math.min(
         100,
         Math.round(
           ((input.revenueLast365dCents - SILVER_THRESHOLD_CENTS) /
             (GOLD_THRESHOLD_CENTS - SILVER_THRESHOLD_CENTS)) *
             100,
         ),
-      ),
+      )),
     };
   }
   // BRONZE
   return {
     current,
     next: 'SILVER',
-    needsCents: SILVER_THRESHOLD_CENTS - input.revenueLast365dCents,
-    progressPct: Math.min(
+    needsCents: Math.max(0, SILVER_THRESHOLD_CENTS - input.revenueLast365dCents),
+    progressPct: Math.max(0, Math.min(
       100,
       Math.round((input.revenueLast365dCents / SILVER_THRESHOLD_CENTS) * 100),
-    ),
+    )),
   };
 }
 

@@ -217,6 +217,9 @@ export default async function AccountDashboardPage() {
         {/* Round 27 #5 — Loyalty tier progress widget */}
         {(() => {
           const tierState = nextTierProgress({
+            // finding [56] — MÊME tier autoritaire que LoyaltyCard (user.loyaltyTier,
+            // DB), pas un recalcul en direct qui pourrait afficher un palier différent.
+            currentTier: (user.loyaltyTier as LoyaltyTier) ?? 'BRONZE',
             revenueLast365dCents: ltv365Agg._sum.amountCents ?? 0,
           });
           return (
@@ -514,7 +517,10 @@ function LoyaltyCard({
   tier: LoyaltyTier;
   revenueLast365dCents: number;
 }) {
-  const progress = nextTierProgress({ revenueLast365dCents });
+  // finding [56] — currentTier = tier (prop, DB) : le libellé affiché juste
+  // en dessous ET la barre de progression pointent maintenant vers le MÊME
+  // palier, au lieu d'un tier recalculé en direct pouvant différer du prop.
+  const progress = nextTierProgress({ currentTier: tier, revenueLast365dCents });
   // Round 43 #1 — tier tokens (dark-safe + unifiés avec /admin/users).
   const TIER_COLORS: Record<LoyaltyTier, string> = {
     BRONZE: 'var(--tier-bronze)',

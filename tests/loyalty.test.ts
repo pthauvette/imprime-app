@@ -41,8 +41,12 @@ describe('computeLoyaltyTier', () => {
 });
 
 describe('nextTierProgress', () => {
+  // finding [56] — currentTier est maintenant EXPLICITE (tier confirmé DB),
+  // plus recalculé depuis revenueLast365dCents à l'intérieur de la fonction.
+  // Les tests ci-dessous passent le tier qu'aurait produit computeLoyaltyTier
+  // pour le même revenu, pour couvrir le cas « cohérent » (nominal).
   it('BRONZE @ 0 → 0 % vers SILVER', () => {
-    const p = nextTierProgress({ revenueLast365dCents: 0 });
+    const p = nextTierProgress({ currentTier: 'BRONZE', revenueLast365dCents: 0 });
     expect(p.current).toBe('BRONZE');
     expect(p.next).toBe('SILVER');
     expect(p.progressPct).toBe(0);
@@ -50,7 +54,7 @@ describe('nextTierProgress', () => {
   });
 
   it('BRONZE @ 250 $ → 50 % vers SILVER', () => {
-    const p = nextTierProgress({ revenueLast365dCents: 250_00 });
+    const p = nextTierProgress({ currentTier: 'BRONZE', revenueLast365dCents: 250_00 });
     expect(p.current).toBe('BRONZE');
     expect(p.next).toBe('SILVER');
     expect(p.progressPct).toBe(50);
@@ -58,7 +62,7 @@ describe('nextTierProgress', () => {
   });
 
   it('SILVER @ seuil → 0 % vers GOLD (juste arrivé)', () => {
-    const p = nextTierProgress({ revenueLast365dCents: SILVER_THRESHOLD_CENTS });
+    const p = nextTierProgress({ currentTier: 'SILVER', revenueLast365dCents: SILVER_THRESHOLD_CENTS });
     expect(p.current).toBe('SILVER');
     expect(p.next).toBe('GOLD');
     expect(p.progressPct).toBe(0);
@@ -67,13 +71,13 @@ describe('nextTierProgress', () => {
 
   it('SILVER au milieu → ~50 % vers GOLD', () => {
     // 500 + (2000-500)/2 = 1250
-    const p = nextTierProgress({ revenueLast365dCents: 1250_00 });
+    const p = nextTierProgress({ currentTier: 'SILVER', revenueLast365dCents: 1250_00 });
     expect(p.current).toBe('SILVER');
     expect(p.progressPct).toBe(50);
   });
 
   it('GOLD → next null, progressPct 100', () => {
-    const p = nextTierProgress({ revenueLast365dCents: 5000_00 });
+    const p = nextTierProgress({ currentTier: 'GOLD', revenueLast365dCents: 5000_00 });
     expect(p.current).toBe('GOLD');
     expect(p.next).toBeNull();
     expect(p.needsCents).toBeNull();
@@ -82,9 +86,36 @@ describe('nextTierProgress', () => {
 
   it('clamp progressPct à 100 si on déborde', () => {
     // edge case : si on est tout proche du tier suivant mais pas encore (rare)
-    const p = nextTierProgress({ revenueLast365dCents: GOLD_THRESHOLD_CENTS - 1 });
+    const p = nextTierProgress({ currentTier: 'SILVER', revenueLast365dCents: GOLD_THRESHOLD_CENTS - 1 });
     expect(p.progressPct).toBeLessThanOrEqual(100);
     expect(p.progressPct).toBeGreaterThan(95);
+  });
+
+  // finding [56] — le coeur du fix : currentTier fait autorité même quand
+  // revenueLast365dCents (live) a déjà dépassé ou est retombé sous ce tier
+  // (cron mensuel pas encore repassé). Avant ce fix, `current` était
+  // recalculé depuis le revenu → pouvait CONTREDIRE le tier DB affiché par
+  // LoyaltyCard sur la même page.
+  it('revenu déjà au-dessus du tier confirmé (upgrade pas encore recompute) — current reste le tier confirmé, needsCents/progressPct bornés', () => {
+    const p = nextTierProgress({ currentTier: 'SILVER', revenueLast365dCents: GOLD_THRESHOLD_CENTS + 100_00 });
+    expect(p.current).toBe('SILVER');
+    expect(p.next).toBe('GOLD');
+    expect(p.needsCents).toBe(0);
+    expect(p.progressPct).toBe(100);
+  });
+
+  it('revenu retombé sous le tier confirmé (downgrade pas encore recompute) — current reste GOLD, pas de valeurs négatives', () => {
+    const p = nextTierProgress({ currentTier: 'GOLD', revenueLast365dCents: 0 });
+    expect(p.current).toBe('GOLD');
+    expect(p.next).toBeNull();
+    expect(p.needsCents).toBeNull();
+    expect(p.progressPct).toBe(100);
+  });
+
+  it('BRONZE confirmé avec revenu retombé sous 0 relatif (SILVER dépassé puis perdu) — needsCents jamais négatif', () => {
+    const p = nextTierProgress({ currentTier: 'BRONZE', revenueLast365dCents: SILVER_THRESHOLD_CENTS + 50_00 });
+    expect(p.needsCents).toBe(0);
+    expect(p.progressPct).toBe(100);
   });
 });
 
