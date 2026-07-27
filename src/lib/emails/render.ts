@@ -12,6 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { logEmail } from '@/lib/logger';
+import { htmlToPlainText } from './html-to-text';
 
 export type EmailTemplate =
   | 'magic-link'
@@ -202,8 +203,9 @@ export async function sendEmail(opts: {
     ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
     subject,
     html,
-    // text fallback : strip HTML tags
-    text: html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 1000),
+    // finding [113] — text fallback : préserve les URLs des liens (perdues
+    // avant), plafond relevé (cf. htmlToPlainText).
+    text: htmlToPlainText(html),
     ...(extraHeaders ? { headers: extraHeaders } : {}),
     ...(opts.attachments && opts.attachments.length > 0
       ? {
