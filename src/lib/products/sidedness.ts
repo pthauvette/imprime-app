@@ -19,8 +19,31 @@
 
 export type Sidedness = 'single' | 'double';
 
-const SINGLE_PATTERNS = [/^\s*4\s*\/\s*0\s*$/i, /single[\s-]?sided/i, /^1\s*sided$/i, /one[\s-]?sided/i];
-const DOUBLE_PATTERNS = [/^\s*4\s*\/\s*4\s*$/i, /double[\s-]?sided/i, /^2\s*sided$/i, /two[\s-]?sided/i];
+// Découvert en vérifiant en direct contre un vrai produit Sinalite (finding
+// [23]) : le nom réel est « 14PT Printed 1 Side (4/0) » / « ... 2 Sides
+// (4/4) » — les patterns d'origine, ANCRÉS (toute la chaîne doit être
+// EXACTEMENT « 4/0 »), ne matchaient AUCUN des deux, donc isSidednessGroup()
+// retournait false pour ce produit précis : la détection recto/verso (PR
+// précédente de cette session) était silencieuse sur ce cas réel. Ajout
+// (PUREMENT additif, rien retiré) : « (4/0) »/« (4/4) » entre parenthèses
+// n'importe où dans la chaîne, et « 1 Side »/« 2 Sides » (sans le "d" final
+// de "Sided") — conventions Sinalite réelles observées.
+const SINGLE_PATTERNS = [
+  /^\s*4\s*\/\s*0\s*$/i,
+  /\(\s*4\s*\/\s*0\s*\)/i,
+  /single[\s-]?sided/i,
+  /^1\s*sided$/i,
+  /\b1\s*sides?\b/i,
+  /one[\s-]?sided/i,
+];
+const DOUBLE_PATTERNS = [
+  /^\s*4\s*\/\s*4\s*$/i,
+  /\(\s*4\s*\/\s*4\s*\)/i,
+  /double[\s-]?sided/i,
+  /^2\s*sided$/i,
+  /\b2\s*sides?\b/i,
+  /two[\s-]?sided/i,
+];
 
 /** Classe UN nom d'option Sinalite, ou `null` si ça ne ressemble pas à un choix de face. */
 export function classifySidedness(name: string): Sidedness | null {

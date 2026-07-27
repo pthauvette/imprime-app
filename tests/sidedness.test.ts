@@ -22,6 +22,15 @@ describe('classifySidedness', () => {
     expect(classifySidedness('16pt Soft Touch')).toBeNull();
     expect(classifySidedness('Kraft')).toBeNull();
   });
+
+  // finding [23] — vérifié EN DIRECT contre un vrai produit Sinalite
+  // (Business Cards, productId=1) : le nom réel n'est PAS "4/0" nu, mais
+  // englobé dans une description complète. Les patterns d'origine (ancrés)
+  // ne matchaient PAS ce format réel — bug silencieux découvert en testant.
+  it('nom RÉEL Sinalite complet — "14PT Printed N Side(s) (4/X)"', () => {
+    expect(classifySidedness('14PT Printed 1 Side (4/0)')).toBe('single');
+    expect(classifySidedness('14PT Printed 2 Sides (4/4)')).toBe('double');
+  });
 });
 
 describe('isSidednessGroup', () => {
