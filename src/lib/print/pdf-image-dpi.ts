@@ -161,8 +161,11 @@ export function computeImageDpiIssues(images: EmbeddedImage[]): PdfImageDpiResul
 export async function assessPdfImageDpi(file: File, maxPages = 4): Promise<PdfImageDpiResult> {
   try {
     const pdfjs = await import('pdfjs-dist');
+    // finding [93]/[94] — 1st-party (avant : CDN jsdelivr.net, cassait dès
+    // CSP enforce). Copie statique dans /public/vendor/pdf.worker.min.mjs —
+    // À RE-COPIER si pdfjs-dist est upgradé (cf. pdf-thumbnail.ts).
     if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.mjs';
     }
     const ops: OpsCodes = {
       save: pdfjs.OPS.save,
