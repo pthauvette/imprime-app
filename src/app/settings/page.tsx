@@ -21,6 +21,8 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import EditProfileForm from '@/components/account/EditProfileForm';
+import PhoneVerifyPanel from '@/components/account/PhoneVerifyPanel';
+import { smsAuthDisponible } from '@/lib/auth/twilio-verify';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatDate } from '@/lib/format';
@@ -40,6 +42,7 @@ export default async function SettingsPage() {
       firstName: true,
       lastName: true,
       phone: true,
+      phoneVerified: true,
       createdAt: true,
       emailDeliveryNotifications: true,
     },
@@ -60,6 +63,28 @@ export default async function SettingsPage() {
             </p>
           </div>
         </div>
+
+        {/* Connexion par texto — panneau rendu UNIQUEMENT si la fonctionnalité
+            est configurée (décision côté serveur : les variables Twilio n'ont
+            rien à faire dans le bundle client). C'est le SEUL chemin par lequel
+            un compte créé avant cette fonctionnalité peut obtenir un numéro
+            vérifié, donc se connecter par texto. */}
+        {smsAuthDisponible() && (
+          <div className="panel" style={{ marginBottom: 24 }}>
+            <div className="panel-header">
+              <h2 className="panel-title">Connexion par texto</h2>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.5 }}>
+              Vérifie ton numéro pour pouvoir te connecter par code SMS, en plus
+              du lien par courriel.
+            </p>
+            {/* On ne passe que le numéro MASQUÉ : le complet n'a aucune raison
+                de traverser jusqu'au navigateur (Loi 25). */}
+            <PhoneVerifyPanel
+              numeroActuel={user.phoneVerified ? `••• ••• ${user.phoneVerified.slice(-4)}` : null}
+            />
+          </div>
+        )}
 
         {/* Profil */}
         <div className="panel" style={{ marginBottom: 24 }}>
