@@ -16,6 +16,7 @@ import JsonLd, { breadcrumbSchema, productSchema } from '@/components/seo/JsonLd
 import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { isSidednessGroup, classifySidedness } from '@/lib/products/sidedness';
+import { buildVariantSlice } from '@/lib/products/variant-slice';
 import { pickDefaultQuantityOption } from '@/lib/products/default-quantity';
 import { applyProductOverrides } from '@/lib/products/overrides';
 
@@ -88,12 +89,6 @@ export default async function ConfigurePage({
   // même reçu via le flow produit VIRTUEL déjà « propre » (/order/v/<slug>).
   const [product] = await applyProductOverrides([rawProduct]);
 
-  // Serialize variant index Map → Record for client serialization. Prix
-  // déjà markés up via marginPct admin (cf. lib/products/pricing.ts).
-  const variantIndex: Record<string, number> = {};
-  enrichedIndex.index.forEach((price, key) => {
-    variantIndex[key] = price;
-  });
   const hiddenOptionIds = enrichedIndex.hiddenOptionIds;
 
   // Group options by `group` field, en filtrant celles cachées par l'admin
@@ -144,15 +139,35 @@ export default async function ConfigurePage({
     }
   }
 
+  // Ce qui part au NAVIGATEUR : une TRANCHE, pas la matrice. Prix déjà markés
+  // up via marginPct admin (cf. lib/products/pricing.ts).
+  //
+  // Envoyer l'index entier était sans conséquence tant qu'il était
+  // accidentellement plafonné à 1000 entrées (~22 Ko). Pagination réparée, la
+  // même ligne enverrait 403 Ko pour un flyer et 1,9 Mo pour le pire produit,
+  // sur le chemin d'achat. La tranche est bornée par le nombre d'options, pas
+  // par la taille de la matrice — cf. variant-slice.ts pour ce que le client
+  // consomme réellement.
+  const variantIndex = buildVariantSlice(optionGroups, defaultSelection, enrichedIndex.index);
+
   // ─── Compute price range pour AggregateOffer schema ─────────────────
-  // On scanne le variantIndex (déjà markup admin appliqué) pour donner
-  // un range CAD à Google. Si toutes les valeurs sont 0/missing on omet.
-  const priceValues = Object.values(variantIndex).filter((v) => v > 0);
-  const priceCents = priceValues.length > 0
-    ? {
-        low: Math.round(Math.min(...priceValues) * 100),
-        high: Math.round(Math.max(...priceValues) * 100),
-      }
+  // On scanne l'index COMPLET (côté serveur — gratuit, il est déjà en mémoire),
+  // PAS la tranche envoyée au client : le range annoncé à Google doit couvrir
+  // tout le produit, pas le voisinage de la sélection par défaut. Prix déjà
+  // markés up via marginPct admin.
+  //
+  // Effet de bord bienvenu du correctif de pagination : ce range était calculé
+  // sur les 1000 premières variantes, c'est-à-dire les plus petites quantités —
+  // le « high » annoncé était donc très en dessous du vrai prix maximum.
+  let low = Infinity;
+  let high = 0;
+  for (const prix of enrichedIndex.index.values()) {
+    if (prix <= 0) continue;
+    if (prix < low) low = prix;
+    if (prix > high) high = prix;
+  }
+  const priceCents = high > 0
+    ? { low: Math.round(low * 100), high: Math.round(high * 100) }
     : null;
 
   return (
