@@ -51,6 +51,18 @@ const ROUTES = [
   '/order/start',
   '/order/product?category=cartes-de-visite', // cartes virtuelles + rows + prix
   '/order/product?category=bannieres',        // la famille la plus fournie (29 rows)
+
+  // Audit UI/UX 2026-08 — la SUITE du tunnel n'avait jamais été mesurée : le
+  // scan s'arrêtait au choix du produit, alors que /order/* est public jusqu'au
+  // bout et que c'est le chemin money-critical. Chaque étape a une mise en page
+  // distincte (grille config + recap, dropzones, formulaire d'adresse, Stripe),
+  // donc aucune ne couvre les autres.
+  '/order/v/cartes-de-visite',            // picker papier × finition (grille de cartes)
+  '/order/configure?productId=1',         // config + recap prix ; 10 paliers de qty
+  '/order/configure?productId=97',        // PIRE cas : 38 paliers + 19 formats
+  '/order/upload?productId=1',            // 2 dropzones côte à côte
+  '/order/shipping?productId=1',          // formulaire d'adresse + méthodes
+  '/order/review?productId=1',            // récap + Stripe (état d'erreur si params nus)
 ];
 
 async function main() {

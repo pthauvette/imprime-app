@@ -293,7 +293,11 @@ export default function ConfigureClient({
                 Cards › Carte de visite — 14pt… », moitié anglais moitié
                 français dans le même fil d'Ariane). */}
             <Link href={prevHref} style={{ color: 'var(--text-muted)' }}>{categoryLabelFor(product.category)}</Link>
-            <span className="breadcrumb-sep">›</span> {product.name.trim()}
+            {/* Le nom était un nœud texte NU : impossible à cibler en CSS, donc
+                impossible à tronquer — sur mobile il s'enroulait sur 6 lignes et
+                poussait tout l'en-tête. Enveloppé pour pouvoir l'ellipser. */}
+            <span className="breadcrumb-sep">›</span>{' '}
+            <span className="breadcrumb-current">{product.name.trim()}</span>
           </span>
         </div>
         <div className="progress-block">
