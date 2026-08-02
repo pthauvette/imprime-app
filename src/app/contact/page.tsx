@@ -14,15 +14,7 @@ export const metadata = { title: "Parle-nous — Plio" };
 export default function ContactPage() {
   return (
     <>
-      <MarketingHeader
-        links={[
-          { href: '/order/start' as Route, label: 'Produits' },
-          { href: '/about' as Route, label: 'Notre histoire' },
-          { href: '/help' as Route, label: 'Aide' },
-          { href: '/contact' as Route, label: 'Contact', active: true },
-        ]}
-        cta={{ href: '/order/start' as Route, label: 'Commander' }}
-      />
+      <MarketingHeader active="contact" />
       
         <main>
           {/* HERO */}

@@ -52,15 +52,7 @@ export default function HelpPage() {
         ])}
       />
 
-      <MarketingHeader
-        links={[
-          { href: '/order/start' as Route, label: 'Produits' },
-          { href: '/blog' as Route, label: 'Blog' },
-          { href: '/help' as Route, label: 'Aide', active: true },
-          { href: '/contact' as Route, label: 'Contact' },
-        ]}
-        cta={{ href: '/order/start' as Route, label: 'Commander' }}
-      />
+      <MarketingHeader active="aide" />
 
       <main style={{ maxWidth: 880, margin: '0 auto', padding: '64px 24px 96px' }}>
         <header style={{ marginBottom: 32 }}>

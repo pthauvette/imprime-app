@@ -30,15 +30,7 @@ export default function QuotePage() {
         ])}
       />
 
-      <MarketingHeader
-        links={[
-          { href: '/order/start' as Route, label: 'Produits' },
-          { href: '/blog' as Route, label: 'Blog' },
-          { href: '/about' as Route, label: 'À propos' },
-          { href: '/reseller' as Route, label: 'Reseller' },
-          { href: '/contact' as Route, label: 'Contact' },
-        ]}
-      />
+      <MarketingHeader />
 
       <main>
         <section className="hero" style={{ paddingBottom: 24 }}>
