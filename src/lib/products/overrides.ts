@@ -12,6 +12,7 @@
 
 import { prisma } from '@/lib/db';
 import type { SinaliteProduct } from '@/lib/sinalite/types';
+import { marketingNameFor } from './marketing-names';
 
 export type EnrichedProduct = SinaliteProduct & {
   /** Présent si l'admin a posé un override (sinon merge identité). */
@@ -21,6 +22,8 @@ export type EnrichedProduct = SinaliteProduct & {
     displayDescription: string | null;
     marginPct: number | null;
   };
+  /** Sous-texte marketing curé (cf. marketing-names.ts). Absent = non curé. */
+  marketingDesc?: string;
 };
 
 /**
@@ -50,20 +53,29 @@ export async function applyProductOverrides(
   for (const p of products) {
     const o = byId.get(p.id);
     if (o?.disabled) continue; // hide du catalogue customer
-    if (o) {
-      result.push({
-        ...p,
-        name: o.displayName ?? p.name,
-        override: {
-          featured: o.featured,
-          displayName: o.displayName,
-          displayDescription: o.displayDescription,
-          marginPct: o.marginPct,
-        },
-      });
-    } else {
-      result.push(p);
-    }
+
+    // Précédence du nom affiché : override admin (DB, sans redéploiement) >
+    // nom marketing curé (marketing-names.ts, versionné) > nom Sinalite brut.
+    // Sans la couche marketing, le jargon fournisseur atteignait le client
+    // (« Business cards 14pt (Profit Maximizer) » — un palier de MARGE).
+    const marketing = marketingNameFor(p.id);
+    const name = o?.displayName ?? marketing?.name ?? p.name;
+
+    result.push({
+      ...p,
+      name,
+      ...(marketing ? { marketingDesc: marketing.desc } : {}),
+      ...(o
+        ? {
+            override: {
+              featured: o.featured,
+              displayName: o.displayName,
+              displayDescription: o.displayDescription,
+              marginPct: o.marginPct,
+            },
+          }
+        : {}),
+    });
   }
   return result;
 }

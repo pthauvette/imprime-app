@@ -23,6 +23,7 @@ import { Icon } from '@/components/ui/Icon';
 import { mockupForProduct, specForProductName, type MockupShape, type MockupFinish } from '@/lib/products/product-mockup';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import { formatCents } from '@/lib/format';
+import { categoryLabelFor } from '@/lib/products/marketing-names';
 
 type SortKey = 'popular' | 'name-asc' | 'name-desc' | 'id-asc';
 type FilterKey = 'all' | 'bestseller' | 'premium' | 'eco' | 'specialty';
@@ -407,9 +408,15 @@ function ProductRow({
           {flags.isPremium && !flags.isBestseller && <span className="badge badge-info">Premium</span>}
           {flags.isEco && <span className="badge badge-success">Eco</span>}
         </div>
+        {/* finding audit UI/UX 2026-08 — avant : « Catégorie : Display Board /
+            POP · SKU displayboard_24pt », soit la taxonomie ANGLAISE de Sinalite
+            plus une référence d'atelier, sur un site qui promet du service
+            « jamais traduit à la machine ». On montre ce que le produit EST
+            (sous-texte curé, cf. marketing-names.ts) puis sa catégorie en
+            français. Le SKU reste CHERCHABLE (cf. filtre plus haut) pour les
+            resellers qui réapprovisionnent, mais n'occupe plus la fiche. */}
         <div className="product-desc">
-          Catégorie : <strong>{product.category}</strong> · SKU{' '}
-          <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{product.sku}</code>
+          {product.marketingDesc ?? categoryLabelFor(product.category)}
         </div>
         <div className="product-specs">
           <span className="product-spec">
