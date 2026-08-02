@@ -14,6 +14,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { getAllPosts, formatPostDate } from '@/lib/blog/posts';
 import JsonLd from '@/components/seo/JsonLd';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'Blog Plio — guides d\'impression au Canada',
@@ -48,6 +49,12 @@ export default function BlogIndexPage() {
           })),
         }}
       />
+
+      {/* finding audit UI/UX 2026-08 — /blog n'avait AUCUNE navigation
+          (ni auth slot, ni retour à l'accueil autrement que via le logo
+          navigateur). « Un menu unique » : même MarketingHeader que le
+          reste du site. */}
+      <MarketingHeader active="blog" />
 
       <div className="blog-shell">
         <header className="blog-header">

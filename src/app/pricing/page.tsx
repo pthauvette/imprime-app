@@ -96,15 +96,7 @@ export default function PricingPage() {
         ])}
       />
 
-      <MarketingHeader
-        links={[
-          { href: '/order/start' as Route, label: 'Produits' },
-          { href: '/pricing' as Route, label: 'Tarifs', active: true },
-          { href: '/blog' as Route, label: 'Blog' },
-          { href: '/help' as Route, label: 'Aide' },
-        ]}
-        cta={{ href: '/order/start' as Route, label: 'Commander' }}
-      />
+      <MarketingHeader active="tarifs" />
 
       <main style={{ maxWidth: 1080, margin: '0 auto', padding: '64px 24px 96px' }}>
         {/* Hero */}
