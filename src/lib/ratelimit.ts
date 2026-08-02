@@ -67,6 +67,22 @@ export const limiters = {
   //     global → le coût Sinalite total est plafonné quoi qu'il arrive.
   mcp: makeLimiter(60, '1 m', 'mcp'),
   mcpGlobal: makeLimiter(600, '1 m', 'mcp-global'),
+  // Connexion / inscription par SMS (Twilio Verify). CHAQUE envoi est FACTURÉ,
+  // et l'endpoint est déclenchable sans compte : c'est le profil exact de la
+  // fraude au « pompage SMS ». TROIS bornes complémentaires, sur le modèle de
+  // mcp/mcpGlobal :
+  //   - smsSend       : par NUMÉRO — empêche de harceler une même victime de
+  //                     codes, indépendamment du nombre d'IP utilisées.
+  //   - smsSendIp     : par IP — borne l'énumération de numéros depuis un poste.
+  //   - smsSendGlobal : plafond AGRÉGÉ, keyé sur une constante. Indispensable
+  //     parce que clientIp() lit X-Forwarded-For (spoofable) ET que l'attaquant
+  //     choisit les numéros : les deux premiers buckets se contournent en faisant
+  //     tourner IP et numéros, ce dernier borne la FACTURE quoi qu'il arrive.
+  // Ces buckets DOIVENT être fail-CLOSED (cf. /api/auth/sms/send) : un limiteur
+  // inerte sur un endpoint payant, c'est une facture ouverte.
+  smsSend: makeLimiter(3, '15 m', 'sms-send'),
+  smsSendIp: makeLimiter(10, '1 h', 'sms-send-ip'),
+  smsSendGlobal: makeLimiter(200, '1 h', 'sms-send-global'),
   // Création de clés API self-serve — keyé par USER (action authentifiée), pas IP.
   // Borne l'abus (un compromis de session ne mint pas 1000 clés).
   apiKeyMint: makeLimiter(10, '1 h', 'apikey-mint'),

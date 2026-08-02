@@ -31,6 +31,12 @@ export const DEFAULT_TEST_USER: User = {
   firstName: 'Test',
   lastName: 'User',
   phone: null,
+  // Défaut délibéré à `null` : un compte de test ne doit PAS être réputé
+  // vérifié par SMS sans le dire. Les tests de connexion par texto posent
+  // explicitement ces deux champs — sinon ils testeraient un état qui ne se
+  // produit jamais en vrai (un numéro d'identité sans date de vérification).
+  phoneVerified: null,
+  phoneVerifiedAt: null,
   companyName: null,
   role: 'USER',
   emailDeliveryNotifications: true,

@@ -40,7 +40,25 @@ model User {
   // Champs métier
   firstName String?
   lastName  String?
+  /** Téléphone de LIVRAISON — saisi librement au checkout, JAMAIS vérifié.
+   *  Ne sert PAS d'identité : n'importe qui peut y inscrire le numéro d'un
+   *  tiers, donc l'utiliser pour ouvrir une session serait un chemin de prise
+   *  de contrôle de compte. Voir `phoneVerified` juste en dessous. */
   phone     String?
+
+  /** Téléphone VÉRIFIÉ par code SMS (E.164, `+15145550123`). C'est LUI qui
+   *  fait identité pour la connexion par SMS — et lui seul.
+   *
+   *  `@unique` : deux comptes ne peuvent pas revendiquer le même numéro,
+   *  sinon « ce numéro → ce compte » serait ambigu et le choix reviendrait à
+   *  l'ordre de la base. Nullable parce que les comptes créés AVANT cette
+   *  fonctionnalité n'en ont pas : ils continuent avec le lien magique et
+   *  peuvent rattacher un numéro depuis /settings une fois connectés. */
+  phoneVerified   String?   @unique
+  /** Quand le code SMS a été validé. Sépare « jamais vérifié » (null) de
+   *  « vérifié » — l'existence de `phoneVerified` seule ne le dirait pas si
+   *  on décidait un jour de conserver un numéro invalidé. */
+  phoneVerifiedAt DateTime?
   // finding [127] — capté au sign-up (cookie plio_pending_profile) mais
   // jamais persisté nulle part avant ce fix (le commentaire de
   // pending-profile.ts prétendait "stocké dans Address" — faux, Address
