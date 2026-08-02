@@ -139,8 +139,15 @@ export default async function ProductPickerPage({
             Quel produit <em>exactement ?</em>
           </h1>
           <p className="step-lede">
-            {entryCount} produit{entryCount > 1 ? 's' : ''} disponible{entryCount > 1 ? 's' : ''} dans cette famille.
-            Tous imprimés au Canada, livrés en {DELIVERY_WINDOW}.
+            {virtualSlugs.length > 0 && rawProducts.length > 0
+              ? <>
+                  {virtualSlugs.length} option{virtualSlugs.length > 1 ? 's' : ''} personnalisable{virtualSlugs.length > 1 ? 's' : ''} (papier × finition) + {rawProducts.length} produit{rawProducts.length > 1 ? 's' : ''} spécialisé{rawProducts.length > 1 ? 's' : ''} dans cette famille.
+                </>
+              : virtualSlugs.length > 0
+              ? <>{virtualSlugs.length} option{virtualSlugs.length > 1 ? 's' : ''} personnalisable{virtualSlugs.length > 1 ? 's' : ''} (papier × finition) dans cette famille.</>
+              : <>{entryCount} produit{entryCount > 1 ? 's' : ''} disponible{entryCount > 1 ? 's' : ''} dans cette famille.</>
+            }
+            {' '}Tous imprimés au Canada, livrés en {DELIVERY_WINDOW}.
           </p>
 
           {/* Cartes des produits VIRTUELS (papier × finition regroupés). */}
