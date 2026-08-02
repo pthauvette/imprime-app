@@ -10014,3 +10014,25 @@ a, button, [role="button"], input[type="checkbox"] {
   .acct-dashboard-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .acct-dashboard-aside { position: static !important; }
 }
+
+/* ── Footer du wizard : rendre la barre pleine largeur (2026-08, audit UI/UX) ──
+   La règle legacy `footer { max-width: 1280px; margin: 0 auto; }` (l.8266) vient
+   d'une page marketing collée : c'est le footer de `MarketingFooter` (cf.
+   `.footer-grid` juste en dessous), mais écrite en sélecteur d'ÉLÉMENT, elle
+   frappe AUSSI le `<footer class="shell-footer">` des 6 étapes du wizard.
+
+   Le coupable est `margin: 0 auto`, pas `max-width` : sur un ITEM DE GRILLE, une
+   marge auto DÉSACTIVE l'étirement (`stretch`) et l'élément se réduit à son
+   max-content avant d'être centré. Le footer tombait donc à ~482px sur un
+   viewport de 1280 — les 3 colonnes (`1fr auto 1fr`) se retrouvaient collées et
+   « ↵ Entrée pour confirmer » touchait « PAIEMENT VIA STRIPE », sans espace, à
+   l'étape de PAIEMENT. MESURÉ (getBoundingClientRect), pas lu : la grille
+   interne était correcte, seul le conteneur était rétréci.
+
+   Override EOF = gagne par ordre source (patron maison, cf. blocs ci-dessus).
+   On ne touche PAS la règle legacy elle-même : d'autres `<footer>` (légal,
+   marketing) en dépendent. */
+.shell-footer {
+  max-width: none;
+  margin: 0;
+}

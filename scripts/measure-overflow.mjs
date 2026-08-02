@@ -35,7 +35,9 @@ const ROUTES = [
   '/quote',
   '/contact',
   '/help',
-  '/samples',
+  // '/samples' retiré : la fonctionnalité échantillons a été supprimée (#539).
+  // La route 404 désormais — la garder aurait mesuré la page d'erreur et
+  // rapporté « OK » pour une couverture qui n'existe plus (faux signal).
   '/templates',
   '/compare',
   '/reseller',
