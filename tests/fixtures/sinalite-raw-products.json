@@ -1,0 +1,383 @@
+{
+ "_readme": "Instantané des produits Sinalite affichés TELS QUELS au client (ni virtuels, ni masqués), 2026-08. Fixture de tests/marketing-names.test.ts, qui vérifie que chacun a un nom marketing français. Régénérer depuis docs/sinalite-catalogue-map.draft.json (gitignoré, produit par scripts/sinalite-map.mjs) si le catalogue Sinalite évolue.",
+ "produits": [
+  {
+   "id": 62,
+   "name": "Magnets 14PT",
+   "category": "Magnets",
+   "family": "etiquettes"
+  },
+  {
+   "id": 63,
+   "name": "Wall Calendars 80LB Gloss Text",
+   "category": "Wall Calendars",
+   "family": "stationnerie"
+  },
+  {
+   "id": 64,
+   "name": "Wall Calendars 100LB Gloss Text",
+   "category": "Wall Calendars",
+   "family": "stationnerie"
+  },
+  {
+   "id": 75,
+   "name": "Plastic 14PT",
+   "category": "Plastics",
+   "family": "bannieres"
+  },
+  {
+   "id": 77,
+   "name": "Clings Transparent",
+   "category": "Clings",
+   "family": "etiquettes"
+  },
+  {
+   "id": 78,
+   "name": "Clings Opaque",
+   "category": "Clings",
+   "family": "etiquettes"
+  },
+  {
+   "id": 80,
+   "name": "Letterheads 60LB Uncoated",
+   "category": "Letterhead",
+   "family": "stationnerie"
+  },
+  {
+   "id": 81,
+   "name": "Envelopes 60LB Uncoated",
+   "category": "Envelopes",
+   "family": "stationnerie"
+  },
+  {
+   "id": 82,
+   "name": "Notepads 60LB Uncoated (25 pages)",
+   "category": "Notepads",
+   "family": "stationnerie"
+  },
+  {
+   "id": 83,
+   "name": "Notepads 60LB Uncoated (50 pages)",
+   "category": "Notepads",
+   "family": "stationnerie"
+  },
+  {
+   "id": 96,
+   "name": "60lb slit back label / Stickers",
+   "category": "Square Cut Labels / Stickers",
+   "family": "etiquettes"
+  },
+  {
+   "id": 97,
+   "name": "4mm Coroplast (Yard Signs)",
+   "category": "Coroplast Signs & Yard Signs-",
+   "family": "bannieres"
+  },
+  {
+   "id": 98,
+   "name": "6mm Coroplast",
+   "category": "Coroplast Signs & Yard Signs",
+   "family": "bannieres"
+  },
+  {
+   "id": 99,
+   "name": "8mm Coroplast",
+   "category": "Coroplast Signs & Yard Signs",
+   "family": "bannieres"
+  },
+  {
+   "id": 100,
+   "name": "4mm Foam Board",
+   "category": "Foam Board",
+   "family": "bannieres"
+  },
+  {
+   "id": 101,
+   "name": "Banners 13oz Glossy Vinyl",
+   "category": "Vinyl Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 102,
+   "name": "Banners 13oz Matte Vinyl",
+   "category": "Vinyl Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 103,
+   "name": "Pull Up Banners 13oz Matte Vinyl Silverbase",
+   "category": "Pull Up Banners-",
+   "family": "bannieres"
+  },
+  {
+   "id": 104,
+   "name": "Car Magnets (30mil)",
+   "category": "Car Magnets",
+   "family": "etiquettes"
+  },
+  {
+   "id": 105,
+   "name": "Large Format Posters 8pt C2S",
+   "category": "Large Format Posters",
+   "family": "bannieres"
+  },
+  {
+   "id": 106,
+   "name": "20pt Styrene",
+   "category": "Styrene Signs",
+   "family": "bannieres"
+  },
+  {
+   "id": 107,
+   "name": "Display Board 24PT",
+   "category": "Display Board / POP",
+   "family": "photo-decor"
+  },
+  {
+   "id": 108,
+   "name": "Display Board 40PT",
+   "category": "Display Board / POP",
+   "family": "photo-decor"
+  },
+  {
+   "id": 109,
+   "name": "Canvas Roll",
+   "category": "Canvas",
+   "family": "photo-decor"
+  },
+  {
+   "id": 110,
+   "name": "3mm Sintra",
+   "category": "Sintra/Rigid Board",
+   "family": "bannieres"
+  },
+  {
+   "id": 111,
+   "name": "X-Frame Banners 13oz Matte Vinyl",
+   "category": "X-Frame Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 112,
+   "name": "A-Frame Signs 4mm Coroplast",
+   "category": "A-Frame Signs",
+   "family": "bannieres"
+  },
+  {
+   "id": 120,
+   "name": "Supply Boxes",
+   "category": "Supply Boxes",
+   "family": "photo-decor"
+  },
+  {
+   "id": 121,
+   "name": "H Stand ( for signs)",
+   "category": "H Stands for Signs",
+   "family": "bannieres"
+  },
+  {
+   "id": 122,
+   "name": "A Frame Stands",
+   "category": "A Frame Stands",
+   "family": "bannieres"
+  },
+  {
+   "id": 124,
+   "name": "Folded Business Card 14pt + UV (High Gloss)",
+   "category": "Folded Business Cards",
+   "family": "cartes-de-visite"
+  },
+  {
+   "id": 125,
+   "name": "Folded Business Cards 14PT + Matte Finish",
+   "category": "Folded Business Cards",
+   "family": "cartes-de-visite"
+  },
+  {
+   "id": 126,
+   "name": "Folded Business Cards 13PT Enviro Uncoated",
+   "category": "Folded Business Cards",
+   "family": "cartes-de-visite"
+  },
+  {
+   "id": 202,
+   "name": "Premium Pull Up Banners 13oz Matte Vinyl",
+   "category": "Pull Up Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 206,
+   "name": "Window Perforated Vinyl",
+   "category": "Window Graphics",
+   "family": "etiquettes"
+  },
+  {
+   "id": 4139,
+   "name": "Glossy Adhesive Vinyl",
+   "category": "Adhesive Vinyl",
+   "family": "etiquettes"
+  },
+  {
+   "id": 4165,
+   "name": "Security Envelopes 60LB Uncoated",
+   "category": "Envelopes",
+   "family": "stationnerie"
+  },
+  {
+   "id": 4902,
+   "name": "Tent Cards 14PT + Matte Finish",
+   "category": "Tent Cards",
+   "family": "stationnerie"
+  },
+  {
+   "id": 5547,
+   "name": "NCR Forms 20lb Uncoated",
+   "category": "NCR Forms",
+   "family": "stationnerie"
+  },
+  {
+   "id": 5585,
+   "name": "Envelopes 60lb (Self-Adhesive)",
+   "category": "Envelopes",
+   "family": "stationnerie"
+  },
+  {
+   "id": 7028,
+   "name": "BOPP Roll Labels",
+   "category": "Roll Labels / Stickers",
+   "family": "etiquettes"
+  },
+  {
+   "id": 7029,
+   "name": "Poly Roll Labels",
+   "category": "Roll Labels / Stickers",
+   "family": "etiquettes"
+  },
+  {
+   "id": 7030,
+   "name": "Paper Roll Labels",
+   "category": "Roll Labels / Stickers",
+   "family": "etiquettes"
+  },
+  {
+   "id": 7324,
+   "name": "Metallic Foil Business Cards",
+   "category": "Specialty Business Cards",
+   "family": "cartes-de-visite"
+  },
+  {
+   "id": 7547,
+   "name": "Table Top Pull Up Banner 13 oz Matte Vinyl",
+   "category": "Pull Up Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 7548,
+   "name": "Premium Wide Pull Up Banners 13 oz Matte Vinyl",
+   "category": "Pull Up Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 7549,
+   "name": "Double Sided Pull Up Banners 13 oz Matte Vinyl",
+   "category": "Pull Up Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 7550,
+   "name": "Metallic Foil Greeting Cards",
+   "category": "Specialty Greeting Cards",
+   "family": "stationnerie"
+  },
+  {
+   "id": 7551,
+   "name": "Spot UV Greeting Cards",
+   "category": "Specialty Greeting Cards",
+   "family": "stationnerie"
+  },
+  {
+   "id": 7552,
+   "name": "Pearl Paper Greeting Cards",
+   "category": "Specialty Greeting Cards",
+   "family": "stationnerie"
+  },
+  {
+   "id": 7553,
+   "name": "Kraft Paper Greeting Cards",
+   "category": "Specialty Greeting Cards",
+   "family": "stationnerie"
+  },
+  {
+   "id": 7554,
+   "name": "Mesh Banner 8oz Polyester Mesh",
+   "category": "Vinyl Banners",
+   "family": "bannieres"
+  },
+  {
+   "id": 7555,
+   "name": "Removable Wall Decals 7 Mil",
+   "category": "Wall Decals",
+   "family": "etiquettes"
+  },
+  {
+   "id": 7557,
+   "name": "Die Cut Business Cards",
+   "category": "Specialty Business Cards",
+   "family": "cartes-de-visite"
+  },
+  {
+   "id": 14672,
+   "name": "Social Distancing Floor Stickers",
+   "category": "Covid-19-Decals-",
+   "family": "etiquettes"
+  },
+  {
+   "id": 14676,
+   "name": "Floor Graphics",
+   "category": "Floor Graphics",
+   "family": "etiquettes"
+  },
+  {
+   "id": 14975,
+   "name": "10mm Coroplast",
+   "category": "Coroplast Signs & Yard Signs-",
+   "family": "bannieres"
+  },
+  {
+   "id": 14978,
+   "name": "3mm Aluminum Signs",
+   "category": "Aluminum Signs",
+   "family": "bannieres"
+  },
+  {
+   "id": 14981,
+   "name": "Cut to Shape Magnets (30mil)",
+   "category": "Magnets",
+   "family": "etiquettes"
+  },
+  {
+   "id": 14985,
+   "name": "Cut to Shape Magnets (20mil)",
+   "category": "Magnets",
+   "family": "etiquettes"
+  },
+  {
+   "id": 14987,
+   "name": "Table Covers (6 ft Table)",
+   "category": "Table Covers",
+   "family": "bannieres"
+  },
+  {
+   "id": 14988,
+   "name": "Table Covers (8 ft Table)",
+   "category": "Table Covers",
+   "family": "bannieres"
+  },
+  {
+   "id": 15193,
+   "name": "Pull Up Banners 13oz Matte Vinyl Blackbase (31.5 x 78.75)",
+   "category": "Pull Up Banners",
+   "family": "bannieres"
+  }
+ ]
+}

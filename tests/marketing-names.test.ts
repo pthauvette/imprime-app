@@ -7,32 +7,23 @@
  * jargon d'atelier. Le repli est volontaire (on n'invente jamais un nom), donc
  * rien ne casse : ça s'affiche juste en anglais sans que personne le remarque.
  *
- * Ce test compare la table à l'instantané réel du catalogue Sinalite
- * (docs/sinalite-catalogue-map.draft.json) et échoue si un produit affiché au
- * client n'est pas couvert — c'est le seul moment où la lacune est visible
- * avant la production.
+ * Ce test compare la table à un instantané du catalogue Sinalite et échoue si
+ * un produit affiché au client n'est pas couvert — c'est le seul moment où la
+ * lacune est visible avant la production.
+ *
+ * La fixture est VERSIONNÉE (tests/fixtures/) et non lue depuis
+ * `docs/sinalite-catalogue-map.draft.json` : ce dernier est gitignoré
+ * (`docs/sinalite-*.draft.json`), donc absent en CI — un test qui s'appuie
+ * dessus passe en local et échoue sur le runner. Même patron que la fixture
+ * voisine `sinalite-product-names.json`.
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { MARKETING_NAMES, CATEGORY_LABELS, categoryLabelFor, marketingNameFor } from '@/lib/products/marketing-names';
-
-interface DraftProduct { id: number; name: string; category: string }
-
-const draft: Record<string, DraftProduct[]> = JSON.parse(
-  readFileSync('docs/sinalite-catalogue-map.draft.json', 'utf8'),
-);
-
-/** IDs couverts par un produit VIRTUEL — ils portent déjà un nom français. */
-const virtualIds = new Set(
-  [...readFileSync('src/lib/products/virtual-products.ts', 'utf8')
-    .matchAll(/productId:\s*(\d+)/g)].map((m) => Number(m[1])),
-);
+import fixture from './fixtures/sinalite-raw-products.json';
 
 /** Produits affichés tels quels au client (ni virtuels, ni masqués). */
-const rawProducts = Object.values(draft)
-  .flat()
-  .filter((p) => !virtualIds.has(p.id));
+const rawProducts: { id: number; name: string; category: string }[] = fixture.produits;
 
 describe('noms marketing', () => {
   it('couvre TOUS les produits bruts affichés au client', () => {
