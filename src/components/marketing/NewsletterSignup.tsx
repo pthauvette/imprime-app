@@ -55,9 +55,14 @@ export default function NewsletterSignup({ source = 'landing-footer' }: { source
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 10 }}>
-      <h4 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', fontWeight: 400 }}>
+      {/* finding a11y 2026-08 — `<h4>` alors que le dernier titre de contenu de
+          l'accueil est un `<h2>` : saut de niveau, qui casse la navigation par
+          titres (mode de survol principal au lecteur d'écran). La taille visuelle
+          est portée par le style inline, donc passer en `<h3>` ne change rien à
+          l'apparence. */}
+      <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', fontWeight: 400 }}>
         Reste au courant
-      </h4>
+      </h3>
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         1 email par mois max — nouveautés produit, promos limitées, conseils pré-presse. Pas de spam, désabonnement en 1 click.
       </p>

@@ -22,7 +22,7 @@ export default function MarketingFooter() {
           </p>
         </div>
         <div className="footer-col">
-          <h4>Entreprise</h4>
+          <h3>Entreprise</h3>
           <ul>
             <li><a href="/about">Notre histoire</a></li>
             <li><a href="/contact">Contact</a></li>
@@ -31,7 +31,7 @@ export default function MarketingFooter() {
           </ul>
         </div>
         <div className="footer-col">
-          <h4>Aide</h4>
+          <h3>Aide</h3>
           <ul>
             <li><a href="/help">Centre d&apos;aide</a></li>
             <li><a href="/contact">Contact</a></li>
@@ -39,7 +39,7 @@ export default function MarketingFooter() {
           </ul>
         </div>
         <div className="footer-col">
-          <h4>Légal</h4>
+          <h3>Légal</h3>
           <ul>
             <li><a href="/legal/terms">Conditions d&apos;utilisation</a></li>
             <li><a href="/legal/privacy">Confidentialité</a></li>

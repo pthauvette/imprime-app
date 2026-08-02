@@ -52,7 +52,15 @@ export default async function SignInPage({
 
   return (
     <div className="auth-shell">
-      <aside className="auth-side">
+      {/* finding a11y 2026-08 — `auth-side--sombre` : globals.css contient DEUX
+          définitions `.auth-side` de même spécificité (bloc signin.html l.1540 =
+          dégradé sombre + texte clair ; bloc signup.html l.1967 = dégradé clair
+          SANS redéfinir `color`). La seconde gagne par ordre source, donc cette
+          page héritait d'un fond clair AVEC le texte clair de la première :
+          « Plio. » mesuré à 1,00:1 (invisible) et le titre à 1,54:1. Le
+          modificateur rétablit la paire fond+texte de façon explicite, sans
+          toucher aux deux blocs legacy dont d'autres pages dépendent. */}
+      <aside className="auth-side auth-side--sombre">
         <Link href={'/' as Route} className="auth-side-brand">Plio.</Link>
 
         <div>

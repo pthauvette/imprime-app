@@ -395,6 +395,13 @@ function ShippingPageInner() {
               <textarea
                 value={shippingNote}
                 onChange={(e) => setShippingNote(e.target.value.slice(0, 200))}
+                /* finding a11y 2026-08 — seul champ du tunnel sans étiquette :
+                   il n'avait qu'un `placeholder`, or celui-ci DISPARAÎT à la
+                   saisie et n'est pas un nom accessible fiable. Au lecteur
+                   d'écran, le champ s'annonçait « zone de texte », sans dire
+                   de quoi il s'agit. Le titre de section est visible à l'écran,
+                   donc on le réutilise plutôt que d'ajouter un label redondant. */
+                aria-label="Instructions de livraison (optionnel)"
                 placeholder="ex. Sonner à l'interphone 304 · porte de service côté ruelle"
                 rows={3}
                 maxLength={200}
