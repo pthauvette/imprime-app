@@ -20,7 +20,13 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import { resolveConfirmationView } from '@/lib/orders/confirmation-view';
 
-export const metadata = { title: "C'est imprimé — Plio" };
+// finding audit UI/UX 2026-08 — le titre annonçait « C'est imprimé » MÊME sur
+// l'état vide (lien expiré, page rouverte, commande jamais aboutie). L'onglet
+// et l'historique affirmaient donc un succès qui n'a pas eu lieu. Le titre est
+// une métadonnée STATIQUE ici : il ne peut pas suivre l'état de la page. On le
+// rend donc vrai dans les DEUX cas — la célébration reste dans le contenu, où
+// elle est conditionnée au vrai succès.
+export const metadata = { title: 'Confirmation de commande — Plio' };
 export const dynamic = 'force-dynamic';
 
 export default async function ConfirmationPage({
