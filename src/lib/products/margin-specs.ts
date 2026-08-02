@@ -245,7 +245,7 @@ export const SINALITE_TO_FAMILY: Record<string, string> = {
   'h stands for signs': 'affiches-rigides',
   'display board / pop': 'affiches-rigides',
   'canvas': 'affiches-rigides',
-  // Stationnerie
+  // Papeterie
   'envelopes': 'enveloppes',
   'presentation folders': 'chemises-presentation',
   'greeting cards': 'cartes-de-voeux',
