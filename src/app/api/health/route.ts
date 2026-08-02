@@ -153,6 +153,7 @@ export async function GET() {
     detail: {
       missingRequired: envReport.missingRequired.length,
       guardsInactive: envReport.guardsInactive.length,
+      smsIncomplet: envReport.smsIncomplet.length,
     },
   };
   // Les NOMS partent aux logs (privés) — c'est là que l'opérateur diagnostique.
@@ -160,6 +161,15 @@ export async function GET() {
     log.warn(
       { missingRequired: envReport.missingRequired, guardsInactive: envReport.guardsInactive },
       'config:env — variables absentes du runtime (posées en console mais non transmises ?)',
+    );
+  }
+  // Journal SÉPARÉ, en `error` : ce n'est pas « un garde-fou est inactif »
+  // (état voulu) mais « l'activation a été DEMANDÉE et échoue silencieusement ».
+  // Noyé dans le warn ci-dessus, ce cas passerait pour un rollout délibéré.
+  if (envReport.smsIncomplet.length) {
+    log.error(
+      { manquantes: envReport.smsIncomplet },
+      'config:env — SMS_AUTH=ON mais configuration Twilio INCOMPLÈTE : la connexion par texto reste éteinte',
     );
   }
 
