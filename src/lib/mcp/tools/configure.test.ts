@@ -3,12 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { getEnrichedVariantIndex } = vi.hoisted(() => ({ getEnrichedVariantIndex: vi.fn() }));
 const { lookupVariant } = vi.hoisted(() => ({ lookupVariant: vi.fn() }));
 const { getProductDetail } = vi.hoisted(() => ({ getProductDetail: vi.fn() }));
+const { getPrice } = vi.hoisted(() => ({ getPrice: vi.fn() }));
 
 vi.mock('@/lib/products/pricing', () => ({ getEnrichedVariantIndex }));
 vi.mock('@/lib/sinalite/pricing', () => ({ lookupVariant }));
-vi.mock('@/lib/sinalite/client', () => ({ sinalite: { getProductDetail } }));
+vi.mock('@/lib/sinalite/client', () => ({ sinalite: { getProductDetail, getPrice } }));
 
 import { buildConfiguratorPayload } from './configure';
+import { clearRemotePriceMemo } from '@/lib/products/resolve-price';
 
 // Options réalistes d'une carte (groupes : size, qty, Stock=faces, Round Corners, Turnaround, Coating).
 const OPTIONS = [
@@ -22,6 +24,9 @@ const OPTIONS = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Le repli distant est mémoïsé (60 s) : sans vidage, un prix obtenu dans un
+  // test précédent est resservi ici et le mock d'échec n'est jamais consulté.
+  clearRemotePriceMemo();
   getProductDetail.mockResolvedValue({ options: OPTIONS });
   getEnrichedVariantIndex.mockResolvedValue({ index: new Map(), hiddenOptionIds: new Set(), marginPct: null, disabled: false, variantCount: 0 });
   // Chiffré UNIQUEMENT si le combo contient le Turnaround 41 (« 2-3 jours ») → force le défaut intelligent.
@@ -59,11 +64,69 @@ describe('buildConfiguratorPayload — groupes d\'options + devis', () => {
     expect(p.quote).toMatchObject({ ok: true }); // Turnaround 41 trouvé par défaut intelligent
   });
 
-  it('aucun combo chiffré → quote.ok false (message actionnable)', async () => {
+  it('aucun combo dans l’index → repli distant UNIQUE, prix chiffré', async () => {
+    // L'index est un cache partiel : pour des familles entières il ne contient
+    // aucun palier utile. Le balayage local ne trouve rien, et sans repli le
+    // configurateur MCP déclarait le produit incotable (bug 2026-08).
     lookupVariant.mockReturnValue(null);
+    // Marge explicite : le prix distant est BRUT, la marge doit être appliquée
+    // ICI. L'oublier ferait vendre au prix coûtant par le MCP uniquement.
+    getEnrichedVariantIndex.mockResolvedValue({
+      index: new Map(), hiddenOptionIds: new Set(), marginPct: 25, disabled: false, variantCount: 0,
+    });
+    getPrice.mockResolvedValue({ price: '80.00' });
+    const p = await buildConfiguratorPayload({ slug: 'cartes-de-visite' });
+    expect(p.quote).toMatchObject({ ok: true, totalCad: 100 }); // 80 × 1,25
+    // UNE seule fois : le balayage teste N combinaisons localement, les répliquer
+    // en distant enverrait N appels facturés chez Sinalite.
+    expect(getPrice).toHaveBeenCalledTimes(1);
+  });
+
+  it('aucun combo chiffré, même en distant → quote.ok false (message actionnable)', async () => {
+    lookupVariant.mockReturnValue(null);
+    getPrice.mockRejectedValue(new Error('502'));
     const p = await buildConfiguratorPayload({ slug: 'cartes-de-visite' });
     expect(p.quote).toMatchObject({ ok: false });
     expect((p.quote as { message: string }).message).toContain('essaie');
+  });
+
+  it('le DÉFAUT est le recto-verso — même face que get_print_quote', async () => {
+    // Le bloquant de la revue money-path : le balayage retenait le 1er combo
+    // chiffré (= recto, Stock 20) pendant que get_print_quote/create_order
+    // cotaient le recto-verso (Stock 21). Le widget affichait « Recto · X $ »,
+    // puis create_order — qui ne reçoit AUCUN optionId et re-résout seul —
+    // facturait le recto-verso. Prix vu ≠ prix payé.
+    const p2 = await buildConfiguratorPayload({ slug: 'cartes-de-visite' });
+    const stock = p2.optionGroups.find((g) => g.key === 'Stock');
+    expect(stock!.selectedId).toBe(21); // recto-verso, pas 20
+    expect(p2.selection!.options).toContain(21);
+    expect(p2.selection!.options).not.toContain(20);
+  });
+
+  it('un groupe ENTIÈREMENT masqué → refus, rien ne part chez Sinalite', async () => {
+    // Sans cette garde, le groupe disparaît, la combinaison sort incomplète,
+    // et le repli distant la fait chiffrer quand même : Plio cotait une
+    // configuration amputée d'un groupe entier, puis la transmettait à la
+    // production.
+    getEnrichedVariantIndex.mockResolvedValue({
+      index: new Map(), hiddenOptionIds: new Set([20, 21]), marginPct: 25, disabled: false, variantCount: 0,
+    });
+    const p2 = await buildConfiguratorPayload({ slug: 'cartes-de-visite' });
+    expect(p2.quote).toMatchObject({ ok: false });
+    expect(getPrice).not.toHaveBeenCalled();
+  });
+
+  it('produit désactivé par l’admin → refus explicite, aucun prix', async () => {
+    // Sans cette garde, l'index renvoyé est BRUT (sans marge) : le
+    // configurateur MCP exposait les produits cachés au prix coûtant.
+    getEnrichedVariantIndex.mockResolvedValue({
+      index: new Map(), hiddenOptionIds: new Set(), marginPct: null, disabled: true, variantCount: 0,
+    });
+    const p = await buildConfiguratorPayload({ slug: 'cartes-de-visite' });
+    expect(p.quote).toMatchObject({ ok: false });
+    expect((p.quote as { message: string }).message).toContain('indisponible');
+    expect(p.optionGroups).toEqual([]);
+    expect(getPrice).not.toHaveBeenCalled();
   });
 
   it('quantités = celles du PRODUIT (groupe qty), pas un représentatif', async () => {

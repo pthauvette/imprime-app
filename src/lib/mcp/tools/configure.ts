@@ -16,7 +16,7 @@
  * groupes non choisis pour trouver un prix, sinon on retombe sur le 1er (prix null).
  */
 import { listPrintProducts } from './list-products';
-import { groupVisibleOptions, availableQuantities } from './quote';
+import { groupVisibleOptions, availableQuantities, fullyHiddenGroups } from './quote';
 import {
   getVirtualProduct,
   virtualPapers,
@@ -25,6 +25,8 @@ import {
 } from '@/lib/products/virtual-products';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import { lookupVariant } from '@/lib/sinalite/pricing';
+import { resolveVariantPrice } from '@/lib/products/resolve-price';
+import { isSidednessGroup, classifySidedness } from '@/lib/products/sidedness';
 import { sinalite } from '@/lib/sinalite/client';
 import type { SinaliteOption } from '@/lib/sinalite/types';
 
@@ -108,6 +110,17 @@ function cartesian<T>(arrays: T[][], cap = 256): T[][] {
  * Résout la sélection d'options + le devis. Groupes choisis par l'user (via
  * `selectedOptions`) = FIXÉS ; groupes libres = défaut intelligent (1er si chiffré,
  * sinon balayage des combos pour trouver un prix).
+ *
+ * ⚠️ EXCEPTION RECTO-VERSO. Le groupe `Stock` encode parfois les faces plutôt
+ * que le papier ; dans ce cas il est FIXÉ au recto-verso comme le wizard web
+ * (cf. `order/configure/page.tsx`), et retiré du balayage. Sans ça, le balayage
+ * retenait le premier combo chiffré — donc le RECTO — pendant que
+ * `get_print_quote` et `create_order` cotaient le recto-verso : le widget
+ * affichait « Recto · 50,20 $ », l'utilisateur cliquait « Commander », et
+ * `create_order` (qui ne reçoit aucun optionId, il re-résout seul) répondait
+ * 67,40 $. Prix vu ≠ prix payé, +34 %, et la face vue sélectionnée changée en
+ * silence. En Mode B, l'`expectedGrossCents` calculé sur l'écran du widget
+ * faisait échouer la commande sur « Le prix a changé depuis ton devis ».
  */
 function resolveSelectionAndQuote(
   groups: Record<string, SinaliteOption[]>,
@@ -122,7 +135,12 @@ function resolveSelectionAndQuote(
   const free: Array<[string, SinaliteOption[]]> = [];
   for (const [g, opts] of nonQty) {
     const picked = opts.find((o) => selectedOptions.has(o.id));
-    if (picked) fixed[g] = picked;
+    if (picked) { fixed[g] = picked; continue; } // choix explicite de l'user : prioritaire
+    const rectoVerso =
+      g === 'Stock' && isSidednessGroup(opts.map((o) => o.name))
+        ? opts.find((o) => classifySidedness(o.name) === 'double')
+        : undefined;
+    if (rectoVerso) fixed[g] = rectoVerso;
     else free.push([g, opts]); // 1re option en tête → testée d'abord
   }
 
@@ -168,6 +186,26 @@ export async function buildConfiguratorPayload(input: ConfiguratorInput): Promis
 
   try {
     const [detail, enriched] = await Promise.all([sinalite.getProductDetail(productId), getEnrichedVariantIndex(productId)]);
+
+    // Produit masqué par l'admin : ni options ni prix. `getEnrichedVariantIndex`
+    // renvoie l'index BRUT (sans marge) dans ce cas, en comptant sur l'appelant
+    // pour refuser — sans cette garde, le configurateur MCP affichait les
+    // produits cachés au prix coûtant. Message explicite : « prix indisponible,
+    // essaie un autre choix » aurait envoyé l'agent chercher une combinaison
+    // qui n'existe pas.
+    // Idem pour un groupe entièrement masqué : la combinaison sortirait
+    // incomplète et le repli distant la ferait quand même chiffrer (cf.
+    // fullyHiddenGroups).
+    if (enriched.disabled || fullyHiddenGroups(detail.options, enriched.hiddenOptionIds).length > 0) {
+      return {
+        products,
+        selected: baseSelected,
+        optionGroups: [],
+        selection: { slug, paper, finish, quantity: null, options: [] },
+        quote: { ok: false, message: `Produit indisponible : ${slug}.` },
+      };
+    }
+
     const groups = groupVisibleOptions(detail.options, enriched.hiddenOptionIds);
     const quantities = availableQuantities(groups);
     const quantity =
@@ -180,7 +218,14 @@ export async function buildConfiguratorPayload(input: ConfiguratorInput): Promis
     let quote: ConfiguratorQuote | null = null;
 
     if (quantity) {
-      const { perGroup, optionIds, price } = resolveSelectionAndQuote(groups, quantity, new Set(input.options ?? []), enriched.index);
+      const { perGroup, optionIds, price: localPrice } = resolveSelectionAndQuote(groups, quantity, new Set(input.options ?? []), enriched.index);
+      // Le balayage ci-dessus reste LOCAL à dessein : il teste jusqu'à `cap`
+      // combinaisons, et les faire toutes en distant enverrait autant d'appels
+      // facturés chez Sinalite. On ne replie donc qu'UNE fois, sur la
+      // combinaison retenue — ce qui suffit à couvrir le cas réel (l'index ne
+      // contient AUCUN palier de quantité utile, cf. resolve-price.ts), sans
+      // transformer un affichage en rafale d'appels.
+      const price = localPrice ?? (await resolveVariantPrice(productId, optionIds, enriched));
       selectionOptionIds = Object.values(perGroup).map((o) => o.id);
       // Groupes PRÉSENTABLES = non-qty avec ≥2 options (un vrai choix).
       optionGroups = Object.entries(groups)

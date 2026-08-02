@@ -42,6 +42,32 @@ describe('MCP quote — helpers purs', () => {
     }
   });
 
+  it('selectQuoteOptionIds biaise vers le RECTO-VERSO quand `Stock` encode les faces', () => {
+    // Le wizard applique ce biais depuis 2026-07 ; le MCP prenait la 1re option
+    // (= recto) et annonçait donc un prix plus bas que le site pour le même
+    // produit — 50,20 $ contre 67,40 $ sur un flyer 500 u.
+    const faces: SinaliteOption[] = [
+      { id: 91, group: 'Stock', name: '100LB Gloss Text Printed 1 Side (4/0)' },
+      { id: 92, group: 'Stock', name: '100LB Gloss Text Printed 2 Sides (4/4)' },
+      { id: 203, group: 'qty', name: '500' },
+    ];
+    const sel = selectQuoteOptionIds(groupVisibleOptions(faces, new Set()), 500);
+    expect(sel.ok && sel.optionIds).toContain(92);
+    expect(sel.ok && sel.optionIds).not.toContain(91);
+  });
+
+  it('selectQuoteOptionIds ne touche PAS un groupe `Stock` qui désigne un vrai papier', () => {
+    // Garde-fou du biais ci-dessus : pour la plupart des produits, `Stock` est
+    // le papier. Reclasser à tort ferait coter un autre produit que demandé.
+    const papiers: SinaliteOption[] = [
+      { id: 30, group: 'Stock', name: '14pt' },
+      { id: 31, group: 'Stock', name: '16pt' },
+      { id: 203, group: 'qty', name: '500' },
+    ];
+    const sel = selectQuoteOptionIds(groupVisibleOptions(papiers, new Set()), 500);
+    expect(sel.ok && sel.optionIds).toContain(30); // la 1re, comme avant
+  });
+
   it('selectQuoteOptionIds échoue proprement si la quantité est indisponible', () => {
     const groups = groupVisibleOptions(OPTS, new Set());
     const sel = selectQuoteOptionIds(groups, 12345);
