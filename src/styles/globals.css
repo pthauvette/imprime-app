@@ -146,6 +146,16 @@
 /* App shell */
 .shell {
   display: grid;
+  /* Audit UI/UX 2026-08 — `grid-template-columns` était ABSENT : la colonne
+     implicite valait donc `auto`, c.-à-d. dimensionnée sur le max-content de
+     ses enfants. Résultat, header/main/footer se calaient sur leur contenu le
+     plus large (509px à un viewport de 375) et débordaient de leur propre
+     conteneur, lui bien plafonné à 375. Les collapses `@media` internes
+     (.step-layout, .shell-header) étaient corrects et s'appliquaient : ils
+     recevaient simplement une piste déjà trop large. `minmax(0, 1fr)` plafonne
+     les trois enfants à la largeur du shell — identique sur desktop, mais un
+     shell d'application ne doit JAMAIS dépasser le viewport. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 72px 1fr 80px;
   min-height: 100dvh;
 }
@@ -182,12 +192,50 @@
     padding-top: max(8px, calc(8px + env(safe-area-inset-top)));
     row-gap: 4px;
   }
-  .shell-header-right { display: none; }
-  .shell-header-left { font-size: 14px; gap: 8px; }
-  .progress-block { grid-column: 1; }
+  /* Audit UI/UX 2026-08 — MESURÉ à 375px : le tunnel débordait de 134px, jamais
+     détecté parce que l'overflow-scan s'arrêtait au choix du produit. Cause :
+     `.breadcrumb` est un flex dont le min-content est le NOM DE PRODUIT entier
+     (416px pour « Carte de visite — 14pt, Standard (sans couche) »). Un item de
+     flex ne descend pas sous son min-content par défaut (`min-width: auto`),
+     donc la colonne, puis le shell, se calaient sur ce nom. Le libellé d'étape
+     et l'éyebrow qui « débordaient » n'étaient que des conséquences : ils
+     remplissaient un shell déjà trop large.
+     `min-width: 0` rétablit la compression, l'ellipse tronque proprement — le
+     nom complet reste lisible dans l'éyebrow juste en dessous. */
+  .shell-header-left { font-size: 14px; gap: 8px; min-width: 0; }
+  .breadcrumb { font-size: 12px; gap: 6px; min-width: 0; flex-wrap: nowrap; }
+  /* Le nom de produit est MASQUÉ ici sur mobile, pas tronqué : une fois la
+     marque, le panier et le bloc compte placés, il ne restait que ~15px, donc
+     l'ellipse donnait « C… » — ça se lit comme un bug d'affichage. Il est de
+     toute façon répété EN ENTIER dans l'éyebrow juste en dessous : on ne perd
+     aucune information, on retire du bruit. La catégorie reste, elle sert de
+     repère de navigation (et de lien retour). */
+  .breadcrumb-current,
+  .breadcrumb .breadcrumb-sep { display: none; }
+
+  /* Le bloc droit était masqué EN ENTIER sur mobile — donc le panier et le
+     bloc compte (ajoutés #545 à la demande de Patrick) étaient invisibles
+     précisément là où le trafic est le plus important. On le garde, sur la même
+     ligne que la marque, et on ne masque que la pastille pays/devise
+     (décorative). La barre de progression passe en pleine largeur en dessous. */
+  .shell-header { grid-template-columns: minmax(0, 1fr) auto; }
+  .shell-header-left { grid-column: 1; grid-row: 1; }
+  .shell-header-right {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    gap: 8px;
+    flex: none;
+  }
+  .shell-header-right .badge { display: none; }
+  .progress-block { grid-column: 1 / -1; grid-row: 2; }
+  /* `.shell` fige la rangée d'en-tête à 72px ; sur mobile l'en-tête passe sur
+     DEUX rangées (marque+actions, puis progression) et dépassait donc dans le
+     contenu — l'éyebrow d'étape se retrouvait dessiné par-dessus la barre de
+     progression. `auto` laisse l'en-tête prendre sa vraie hauteur. */
+  .shell { grid-template-rows: auto 1fr auto; }
   .progress { width: 100%; max-width: 100%; }
   .wordmark { font-size: 18px; }
-  .breadcrumb { font-size: 12px; gap: 6px; }
 }
 .wordmark {
   font-family: var(--font-display);
@@ -3181,7 +3229,11 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       grid-template-columns: repeat(4, 1fr);
       gap: 16px;
     }
-    @media (max-width: 900px) { .format-grid { grid-template-columns: repeat(2, 1fr); } }
+    /* Audit UI/UX 2026-08 — `1fr` = `minmax(auto, 1fr)` : le minimum reste le
+       min-content de la carte format (180px à cause du libellé « 18 x 24" »),
+       donc 2 colonnes = 360px dans une piste de 335 → 21px d'overflow mesuré
+       sur les produits grand format. `minmax(0, 1fr)` autorise la compression. */
+    @media (max-width: 900px) { .format-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .format-card {
       position: relative;
       background: var(--bg-surface);
@@ -9821,8 +9873,24 @@ a, button, [role="button"], input[type="checkbox"] {
   .shell-footer .btn {
     padding: 10px 12px;
     font-size: 13px;
-    white-space: nowrap;
+    /* Audit UI/UX 2026-08 — `nowrap` faisait du min-content du CTA un plancher
+       INCOMPRESSIBLE. Le correctif de 2026-07 ci-dessus avait été mesuré sur
+       /order/shipping (CTA « Récapitulatif & paiement »), mais le CTA du
+       CONFIGURATEUR porte le prix en direct (« Téléverser le design · 18,90 $ »)
+       — plus large, et jamais mesuré parce que l'overflow-scan s'arrêtait au
+       choix du produit. On laisse le texte passer à la ligne : deux lignes dans
+       un footer valent mieux qu'une page qui scrolle latéralement, et la
+       largeur du libellé dépend du PRIX comme du nom de produit, donc aucune
+       valeur en dur ne tiendrait dans le temps. */
+    white-space: normal;
+    min-width: 0;
   }
+  /* Raccourci clavier inutile au doigt — déjà la raison pour laquelle
+     `.shell-footer-center` est masqué juste au-dessus. */
+  .shell-footer .btn kbd { display: none; }
+  /* `1fr` = `minmax(auto, 1fr)` : son minimum est le min-content du CTA, d'où
+     le débordement. `minmax(0, 1fr)` autorise réellement la compression. */
+  .shell-footer { grid-template-columns: auto minmax(0, 1fr); }
 }
 
 /* COMPTE — `.acct-nav` : une 2e déf `globals.css:3800` (position:sticky, height:100dvh)

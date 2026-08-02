@@ -269,8 +269,14 @@ function UploadPageInner() {
             </div>
           )}
 
-          {/* Round 40 #2 — auto-fit collapse to 1 col under 600px (vs forced 2-col before) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
+          {/* Round 40 #2 — auto-fit collapse to 1 col under 600px (vs forced 2-col before)
+              Audit UI/UX 2026-08 — le `280px` était un plancher DUR : sous ~330px de
+              piste disponible (viewport 375 moins les paddings), la colonne restait à
+              280px+ et la page débordait de 72px. MESURÉ, jamais vu avant parce que le
+              scan d'overflow s'arrêtait au choix du produit. `min(280px, 100%)` garde
+              le comportement 2 colonnes dès qu'il y a la place, mais laisse la colonne
+              descendre sous 280px quand la piste est plus étroite. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 24 }}>
             <Dropzone
               label="Recto"
               kind="front"
@@ -636,6 +642,14 @@ function Dropzone({
         minHeight: 360,
         padding: 24,
         display: 'grid',
+        // Audit UI/UX 2026-08 — `grid-template-columns` était absent : la colonne
+        // implicite valait `auto`, donc calée sur le max-content de l'enfant le
+        // plus large (l'aperçu à `aspect-ratio`). Elle passait à 401px dans une
+        // dropzone de 335, et TOUS les enfants s'y étiraient — d'où 72px
+        // d'overflow de page mesurés à 375px. Même cause racine que `.shell`
+        // (cf. globals.css) : une grille d'affichage ne doit jamais se
+        // dimensionner sur son contenu.
+        gridTemplateColumns: 'minmax(0, 1fr)',
         gap: 16,
         transition: 'all var(--dur-fast) var(--ease-out)',
       }}
