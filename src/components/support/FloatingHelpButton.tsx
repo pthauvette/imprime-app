@@ -111,6 +111,22 @@ export default function FloatingHelpButton({
   // mobile). Sur un CTA aussi critique, l'overlay nuit > il n'aide.
   if (pathname === '/order/review') return null;
 
+  // finding audit UI/UX 2026-08 (signalé par Patrick, capture à l'appui) — le
+  // même chevauchement existait sur TOUTES les autres étapes du wizard, pas
+  // seulement au paiement : le shell `/order/*` pose un footer STICKY de 80px
+  // dont le CTA principal est aligné à droite, exactement sous le FAB. Mesuré :
+  // 155px de recouvrement sur « Téléverser le design · 18,90 $ » — le bouton
+  // d'action ET le prix étaient masqués.
+  //
+  // Le round 1 (#5.5) avait traité le symptôme page par page (`=== '/order/review'`).
+  // Ici on relève le FAB au-dessus du footer plutôt que de le masquer : l'aide
+  // reste joignable, ce qui est précisément le but d'un bouton d'aide dans un
+  // tunnel de commande. 80px de footer + 24px de marge.
+  const surWizard = pathname?.startsWith('/order/') ?? false;
+  const basDuFab = surWizard
+    ? 'calc(104px + env(safe-area-inset-bottom))'
+    : 'calc(24px + env(safe-area-inset-bottom))';
+
   return (
     <>
       <button
@@ -121,7 +137,7 @@ export default function FloatingHelpButton({
         style={{
           position: 'fixed',
           // Safe-area iOS (home indicator) — le repo déclare viewportFit:cover.
-          bottom: 'calc(24px + env(safe-area-inset-bottom))',
+          bottom: basDuFab,
           right: 24,
           zIndex: 100,
           display: 'inline-flex',
