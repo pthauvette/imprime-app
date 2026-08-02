@@ -12,6 +12,8 @@
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Nodemailer from 'next-auth/providers/nodemailer';
+import Credentials from 'next-auth/providers/credentials';
+import { connexionParSms } from '@/lib/auth/sms-signin';
 import { prisma } from '@/lib/db';
 import { authConfig } from '@/auth.config';
 import { renderEmail } from '@/lib/emails/render';
@@ -123,6 +125,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           html,
         });
       },
+    }),
+
+    /**
+     * Connexion par code SMS — ALTERNATIVE au lien magique (choix du client).
+     *
+     * CONNEXION UNIQUEMENT : ce provider ne CRÉE jamais de compte. Il exige un
+     * `phoneVerified` déjà rattaché, c.-à-d. un numéro prouvé lors d'une
+     * inscription (courriel + téléphone). Autoriser la création ici ouvrirait
+     * un compte sans courriel vérifié, et suffirait à contourner le modèle
+     * d'identité décidé.
+     *
+     * `authorize` ne renvoie JAMAIS d'indice sur l'existence d'un compte :
+     * numéro inconnu et code erroné produisent le même échec. Sinon l'endpoint
+     * devient un oracle « ce numéro a-t-il un compte chez Plio ? ».
+     *
+     * Les tentatives sont bornées par Twilio lui-même (5 essais par
+     * vérification, puis le code est invalidé) — inutile de recompter côté
+     * Plio. Ce qui manquerait, c'est une borne ENTRE numéros, mais l'attaquant
+     * devrait alors déclencher un envoi par numéro, ce que /api/auth/sms/send
+     * borne déjà (et facture).
+     */
+    Credentials({
+      id: 'sms',
+      name: 'Code par texto',
+      credentials: {
+        phone: { label: 'Téléphone', type: 'tel' },
+        code: { label: 'Code', type: 'text' },
+      },
+      // Logique extraite dans lib/auth/sms-signin.ts — testable directement
+      // plutôt qu'à travers tout NextAuth.
+      authorize: (credentials) => connexionParSms(credentials?.phone, credentials?.code),
     }),
   ],
 
