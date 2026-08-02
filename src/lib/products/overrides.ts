@@ -13,6 +13,7 @@
 import { prisma } from '@/lib/db';
 import type { SinaliteProduct } from '@/lib/sinalite/types';
 import { marketingNameFor } from './marketing-names';
+import { virtualDisplayNameForProductId } from './virtual-products';
 
 export type EnrichedProduct = SinaliteProduct & {
   /** Présent si l'admin a posé un override (sinon merge identité). */
@@ -55,11 +56,13 @@ export async function applyProductOverrides(
     if (o?.disabled) continue; // hide du catalogue customer
 
     // Précédence du nom affiché : override admin (DB, sans redéploiement) >
-    // nom marketing curé (marketing-names.ts, versionné) > nom Sinalite brut.
-    // Sans la couche marketing, le jargon fournisseur atteignait le client
+    // nom marketing curé (marketing-names.ts) > nom recomposé d'une variante
+    // VIRTUELLE (papier × finition, libellés déjà français) > nom Sinalite brut.
+    // Sans ces couches, le jargon fournisseur atteignait le client
     // (« Business cards 14pt (Profit Maximizer) » — un palier de MARGE).
     const marketing = marketingNameFor(p.id);
-    const name = o?.displayName ?? marketing?.name ?? p.name;
+    const name =
+      o?.displayName ?? marketing?.name ?? virtualDisplayNameForProductId(p.id) ?? p.name;
 
     result.push({
       ...p,

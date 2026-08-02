@@ -133,6 +133,24 @@ export const MARKETING_NAMES: Record<number, MarketingName> = {
  * réellement différente ne différant que par la ponctuation.
  */
 export const CATEGORY_LABELS: Record<string, string> = {
+  // Catégories des variantes VIRTUELLES — elles apparaissent dans le fil
+  // d'Ariane du configurateur (« Business Cards › Carte de visite — 14pt… »),
+  // seul endroit où la taxonomie Sinalite reste visible pour ces produits.
+  'Business Cards': 'Cartes de visite',
+  Postcards: 'Cartes postales',
+  'Specialty Post Cards': 'Cartes postales spécialité',
+  Flyers: 'Flyers',
+  Brochures: 'Brochures',
+  Booklets: 'Livrets',
+  'Tear Cards': 'Cartes détachables',
+  'Greeting Cards': 'Cartes de souhaits',
+  Invitations: 'Invitations',
+  'Door Hangers': 'Accroche-portes',
+  Bookmarks: 'Signets',
+  'Presentation Folders': 'Chemises de présentation',
+  Posters: 'Affiches',
+  'Digital Sheets': 'Feuilles numériques',
+
   'Folded Business Cards': 'Cartes pliantes',
   'Specialty Business Cards': 'Cartes spécialité',
   'Wall Calendars': 'Calendriers',

@@ -455,3 +455,44 @@ export function virtualSlugForProductId(productId: number): string | undefined {
 
 /** Tous les productId couverts par un produit virtuel (pour filtrer la liste). */
 export const ALL_VIRTUAL_PRODUCT_IDS: ReadonlySet<number> = new Set(PRODUCT_ID_TO_SLUG.keys());
+
+/**
+ * Nom AFFICHABLE d'une variante virtuelle — « Carte de visite — 14pt, Mat ».
+ *
+ * finding audit UI/UX 2026-08 : le picker collapse les variantes derrière une
+ * carte au nom français, mais dès que le client choisit papier + finition il
+ * atterrit sur /order/configure avec un productId Sinalite NORMAL — dont le nom
+ * brut reprenait le dessus dans le fil d'Ariane et l'éyebrow (« Business cards
+ * 14pt (Profit Maximizer) », un nom de palier de marge). C'est le parcours le
+ * PLUS emprunté du site : la couche marketing (marketing-names.ts) ne couvrait
+ * que les produits listés tels quels, pas ces 101 variantes.
+ *
+ * On ne CRÉE aucun nom ici : on recompose à partir de libellés déjà curés en
+ * français juste au-dessus (nom du produit virtuel, label de papier, libellé de
+ * finition). Aucune heuristique de dérivation sur la chaîne Sinalite.
+ *
+ * Papier `specialty` : le papier identifie À LUI SEUL le produit (une seule
+ * finition existe, et son libellé répète le papier — « Kraft » / « Kraft
+ * naturel »). On omet donc la finition pour éviter « — Kraft, Kraft naturel ».
+ * Cette hypothèse n'est pas supposée : le test d'unicité des noms la vérifie —
+ * si un papier specialty gagnait une 2e finition, deux variantes produiraient
+ * le même nom et le test échouerait.
+ */
+export function virtualDisplayNameForProductId(productId: number): string | undefined {
+  const slug = PRODUCT_ID_TO_SLUG.get(productId);
+  if (!slug) return undefined;
+  const vp = VIRTUAL_PRODUCTS[slug];
+  if (!vp) return undefined;
+
+  const variant = vp.variants.find((v) => v.productId === productId);
+  if (!variant) return undefined;
+
+  const paper = vp.papers.find((p) => p.key === variant.paper);
+  // Le label porte parfois un descriptif après un tiret cadratin
+  // (« 14pt — standard ») : on ne garde que la partie identifiante.
+  const paperShort = (paper?.label ?? variant.paper).split(' — ')[0]!.trim();
+
+  return paper?.specialty
+    ? `${vp.name} — ${paperShort}`
+    : `${vp.name} — ${paperShort}, ${variant.finishLabel}`;
+}
