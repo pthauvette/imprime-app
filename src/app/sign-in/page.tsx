@@ -10,7 +10,8 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { auth } from '@/auth';
 import { safeInternalPath } from '@/lib/auth/safe-redirect';
-import SignInForm from '@/components/auth/SignInForm';
+import SignInChoice from '@/components/auth/SignInChoice';
+import { smsAuthDisponible } from '@/lib/auth/twilio-verify';
 import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Connexion — Plio' };
@@ -128,7 +129,16 @@ export default async function SignInPage({
             </div>
           )}
 
-          <SignInForm callbackUrl={safeCallback} initialEmail={initialEmail} />
+          {/* La disponibilité du texto se décide CÔTÉ SERVEUR : elle dépend
+              des variables Twilio et du drapeau SMS_AUTH, qui n'ont rien à
+              faire dans le bundle client. Sans configuration, l'onglet
+              n'apparaît pas du tout — plutôt que d'offrir un moyen de
+              connexion qui répondrait 404. */}
+          <SignInChoice
+            callbackUrl={safeCallback}
+            initialEmail={initialEmail}
+            smsDisponible={smsAuthDisponible()}
+          />
         </div>
       </main>
     </div>
