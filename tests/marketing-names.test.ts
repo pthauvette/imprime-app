@@ -20,6 +20,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { MARKETING_NAMES, CATEGORY_LABELS, categoryLabelFor, marketingNameFor } from '@/lib/products/marketing-names';
+import {
+  ALL_VIRTUAL_PRODUCT_IDS,
+  virtualDisplayNameForProductId,
+} from '@/lib/products/virtual-products';
 import fixture from './fixtures/sinalite-raw-products.json';
 
 /** Produits affichés tels quels au client (ni virtuels, ni masqués). */
@@ -54,6 +58,50 @@ describe('noms marketing', () => {
     // et non destructif plutôt que de lever ou d'inventer un nom.
     expect(marketingNameFor(999_999)).toBeUndefined();
     expect(categoryLabelFor('Brand New Category')).toBe('Brand New Category');
+  });
+
+  it('nomme TOUTES les variantes virtuelles (parcours principal du wizard)', () => {
+    // Ces productId sont atteints via /order/v/<slug> puis /order/configure :
+    // sans nom recomposé, le fil d'Ariane retombe sur le libellé Sinalite brut.
+    const sansNom = [...ALL_VIRTUAL_PRODUCT_IDS].filter(
+      (id) => !virtualDisplayNameForProductId(id),
+    );
+    expect(sansNom).toEqual([]);
+  });
+
+  it('traduit les catégories des variantes virtuelles (fil d’Ariane config)', () => {
+    // Ces catégories n'apparaissent QUE dans le fil d'Ariane du configurateur,
+    // pas dans le picker — elles avaient donc été oubliées au premier passage :
+    // « Business Cards › Carte de visite — 14pt », moitié anglais moitié
+    // français dans le même fil.
+    const categoriesVirtuelles = [
+      'Business Cards', 'Postcards', 'Specialty Post Cards', 'Flyers', 'Brochures',
+      'Booklets', 'Tear Cards', 'Greeting Cards', 'Invitations', 'Door Hangers',
+      'Bookmarks', 'Presentation Folders', 'Posters', 'Digital Sheets',
+    ];
+    const nonTraduites = categoriesVirtuelles.filter((c) => !CATEGORY_LABELS[c]);
+    expect(nonTraduites).toEqual([]);
+  });
+
+  it('produit des noms de variantes UNIQUES', () => {
+    // C'est ce test qui VALIDE l'omission de la finition sur un papier
+    // `specialty` (cf. virtualDisplayNameForProductId) : si un tel papier
+    // gagnait une 2e finition, deux variantes porteraient le même nom et le
+    // fil d'Ariane mentirait sur ce que le client a choisi.
+    const noms = [...ALL_VIRTUAL_PRODUCT_IDS].map((id) => virtualDisplayNameForProductId(id)!);
+    const doublons = noms.filter((n, i) => noms.indexOf(n) !== i);
+    expect([...new Set(doublons)]).toEqual([]);
+  });
+
+  it('ne laisse aucun anglicisme fournisseur dans les noms de variantes', () => {
+    // `Flyer` est EXCLU : c'est le terme courant en français au Québec (la
+    // famille du catalogue s'appelle « Flyers & dépliants »), pas un anglicisme
+    // résiduel. Idem `mesh`/`Sintra` plus haut — vocabulaire du métier.
+    const anglicismes = /\b(Business Cards?|Printed|Gloss(y)? Text|Matte Finish|Uncoated|Writable|High Gloss|Profit Maximizer|Booklets?|Postcards?|Greeting Cards?)\b/;
+    const suspects = [...ALL_VIRTUAL_PRODUCT_IDS]
+      .map((id) => `#${id} ${virtualDisplayNameForProductId(id)}`)
+      .filter((n) => anglicismes.test(n));
+    expect(suspects).toEqual([]);
   });
 
   it('mappe les doublons Sinalite à tiret final vers le même libellé', () => {

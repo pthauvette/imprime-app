@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
+import { categoryLabelFor } from '@/lib/products/marketing-names';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import SaveConfigButton from '@/components/wizard/SaveConfigButton';
@@ -245,7 +246,11 @@ export default function ConfigureClient({
           <Link href={'/' as Route} className="wordmark" style={{ color: 'inherit' }}>Plio.</Link>
           <span className="breadcrumb-sep">/</span>
           <span className="breadcrumb">
-            <Link href={prevHref} style={{ color: 'var(--text-muted)' }}>{product.category}</Link>
+            {/* Catégorie traduite : c'est le dernier endroit du parcours où la
+                taxonomie ANGLAISE de Sinalite restait visible (« Business
+                Cards › Carte de visite — 14pt… », moitié anglais moitié
+                français dans le même fil d'Ariane). */}
+            <Link href={prevHref} style={{ color: 'var(--text-muted)' }}>{categoryLabelFor(product.category)}</Link>
             <span className="breadcrumb-sep">›</span> {product.name.trim()}
           </span>
         </div>
