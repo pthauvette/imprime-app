@@ -8,6 +8,7 @@ import type { SinaliteOption, SinaliteProduct } from '@/lib/sinalite/types';
 import { categoryLabelFor } from '@/lib/products/marketing-names';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
+import WizardCartLink from '@/components/wizard/WizardCartLink';
 import SaveConfigButton from '@/components/wizard/SaveConfigButton';
 import FormatPreview from '@/components/wizard/FormatPreview';
 import { previewKindForSinaliteCategory } from '@/lib/products/format-preview';
@@ -306,9 +307,16 @@ export default function ConfigureClient({
           </div>
           <div className="progress-label">Étape 03 sur 06 — Configuration & quantité</div>
         </div>
+        {/* finding audit UI/UX 2026-08 (demandé par Patrick) — la nav du
+            configurateur n'offrait aucun accès au panier (pourtant réel : voir
+            WizardCartLink) et masquait le bloc compte tant qu'on n'était pas
+            connecté (`hideWhenAnonymous`). Un visiteur anonyme n'avait donc
+            AUCUN repère de compte au milieu du tunnel — ni « se connecter »
+            pour retrouver ses commandes et adresses, ni accès à son panier. */}
         <div className="shell-header-right">
           <span className="badge badge-neutral">🇨🇦 Canada · CAD</span>
-          <ClientHeaderUserSlot hideWhenAnonymous />
+          <WizardCartLink />
+          <ClientHeaderUserSlot />
         </div>
       </header>
 
