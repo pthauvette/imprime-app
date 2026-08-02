@@ -13,8 +13,7 @@
  * Steps :
  *   1. Welcome — Plio en 30 sec
  *   2. Quote instant — 2 minutes pour avoir un prix
- *   3. Samples — touche le papier avant
- *   4. Devis sur-mesure si on a besoin de plus
+ *   3. Devis sur-mesure si on a besoin de plus
  *
  * Le user peut "skip" à tout moment (X en haut à droite OU "Plus tard").
  *
@@ -54,12 +53,6 @@ const STEPS: TourStep[] = [
     title: 'Devis instantané en 2 minutes',
     body: 'Notre wizard te calcule un prix exact en temps réel. Quantité, papier, finition — tu vois le total se mettre à jour à chaque clic. Pas de minimum, pas de surprise.',
     cta: { label: 'Essayer le wizard →', href: '/order/start' as Route },
-  },
-  {
-    emoji: '✋',
-    title: 'Touche avant d\'acheter',
-    body: 'Tu hésites entre 14pt et 16pt ? On t\'envoie un kit d\'échantillons gratuit pour comparer en vrai — pas de mauvaise surprise quand tu reçois ta commande.',
-    cta: { label: 'Demander des échantillons →', href: '/samples' as Route },
   },
   {
     icon: 'clipboard',

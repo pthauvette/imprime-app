@@ -234,7 +234,7 @@ export default async function ProductPickerPage({
             <p className="expert-tip-text">
               {family.slug === 'cartes-de-visite'
                 ? '« Le 14pt est notre standard — léger, économique. Le 16pt soft touch est l\'option signature pour les pros. »'
-                : `« Choisis le produit le plus populaire si tu hésites. Tu pourras toujours commander un échantillon avant de finaliser. »`}
+                : `« Choisis le produit le plus populaire si tu hésites. Tu pourras toujours changer d'avis avant de finaliser. »`}
             </p>
           </div>
         </aside>

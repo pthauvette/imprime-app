@@ -36,7 +36,6 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     title: 'Outils',
     items: [
       { href: '/order/start' as Route, label: '+ Nouvelle commande' },
-      { href: '/samples' as Route, label: 'Demander un échantillon' },
       { href: '/templates' as Route, label: 'Templates & guides' },
       { href: '/reseller' as Route, label: 'Devenir reseller' },
     ],

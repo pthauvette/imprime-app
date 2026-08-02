@@ -77,15 +77,17 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   //
   // Round 39 #1 — Extension PIPEDA : avant ce fix, on anonymisait juste le
   // User row + delete les sessions/drafts. Mais Order.shipName/shipLine*/shipPhone,
-  // ContactMessage.email/name/message, SampleRequest.email/name/phone/ship*,
-  // AbandonedCart.email, NewsletterSubscriber.email RESTAIENT en clair → CAI
-  // Québec audit failure direct.
+  // ContactMessage.email/name/message, AbandonedCart.email,
+  // NewsletterSubscriber.email RESTAIENT en clair → CAI Québec audit failure
+  // direct.
   //
-  // Maintenant : on anonymise/delete les 5 tables PII supplémentaires. Le
+  // Maintenant : on anonymise/delete les tables PII supplémentaires. Le
   // fait que les Orders SOIENT KEPT (LIR retention 6 ans) ne dispense pas
   // de l'obligation PIPEDA de pseudonymiser les PII customer-identifiable.
   // On conserve les amounts/dates/province (utiles pour fiscal/CRA report)
   // mais on wipe nom/adresse/téléphone.
+  // (2026-08 — la fonctionnalité échantillons/SampleRequest, qui figurait
+  // aussi ici, a été retirée entièrement du produit.)
   const now = new Date();
   const anonymizedEmail = `deleted-${userId.slice(-8)}@anonymized.plio.local`;
   const ANONYMIZED_TEXT = '[PIPEDA-DELETED]';
@@ -173,21 +175,6 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       data: {
         email: anonymizedEmail,
         name: ANONYMIZED_TEXT,
-      },
-    }),
-
-    // Round 39 #1 — SampleRequest : anonymize email + name + phone + ship*.
-    // Pas de FK directe à User (matched par email), donc on key sur email.
-    prisma.sampleRequest.updateMany({
-      where: { email: emailSnapshot.toLowerCase() },
-      data: {
-        email: anonymizedEmail,
-        name: ANONYMIZED_TEXT,
-        phone: null,
-        shipLine1: ANONYMIZED_TEXT,
-        shipLine2: null,
-        shipCity: ANONYMIZED_TEXT,
-        shipPostalCode: 'A0A 0A0',
       },
     }),
 

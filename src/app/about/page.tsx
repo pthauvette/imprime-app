@@ -203,13 +203,6 @@ export default function AboutPage() {
               <div style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>Démocratik inc.</div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Montréal, QC · Canada</div>
             </div>
-            <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
-                Échantillons
-              </div>
-              <Link href={'/samples' as Route} style={{ color: 'var(--accent-primary)', fontSize: 15, fontWeight: 600 }}>Demander gratuitement →</Link>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Jusqu&apos;à 5 par mois</div>
-            </div>
           </div>
         </section>
 

@@ -41,7 +41,6 @@ describe('sitemap.xml', () => {
       '/about',
       '/contact',
       '/help',
-      '/samples',
       '/reseller',
       '/quote',
       '/templates',

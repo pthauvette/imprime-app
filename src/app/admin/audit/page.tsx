@@ -348,8 +348,9 @@ function resolveTargetLink(targetType: string, targetId: string): string {
     // §8.6 — types dédiés (avant : liés en ORDER/USER approximatifs)
     case 'REVIEW':
       return `/admin/reviews`;
-    case 'SAMPLE_REQUEST':
-      return `/admin/samples`;
+    // SAMPLE_REQUEST retiré avec la fonctionnalité échantillons (2026-08) —
+    // les events d'audit historiques retombent sur le default ci-dessous,
+    // /admin/samples n'existe plus.
     case 'QUOTE':
       return `/admin/quotes`;
     case 'CONTACT_MESSAGE':

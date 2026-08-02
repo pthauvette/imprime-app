@@ -6,7 +6,7 @@
  *
  * Routes protégées :
  *   /orders, /orders/*, /drafts, /addresses, /wallet, /payments,
- *   /settings, /referrals, /samples, /reseller, /templates
+ *   /settings, /referrals, /reseller
  */
 
 import { NextResponse } from 'next/server';
@@ -23,7 +23,6 @@ const PROTECTED_PREFIXES = [
   '/payments',
   '/settings',
   '/referrals',
-  '/samples',
   '/reseller',
   '/onboarding',
   // /templates et /design sont publics — browser le catalog/éditeur sans

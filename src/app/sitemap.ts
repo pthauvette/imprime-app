@@ -23,7 +23,6 @@ const STATIC_PUBLIC_ROUTES = [
   { path: '/help', priority: 0.6, changeFreq: 'monthly' as const },
   { path: '/search', priority: 0.4, changeFreq: 'monthly' as const },
   { path: '/status', priority: 0.4, changeFreq: 'daily' as const },
-  { path: '/samples', priority: 0.6, changeFreq: 'monthly' as const },
   { path: '/reseller', priority: 0.6, changeFreq: 'monthly' as const },
   // Round 29 #5 — content marketing pour resellers (pricing, acquisition, fidélisation)
   { path: '/reseller/guide', priority: 0.5, changeFreq: 'monthly' as const },

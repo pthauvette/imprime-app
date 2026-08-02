@@ -46,7 +46,6 @@ export type AdminAuditKind =
   // encore le générique ADMIN_TEMPLATE_EDIT (indistinguables dans /admin/audit).
   | 'ADMIN_MESSAGE_ACTION'   // messages clients (répondre/fermer/note)
   | 'ADMIN_QUOTE_DECISION'   // devis sur-mesure (quote/reject/archive)
-  | 'ADMIN_SAMPLE_ACTION'    // demandes d'échantillons (ship/cancel/note)
   | 'ADMIN_ORDER_NOTES_EDIT' // notes internes d'une commande
   // Audit v2 #10.7 — DEMANDE d'annulation par le CLIENT (acteur = client, pas
   // admin). Avant : loggée en ADMIN_MANUAL_CANCEL avec l'email CLIENT → polluait
@@ -59,7 +58,7 @@ export type AdminAuditKind =
 // dans /admin/audit (cf. resolveTargetLink).
 export type AdminAuditTargetType =
   | 'USER' | 'ORDER' | 'TEMPLATE' | 'PROMO_CODE' | 'PRODUCT' | 'EXPERIMENT'
-  | 'REVIEW' | 'SAMPLE_REQUEST' | 'QUOTE' | 'CONTACT_MESSAGE' | 'WEBHOOK';
+  | 'REVIEW' | 'QUOTE' | 'CONTACT_MESSAGE' | 'WEBHOOK';
 
 export interface AdminAuditInput {
   kind: AdminAuditKind;

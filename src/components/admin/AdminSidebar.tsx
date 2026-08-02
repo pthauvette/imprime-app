@@ -19,7 +19,6 @@ export type AdminSidebarKey =
   | 'webhooks'
   | 'emails'
   | 'reviews'
-  | 'samples'
   | 'reseller-applications'
   | 'messages'
   | 'quotes'
@@ -108,12 +107,6 @@ const ICONS = {
       <path d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 6.3l4-.6z" />
     </svg>
   ),
-  samples: (
-    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
-      <rect x={2} y={4} width={5} height={9} rx={1} />
-      <rect x={9} y={2} width={5} height={11} rx={1} />
-    </svg>
-  ),
   audit: (
     <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
       <path d="M3 2h7l3 3v9H3z" />
@@ -172,7 +165,6 @@ export default async function AdminSidebar({ active, user }: AdminSidebarProps) 
         { key: 'users', href: '/admin/users' as Route, label: 'Utilisateurs', icon: ICONS.users, count: counts.users },
         { key: 'reviews', href: '/admin/reviews' as Route, label: 'Reviews', icon: ICONS.reviews, count: counts.reviews, urgent: urgents.reviews },
         { key: 'nps', href: '/admin/nps' as Route, label: 'NPS', icon: ICONS.reviews },
-        { key: 'samples', href: '/admin/samples' as Route, label: 'Échantillons', icon: ICONS.samples, count: counts.samples, urgent: urgents.samples },
         { key: 'reseller-applications', href: '/admin/reseller-applications' as Route, label: 'Demandes reseller', icon: ICONS.users, count: counts['reseller-applications'], urgent: urgents['reseller-applications'] },
         { key: 'messages', href: '/admin/messages' as Route, label: 'Messages clients', icon: ICONS.emails, count: counts.messages, urgent: urgents.messages },
         { key: 'quotes', href: '/admin/quotes' as Route, label: 'Devis sur-mesure', icon: ICONS.emails, count: counts.quotes, urgent: urgents.quotes },

@@ -120,18 +120,6 @@ export const FAQ_ITEMS: FaqItem[] = [
     a: 'Va sur /orders. Tu peux re-commander d\'un clic n\'importe quelle commande passée (le wizard pré-remplit toutes les options) — pratique pour les commandes récurrentes.',
   },
 
-  // ─── Échantillons ─────────────────────────────────────────────────────
-  {
-    category: 'Échantillons',
-    q: 'Les échantillons sont vraiment gratuits ?',
-    a: 'Oui. Tu peux commander jusqu\'à 5 échantillons gratuits par mois (papiers + finitions) — livrés par Postes Canada en 5 jours. Pas de carte de crédit demandée, pas d\'abonnement. C\'est notre way d\'aider tu choisir avant d\'engager du volume.',
-  },
-  {
-    category: 'Échantillons',
-    q: 'Combien de samples puis-je demander par mois ?',
-    a: 'Maximum 5 par mois par email. Si tu as besoin de plus pour un projet spécifique, écris-nous — on accommode au cas par cas (designer en sourcing pour un client, etc.).',
-  },
-
   // ─── Parrainage ───────────────────────────────────────────────────────
   {
     category: 'Parrainage',

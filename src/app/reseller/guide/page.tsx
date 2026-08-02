@@ -94,8 +94,8 @@ export default function ResellerGuidePage() {
 
         <Section id="acquisition" title="2. Acquisition client — où trouver ta première base">
           <p>
-            Les resellers qui scalent vite ont 3 choses en commun : un <strong>positionnement de niche</strong>,
-            un <strong>portfolio visible</strong> et un <strong>processus de samples</strong> qui démarre la conversation.
+            Les resellers qui scalent vite ont 2 choses en commun : un <strong>positionnement de niche</strong>
+            et un <strong>portfolio visible</strong> qui démarre la conversation.
           </p>
           <h3 style={subhead}>Cible une niche, pas tout le monde</h3>
           <p>
@@ -107,12 +107,6 @@ export default function ResellerGuidePage() {
           <p>
             Instagram + LinkedIn + Google Business Profile minimum. Poste les <strong>résultats finaux</strong>
             (carte sur table, flyer affiché) — pas juste les mockups. Photos de vrais clients = preuve sociale.
-          </p>
-          <h3 style={subhead}>Samples gratuits</h3>
-          <p>
-            Commande un <Link href={'/samples' as Route} style={{ color: 'var(--accent-primary)' }}>sample
-            pack Plio</Link> à 5 $ et envoie-le aux 10 prospects que tu cibles ce mois-ci. ~30 % te recontactent
-            pour discuter d&apos;un projet — beaucoup plus que cold email seul.
           </p>
         </Section>
 

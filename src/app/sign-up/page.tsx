@@ -43,7 +43,7 @@ export default async function SignUpPage() {
         <div>
           <h2 className="side-headline">25 $ <em>offerts</em> sur ta première commande.</h2>
           <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px' }}>
-            Code de bienvenue envoyé par courriel à l&apos;inscription — valable sur ta 1<sup>re</sup> commande de 100 $ et plus. Plus 5 échantillons gratuits, l&apos;accès aux templates et notre éditeur en ligne.
+            Code de bienvenue envoyé par courriel à l&apos;inscription — valable sur ta 1<sup>re</sup> commande de 100 $ et plus. Plus l&apos;accès aux templates et notre éditeur en ligne.
           </p>
 
           <div className="side-perks">
@@ -55,10 +55,10 @@ export default async function SignUpPage() {
               </div>
             </div>
             <div className="side-perk">
-              <div className="side-perk-icon"><Icon name="package" /></div>
+              <div className="side-perk-icon"><Icon name="refresh" /></div>
               <div className="side-perk-text">
-                <strong>5 échantillons par mois, gratuits</strong>
-                <span>Touche le papier avant de commander — envoyés en 5 jours.</span>
+                <strong>Réutilise tes fichiers</strong>
+                <span>On garde tes fichiers 90 jours — recommande en 2 clics, sans réuploader.</span>
               </div>
             </div>
             <div className="side-perk">
