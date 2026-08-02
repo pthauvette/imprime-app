@@ -13,6 +13,7 @@ import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import QuoteRequestForm from './QuoteRequestForm';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'Devis sur-mesure — Plio',
@@ -29,16 +30,15 @@ export default function QuotePage() {
         ])}
       />
 
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/about' as Route} className="mkt-nav-link">À propos</Link>
-          <Link href={'/reseller' as Route} className="mkt-nav-link">Reseller</Link>
-          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
-        </div>
-      </nav>
+      <MarketingHeader
+        links={[
+          { href: '/order/start' as Route, label: 'Produits' },
+          { href: '/blog' as Route, label: 'Blog' },
+          { href: '/about' as Route, label: 'À propos' },
+          { href: '/reseller' as Route, label: 'Reseller' },
+          { href: '/contact' as Route, label: 'Contact' },
+        ]}
+      />
 
       <main>
         <section className="hero" style={{ paddingBottom: 24 }}>

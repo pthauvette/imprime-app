@@ -12,6 +12,7 @@ import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { DELIVERY_WINDOW, DELIVERY_DAYS, SUPPORT_SLA } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'À propos de Plio — print wholesale au Canada',
@@ -28,16 +29,15 @@ export default function AboutPage() {
         ])}
       />
 
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/about' as Route} className="mkt-nav-link active">À propos</Link>
-          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
-          <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
-        </div>
-      </nav>
+      <MarketingHeader
+        links={[
+          { href: '/order/start' as Route, label: 'Produits' },
+          { href: '/blog' as Route, label: 'Blog' },
+          { href: '/about' as Route, label: 'À propos', active: true },
+          { href: '/contact' as Route, label: 'Contact' },
+        ]}
+        cta={{ href: '/order/start' as Route, label: 'Commander' }}
+      />
 
       <main>
         {/* HERO */}

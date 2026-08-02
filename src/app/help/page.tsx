@@ -19,6 +19,7 @@ import { FAQ_ITEMS, type FaqItem } from '@/data/help-faq';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'Centre d\'aide — Plio',
@@ -51,16 +52,15 @@ export default function HelpPage() {
         ])}
       />
 
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/help' as Route} className="mkt-nav-link active">Aide</Link>
-          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
-          <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
-        </div>
-      </nav>
+      <MarketingHeader
+        links={[
+          { href: '/order/start' as Route, label: 'Produits' },
+          { href: '/blog' as Route, label: 'Blog' },
+          { href: '/help' as Route, label: 'Aide', active: true },
+          { href: '/contact' as Route, label: 'Contact' },
+        ]}
+        cta={{ href: '/order/start' as Route, label: 'Commander' }}
+      />
 
       <main style={{ maxWidth: 880, margin: '0 auto', padding: '64px 24px 96px' }}>
         <header style={{ marginBottom: 32 }}>

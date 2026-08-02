@@ -16,6 +16,7 @@ import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'Tarifs — Plio',
@@ -95,16 +96,15 @@ export default function PricingPage() {
         ])}
       />
 
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/pricing' as Route} className="mkt-nav-link active">Tarifs</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/help' as Route} className="mkt-nav-link">Aide</Link>
-          <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
-        </div>
-      </nav>
+      <MarketingHeader
+        links={[
+          { href: '/order/start' as Route, label: 'Produits' },
+          { href: '/pricing' as Route, label: 'Tarifs', active: true },
+          { href: '/blog' as Route, label: 'Blog' },
+          { href: '/help' as Route, label: 'Aide' },
+        ]}
+        cta={{ href: '/order/start' as Route, label: 'Commander' }}
+      />
 
       <main style={{ maxWidth: 1080, margin: '0 auto', padding: '64px 24px 96px' }}>
         {/* Hero */}
