@@ -2,8 +2,10 @@
  * /contact — page contact + formulaire (ContactForm client).
  */
 
+import type { Route } from 'next';
 import ContactForm from './ContactForm';
 import MarketingFooter from '@/components/marketing/MarketingFooter';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
 
@@ -12,16 +14,15 @@ export const metadata = { title: "Parle-nous — Plio" };
 export default function ContactPage() {
   return (
     <>
-      <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Plio.</a>
-          <div className="mkt-nav-links">
-            <a href="/order/start" className="mkt-nav-link">Produits</a>
-            <a href="/about" className="mkt-nav-link">Notre histoire</a>
-            <a href="/help" className="mkt-nav-link">Aide</a>
-            <a href="/contact" className="mkt-nav-link active">Contact</a>
-            <a href="/order/start" className="mkt-nav-cta">Commander →</a>
-          </div>
-        </nav>
+      <MarketingHeader
+        links={[
+          { href: '/order/start' as Route, label: 'Produits' },
+          { href: '/about' as Route, label: 'Notre histoire' },
+          { href: '/help' as Route, label: 'Aide' },
+          { href: '/contact' as Route, label: 'Contact', active: true },
+        ]}
+        cta={{ href: '/order/start' as Route, label: 'Commander' }}
+      />
       
         <main>
           {/* HERO */}
