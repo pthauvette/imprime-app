@@ -32,7 +32,13 @@ export const MOCKUP_BY_ICON: Record<
   card: { shape: 'card', finish: 'gloss' },
   plane: { shape: 'flyer', finish: 'matte' },
   postcard: { shape: 'postcard', finish: 'gloss' },
-  book: { shape: 'folded', finish: 'soft' },
+  // Audit UI/UX 2026-07 — 'soft' déclenchait la pastille « P » (premium
+  // soft-touch, cf. ProductMockup.tsx) sur TOUTE la famille Brochures &
+  // livrets, alors que ce n'est pas un trait déterminant de cette famille
+  // (reliure/pliage, pas papier soft-touch) — signal visuel trompeur.
+  // 'matte' = même texture que Flyers (finition réaliste la plus courante
+  // pour un brochure/livret), sans le badge premium non pertinent.
+  book: { shape: 'folded', finish: 'matte' },
   banner: { shape: 'banner', finish: 'matte' },
   pen: { shape: 'card', finish: 'plain' },
   label: { shape: 'sticker', finish: 'plain' },

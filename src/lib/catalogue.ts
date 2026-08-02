@@ -86,7 +86,11 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   },
   {
     slug: 'stationnerie',
-    name: 'Stationnerie',
+    // "Stationnerie" n'est pas un mot français (calque de l'anglais
+    // "stationery") — le terme correct est "Papeterie". Le slug reste
+    // inchangé (identifiant interne, pas user-facing) pour ne pas casser
+    // les liens/URLs existants (?category=stationnerie).
+    name: 'Papeterie',
     description: 'Letterhead, enveloppes, NCR forms, notepads.',
     icon: 'pen',
     sinaliteCategories: [
