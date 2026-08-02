@@ -17,6 +17,7 @@ import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
   title: 'Tarifs — Plio',
@@ -269,6 +270,8 @@ export default function PricingPage() {
           </Link>
         </section>
       </main>
+
+      <MarketingFooter />
     </>
   );
 }

@@ -14,6 +14,7 @@ import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import QuoteRequestForm from './QuoteRequestForm';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
   title: 'Devis sur-mesure — Plio',
@@ -147,6 +148,8 @@ export default function QuotePage() {
           <QuoteRequestForm />
         </section>
       </main>
+
+      <MarketingFooter />
     </>
   );
 }

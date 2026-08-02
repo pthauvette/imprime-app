@@ -13,6 +13,7 @@ import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { DELIVERY_WINDOW, DELIVERY_DAYS, SUPPORT_SLA } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
   title: 'À propos de Plio — print wholesale au Canada',
@@ -220,42 +221,7 @@ export default function AboutPage() {
         </div>
       </main>
 
-      <footer>
-        <div className="footer-grid">
-          <div className="footer-brand">
-            <span className="footer-brand-mark">Plio.</span>
-            <p className="footer-brand-text">Print wholesale au Canada, devis instantané, livraison partout en {DELIVERY_WINDOW}.</p>
-          </div>
-          <div className="footer-col">
-            <h4>Entreprise</h4>
-            <ul>
-              <li><Link href={'/about' as Route}>À propos</Link></li>
-              <li><Link href={'/blog' as Route}>Blog</Link></li>
-              <li><Link href={'/contact' as Route}>Contact</Link></li>
-            </ul>
-          </div>
-          <div className="footer-col">
-            <h4>Aide</h4>
-            <ul>
-              <li><Link href={'/help' as Route}>Centre d&apos;aide</Link></li>
-              <li><Link href={'/samples' as Route}>Échantillons gratuits</Link></li>
-              <li><Link href={'/track' as Route}>Suivre une commande</Link></li>
-            </ul>
-          </div>
-          <div className="footer-col">
-            <h4>Légal</h4>
-            <ul>
-              <li><Link href={'/legal/terms' as Route}>Conditions d&apos;utilisation</Link></li>
-              <li><Link href={'/legal/privacy' as Route}>Confidentialité</Link></li>
-              <li><Link href={'/legal/refund-policy' as Route}>Remboursements</Link></li>
-            </ul>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <span><Icon name="star" /> © Plio 2026 · Imprimé au Canada 🇨🇦</span>
-          <span>Démocratik inc. · Montréal</span>
-        </div>
-      </footer>
+      <MarketingFooter />
     </>
   );
 }
