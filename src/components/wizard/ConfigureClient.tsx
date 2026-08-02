@@ -219,6 +219,47 @@ export default function ConfigureClient({
   // Remplissage du slider (%).
   const snapPct = sortedQty.length > 1 ? (qtyIdx / (sortedQty.length - 1)) * 100 : 50;
 
+  /**
+   * Indices des paliers dont on affiche une GRADUATION.
+   *
+   * finding audit UI/UX 2026-08 (signalé par Patrick) — on rendait un tick
+   * cliquable + son étiquette pour CHAQUE palier Sinalite. Or 74 des 161
+   * produits en ont plus de 15, jusqu'à 38 (« 4mm Coroplast »). `.slider-ticks`
+   * étant un flex `nowrap`, la rangée DÉBORDAIT : mesuré 1161px de contenu dans
+   * une piste de 464px, 20 graduations hors piste, et la dernière à 679px de
+   * l'endroit où le curseur place réellement cette valeur. Le contrôle
+   * paraissait cassé — les étiquettes ne correspondaient plus au curseur.
+   *
+   * On échantillonne donc au plus MAX_GRADUATIONS indices RÉGULIÈREMENT espacés.
+   * Comme le curseur est linéaire en INDEX et que l'échantillon l'est aussi, le
+   * `justify-content: space-between` existant garde les graduations alignées.
+   * TOUS les paliers restent atteignables : le slider et le clavier parcourent
+   * la plage complète, seule la densité d'étiquettes est réduite.
+   *
+   * Le palier COURANT est toujours étiqueté — sinon, en glissant entre deux
+   * graduations, plus aucune n'était active et on perdait le repère visuel.
+   */
+  const tickIndices = useMemo(() => {
+    const MAX_GRADUATIONS = 8;
+    const n = sortedQty.length;
+    if (n <= MAX_GRADUATIONS) return sortedQty.map((_, i) => i);
+
+    const pas = (n - 1) / (MAX_GRADUATIONS - 1);
+    const indices = Array.from({ length: MAX_GRADUATIONS }, (_, k) => Math.round(k * pas));
+
+    // Le palier courant remplace la graduation échantillonnée la plus proche
+    // (plutôt que de s'y ajouter) : garder un nombre CONSTANT évite que la
+    // rangée s'élargisse d'un cran à chaque déplacement du curseur.
+    if (!indices.includes(qtyIdx)) {
+      let plusProche = 0;
+      for (let k = 1; k < indices.length; k++) {
+        if (Math.abs(indices[k]! - qtyIdx) < Math.abs(indices[plusProche]! - qtyIdx)) plusProche = k;
+      }
+      indices[plusProche] = qtyIdx;
+    }
+    return [...new Set(indices)].sort((a, b) => a - b);
+  }, [sortedQty, qtyIdx]);
+
   const allOptionIds = currentQty ? [...selectedOptionIds, currentQty.id] : selectedOptionIds;
 
   const designSuffix = designId ? `&designId=${designId}` : '';
@@ -342,19 +383,22 @@ export default function ConfigureClient({
                   />
                 </div>
                 <div className="slider-ticks">
-                  {sortedQty.map((opt, i) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className={`slider-tick${i === qtyIdx ? ' active' : ''}`}
-                      onClick={() => setQtyIdx(i)}
-                      aria-label={`${formatNumber(Number(opt.name))} unités`}
-                      aria-pressed={i === qtyIdx}
-                    >
-                      <div className="slider-tick-mark"></div>
-                      <div className="slider-tick-label">{formatNumber(Number(opt.name))}</div>
-                    </button>
-                  ))}
+                  {tickIndices.map((i) => {
+                    const opt = sortedQty[i]!;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        className={`slider-tick${i === qtyIdx ? ' active' : ''}`}
+                        onClick={() => setQtyIdx(i)}
+                        aria-label={`${formatNumber(Number(opt.name))} unités`}
+                        aria-pressed={i === qtyIdx}
+                      >
+                        <div className="slider-tick-mark"></div>
+                        <div className="slider-tick-label">{formatNumber(Number(opt.name))}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </section>
