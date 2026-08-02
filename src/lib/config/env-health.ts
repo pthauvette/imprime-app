@@ -61,6 +61,21 @@ const GUARDS = [
   // mais qui doit rester visible plutôt que de se découvrir pendant un abus.
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
+  // Connexion par SMS (Twilio Verify). Absentes = fonctionnalité inerte, ce
+  // qui est un état PARFAITEMENT valide : le lien magique reste le chemin
+  // principal. On les rapporte pour que « le texto ne s'affiche pas » ait une
+  // cause lisible dans les logs plutôt que de ressembler à un bug d'UI.
+  'SMS_AUTH',
+  'TWILIO_ACCOUNT_SID',
+  'TWILIO_AUTH_TOKEN',
+  'TWILIO_VERIFY_SERVICE_SID',
+] as const;
+
+/** Variables Twilio nécessaires DÈS QUE `SMS_AUTH=ON`. */
+const TWILIO_KEYS = [
+  'TWILIO_ACCOUNT_SID',
+  'TWILIO_AUTH_TOKEN',
+  'TWILIO_VERIFY_SERVICE_SID',
 ] as const;
 
 export interface EnvConfigReport {
@@ -68,6 +83,17 @@ export interface EnvConfigReport {
   missingRequired: string[];
   /** Noms des garde-fous inactifs — informatif, n'entraîne jamais d'échec. */
   guardsInactive: string[];
+  /**
+   * Variables Twilio manquantes ALORS QUE `SMS_AUTH=ON`.
+   *
+   * Distinct de `guardsInactive` parce que le sens est opposé : « absentes »
+   * est un état voulu, « demandées mais incomplètes » est une ERREUR de
+   * configuration. Or elle est silencieuse — `smsAuthDisponible()` renvoie
+   * false, la fonctionnalité reste éteinte, et l'admin qui vient de poser
+   * `SMS_AUTH=ON` croit l'avoir activée. Sans ce signal, le seul symptôme est
+   * « l'onglet texto n'apparaît pas », qu'on ira chercher dans l'UI.
+   */
+  smsIncomplet: string[];
   /** true seulement si une variable REQUISE manque ET qu'on tourne en production. */
   failing: boolean;
 }
@@ -86,7 +112,11 @@ export function inspectEnvConfig(): EnvConfigReport {
   // échouer, pour que le check reste exerçable par les tests et en dev.
   const failing = missingRequired.length > 0 && process.env.NODE_ENV === 'production';
 
-  return { missingRequired, guardsInactive, failing };
+  // Ne se déclenche QUE si l'activation a été demandée : sans `SMS_AUTH=ON`,
+  // des variables Twilio absentes sont l'état normal, pas une incohérence.
+  const smsIncomplet = isSet('SMS_AUTH') ? TWILIO_KEYS.filter((k) => !isSet(k)) : [];
+
+  return { missingRequired, guardsInactive, smsIncomplet, failing };
 }
 
 /** Exposées pour les tests — vérifier que ces listes ne divergent pas des

@@ -93,7 +93,7 @@ applications:
             # vide → AUTH_SECRET undefined → 500 partout, en silence).
             - |
               set -euo pipefail
-              env | grep -E '^(DATABASE_URL|DIRECT_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|ENFORCE_|FILE_REVALIDATION|ORDER_|REFERRAL_|GOLD_|DEFAULT_MARGIN_PCT|ARTWORK_URL_MODE|SKIP_MIGRATIONS|AWS_COMMIT_ID)' \
+              env | grep -E '^(DATABASE_URL|DIRECT_URL|AUTH_|ADMIN_|SINALITE_|STRIPE_|NEXT_PUBLIC_|SES_|S3_|SENTRY_|UPSTASH_|CRON_|SLACK_|COMPANY_|APPLE_PAY_|CANADA_POST_|MCP_|ENFORCE_|FILE_REVALIDATION|ORDER_|REFERRAL_|GOLD_|DEFAULT_MARGIN_PCT|ARTWORK_URL_MODE|SKIP_MIGRATIONS|AWS_COMMIT_ID|TWILIO_|SMS_AUTH)' \
                 | sed -E "s/\\\$/\\\\\$/g; s/^([A-Za-z_][A-Za-z0-9_]*)=(.*)\$/\\1='\\2'/" \
                 > .env.production
               n=$(grep -c '^[A-Za-z_]' .env.production || true)
