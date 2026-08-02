@@ -17,6 +17,7 @@ import { logSinalite } from '@/lib/logger';
 import { sendCriticalAlert } from '@/lib/alerting/slack';
 import { isSidednessGroup, classifySidedness } from '@/lib/products/sidedness';
 import { pickDefaultQuantityOption } from '@/lib/products/default-quantity';
+import { applyProductOverrides } from '@/lib/products/overrides';
 
 export const metadata = { title: "Configure ta commande" };
 export const dynamic = 'force-dynamic';
@@ -42,9 +43,9 @@ export default async function ConfigurePage({
   // et forçait un re-téléversement. Cf. docs/experience-client-2026-07.md [27].
   const filesParam = params.files ?? '';
 
-  let product, detail, enrichedIndex;
+  let rawProduct, detail, enrichedIndex;
   try {
-    [product, detail, enrichedIndex] = await Promise.all([
+    [rawProduct, detail, enrichedIndex] = await Promise.all([
       sinalite.getProduct(productId),
       sinalite.getProductDetail(productId),
       getEnrichedVariantIndex(productId),
@@ -78,6 +79,14 @@ export default async function ConfigurePage({
     });
     throw err; // → error.tsx (Next.js boundary)
   }
+
+  // finding UI/UX 2026-08 — le picker (/order/product) applique déjà
+  // ProductOverride.displayName (cf. applyProductOverrides), mais cette page
+  // utilisait le nom Sinalite BRUT sans override : un nom interne comme
+  // « Business cards 14pt (Profit Maximizer) » pouvait fuiter jusqu'au
+  // customer dès qu'il atteignait /order/configure (breadcrumb, éyebrow),
+  // même reçu via le flow produit VIRTUEL déjà « propre » (/order/v/<slug>).
+  const [product] = await applyProductOverrides([rawProduct]);
 
   // Serialize variant index Map → Record for client serialization. Prix
   // déjà markés up via marginPct admin (cf. lib/products/pricing.ts).

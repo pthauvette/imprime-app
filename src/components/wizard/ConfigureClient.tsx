@@ -368,11 +368,12 @@ export default function ConfigureClient({
             <div style={{ marginTop: 12 }}>
               {orderedGroups.map((g) => {
                 const optId = selection[g];
-                const opt = optionGroups[g]?.find((o) => o.id === optId);
+                const groupOptions = optionGroups[g] ?? [];
+                const opt = groupOptions.find((o) => o.id === optId);
                 return (
                   <div key={g} className="recap-config-row">
                     <span className="label">{friendlyLabel(g)}</span>
-                    <span className="value">{opt?.name ?? '—'}</span>
+                    <span className="value">{friendlyOptionValue(groupOptions, opt)}</span>
                   </div>
                 );
               })}
@@ -719,6 +720,29 @@ function CustomSizeHint() {
 
 function romanize(n: number): string {
   return ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][n] ?? String(n);
+}
+
+/**
+ * finding UI/UX 2026-08 — le recap « Configuration courante » affichait la
+ * valeur Sinalite BRUTE (ex. « NO », « YES ») pour les groupes binaires,
+ * alors que le toggle plus haut dans la même page traduit déjà ces mêmes
+ * options en « Activé »/« Désactivé ». Incohérent au sein d'une même page.
+ * Scope volontairement étroit : un Oui/Non littéral se traduit sans risque
+ * de mal représenter un vrai papier/finition (contrairement aux valeurs
+ * composées type « 14PT Printed 2 Sides (4/4) », qui restent en anglais —
+ * dictionnaire de traduction complet = projet contenu séparé, cf. roadmap).
+ */
+function friendlyOptionValue(
+  groupOptions: SinaliteOption[],
+  opt: SinaliteOption | undefined,
+): string {
+  if (!opt) return '—';
+  const isBinary = groupOptions.length === 2 &&
+    groupOptions.every((o) => /^(yes|no|none|aucun)$/i.test(o.name.trim()));
+  if (isBinary) {
+    return /^yes$/i.test(opt.name.trim()) ? 'Activé' : 'Désactivé';
+  }
+  return opt.name;
 }
 
 function friendlyLabel(group: string): string {
