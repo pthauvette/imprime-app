@@ -20,6 +20,7 @@ import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
   title: 'Centre d\'aide — Plio',
@@ -96,6 +97,8 @@ export default function HelpPage() {
           </div>
         </section>
       </main>
+
+      <MarketingFooter />
     </>
   );
 }

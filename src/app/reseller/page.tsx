@@ -12,6 +12,7 @@ import { Icon } from '@/components/ui/Icon';
 import ResellerApplicationForm from './ResellerApplicationForm';
 import { DELIVERY_WINDOW } from '@/lib/content/marketing';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
   title: 'Programme reseller — Plio',
@@ -172,6 +173,8 @@ export default function ResellerPage() {
           <ResellerApplicationForm />
         </section>
       </main>
+
+      <MarketingFooter />
     </>
   );
 }

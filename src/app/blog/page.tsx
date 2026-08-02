@@ -15,6 +15,7 @@ import type { Route } from 'next';
 import { getAllPosts, formatPostDate } from '@/lib/blog/posts';
 import JsonLd from '@/components/seo/JsonLd';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
   title: 'Blog Plio — guides d\'impression au Canada',
@@ -98,6 +99,8 @@ export default function BlogIndexPage() {
           ))}
         </div>
       </div>
+
+      <MarketingFooter />
     </>
   );
 }
