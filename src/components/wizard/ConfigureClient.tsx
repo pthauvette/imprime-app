@@ -625,7 +625,16 @@ function DeltaLabel({ delta }: { delta: number | null }) {
     fontSize: 11,
     fontWeight: 600,
     marginTop: 2,
-    color: delta === 0 ? 'var(--text-muted)' : delta > 0 ? 'var(--text-secondary)' : 'var(--success, #1F3D2B)',
+    // finding a11y 2026-08 — ce libellé portait une couleur EN DUR, qui ne tient
+    // pas sur les DEUX fonds de carte : sur la carte SÉLECTIONNÉE (vert foncé
+    // #1F3D2B) le texte foncé tombait à 1,53:1, illisible. Mesuré sur les trois
+    // occurrences de la page — les deux cartes blanches passaient, la
+    // sélectionnée non ; c'est pour ça qu'un coup d'œil ne le révélait pas.
+    // `currentColor` suit l'inversion déjà faite par la carte. Le signe (+/−)
+    // et « Inclus » portent l'information : la couleur n'était qu'un renfort,
+    // et aucune teinte fixe ne peut être lisible sur fond clair ET foncé.
+    color: 'currentColor',
+    opacity: 0.8,
   };
   if (delta === 0) return <span style={style}>Inclus</span>;
   return <span style={style}>{delta > 0 ? '+' : ''}{formatCurrency(delta)}</span>;

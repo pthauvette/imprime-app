@@ -8331,6 +8331,12 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
     .footer-brand { display: grid; gap: 12px; }
     .footer-brand-mark { font-family: var(--font-display); font-size: 32px; color: var(--accent-primary); letter-spacing: -0.02em; }
     .footer-brand-text { font-size: 14px; color: var(--text-secondary); line-height: 1.5; max-width: 320px; }
+    /* `h3` ajouté : audit a11y 2026-08 — les colonnes du footer étaient en
+       `<h4>` alors que le dernier titre de contenu est un `<h2>`, d'où un saut
+       h2→h4 sur 7 pages. Un saut de niveau casse la navigation par titres, qui
+       est le mode de survol principal au lecteur d'écran. Le sélecteur suit le
+       passage en `<h3>` pour que la sémantique change SANS toucher au style. */
+    .footer-col h3,
     .footer-col h4 {
       font-family: var(--font-mono); font-size: 11px;
       letter-spacing: 0.06em; text-transform: uppercase;
@@ -10104,3 +10110,42 @@ a, button, [role="button"], input[type="checkbox"] {
   max-width: none;
   margin: 0;
 }
+
+/* ── /sign-in : panneau éditorial illisible (2026-08, audit a11y) ──────────
+   MESURÉ (scripts/measure-a11y.mjs) : « Plio. » à 1,00:1 — soit exactement la
+   même couleur que son fond, donc INVISIBLE — et le titre « …avant 30
+   secondes. » à 1,54:1. Vérifié à la capture avant de conclure : le panneau
+   gauche rendait bien du texte clair sur crème.
+
+   Cause : globals.css porte DEUX définitions `.auth-side` de même spécificité,
+   héritées de deux pages HTML collées.
+     · l.1540 (signin.html) : dégradé SOMBRE + `color: var(--text-on-accent)`
+     · l.1967 (signup.html) : dégradé CLAIR, et ne redéfinit PAS `color`
+   La seconde gagne par ordre source. /sign-up n'en souffre pas : ses enfants
+   (`.side-eyebrow`, `.side-headline`…) posent leur propre couleur sombre.
+   /sign-in, lui, utilise `.auth-side-*` qui HÉRITENT — d'où texte clair sur
+   fond clair.
+
+   On ne touche NI l'un NI l'autre bloc : /sign-up dépend du fond clair, et un
+   futur écran pourrait dépendre du sombre. Le modificateur rend la paire
+   fond+texte explicite là où elle doit l'être. Override EOF = gagne par ordre
+   source (patron maison). */
+.auth-side.auth-side--sombre {
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-pressed) 100%);
+  color: var(--text-on-accent);
+}
+
+/* ── /legal/refund-policy : pastilles de scénario trop pâles (2026-08, a11y) ──
+   MESURÉ : « 10 jours pour réclamer » à 3,76:1 (min. 4,5:1 — 10px, donc pas du
+   « grand texte »). Les jetons sémantiques `--warning`/`--success`/`--info` sont
+   calibrés pour du texte de taille normale, pas pour 10px en capitales sur leur
+   variante `-soft`.
+
+   On assombrit UNIQUEMENT ici : `.scenario` n'existe que sur cette page (vérifié
+   par grep), donc le rayon d'impact est nul. Modifier les jetons globaux serait
+   une décision de design system, pas un correctif d'accessibilité — et casserait
+   des contrastes ailleurs. `color-mix` garde la teinte, seule la luminosité
+   baisse. Override EOF = gagne par ordre source. */
+.scenario.green .scenario-pill { color: color-mix(in srgb, var(--success) 76%, #000); }
+.scenario.warning .scenario-pill { color: color-mix(in srgb, var(--warning) 76%, #000); }
+.scenario.info .scenario-pill { color: color-mix(in srgb, var(--info) 82%, #000); }
