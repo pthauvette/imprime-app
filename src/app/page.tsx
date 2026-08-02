@@ -67,7 +67,7 @@ export default async function LandingPage() {
               <div className="hero-trust">
                 <span className="hero-trust-item">Sans abonnement</span>
                 <span className="hero-trust-item">Sans minimum absurde</span>
-                <span className="hero-trust-item">Échantillons gratuits</span>
+                <span className="hero-trust-item">Prix transparent en temps réel</span>
                 <span className="hero-trust-item">100 % imprimé au Canada</span>
               </div>
             </div>
@@ -223,9 +223,9 @@ export default async function LandingPage() {
                 <p className="feature-text">Notre système vérifie ton fichier (fond perdu, dimensions, résolution) avant la presse. Inclus dans le prix, pas en sus.</p>
               </div>
               <div className="feature-card">
-                <div className="feature-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="2" y1="20" x2="22" y2="20" /></svg></div>
-                <h3 className="feature-title">Échantillons gratuits</h3>
-                <p className="feature-text">Pas sûr du papier ? Demande un échantillon physique de n'importe quel stock — on l'envoie sans frais.</p>
+                <div className="feature-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="8 12 11 15 16 9" /></svg></div>
+                <h3 className="feature-title">Aucun engagement</h3>
+                <p className="feature-text">Configure, compare, ajuste ton devis autant que tu veux. Aucune carte de crédit requise avant le paiement final.</p>
               </div>
               <div className="feature-card">
                 <div className="feature-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg></div>

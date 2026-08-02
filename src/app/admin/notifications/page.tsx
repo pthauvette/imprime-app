@@ -6,7 +6,6 @@
  *
  * Catégories surveillées (toutes filtrent PENDING ou équivalent) :
  *   - DeleteAccountRequest PENDING (PIPEDA — 30j max)
- *   - SampleRequest PENDING (kit à expédier)
  *   - ResellerApplication PENDING (modérer)
  *   - CustomQuoteRequest PENDING (à quoter)
  *   - ContactMessage status=OPEN (à répondre)
@@ -16,7 +15,7 @@
  * Priorités (color coding) :
  *   🔴 critical : DeleteAccountRequest (deadline légale), WebhookEvent fail
  *   🟡 warning  : ContactMessage open > 24h, EmailDelivery DEAD, ResellerApp > 48h
- *   🟢 info     : SampleRequest, CustomQuoteRequest fresh, ContactMessage < 24h
+ *   🟢 info     : CustomQuoteRequest fresh, ContactMessage < 24h
  */
 
 import Link from 'next/link';
@@ -58,7 +57,6 @@ export default async function AdminNotificationsPage() {
 
   const [
     deleteRequests,
-    sampleRequests,
     resellerApps,
     quotes,
     openMessages,
@@ -73,11 +71,6 @@ export default async function AdminNotificationsPage() {
     prisma.deleteAccountRequest.findMany({
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' }, // les plus vieilles en premier (PIPEDA deadline 30j)
-      take: 20,
-    }).catch(() => []),
-    prisma.sampleRequest.findMany({
-      where: { status: 'PENDING' },
-      orderBy: { createdAt: 'asc' },
       take: 20,
     }).catch(() => []),
     prisma.resellerApplication.findMany({
@@ -124,20 +117,6 @@ export default async function AdminNotificationsPage() {
       detail: d.reason ? `« ${d.reason.slice(0, 100)}${d.reason.length > 100 ? '…' : ''} »` : 'Aucune raison fournie',
       href: `/admin/users/${d.userId}`,
       createdAt: d.createdAt,
-      ageHours: age,
-    });
-  }
-
-  for (const s of sampleRequests) {
-    const age = ageHours(s.createdAt);
-    notifs.push({
-      id: `sample:${s.id}`,
-      category: 'Kit échantillons',
-      priority: age > 48 ? 'warning' : 'info',
-      title: `${s.name} · ${s.shipCity}, ${s.shipProvince}`,
-      detail: `${s.email} · ${(() => { try { return JSON.parse(s.selectedSamples).length; } catch { return '?'; } })()} échantillons`,
-      href: `/admin/samples`,
-      createdAt: s.createdAt,
       ageHours: age,
     });
   }

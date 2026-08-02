@@ -129,15 +129,14 @@ export default function Post() {
       <h2>Conseil pratique</h2>
       <p>
         Quand tu lances une campagne (carte de vœux pour un client, flyers événement),
-        commande tes échantillons gratuits AVANT le projet final. Tu as 5-7 jours pour les
-        recevoir + valider, puis tu lances ta commande full en sachant exactement à quoi
-        t&apos;attendre. Zéro mauvaise surprise.
+        configure et confirme ton devis AVANT la deadline finale. Le prix est figé dès
+        la validation, donc tu sais exactement à quoi t&apos;attendre sans mauvaise
+        surprise de dernière minute.
       </p>
 
       <p className="blog-cta">
-        <strong>Reçois ton kit d&apos;échantillons gratuit.</strong> Touche les 6 papiers
-        + 4 finitions avant de t&apos;engager sur un volume. Livré en 5 jours par Postes
-        Canada. <a href="/samples">Demander mes échantillons →</a>
+        <strong>Prêt à lancer ta commande ?</strong> Devis instantané, prix transparent,
+        livraison partout au Canada. <a href="/order/start">Configurer mon produit →</a>
       </p>
     </>
   );

@@ -4,7 +4,7 @@ import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 
 /**
  * Header partagé pour les pages marketing (about/pricing/contact/quote/
- * reseller/help/blog/samples…). Audit UI/UX 2026-08, round 2 — « un menu
+ * reseller/help/blog…). Audit UI/UX 2026-08, round 2 — « un menu
  * unique » (Patrick) : avant, chaque page hand-codait son propre <nav>
  * avec un sous-ensemble DIFFÉRENT de liens (about avait "À propos" mais
  * pas "Tarifs" ; pricing avait "Tarifs"+"Aide" mais pas "Contact" ;
@@ -13,9 +13,9 @@ import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
  * partout : NAV_ITEMS est la source unique, chaque page indique juste
  * quel item est actif.
  *
- * Reseller et Échantillons restent joignables (footer, /about, /quote)
- * sans occuper un slot du menu principal — 6 liens + CTA + compte est
- * déjà la limite raisonnable avant que la nav devienne illisible.
+ * Reseller reste joignable (footer, /about, /quote) sans occuper un
+ * slot du menu principal — 6 liens + CTA + compte est déjà la limite
+ * raisonnable avant que la nav devienne illisible.
  *
  * NON utilisé par : l'accueil (a son propre header i18n/LangSwitch, POC
  * scope-limité + nav à ancres #products/#how spécifique à une page

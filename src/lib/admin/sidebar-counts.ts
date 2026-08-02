@@ -27,7 +27,6 @@ export interface AdminSidebarCounts {
   products?: number;
   emails: number;
   reviews: number;
-  samples: number;
   messages: number;
   quotes: number;
   'reseller-applications': number;
@@ -53,7 +52,6 @@ export interface AdminSidebarUrgents {
   webhooks: boolean;
   emails: boolean;
   reviews: boolean;
-  samples: boolean;
   messages: boolean;
   quotes: boolean;
   'reseller-applications': boolean;
@@ -78,7 +76,7 @@ export async function getAdminSidebarData(): Promise<{
   const yesterday = new Date(Date.now() - 24 * 3600 * 1000);
   const [
     orders, users, webhooks, emails,
-    reviews, samples, messages, quotes, resellerApps, promoCodes,
+    reviews, messages, quotes, resellerApps, promoCodes,
     failedWebhooks24h, deadEmails,
   ] = await Promise.all([
     safe(prisma.order.count(), 0),
@@ -86,7 +84,6 @@ export async function getAdminSidebarData(): Promise<{
     safe(prisma.webhookEvent.count(), 0),
     safe(prisma.emailDelivery.count({ where: { status: { in: ['PENDING', 'FAILED'] } } }), 0),
     safe(prisma.review.count({ where: { status: 'PENDING' } }), 0),
-    safe(prisma.sampleRequest.count({ where: { status: { in: ['NEW', 'APPROVED'] } } }), 0),
     safe(prisma.contactMessage.count({ where: { status: 'OPEN' } }), 0),
     safe(prisma.customQuoteRequest.count({ where: { status: { in: ['NEW', 'IN_REVIEW'] } } }), 0),
     safe(prisma.resellerApplication.count({ where: { status: { in: ['NEW', 'PENDING_REVIEW'] } } }), 0),
@@ -106,7 +103,6 @@ export async function getAdminSidebarData(): Promise<{
       // products omis volontairement — cf. doc ci-dessus
       emails,
       reviews,
-      samples,
       messages,
       quotes,
       'reseller-applications': resellerApps,
@@ -116,7 +112,6 @@ export async function getAdminSidebarData(): Promise<{
       webhooks: failedWebhooks24h > 0,
       emails: deadEmails > 0,
       reviews: reviews > 0,
-      samples: samples > 0,
       messages: messages > 0,
       quotes: quotes > 0,
       'reseller-applications': resellerApps > 0,

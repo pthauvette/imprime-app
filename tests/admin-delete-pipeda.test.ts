@@ -64,7 +64,6 @@ vi.mock('@/lib/db', () => ({
       update: vi.fn(async () => ({})),
     },
     contactMessage: { updateMany: vi.fn(async () => ({ count: 0 })) },
-    sampleRequest: { updateMany: vi.fn(async () => ({ count: 0 })) },
     abandonedCart: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     newsletterSubscriber: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     emailDelivery: { deleteMany: vi.fn(async () => ({ count: 0 })) },
@@ -185,19 +184,6 @@ describe('POST /api/admin/users/[id]/delete-pipeda (Round 39 #1)', () => {
     expect(args.where).toEqual({ email: 'doomed@plio.ca' });
     expect(args.data.email).toMatch(/^deleted-/);
     expect(args.data.name).toBe('[PIPEDA-DELETED]');
-  });
-
-  it('Round 39 #1 — SampleRequest anonymisé (incl. ship + phone)', async () => {
-    const { POST } = await import('@/app/api/admin/users/[id]/delete-pipeda/route');
-    await POST(makeReq({ confirm: 'SUPPRIMER' }), { params: Promise.resolve({ id: 'u_doomed' }) });
-
-    expect(prisma.sampleRequest.updateMany).toHaveBeenCalledOnce();
-    const args = vi.mocked(prisma.sampleRequest.updateMany).mock.calls[0]![0];
-    expect(args.where).toEqual({ email: 'doomed@plio.ca' });
-    expect(args.data.email).toMatch(/^deleted-/);
-    expect(args.data.name).toBe('[PIPEDA-DELETED]');
-    expect(args.data.phone).toBeNull();
-    expect(args.data.shipLine1).toBe('[PIPEDA-DELETED]');
   });
 
   it('Round 39 #1 — AbandonedCart DELETED par email match', async () => {

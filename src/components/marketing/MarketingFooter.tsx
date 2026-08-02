@@ -35,7 +35,6 @@ export default function MarketingFooter() {
           <ul>
             <li><a href="/help">Centre d&apos;aide</a></li>
             <li><a href="/contact">Contact</a></li>
-            <li><a href="/samples">Échantillons gratuits</a></li>
             <li><a href="/status">Statut système</a></li>
           </ul>
         </div>

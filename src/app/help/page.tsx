@@ -24,7 +24,7 @@ import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
   title: 'Centre d\'aide — Plio',
-  description: `Réponses aux questions fréquentes : commande, fichiers PDF, livraison, paiement, retour, échantillons. Support FR/EN, réponse en ${SUPPORT_SLA}.`,
+  description: `Réponses aux questions fréquentes : commande, fichiers PDF, livraison, paiement, retour. Support FR/EN, réponse en ${SUPPORT_SLA}.`,
 };
 
 export default function HelpPage() {
