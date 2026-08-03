@@ -37,6 +37,7 @@ Fichiers : `src/lib/webhooks/stripe-process.ts`, `src/lib/mcp/place-order.ts`, `
 
 ## CSS / overflow mobile
 - **L'overflow ne se LIT pas, il se MESURE** : `document.documentElement.scrollWidth` vs `clientWidth` à 375px. Le skill `/overflow-scan` (→ `scripts/measure-overflow.mjs`) le fait. Audit statique = faux négatifs (#375).
+- **Ce que le client LIT se mesure aussi** : `scripts/measure-supplier-leak.mjs` charge les pages publiques et cherche dans l'`innerText` le jargon fournisseur (« (Profit Maximizer) ») et l'anglais résiduel (« Next Business Day », « No bundling - FREE »). Motivé par #563/#565 : dans les deux cas la couche de présentation EXISTAIT mais n'était pas branchée partout, et aucun test unitaire ne pouvait le voir. Les identités produit (« 14PT Printed 2 Sides (4/4) », « Gloss AQ ») sont TOLÉRÉES à dessein — les traduire ferait acheter autre chose que ce qui sera imprimé.
 - **Cause racine ouverte** : `src/styles/globals.css` (~16k l.) contient des pages HTML legacy collées → doublons de classes (`.auth-shell`, `.two-col`, `.adm-shell`) qui redéfinissent `grid-template-columns` **sans `@media`** après le collapse → grille jamais effondrée. Fix = override **EOF** (gagne par ordre source) ou **spécificité doublée `.X.X`** pour battre `migrated-pages.css`.
 - **NE JAMAIS hand-éditer `src/styles/migrated-pages.css`** : généré (dédup auto, `scripts/css-dedup-analysis.mjs`). Une édition manuelle est écrasée et re-bloate. Un hook PreToolUse le bloque.
 
