@@ -15,6 +15,7 @@ import { previewKindForSinaliteCategory } from '@/lib/products/format-preview';
 import { getMarginSpecBySinaliteCategory } from '@/lib/products/margin-specs';
 import { findCategoryGroupBySinaliteCategory } from '@/lib/catalogue';
 import { isSidednessGroup, classifySidedness, sidednessDesc, SIDEDNESS_LABEL } from '@/lib/products/sidedness';
+import { groupLabelFr, optionValueOrRaw } from '@/lib/products/option-i18n';
 import { parseSizeLabel } from '@/lib/products/parse-size';
 import { pickDefaultQuantityOption } from '@/lib/products/default-quantity';
 import { computeOptionPriceDelta } from '@/lib/products/option-price-delta';
@@ -433,7 +434,7 @@ export default function ConfigureClient({
                 const opt = groupOptions.find((o) => o.id === optId);
                 return (
                   <div key={g} className="recap-config-row">
-                    <span className="label">{friendlyLabel(g)}</span>
+                    <span className="label">{groupLabelFr(g, (optionGroups[g] ?? []).map((o) => o.name))}</span>
                     <span className="value">{friendlyOptionValue(groupOptions, opt)}</span>
                   </div>
                 );
@@ -562,11 +563,14 @@ function ConfigSection({
   const isCoating = groupName === 'Coating' || groupName.toLowerCase().includes('coat');
   const isBinary = options.length === 2 && options.every((o) => /^(yes|no|none|aucun)$/i.test(o.name.trim()));
 
-  const sectionLabel = isSidedness ? SIDEDNESS_LABEL : friendlyLabel(groupName);
+  const sectionLabel = isSidedness ? SIDEDNESS_LABEL : groupLabelFr(groupName, options.map((o) => o.name));
   const selectedOption = options.find((o) => o.id === selectedId);
   const currentName = isSidedness && selectedOption
     ? (classifySidedness(selectedOption.name) === 'double' ? 'Recto-verso' : 'Recto seulement')
-    : selectedOption?.name ?? '—';
+    // Le RÉSUMÉ de section montrait encore la valeur brute (« No bundling -
+    // FREE ») juste au-dessus des pastilles déjà traduites — deux libellés
+    // différents pour la même option, dans le même bloc.
+    : selectedOption ? optionValueOrRaw(groupName, selectedOption.name) : '—';
 
   return (
     <section style={{ padding: '40px 0', borderTop: index > 1 ? '1px solid var(--border-subtle)' : 'none' }}>
@@ -743,7 +747,10 @@ function Pills({ options, selectedId, onPick, getDelta }: PickerProps) {
           aria-selected={selectedId === opt.id}
           onClick={() => onPick(opt.id)}
         >
-          {opt.name} <DeltaLabel delta={getDelta?.(opt.id) ?? null} />
+          {/* Traduction des options de SERVICE (délai, conditionnement,
+              façonnage). Les noms de papiers/finitions restent bruts — cf. le
+              périmètre documenté dans option-i18n.ts. */}
+          {optionValueOrRaw(opt.group, opt.name)} <DeltaLabel delta={getDelta?.(opt.id) ?? null} />
         </button>
       ))}
     </div>
@@ -807,28 +814,21 @@ function friendlyOptionValue(
   opt: SinaliteOption | undefined,
 ): string {
   if (!opt) return '—';
+  // Groupe `Stock` qui encode les FACES : le récap montrait le nom de papier
+  // complet (« 14PT Printed 2 Sides (4/4) ») sous un libellé « Impression
+  // recto / recto-verso », alors que les pastilles juste au-dessus disent
+  // « Recto-verso ». Deux formulations pour la même chose, dans le même écran.
+  if (groupOptions.length >= 2 && isSidednessGroup(groupOptions.map((o) => o.name))) {
+    return classifySidedness(opt.name) === 'double' ? 'Recto-verso' : 'Recto seulement';
+  }
   const isBinary = groupOptions.length === 2 &&
     groupOptions.every((o) => /^(yes|no|none|aucun)$/i.test(o.name.trim()));
   if (isBinary) {
     return /^yes$/i.test(opt.name.trim()) ? 'Activé' : 'Désactivé';
   }
-  return opt.name;
+  return optionValueOrRaw(opt.group, opt.name);
 }
 
-function friendlyLabel(group: string): string {
-  const map: Record<string, string> = {
-    size: 'Format',
-    Stock: 'Papier',
-    Coating: 'Finition',
-    Turnaround: 'Délai',
-    'Round Corners': 'Coins arrondis',
-    Scoring: 'Pliage (scoring)',
-    Bundling: 'Bundling',
-    Folding: 'Pliage',
-    Color: 'Couleur',
-  };
-  return map[group] ?? group;
-}
 
 function parseFormat(name: string): { w: number; h: number } | null {
   const m = name.match(/(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)/);
