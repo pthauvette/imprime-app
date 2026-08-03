@@ -24,6 +24,11 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { sinalite } from '@/lib/sinalite/client';
+import { applyProductOverrides } from '@/lib/products/overrides';
+import { getStartingPrices } from '@/lib/products/starting-price-store';
+import { formatCents } from '@/lib/format';
+import { Icon } from '@/components/ui/Icon';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -58,9 +63,16 @@ export default async function ComparePage({ searchParams }: PageProps) {
       try {
         // listProducts pour le nom (cheap call cached)
         const list = await sinalite.listProducts();
-        const summary = list.find((p) => p.id === id);
-        if (!summary) return { id, error: 'Produit introuvable', summary: null, detail: null };
+        const brut = list.find((p) => p.id === id);
+        if (!brut) return { id, error: 'Produit introuvable', summary: null, detail: null };
 
+        // ⚠️ `applyProductOverrides` — le nom Sinalite BRUT fuitait ici, sur une
+        // page PUBLIQUE de deep-link SEO : « Business cards 14pt (Profit
+        // Maximizer) », « … (High Gloss) », « … (C1S) » sont des libellés
+        // INTERNES fournisseur. La même fuite avait été fermée sur
+        // /order/configure (#540) et couverte par les noms marketing
+        // (#542/#543) ; /compare n'avait jamais été rebranché.
+        const [summary] = await applyProductOverrides([brut]);
         const detail = await sinalite.getProductDetail(id);
         return { id, error: null, summary, detail };
       } catch (err) {
@@ -74,18 +86,21 @@ export default async function ComparePage({ searchParams }: PageProps) {
     }),
   );
 
-  // Compute lowest-price-per-option pour highlight
-  const lowestPrices = products.map((p) => {
-    if (!p.detail) return null;
-    const prices = p.detail.pricing
-      .map((px) => parseFloat(px.value))
-      .filter((v) => Number.isFinite(v) && v > 0);
-    return prices.length > 0 ? Math.min(...prices) : null;
-  });
+  // Prix « à partir de » : la MÊME source que le catalogue (`/order/product`),
+  // c'est-à-dire le minimum réel de la matrice de variantes, markup inclus.
+  //
+  // ⚠️ Avant, cette page prenait `Math.min` sur `detail.pricing` — qui n'est PAS
+  // une liste de prix produits mais les SUPPLÉMENTS par option. Le minimum non
+  // nul valait donc 1 ¢, et la page annonçait publiquement « Prix dès 0.01 $ »
+  // sur les trois cartes de visite comparées. Un id absent du magasin n'affiche
+  // rien plutôt qu'un chiffre inventé (même règle que le catalogue).
+  const priceMap = await getStartingPrices(ids);
+  const lowestPrices = ids.map((id) => priceMap.get(id) ?? null);
   const lowest = lowestPrices.filter((p): p is number => p !== null).sort((a, b) => a - b)[0] ?? null;
 
   return (
-    <main style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 96px' }}>
+    <>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 96px' }}>
       <nav style={{ marginBottom: 12, fontSize: 12 }}>
         <Link href={'/' as Route} style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>
           ← Plio
@@ -114,8 +129,15 @@ export default async function ComparePage({ searchParams }: PageProps) {
           {products.length < MAX_COMPARE && (
             <>
               {' '}
+              {/* Avant : « Ajoute un id à l'URL : ?ids=1,7,NN ». Une consigne de
+                  développeur sur une page PUBLIQUE — le client était invité à
+                  bricoler une query string avec des identifiants internes. */}
               <span style={{ color: 'var(--text-muted)' }}>
-                Ajoute un id à l&apos;URL : <code>?ids={ids.join(',')},NN</code>
+                Tu peux en comparer jusqu&apos;à {MAX_COMPARE} :{' '}
+                <Link href={'/order/start' as Route} style={{ color: 'var(--accent-primary)' }}>
+                  choisis-en un autre au catalogue
+                </Link>
+                .
               </span>
             </>
           )}
@@ -138,6 +160,7 @@ export default async function ComparePage({ searchParams }: PageProps) {
             error={p.error}
             summary={p.summary}
             detail={p.detail}
+            startingCents={lowestPrices[idx]}
             isLowest={lowest !== null && lowestPrices[idx] === lowest}
           />
         ))}
@@ -147,20 +170,30 @@ export default async function ComparePage({ searchParams }: PageProps) {
         Prix entry-level = combinaison minimale (taille, papier, qty les plus accessibles). Les options
         haut de gamme peuvent multiplier le prix 5-10×.
       </p>
-    </main>
+      </main>
+      {/* La nav minimaliste est VOULUE (deep-link SEO), le footer manquant ne
+          l'était pas : la page n'offrait aucun lien légal ni contact. */}
+      <MarketingFooter />
+    </>
   );
 }
 
 function EmptyState() {
   return (
-    <main style={{ maxWidth: 560, margin: '0 auto', padding: '96px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>⚖️</div>
+    <>
+      <main style={{ maxWidth: 560, margin: '0 auto', padding: '96px 24px', textAlign: 'center' }}>
+      {/* Icône maison plutôt qu'un emoji : décoratif → migré (cf. Icon.tsx). */}
+      <div style={{ marginBottom: 16, color: 'var(--text-muted)' }}>
+        <Icon name="chart" size={40} />
+      </div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, margin: '0 0 12px' }}>
         Aucun produit à comparer
       </h1>
+      {/* Avant : « Ajoute des produits à l'URL via ?ids=1,7,12 ». On n'écrit pas
+          une consigne de query string à un client — on lui donne le chemin. */}
       <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px', lineHeight: 1.6 }}>
-        Ajoute des produits à l&apos;URL via <code>?ids=1,7,12</code> (jusqu&apos;à {MAX_COMPARE}).
-        Ou commence par explorer notre catalogue.
+        Choisis jusqu&apos;à {MAX_COMPARE} produits au catalogue pour les voir côte à côte —
+        specs, prix de départ et délais.
       </p>
       <Link
         href={'/order/start' as Route}
@@ -177,7 +210,9 @@ function EmptyState() {
       >
         Voir les produits →
       </Link>
-    </main>
+      </main>
+      <MarketingFooter />
+    </>
   );
 }
 
@@ -186,12 +221,14 @@ function ProductCard({
   error,
   summary,
   detail,
+  startingCents,
   isLowest,
 }: {
   id: number;
   error: string | null;
   summary: { name: string; category: string } | null;
   detail: { options: Array<{ id: number; group: string; name: string }>; pricing: Array<{ value: string }> } | null;
+  startingCents: number | null;
   isLowest: boolean;
 }) {
   if (error || !summary) {
@@ -215,11 +252,6 @@ function ProductCard({
     );
   }
 
-  // Compute lowest price + group breakdown
-  const prices = (detail?.pricing ?? [])
-    .map((p) => parseFloat(p.value))
-    .filter((v) => Number.isFinite(v) && v > 0);
-  const lowestPrice = prices.length > 0 ? Math.min(...prices) : null;
   const optionCount = detail?.options.length ?? 0;
   const groupCount = detail ? new Set(detail.options.map((o) => o.group)).size : 0;
 
@@ -260,7 +292,10 @@ function ProductCard({
         {summary.name}
       </div>
 
-      <Spec label="Prix dès" value={lowestPrice !== null ? `${lowestPrice.toFixed(2)} $` : '—'} highlight />
+      {/* `formatCents` et non `toFixed(2)` : le point décimal anglais s'affichait
+          en fr-CA (« 0.01 $ »). Cf. le commentaire de format.ts — 48 sites
+          faisaient cette interpolation à la main avant qu'on l'unifie. */}
+      <Spec label="Prix dès" value={startingCents !== null ? formatCents(startingCents) : '—'} highlight />
       <Spec label="Options dispo" value={optionCount > 0 ? String(optionCount) : '—'} />
       <Spec label="Groupes d'options" value={groupCount > 0 ? String(groupCount) : '—'} />
 

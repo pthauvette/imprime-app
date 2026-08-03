@@ -24,7 +24,7 @@ const COMMON_BASEPDF = {
 export const BC_MINIMAL_BW: AppTemplate = {
   slug: 'bc-minimal-bw',
   name: 'Minimal — noir & blanc',
-  description: 'Carte sobre, typographie generous. Pour designers, architectes, avocats.',
+  description: 'Carte sobre, typographie généreuse. Pour designers, architectes, avocats.',
   productType: 'BUSINESS_CARD',
   variant: '3.5x2',
   side: 'FRONT',
