@@ -19,9 +19,9 @@
  */
 import { getVirtualProduct, resolveVirtualProductId } from '@/lib/products/virtual-products';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
-import { lookupVariant } from '@/lib/sinalite/pricing';
+import { resolveVariantPrice } from '@/lib/products/resolve-price';
 import { sinalite } from '@/lib/sinalite/client';
-import { groupVisibleOptions, selectQuoteOptionIds } from './quote';
+import { groupVisibleOptions, selectQuoteOptionIds, fullyHiddenGroups } from './quote';
 
 export interface OrderItemInput {
   slug: string;
@@ -63,6 +63,12 @@ export async function resolveOrderItem(item: OrderItemInput): Promise<ResolvedIt
   if (enriched.disabled) {
     return { ok: false, slug: item.slug, reason: 'unavailable', message: `Produit indisponible : ${item.slug}.` };
   }
+  // Groupe entièrement masqué → combinaison incomplète transmise à la
+  // production. C'est sur CE chemin que le trou coûte le plus cher (cf.
+  // fullyHiddenGroups) : il fabrique un lien de finalisation.
+  if (fullyHiddenGroups(detail.options, enriched.hiddenOptionIds).length > 0) {
+    return { ok: false, slug: item.slug, reason: 'unavailable', message: `Produit indisponible : ${item.slug}.` };
+  }
 
   const groups = groupVisibleOptions(detail.options, enriched.hiddenOptionIds);
   const sel = selectQuoteOptionIds(groups, item.quantity);
@@ -70,7 +76,13 @@ export async function resolveOrderItem(item: OrderItemInput): Promise<ResolvedIt
     return { ok: false, slug: item.slug, reason: 'quantity_unavailable', message: `Quantité ${item.quantity} indisponible.`, availableQuantities: sel.availableQuantities };
   }
 
-  const total = lookupVariant(sel.optionIds, enriched.index);
+  // Index local PUIS repli distant — la MÊME résolution que `price-order.ts`,
+  // qui recalculera ce sous-total au checkout. Sans le repli, cette étape
+  // rejetait des configurations que le checkout aurait tarifées : la commande
+  // devenait impossible à préparer pour des familles entières (cf.
+  // resolve-price.ts). L'écart de résolution entre les deux étapes était le
+  // vrai bug — pas le prix lui-même.
+  const total = await resolveVariantPrice(productId, sel.optionIds, enriched);
   if (total === null) {
     return { ok: false, slug: item.slug, reason: 'price_unavailable', message: 'Prix indisponible pour cette configuration.' };
   }
