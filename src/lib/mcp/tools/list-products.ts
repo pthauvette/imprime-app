@@ -57,5 +57,16 @@ export function formatProductsText(products: McpProductSummary[]): string {
       .join('\n');
     lines.push(`**Papiers :**\n${papers}`, '');
   }
+  // Sans cette mention, un agent qui ne trouve pas son produit conclut que Plio
+  // ne le fait pas. C'est arrivé (2026-08) : « les 13 familles sont toutes en
+  // papier, donc pas de coroplast » — alors que Plio en imprime, par devis.
+  // Une lacune du CATALOGUE prise pour une lacune de l'OFFRE.
+  lines.push(
+    '---',
+    'Ces familles sont le libre-service (prix instantané, commande en ligne). Plio ' +
+      'imprime AUSSI hors de ce catalogue — substrats rigides (coroplast, foamcore, ' +
+      'dibond), grand format, packaging, très gros tirages — servis par devis. ' +
+      'Utilise `get_custom_quote_info` avant de conclure qu’un produit est indisponible.',
+  );
   return lines.join('\n').trim();
 }
