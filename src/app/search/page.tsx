@@ -8,6 +8,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import SearchClient from './SearchClient';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -24,15 +25,7 @@ export default async function SearchPage({
 
   return (
     <>
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/help' as Route} className="mkt-nav-link">Aide</Link>
-          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
-        </div>
-      </nav>
+      <MarketingHeader />
 
       <main style={{ padding: '60px 24px 80px', maxWidth: 800, margin: '0 auto' }}>
         <header style={{ marginBottom: 32 }}>

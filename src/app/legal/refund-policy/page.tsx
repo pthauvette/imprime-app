@@ -10,15 +10,14 @@ export const metadata = { title: "Remboursement — Plio" };
 export default function RefundPolicyPage() {
   return (
     <>
-      <nav className="mkt-nav">
-          <a href="/" className="mkt-brand">Plio.</a>
-          <div className="mkt-nav-links">
-            <a href="/order/start" className="mkt-nav-link">Produits</a>
-            <a href="/about" className="mkt-nav-link">Notre histoire</a>
-            <a href="/help" className="mkt-nav-link">Aide</a>
-            <a href="/contact" className="mkt-nav-link">Contact</a>
-            <a href="/order/start" className="mkt-nav-cta">Commander →</a>
-          </div>
+      {/* Chrome légal minimal, identique à /legal/terms et /legal/privacy.
+          Cette page portait une nav marketing complète — avec « Notre histoire »
+          au lieu de « À propos » et sans « Tarifs » — donc un 5e jeu de liens
+          divergent, et une page légale sur trois qui ne ressemblait pas aux
+          deux autres. */}
+      <nav className="legal-nav">
+          <a href="/" className="legal-brand">Plio.</a>
+          <a href="/" className="legal-back">← Retour à l&apos;accueil</a>
         </nav>
       
         <main>

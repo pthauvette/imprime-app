@@ -20,6 +20,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import TrackingForm from './TrackingForm';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'Suivre ma commande — Plio',
@@ -37,16 +38,7 @@ export default function TrackPage() {
         ])}
       />
 
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/help' as Route} className="mkt-nav-link">Aide</Link>
-          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
-          <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
-        </div>
-      </nav>
+      <MarketingHeader />
 
       <main style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px 96px' }}>
         <header style={{ marginBottom: 32, textAlign: 'center' }}>

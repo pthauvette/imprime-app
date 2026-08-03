@@ -20,6 +20,7 @@ import type { Route } from 'next';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { statusLabel } from '@/lib/orders/status-labels';
 import { Icon } from '@/components/ui/Icon';
+import { useSessionUser } from '@/hooks/useSessionUser';
 
 interface TimelineStep {
   label: string;
@@ -52,6 +53,7 @@ export default function TrackingForm() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OrderResult | null>(null);
+  const { connecte } = useSessionUser();
 
   // Round 24 #5 — pré-remplir orderNumber depuis ?orderId=X
   // (email reste à taper manuellement, c'est PII donc jamais en URL).
@@ -195,7 +197,13 @@ export default function TrackingForm() {
 
       {status === 'success' && result && <TrackResult order={result} />}
 
-      {status === 'idle' && (
+      {/* Invitation à se connecter — SEULEMENT pour un visiteur anonyme.
+          Elle s'affichait pour tout le monde : un client déjà connecté lisait
+          « Tu as un compte ? Connecte-toi » sur une page qui, faute d'en-tête
+          partagé, ne montrait par ailleurs aucun signe qu'il l'était.
+          `connecte === null` = on ne sait pas encore → on n'affiche rien, plutôt
+          que de faire clignoter l'invitation puis la retirer. */}
+      {status === 'idle' && connecte === false && (
         <div
           style={{
             fontSize: 12,
@@ -209,6 +217,24 @@ export default function TrackingForm() {
             Connecte-toi
           </Link>{' '}
           pour voir toutes tes commandes.
+        </div>
+      )}
+
+      {/* Un client CONNECTÉ n'a pas besoin d'un numéro de commande : ses
+          commandes sont déjà dans son compte. */}
+      {status === 'idle' && connecte === true && (
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            lineHeight: 1.6,
+            textAlign: 'center',
+          }}
+        >
+          <Link href={'/orders' as Route} style={{ color: 'var(--accent-primary)' }}>
+            Voir toutes mes commandes
+          </Link>{' '}
+          — pas besoin de numéro.
         </div>
       )}
     </div>

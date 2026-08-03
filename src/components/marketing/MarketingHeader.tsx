@@ -21,7 +21,15 @@ import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
  * scope-limité + nav à ancres #products/#how spécifique à une page
  * longue défilante — déjà correct, contexte différent) ; /compare (nav
  * minimaliste intentionnelle, page de deep-link SEO — cf. commentaire du
- * fichier) ; /templates (déjà une navigation de type compte, `Sidebar`).
+ * fichier) ; /templates (déjà une navigation de type compte, `Sidebar`) ;
+ * /legal/* (chrome légal minimal `legal-nav` : marque + retour à l'accueil).
+ *
+ * ⚠️ Le premier passage (2026-08) n'avait migré que les 7 pages marketing
+ * évidentes. /track, /search, /mcp et /reseller/guide avaient été RATÉES et
+ * gardaient chacune leur propre <nav> — quatre jeux de liens de plus, dont un
+ * (/search) sans aucun CTA et tous sans le bloc compte. « Un menu unique »
+ * n'était donc pas vrai. Toute nouvelle page publique passe par ici : s'il
+ * faut un cas particulier, il s'ajoute à la liste ci-dessus, avec sa raison.
  */
 
 export type MarketingNavKey = 'produits' | 'tarifs' | 'blog' | 'about' | 'aide' | 'contact';
