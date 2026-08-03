@@ -12,7 +12,7 @@ import { Icon } from '@/components/ui/Icon';
 import { ALL_TEMPLATES, listProductTypes } from '@/lib/templates/registry';
 import type { AppTemplate } from '@/lib/templates/types';
 
-export const metadata = { title: 'Templates — Plio' };
+export const metadata = { title: 'Templates' };
 
 interface PageProps {
   searchParams: Promise<{ type?: string }>;

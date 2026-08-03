@@ -18,7 +18,7 @@ import { safeInternalPath } from '@/lib/auth/safe-redirect';
 import { smsAuthDisponible } from '@/lib/auth/twilio-verify';
 import PhoneOnboardingClient from '@/components/account/PhoneOnboardingClient';
 
-export const metadata = { title: 'Vérifie ton téléphone — Plio' };
+export const metadata = { title: 'Vérifie ton téléphone' };
 export const dynamic = 'force-dynamic';
 
 export default async function PageTelephone({

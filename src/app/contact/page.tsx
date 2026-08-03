@@ -9,7 +9,7 @@ import MarketingHeader from '@/components/marketing/MarketingHeader';
 import { SUPPORT_SLA } from '@/lib/content/marketing';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: "Parle-nous — Plio" };
+export const metadata = { title: "Parle-nous" };
 
 export default function ContactPage() {
   return (

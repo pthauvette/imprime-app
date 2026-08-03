@@ -22,7 +22,7 @@ import { formatDateTime } from '@/lib/format';
 import FavoriteActions from './FavoriteActions';
 import ExportImportActions from './ExportImportActions';
 
-export const metadata = { title: 'Configurations sauvées — Plio' };
+export const metadata = { title: 'Configurations sauvées' };
 export const dynamic = 'force-dynamic';
 
 export default async function FavoritesPage({

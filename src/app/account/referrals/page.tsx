@@ -25,7 +25,7 @@ import { getLeaderboard } from '@/lib/referrals/leaderboard';
 import { formatCurrency, formatDate } from '@/lib/format';
 import CopyButton from './CopyButton';
 
-export const metadata = { title: 'Parrainage — Plio' };
+export const metadata = { title: 'Parrainage' };
 export const dynamic = 'force-dynamic';
 
 export default async function ReferralsPage() {

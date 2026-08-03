@@ -4,7 +4,7 @@
 
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: "404 — Plio" };
+export const metadata = { title: "404" };
 
 export default function NotFound() {
   return (

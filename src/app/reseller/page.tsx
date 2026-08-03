@@ -15,7 +15,7 @@ import MarketingHeader from '@/components/marketing/MarketingHeader';
 import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
-  title: 'Programme reseller — Plio',
+  title: 'Programme reseller',
   description: 'Pour les agences, freelances et studios qui revendent du print à leurs clients. Tarif wholesale, blind shipping inclus, application gratuite — validation sous 1-2 jours.',
 };
 

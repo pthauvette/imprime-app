@@ -26,7 +26,7 @@ import { resolveConfirmationView } from '@/lib/orders/confirmation-view';
 // une métadonnée STATIQUE ici : il ne peut pas suivre l'état de la page. On le
 // rend donc vrai dans les DEUX cas — la célébration reste dans le contenu, où
 // elle est conditionnée au vrai succès.
-export const metadata = { title: 'Confirmation de commande — Plio' };
+export const metadata = { title: 'Confirmation de commande' };
 export const dynamic = 'force-dynamic';
 
 export default async function ConfirmationPage({

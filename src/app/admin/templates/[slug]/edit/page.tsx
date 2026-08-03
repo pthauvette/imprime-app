@@ -29,7 +29,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const t = getTemplateBySlug(slug);
   return {
-    title: t ? `Admin — ${t.name} · Plio` : 'Admin — Template introuvable · Plio',
+    title: t ? `Admin — ${t.name}` : 'Admin — Template introuvable',
   };
 }
 

@@ -14,7 +14,7 @@ import SignInChoice from '@/components/auth/SignInChoice';
 import { smsAuthDisponible } from '@/lib/auth/twilio-verify';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: 'Connexion — Plio' };
+export const metadata = { title: 'Connexion' };
 
 /**
  * Mappe les codes d'erreur Auth.js (?error=) en message FR. Le plus fréquent est

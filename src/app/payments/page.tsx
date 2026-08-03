@@ -18,7 +18,7 @@ import { statusLabel } from '@/lib/orders/status-labels';
 import { prisma } from '@/lib/db';
 import { formatCurrency, formatDate } from '@/lib/format';
 
-export const metadata = { title: 'Paiements — Plio' };
+export const metadata = { title: 'Paiements' };
 
 export const dynamic = 'force-dynamic';
 

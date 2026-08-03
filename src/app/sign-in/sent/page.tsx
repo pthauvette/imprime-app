@@ -11,7 +11,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: "Vérifie ta boîte courriel — Plio" };
+export const metadata = { title: "Vérifie ta boîte courriel" };
 
 export default async function MagicLinkSentPage({
   searchParams,

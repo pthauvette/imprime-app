@@ -5,7 +5,7 @@
 import { getCompanyIdentity } from '@/lib/company/identity';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: "Conditions d'utilisation — Plio" };
+export const metadata = { title: "Conditions d'utilisation" };
 
 export default function TermsPage() {
   // Source UNIQUE de l'identité fiscale (env Amplify) — évite des numéros

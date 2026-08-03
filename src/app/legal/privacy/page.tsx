@@ -4,7 +4,7 @@
 
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: "Confidentialité — Plio" };
+export const metadata = { title: "Confidentialité" };
 
 export default function PrivacyPage() {
   return (

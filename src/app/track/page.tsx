@@ -23,7 +23,7 @@ import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
-  title: 'Suivre ma commande — Plio',
+  title: 'Suivre ma commande',
   description:
     'Suis l\'avancement de ta commande Plio en temps réel. Entre ton numéro de commande et ton email — pas besoin de te connecter.',
 };

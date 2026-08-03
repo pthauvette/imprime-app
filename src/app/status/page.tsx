@@ -17,7 +17,7 @@ import type { Route } from 'next';
 import { Icon } from '@/components/ui/Icon';
 
 export const metadata = {
-  title: 'État du système — Plio',
+  title: 'État du système',
   description: 'État en temps réel des composants Plio : base de données, API impression, paiements. Si quelque chose cloche, c\'est ici.',
 };
 

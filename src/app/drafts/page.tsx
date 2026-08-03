@@ -22,7 +22,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatRelative } from '@/lib/format';
 
-export const metadata = { title: 'Brouillons — Plio' };
+export const metadata = { title: 'Brouillons' };
 
 export const dynamic = 'force-dynamic';
 

@@ -32,7 +32,7 @@ import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'Comparer les produits — Plio',
+  title: 'Comparer les produits',
   description: 'Compare jusqu\'à 3 produits Plio côte-à-côte : options, prix, livraison.',
 };
 

@@ -23,7 +23,7 @@ import MarketingHeader from '@/components/marketing/MarketingHeader';
 import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
-  title: 'Centre d\'aide — Plio',
+  title: 'Centre d\'aide',
   description: `Réponses aux questions fréquentes : commande, fichiers PDF, livraison, paiement, retour. Support FR/EN, réponse en ${SUPPORT_SLA}.`,
 };
 

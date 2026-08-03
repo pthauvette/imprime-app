@@ -19,7 +19,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import AddressActionsBar from './AddressActionsBar';
 
-export const metadata = { title: 'Adresses — Plio' };
+export const metadata = { title: 'Adresses' };
 
 export const dynamic = 'force-dynamic';
 

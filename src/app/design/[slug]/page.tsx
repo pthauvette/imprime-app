@@ -20,7 +20,7 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const t = getTemplateBySlug(slug);
-  return { title: t ? `${t.name} — Plio` : 'Template — Plio' };
+  return { title: t ? `${t.name}` : 'Template' };
 }
 
 export default async function DesignPage({

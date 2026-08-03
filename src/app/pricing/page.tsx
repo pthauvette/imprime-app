@@ -20,7 +20,7 @@ import MarketingHeader from '@/components/marketing/MarketingHeader';
 import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const metadata = {
-  title: 'Tarifs — Plio',
+  title: 'Tarifs',
   description: 'Tarification transparente pour cartes de visite, flyers, brochures. Prix wholesale, dégressif selon quantité, sans abonnement ni minimum absurde. Devis exact en 2 minutes.',
 };
 

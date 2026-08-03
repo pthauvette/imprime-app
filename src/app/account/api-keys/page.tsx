@@ -7,7 +7,7 @@ import { SELF_SERVE_SCOPES } from '@/lib/mcp/auth';
 import Sidebar from '@/components/account/Sidebar';
 import ApiKeysClient from './ApiKeysClient';
 
-export const metadata: Metadata = { title: 'Clés API — Plio' };
+export const metadata: Metadata = { title: 'Clés API' };
 
 /** Libellés FR des scopes (server → client ; évite d'importer le module auth côté client). */
 const SCOPE_LABELS: Record<string, string> = {
