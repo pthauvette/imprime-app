@@ -15,6 +15,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import QuoteRequestForm from './QuoteRequestForm';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
 import MarketingFooter from '@/components/marketing/MarketingFooter';
+import { CAS_SUR_MESURE } from '@/lib/products/custom-quote';
 
 export const metadata = {
   title: 'Devis sur-mesure — Plio',
@@ -80,7 +81,7 @@ export default function QuotePage() {
               marginBottom: 48,
             }}
           >
-            {USE_CASES.map((uc) => (
+            {CAS_SUR_MESURE.map((uc) => (
               <div
                 key={uc.title}
                 style={{
@@ -154,35 +155,3 @@ export default function QuotePage() {
   );
 }
 
-const USE_CASES: { icon: IconName; title: string; description: string }[] = [
-  {
-    icon: 'package',
-    title: 'Quantité hors barème',
-    description: '10 000+ cartes, 50 000+ flyers, runs très spécifiques avec mix multiple.',
-  },
-  {
-    icon: 'edit',
-    title: 'Papier ou finition unique',
-    description: 'Embossage, foil stamping, papier coton ou recyclé spécifique, vernis sélectif.',
-  },
-  {
-    icon: 'clipboard',
-    title: 'Signage ou substrats rigides',
-    description: 'Foamcore, dibond, coroplast, bannières grand format, présentoirs en boutique.',
-  },
-  {
-    icon: 'gift',
-    title: 'Packaging et kits',
-    description: 'Boîtes pliantes custom, étiquettes adhésives, kits de bienvenue assemblés.',
-  },
-  {
-    icon: 'file',
-    title: 'Édition et magazines',
-    description: 'Brochures dos carré collé, magazines piqués, catalogues à pagination élevée.',
-  },
-  {
-    icon: 'user',
-    title: 'Reseller avec besoin spécial',
-    description: 'Si tu es déjà reseller et que ton client veut quelque chose hors catalogue.',
-  },
-];

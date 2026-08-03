@@ -23,6 +23,7 @@ import { maybeOAuthChallenge } from '@/lib/mcp/oauth-challenge';
 import { requireUser, requireScope } from '@/lib/mcp/auth';
 import { prepareOrderHandoff, formatOrderHandoffText } from '@/lib/mcp/tools/create-order';
 import { listPrintProducts, formatProductsText } from '@/lib/mcp/tools/list-products';
+import { getCustomQuoteInfo, formatCustomQuoteText } from '@/lib/mcp/tools/custom-quote';
 import {
   getProductOptions,
   getPrintQuote,
@@ -105,16 +106,32 @@ const handler = createMcpHandler(
     );
 
     server.registerTool(
+      'get_custom_quote_info',
+      {
+        title: 'Ce que Plio imprime hors catalogue (devis sur mesure)',
+        description:
+          "Ce que Plio imprime AU-DELÀ des familles libre-service : substrats rigides (coroplast, foamcore, dibond), grand format, bannières, packaging, très gros tirages, papiers ou finitions spéciales. À consulter AVANT de conclure qu'un produit n'est pas disponible chez Plio — list_print_products ne montre que le libre-service. Renvoie le lien où l'humain dépose sa demande ; ne crée aucune demande. Aucun prix instantané sur ces produits.",
+        inputSchema: {},
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async () => ({ content: [{ type: 'text', text: formatCustomQuoteText(getCustomQuoteInfo()) }] }),
+    );
+
+    server.registerTool(
       'get_product_options',
       {
         title: "Options d'un produit (papiers, finitions, quantités)",
         description:
-          "Pour un produit (slug de list_print_products), retourne les papiers, les finitions par papier, et les quantités disponibles. À appeler avant get_print_quote pour connaître les valeurs valides.",
-        inputSchema: { slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'") },
+          "Pour un produit (slug de list_print_products), retourne les papiers, les finitions par papier, et les quantités disponibles. À appeler avant get_print_quote pour connaître les valeurs valides. ⚠️ Les quantités DÉPENDENT du papier et de la finition (ex. flyers : 30 paliers en 100lb, 6 en lin) — passe `paper` et `finish` pour obtenir la liste exacte de ta combinaison.",
+        inputSchema: {
+          slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
+          paper: z.string().optional().describe('Clé papier. Fournis-la pour des quantités EXACTES ; absente → variante par défaut.'),
+          finish: z.string().optional().describe('Clé finition. Idem — à fournir avec `paper`.'),
+        },
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
-      async ({ slug }) => {
-        const opts = await getProductOptions(slug);
+      async ({ slug, paper, finish }) => {
+        const opts = await getProductOptions(slug, paper, finish);
         if (!opts) {
           return { content: [{ type: 'text', text: `Produit inconnu : ${slug}. Utilise list_print_products.` }], isError: true };
         }

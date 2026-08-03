@@ -126,12 +126,37 @@ export interface ProductOptionsResult {
   slug: string;
   name: string;
   papers: Array<{ key: string; label: string; description: string; finishes: Array<{ key: string; label: string }> }>;
-  /** Quantités typiques (d'un produit représentatif). Vide si Sinalite indisponible. */
+  /** Quantités de la variante décrite par `quantitiesFor`. Vide si Sinalite indisponible. */
   quantities: number[];
+  /**
+   * Variante d'où viennent `quantities`, et si elle a été DEMANDÉE ou choisie
+   * par défaut. Sans ça, l'appelant ne peut pas savoir que la liste ne vaut
+   * peut-être pas pour la combinaison qui l'intéresse.
+   */
+  quantitiesFor: { paper: string; finish: string; demandee: boolean } | null;
 }
 
-/** Options d'un produit virtuel : papiers → finitions (registre) + quantités (live). */
-export async function getProductOptions(slug: string): Promise<ProductOptionsResult | null> {
+/**
+ * Options d'un produit virtuel : papiers → finitions (registre) + quantités (live).
+ *
+ * ⚠️ LES QUANTITÉS DÉPENDENT DE LA VARIANTE, ce que cet outil laissait croire
+ * l'inverse. Il renvoyait toujours les paliers d'un produit REPRÉSENTATIF (1er
+ * papier × 1re finition) sous le titre « Quantités disponibles », sans dire de
+ * quelle variante ils venaient. Mesuré sur le catalogue réel (2026-08) :
+ *   • flyers 100lb/standard → 30 paliers ; flyers **linen → 6** ;
+ *   • toutes les finitions « matte » perdent les 3 plus petits paliers (25/50/75).
+ * Un agent lisait donc 30 quantités et pouvait en demander une qui n'existe pas
+ * pour le papier visé — `get_print_quote` répondait « quantité indisponible »
+ * sur une valeur que l'outil venait lui-même d'annoncer.
+ *
+ * `paperKey`/`finishKey` donnent la réponse EXACTE. Sans eux, on garde un seul
+ * appel (l'endpoint est public) mais on nomme la variante et on prévient.
+ */
+export async function getProductOptions(
+  slug: string,
+  paperKey?: string,
+  finishKey?: string,
+): Promise<ProductOptionsResult | null> {
   const vp = getVirtualProduct(slug);
   if (!vp) return null;
 
@@ -142,13 +167,19 @@ export async function getProductOptions(slug: string): Promise<ProductOptionsRes
     finishes: virtualFinishes(slug, paper.key).map((v) => ({ key: v.finish, label: v.finishLabel })),
   }));
 
-  // Quantités : depuis un produit représentatif (1er papier × 1re finition).
+  // Variante visée : celle demandée si elle existe, sinon la représentative.
+  const paperDemande = paperKey ? papers.find((p) => p.key === paperKey) : undefined;
+  const paperRetenu = paperDemande ?? papers[0];
+  const finishDemande = finishKey ? paperRetenu?.finishes.find((f) => f.key === finishKey) : undefined;
+  const finishRetenu = finishDemande ?? paperRetenu?.finishes[0];
+  const demandee = Boolean(paperDemande && finishDemande);
+
   let quantities: number[] = [];
-  const firstPaper = papers[0];
-  const firstFinish = firstPaper?.finishes[0];
-  if (firstPaper && firstFinish) {
-    const productId = resolveVirtualProductId(slug, firstPaper.key, firstFinish.key);
+  let quantitiesFor: ProductOptionsResult['quantitiesFor'] = null;
+  if (paperRetenu && finishRetenu) {
+    const productId = resolveVirtualProductId(slug, paperRetenu.key, finishRetenu.key);
     if (productId !== null) {
+      quantitiesFor = { paper: paperRetenu.key, finish: finishRetenu.key, demandee };
       try {
         const [detail, enriched] = await Promise.all([
           sinalite.getProductDetail(productId),
@@ -162,7 +193,7 @@ export async function getProductOptions(slug: string): Promise<ProductOptionsRes
     }
   }
 
-  return { slug, name: vp.name, papers, quantities };
+  return { slug, name: vp.name, papers, quantities, quantitiesFor };
 }
 
 export type QuoteResult =
@@ -251,8 +282,20 @@ export function formatProductOptionsText(r: ProductOptionsResult): string {
     const finishes = p.finishes.map((f) => `\`${f.key}\` (${f.label})`).join(', ') || '—';
     lines.push(`- Papier \`${p.key}\` — ${p.label}. Finitions : ${finishes}`);
   }
-  if (r.quantities.length) {
-    lines.push('', `**Quantités disponibles :** ${r.quantities.join(', ')}`);
+  // Le titre NOMME la variante : « Quantités disponibles » tout court laissait
+  // croire qu'elles valaient pour tout le produit, ce qui est faux (linen : 6
+  // paliers contre 30 pour 100lb).
+  if (r.quantities.length && r.quantitiesFor) {
+    const { paper, finish, demandee } = r.quantitiesFor;
+    lines.push('', `**Quantités pour \`${paper}\` / \`${finish}\` :** ${r.quantities.join(', ')}`);
+    if (!demandee) {
+      lines.push(
+        '',
+        '⚠️ Les quantités varient selon le papier et la finition. Celles ci-dessus sont ' +
+          'celles de la variante par défaut. Rappelle `get_product_options` avec `paper` ' +
+          'et `finish` pour la liste exacte de la combinaison qui t’intéresse.',
+      );
+    }
   }
   lines.push('', 'Pour un prix : `get_print_quote` avec slug + paper + finish + quantity.');
   return lines.join('\n');
