@@ -57,6 +57,11 @@ const ROUTES = [
   '/legal/terms',
   '/legal/privacy',
   '/legal/refund-policy',
+  // Audit visuel 2026-08 : le scan couvrait l'INDEX du blog, pas les ARTICLES —
+  // or c'est eux que Google envoie. Idem pour l'éditeur de design.
+  '/blog/comment-choisir-papier-cartes-de-visite',
+  '/design/bc-minimal-bw',
+  '/compare?ids=1,7,12',
   // Début du wizard (public malgré /order/*) — verrou de non-régression #447 :
   // le collapse .step-layout d'un bloc legacy causait 78px d'overflow invisible.
   '/order/start',

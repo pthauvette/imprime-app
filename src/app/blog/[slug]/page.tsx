@@ -14,6 +14,8 @@ import type { Route } from 'next';
 import { notFound } from 'next/navigation';
 import { getAllPosts, getPostBySlug, formatPostDate } from '@/lib/blog/posts';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
+import MarketingFooter from '@/components/marketing/MarketingFooter';
 
 export const dynamic = 'force-static';
 
@@ -79,6 +81,11 @@ export default async function BlogPostPage({
         ])}
       />
 
+      {/* L'index /blog a reçu la nav en #537, les ARTICLES non — or c'est eux
+          que Google envoie. Un lecteur arrivé ici n'avait qu'un fil d'Ariane :
+          aucun chemin vers le catalogue, le contact ou le légal. */}
+      <MarketingHeader active="blog" />
+
       <article className="blog-shell">
         <nav className="blog-breadcrumb">
           <Link href={'/' as Route}>Accueil</Link>
@@ -136,6 +143,8 @@ export default async function BlogPostPage({
           </aside>
         )}
       </article>
+
+      <MarketingFooter />
     </>
   );
 }
