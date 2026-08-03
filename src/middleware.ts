@@ -6,7 +6,7 @@
  *
  * Routes protégées :
  *   /orders, /orders/*, /drafts, /addresses, /wallet, /payments,
- *   /settings, /referrals, /reseller
+ *   /settings, /referrals, /reseller, /templates
  */
 
 import { NextResponse } from 'next/server';
@@ -25,8 +25,21 @@ const PROTECTED_PREFIXES = [
   '/referrals',
   '/reseller',
   '/onboarding',
-  // /templates et /design sont publics — browser le catalog/éditeur sans
-  // compte ; auth requise au moment de la finalisation/checkout.
+  // `/templates` derrière le compte — décision produit (2026-08). L'audit
+  // visuel a montré qu'elle était PUBLIQUE tout en portant le chrome de compte
+  // (`Sidebar` : « Portefeuille », « Paiements », « Clés API ») : un visiteur
+  // anonyme recevait le tableau de bord d'un compte qu'il n'avait pas. Deux
+  // sorties possibles — chrome marketing, ou passage derrière le compte ;
+  // Patrick a tranché pour la seconde, ce qui rend le chrome exact.
+  //
+  // ⚠️ Conséquence traitée dans le même changement : `/templates` était
+  // l'entrée de PRIORITÉ LA PLUS HAUTE du sitemap (0.9). Annoncer à Google une
+  // URL qui répond 307 vers la connexion est un défaut SEO en soi — elle en a
+  // donc été retirée.
+  '/templates',
+  // `/design/[slug]` reste PUBLIC : chaque gabarit est une page d'atterrissage
+  // indexée (toujours au sitemap), et l'éditeur fonctionne sans compte — seul
+  // le rechargement d'un brouillon (`?draftId=`) lit la session.
 ];
 
 // /admin/* exige role ADMIN — gate plus strict que juste auth.

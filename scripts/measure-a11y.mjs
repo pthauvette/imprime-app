@@ -28,7 +28,9 @@ import { chromium } from '@playwright/test';
 const BASE_URL = process.env.BASE_URL ?? 'http://localhost:3000';
 
 const ROUTES = process.argv.slice(2).length ? process.argv.slice(2) : [
-  '/', '/about', '/pricing', '/quote', '/contact', '/help', '/templates',
+  '/', '/about', '/pricing', '/quote', '/contact', '/help',
+  // '/templates' retiré : derrière le compte depuis 2026-08 — sinon on mesure
+  // l'accessibilité de la page de connexion en croyant mesurer la sienne.
   '/compare', '/reseller', '/blog', '/status', '/sign-in', '/sign-up',
   '/track', '/search', '/legal/terms', '/legal/privacy', '/legal/refund-policy',
   '/order/start',

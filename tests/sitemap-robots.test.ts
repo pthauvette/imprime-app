@@ -43,7 +43,6 @@ describe('sitemap.xml', () => {
       '/help',
       '/reseller',
       '/quote',
-      '/templates',
       '/legal/terms',
       '/legal/privacy',
       '/legal/refund-policy',
@@ -61,7 +60,17 @@ describe('sitemap.xml', () => {
     expect(urls.some((u) => u.includes('/blog/test-post-2'))).toBe(true);
   });
 
-  it('inclut templates design via /design/[slug]', async () => {
+  it('EXCLUT /templates — passée derrière le compte (2026-08)', async () => {
+    // Le sitemap ne doit pas annoncer une URL qui répond 307 vers la connexion.
+    // Ce test remplace l'entrée anti-régression inverse : c'est maintenant la
+    // PRÉSENCE de /templates qui serait la régression.
+    const sitemap = (await import('@/app/sitemap')).default;
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+    expect(urls.some((u) => u.endsWith('/templates'))).toBe(false);
+  });
+
+  it('inclut templates design via /design/[slug] — l’acquisition reste indexée', async () => {
     const sitemap = (await import('@/app/sitemap')).default;
     const entries = await sitemap();
     const urls = entries.map((e) => e.url);

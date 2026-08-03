@@ -38,7 +38,9 @@ const ROUTES = [
   // '/samples' retiré : la fonctionnalité échantillons a été supprimée (#539).
   // La route 404 désormais — la garder aurait mesuré la page d'erreur et
   // rapporté « OK » pour une couverture qui n'existe plus (faux signal).
-  '/templates',
+  // '/templates' RETIRÉ (2026-08) : passée derrière le compte. La garder ferait
+  // mesurer la page de CONNEXION et rapporter « OK » pour une couverture qui
+  // n'existe plus — exactement le faux signal évité pour /samples ci-dessus.
   '/compare',
   '/reseller',
   '/blog',
