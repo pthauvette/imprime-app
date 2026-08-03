@@ -323,9 +323,27 @@ export const sinalite = {
    * un fallback stale. Même pattern/TTL que le reste du catalogue —
    * conforme au commentaire SINALITE_CATALOG_TTL_MS (prix update mensuel).
    */
+  /**
+   * GET /variants/{id}/{storeCode}/{offset} — page de 1000 variantes.
+   *
+   * ⚠️ La signature était FAUSSE jusqu'en 2026-08 : on appelait
+   * `/variants/{id}/{offset}`, c'est-à-dire l'offset DANS LA CASE DU MAGASIN.
+   * Sinalite ne reconnaissait pas la valeur, retombait silencieusement sur le
+   * magasin par défaut et **resservait la page 0 à chaque appel** — HTTP 200,
+   * 1000 lignes, aucune erreur. Conséquences : index plafonné à 1000 variantes
+   * (5 % de la matrice du produit 37, qui en compte 18 780) et 50 appels
+   * identiques par construction d'index.
+   *
+   * Prouvé en direct : `/variants/37/0` et `/variants/37/en_ca` renvoient des
+   * réponses IDENTIQUES, alors que `/variants/37/en_us` en renvoie une autre.
+   * Les prix étaient donc justes par pure coïncidence — le magasin par défaut
+   * se trouve être le nôtre. Avec `SINALITE_STORE_CODE=en_us`, l'index aurait
+   * servi des prix en_ca sans le moindre signal.
+   */
   async listVariants(productId: number, offset = 0) {
-    return withSinaliteCache(`/variants/${productId}/${offset}`,
-      () => request(`/variants/${productId}/${offset}`, {
+    const chemin = `/variants/${productId}/${this.storeCode}/${offset}`;
+    return withSinaliteCache(chemin,
+      () => request(chemin, {
         method: 'GET',
         schema: z.array(SinaliteVariant),
       }),
