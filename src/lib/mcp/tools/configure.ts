@@ -27,6 +27,7 @@ import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import { lookupVariant } from '@/lib/sinalite/pricing';
 import { resolveVariantPrice } from '@/lib/products/resolve-price';
 import { isSidednessGroup, classifySidedness } from '@/lib/products/sidedness';
+import { groupLabelFr, optionValueOrRaw } from '@/lib/products/option-i18n';
 import { sinalite } from '@/lib/sinalite/client';
 import type { SinaliteOption } from '@/lib/sinalite/types';
 
@@ -71,28 +72,26 @@ const PREFERRED_DEFAULT_QTY = 500;
 /** Groupes qu'on NE présente PAS comme choix (gérés ailleurs ou figés). */
 const NEVER_SELECTABLE = new Set(['qty']);
 
-/** Libellé FR d'un groupe Sinalite (fallback = nom brut). */
-function groupLabel(key: string): string {
-  const m: Record<string, string> = { Stock: 'Faces', 'Round Corners': 'Coins', Turnaround: 'Délai', size: 'Format' };
-  return m[key] ?? key;
-}
-
-/** Libellé FR d'une option (fallback = nom nettoyé). */
+/**
+ * Libellé FR d'une option pour le widget.
+ *
+ * Le dictionnaire vient de `option-i18n.ts` (source unique) ; ne restent ici
+ * que les deux cas PROPRES au widget : recto/verso, qu'on veut plus explicite
+ * qu'ailleurs, et les coins, où « Non » se dit « Carrés ». Avant, ce fichier
+ * portait sa propre table — d'où « Faces » affiché sur de vrais groupes papier
+ * et des délais traduits ici mais pas sur le site.
+ */
 function optionLabel(group: string, name: string): string {
   const n = name.toLowerCase();
   if (group === 'Stock') {
     if (n.includes('2 side') || n.includes('4/4')) return 'Recto-verso (2 faces)';
     if (n.includes('1 side') || n.includes('4/0')) return 'Recto (1 face)';
   }
-  if (group === 'Round Corners') {
+  if (group === 'Round Corners' || group === 'Rounded Corners') {
     if (n === 'no') return 'Carrés';
     if (n === 'yes') return 'Coins arrondis';
   }
-  if (group === 'Turnaround') {
-    if (n.includes('next')) return '1 jour ouvrable';
-    if (n.includes('2 - 3') || n.includes('2-3')) return '2–3 jours ouvrables';
-  }
-  return name;
+  return optionValueOrRaw(group, name);
 }
 
 /** Produit cartésien borné (anti-explosion). */
@@ -232,7 +231,7 @@ export async function buildConfiguratorPayload(input: ConfiguratorInput): Promis
         .filter(([g, opts]) => !NEVER_SELECTABLE.has(g) && opts.length >= 2)
         .map(([g, opts]) => ({
           key: g,
-          label: groupLabel(g),
+          label: groupLabelFr(g, opts.map((o) => o.name)),
           options: opts.map((o) => ({ id: o.id, label: optionLabel(g, o.name) })),
           selectedId: perGroup[g]?.id ?? opts[0].id,
         }));

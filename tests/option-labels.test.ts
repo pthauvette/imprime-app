@@ -11,25 +11,27 @@ const optionGroups = {
   qty: [{ id: 500, group: 'qty', name: '500' }],
 };
 
+// Format « Groupe : valeur » — espace avant le deux-points (typographie fr-CA),
+// et valeurs traduites via la source unique `option-i18n.ts`.
 describe('buildOptionSummary', () => {
-  it('résout chaque optionId sélectionné en "GroupeFR: nom"', () => {
+  it('résout chaque optionId sélectionné en "GroupeFR : nom"', () => {
     const r = buildOptionSummary([4, 30, 107], optionGroups);
-    expect(r).toEqual(['Format: 3.5x2', 'Papier: 14pt', 'Finition: UV haute brillance']);
+    expect(r).toEqual(['Format : 3.5x2', 'Papier : 14pt', 'Finition : UV haute brillance']);
   });
 
   it('omet la quantité (qty a déjà sa propre ligne dans le récap)', () => {
     const r = buildOptionSummary([4, 500], optionGroups);
-    expect(r).toEqual(['Format: 3.5x2']);
+    expect(r).toEqual(['Format : 3.5x2']);
   });
 
   it('un optionId introuvable (drift Sinalite) est omis silencieusement, pas de crash', () => {
     const r = buildOptionSummary([4, 99999], optionGroups);
-    expect(r).toEqual(['Format: 3.5x2']);
+    expect(r).toEqual(['Format : 3.5x2']);
   });
 
   it('groupe non mappé → utilise le nom brut du groupe en fallback', () => {
     const r = buildOptionSummary([200], { 'Weird Group': [{ id: 200, group: 'Weird Group', name: 'X' }] });
-    expect(r).toEqual(['Weird Group: X']);
+    expect(r).toEqual(['Weird Group : X']);
   });
 
   it('liste vide → tableau vide', () => {

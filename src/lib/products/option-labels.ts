@@ -7,30 +7,21 @@
  * la mauvaise finition. Le serveur RÉSOUT déjà les noms d'option (via
  * `/api/products/[id]` → optionGroups), juste jamais affiché ici.
  *
- * Reprend le même mapping de groupe que ConfigureClient.tsx (friendlyLabel)
- * et mcp/tools/configure.ts (groupLabel) — dupliqué intentionnellement en
- * mini-dictionnaire local plutôt qu'importé : ce résumé est un texte de
- * confirmation FIGÉ pour le client, pas un composant de config interactif ;
- * le faire dépendre d'un fichier UI ailleurs serait un couplage superflu.
+ * ⚠️ Le mapping de groupe était DUPLIQUÉ ici, « intentionnellement », au motif
+ * qu'un résumé de paiement ne devait pas dépendre d'un fichier d'UI. La copie a
+ * divergé : le configurateur disait « Coins arrondis », cet écran-ci « Coins »,
+ * pour le même groupe — et les VALEURS restaient brutes (« Délai : 2 - 3
+ * Business Days ») sur l'écran juste avant le paiement. Le dictionnaire vit
+ * désormais dans `option-i18n.ts`, hors UI, consommé par les trois surfaces.
  */
+
+import { groupLabelFr, optionValueOrRaw } from './option-i18n';
 
 interface OptionLike {
   id: number;
   group: string;
   name: string;
 }
-
-const GROUP_LABELS: Record<string, string> = {
-  size: 'Format',
-  Stock: 'Papier',
-  Coating: 'Finition',
-  Turnaround: 'Délai',
-  'Round Corners': 'Coins',
-  Scoring: 'Pliage (scoring)',
-  Bundling: 'Bundling',
-  Folding: 'Pliage',
-  Color: 'Couleur',
-};
 
 /**
  * `optionIds` sélectionnés + `optionGroups` (toutes les options possibles du
@@ -51,5 +42,8 @@ export function buildOptionSummary(
     .map((id) => byId.get(id))
     .filter((opt): opt is OptionLike => opt !== undefined)
     .filter((opt) => opt.group !== 'qty') // la quantité a déjà sa propre ligne
-    .map((opt) => `${GROUP_LABELS[opt.group] ?? opt.group}: ${opt.name}`);
+    .map((opt) => {
+      const noms = optionGroups[opt.group]?.map((o) => o.name);
+      return `${groupLabelFr(opt.group, noms)} : ${optionValueOrRaw(opt.group, opt.name)}`;
+    });
 }

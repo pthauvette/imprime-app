@@ -37,7 +37,10 @@ describe('buildConfiguratorPayload — groupes d\'options + devis', () => {
   it('expose les groupes multi-choix (Faces, Coins, Délai) avec libellés FR', async () => {
     const p = await buildConfiguratorPayload({ slug: 'cartes-de-visite' });
     const byKey = Object.fromEntries(p.optionGroups.map((g) => [g.key, g]));
-    expect(byKey['Stock'].label).toBe('Faces');
+    // `Stock` encode ici les FACES (14PT Printed 1 Side / 2 Sides) → même
+    // libellé que le site. Avant, le widget disait « Faces » MÊME sur de vrais
+    // groupes papier : un libellé fixe pour un groupe au sens variable.
+    expect(byKey['Stock'].label).toBe('Impression recto / recto-verso');
     expect(byKey['Stock'].options.map((o) => o.label)).toEqual(['Recto (1 face)', 'Recto-verso (2 faces)']);
     expect(byKey['Round Corners'].label).toBe('Coins');
     expect(byKey['Round Corners'].options.map((o) => o.label)).toEqual(['Carrés', 'Coins arrondis']);
