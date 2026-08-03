@@ -87,8 +87,17 @@ describe('middleware — gate account-only (#10.2)', () => {
     expect(status).toBeUndefined();
   });
 
-  it('route publique /templates → passe sans auth', () => {
-    expect(run(makeReq('/templates')).status).toBeUndefined();
+  it('/templates → DERRIÈRE le compte (décision produit 2026-08)', () => {
+    // Inverse de l'assertion d'origine : la page portait le chrome de compte
+    // (« Portefeuille », « Paiements », « Clés API ») tout en étant publique.
+    // Patrick a tranché pour la gater, ce qui rend le chrome exact.
+    expect(run(makeReq('/templates')).status).toBe(307);
+  });
+
+  it('/design/[slug] reste PUBLIC — c’est la surface d’acquisition indexée', () => {
+    // Gater les gabarits UN PAR UN détruirait le SEO : ils sont au sitemap et
+    // l'éditeur fonctionne sans compte (seul `?draftId=` lit la session).
+    expect(run(makeReq('/design/bc-minimal-bw')).status).toBeUndefined();
   });
 
   it('home / → passe', () => {

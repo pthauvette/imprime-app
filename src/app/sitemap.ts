@@ -16,7 +16,9 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.plio.ca';
 const STATIC_PUBLIC_ROUTES = [
   { path: '/', priority: 1.0, changeFreq: 'weekly' as const },
   { path: '/blog', priority: 0.9, changeFreq: 'weekly' as const },
-  { path: '/templates', priority: 0.9, changeFreq: 'weekly' as const },
+  // `/templates` RETIRÉ (2026-08) : la page est passée derrière le compte, elle
+  // répond 307 vers la connexion. Les gabarits restent indexés un par un via
+  // `/design/[slug]` ci-dessous — c'est eux la vraie surface d'acquisition.
   { path: '/pricing', priority: 0.8, changeFreq: 'monthly' as const },
   { path: '/about', priority: 0.7, changeFreq: 'monthly' as const },
   { path: '/contact', priority: 0.7, changeFreq: 'monthly' as const },

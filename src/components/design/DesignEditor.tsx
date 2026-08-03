@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Route } from 'next';
 import type { AppTemplate } from '@/lib/templates/types';
+import { useSessionUser } from '@/hooks/useSessionUser';
 import { Icon } from '@/components/ui/Icon';
 
 interface Field {
@@ -36,6 +37,7 @@ export default function DesignEditor({
   initialValues?: Record<string, string>;
 }) {
   const router = useRouter();
+  const { connecte } = useSessionUser();
 
   // Extract editable fields (skip readOnly like dividers/blocks)
   const fields: Field[] = useMemo(() => {
@@ -168,8 +170,15 @@ export default function DesignEditor({
         }}
       >
         <div>
+          {/* `/templates` est passée derrière le compte (2026-08). Ce lien
+              renverrait donc un visiteur venu de Google — chaque gabarit reste
+              une page indexée — vers un mur de connexion, alors qu'il n'a
+              encore aucune raison d'ouvrir un compte. On l'envoie au catalogue
+              tant qu'on ne sait pas qu'il est connecté ; `null` (on ne sait pas
+              encore) est traité comme anonyme, le cas le plus fréquent sur une
+              page d'atterrissage. */}
           <Link
-            href={'/templates' as Route}
+            href={(connecte === true ? '/templates' : '/order/start') as Route}
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 11,
@@ -180,7 +189,7 @@ export default function DesignEditor({
               textDecoration: 'none',
             }}
           >
-            ← Templates
+            {connecte === true ? '← Templates' : '← Catalogue'}
           </Link>
           <h1
             style={{
