@@ -15,6 +15,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'Guide reseller — comment grandir avec Plio',
@@ -25,16 +26,7 @@ export const metadata = {
 export default function ResellerGuidePage() {
   return (
     <>
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/reseller' as Route} className="mkt-nav-link active">Reseller</Link>
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/contact' as Route} className="mkt-nav-link">Contact</Link>
-          <Link href={'/reseller' as Route} className="mkt-nav-cta">Devenir reseller →</Link>
-        </div>
-      </nav>
+      <MarketingHeader />
 
       <main style={{ maxWidth: 760, margin: '0 auto', padding: '64px 24px 96px', lineHeight: 1.6 }}>
         <nav style={{ marginBottom: 16, fontSize: 12 }}>

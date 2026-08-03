@@ -8724,7 +8724,15 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
       align-items: start;
     }
     @media (max-width: 1000px) { .legal-body { grid-template-columns: 200px 1fr; gap: 48px; } }
-    @media (max-width: 800px) { .legal-body { grid-template-columns: 1fr; gap: 40px; padding: 40px 24px 64px; } }
+    /* `minmax(0, 1fr)` et NON `1fr` — audit nav 2026-08. `1fr` vaut
+       `minmax(auto, 1fr)` : son minimum est le min-content du contenu, ici le
+       tableau d'inventaire des données (Loi 25, 4 colonnes, 480px de
+       min-content). La piste s'élargissait donc à 530px et /legal/privacy
+       débordait de +179px à 375px. Le conteneur du tableau a DÉJÀ son
+       `overflow-x: auto` à ≤768px : il ne servait à rien tant que la grille
+       elle-même refusait de rétrécir. Avec minmax(0,…), la piste tombe à la
+       largeur de l'écran et le tableau défile dans son propre cadre. */
+    @media (max-width: 800px) { .legal-body { grid-template-columns: minmax(0, 1fr); gap: 40px; padding: 40px 24px 64px; } }
 
     /* TOC */
     .legal-toc {

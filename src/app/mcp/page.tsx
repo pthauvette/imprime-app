@@ -13,6 +13,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import JsonLd, { breadcrumbSchema } from '@/components/seo/JsonLd';
 import { Icon } from '@/components/ui/Icon';
+import MarketingHeader from '@/components/marketing/MarketingHeader';
 
 export const metadata = {
   title: 'Commander Plio par IA — serveur MCP',
@@ -68,16 +69,7 @@ export default function McpPage() {
         ])}
       />
 
-      <nav className="mkt-nav">
-        <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
-        <div className="mkt-nav-links">
-          <Link href={'/order/start' as Route} className="mkt-nav-link">Produits</Link>
-          <Link href={'/blog' as Route} className="mkt-nav-link">Blog</Link>
-          <Link href={'/about' as Route} className="mkt-nav-link">À propos</Link>
-          <Link href={'/mcp' as Route} className="mkt-nav-link active">MCP</Link>
-          <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
-        </div>
-      </nav>
+      <MarketingHeader />
 
       <main style={{ maxWidth: 880, margin: '0 auto', padding: '0 20px' }}>
         {/* HERO */}

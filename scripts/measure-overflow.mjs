@@ -46,6 +46,17 @@ const ROUTES = [
   '/mcp',
   '/sign-in',
   '/sign-up',
+  // Audit nav 2026-08 — ces pages n'avaient JAMAIS été mesurées, et c'étaient
+  // précisément celles qui avaient échappé à l'unification du menu : le même
+  // angle mort produisait les deux oublis. `/search` a un champ pleine largeur
+  // et `/track` un formulaire, deux formes qui débordent facilement à 375px.
+  '/track',
+  '/search?q=carte',
+  // Les 3 pages légales partagent un chrome minimal (`legal-nav`) + une table
+  // des matières en colonne — jamais mesurée non plus.
+  '/legal/terms',
+  '/legal/privacy',
+  '/legal/refund-policy',
   // Début du wizard (public malgré /order/*) — verrou de non-régression #447 :
   // le collapse .step-layout d'un bloc legacy causait 78px d'overflow invisible.
   '/order/start',
