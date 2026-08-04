@@ -16,9 +16,21 @@ export type Theme = 'light' | 'dark';
 
 export const ALL_THEMES: Theme[] = ['light', 'dark'];
 
-export async function getServerTheme(): Promise<Theme> {
+/**
+ * Choix EXPLICITE du client, ou `null` s'il n'en a jamais fait.
+ *
+ * ⚠️ Renvoyait `'light'` en l'absence de cookie — donc `<html data-theme="light">`
+ * sur TOUTE première visite. Or `data-theme` présent bloque la règle
+ * `:root:not([data-theme])` : un visiteur dont l'OS est en sombre recevait le
+ * thème clair, et s'il n'était pas connecté il n'avait même pas accès au bouton
+ * (il vit dans le menu compte). « Pas de cookie » n'est pas « veut du clair ».
+ *
+ * `null` → l'attribut est OMIS → la préférence système s'applique. Dès que le
+ * client touche au bouton, le cookie pose l'attribut et son choix gagne.
+ */
+export async function getServerTheme(): Promise<Theme | null> {
   const c = await cookies();
   const v = c.get(THEME_COOKIE)?.value;
-  if (v === 'dark') return 'dark';
-  return 'light';
+  if (v === 'dark' || v === 'light') return v;
+  return null;
 }
