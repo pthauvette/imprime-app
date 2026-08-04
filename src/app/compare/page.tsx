@@ -288,9 +288,12 @@ function ProductCard({
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
         {summary.category} · #{id}
       </div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 400, lineHeight: 1.2, marginBottom: 16, minHeight: 50 }}>
+      {/* `h2` et non `div` : chaque produit comparé EST une section de la page.
+          Un lecteur d'écran peut ainsi sauter de produit en produit au lieu de
+          parcourir toute la carte. `margin: 0` préserve le rendu exact. */}
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 400, lineHeight: 1.2, margin: '0 0 16px', minHeight: 50 }}>
         {summary.name}
-      </div>
+      </h2>
 
       {/* `formatCents` et non `toFixed(2)` : le point décimal anglais s'affichait
           en fr-CA (« 0.01 $ »). Cf. le commentaire de format.ts — 48 sites

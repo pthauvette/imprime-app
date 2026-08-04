@@ -8345,6 +8345,11 @@ a.acct-nav-link, a.order-row, a.btn { text-decoration: none; }
        h2→h4 sur 7 pages. Un saut de niveau casse la navigation par titres, qui
        est le mode de survol principal au lecteur d'écran. Le sélecteur suit le
        passage en `<h3>` pour que la sémantique change SANS toucher au style. */
+    /* h2 depuis 2026-08 : les colonnes de pied de page sont des sections de
+       PAGE, donc h2. h3/h4 restent ciblés — le sélecteur a déjà survécu à une
+       migration (#547, h4→h3) et rien ne garantit qu'aucun bloc legacy n'en
+       porte encore. */
+    .footer-col h2,
     .footer-col h3,
     .footer-col h4 {
       font-family: var(--font-mono); font-size: 11px;
