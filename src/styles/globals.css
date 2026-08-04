@@ -143,8 +143,26 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 
+/* Ce bloc était VIDE — un `@media (prefers-reduced-motion: reduce) { }` sans
+   la moindre déclaration, alors que la feuille compte 36 `animation:`. Un
+   visiteur qui demande à son système de réduire les animations les recevait
+   donc presque toutes ; seuls deux blocs imbriqués plus bas (stack-*, cartes
+   de statut) le respectaient. Trouvé en ajoutant le squelette du
+   configurateur, qui est lui-même animé.
+
+   On NEUTRALISE plutôt qu'on ne SUPPRIME : passer la durée à ~0 laisse les
+   événements `animationend`/`transitionend` se déclencher, alors qu'un
+   `animation: none` casserait tout code qui les attend. */
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
 
 /* Type utilities */
 
