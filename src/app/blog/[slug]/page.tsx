@@ -26,7 +26,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = getPostBySlug(slug);
-  if (!post) return { title: 'Article introuvable — Plio' };
+  if (!post) return { title: 'Article introuvable' };
   return {
     title: `${post.meta.title} — Blog Plio`,
     description: post.meta.excerpt,

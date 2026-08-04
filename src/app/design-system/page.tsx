@@ -5,7 +5,7 @@
  * Pour ajouter de l'interactivité, convertir en Client Component ('use client').
  */
 
-export const metadata = { title: "Design System — Plio" };
+export const metadata = { title: "Design System" };
 
 export default function DesignSystemPage() {
   return (

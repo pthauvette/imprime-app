@@ -5,7 +5,7 @@
 import MarketingFooter from '@/components/marketing/MarketingFooter';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: "Remboursement — Plio" };
+export const metadata = { title: "Remboursement" };
 
 export default function RefundPolicyPage() {
   return (

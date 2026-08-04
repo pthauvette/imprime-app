@@ -17,7 +17,7 @@ import { prisma } from '@/lib/db';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: 'Historique wallet — Plio' };
+export const metadata = { title: 'Historique wallet' };
 export const dynamic = 'force-dynamic';
 
 const PER_PAGE = 50;

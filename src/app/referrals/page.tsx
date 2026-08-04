@@ -12,7 +12,7 @@
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 
-export const metadata = { title: 'Parrainage — Plio' };
+export const metadata = { title: 'Parrainage' };
 
 export default function ReferralsPage() {
   redirect('/account/referrals' as Route);

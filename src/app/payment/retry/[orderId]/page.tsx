@@ -27,7 +27,7 @@ import { logStripe as log } from '@/lib/logger';
 import { Icon } from '@/components/ui/Icon';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Reprendre le paiement — Plio' };
+export const metadata = { title: 'Reprendre le paiement' };
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://plio.ca';
 const stripe = process.env.STRIPE_SECRET_KEY

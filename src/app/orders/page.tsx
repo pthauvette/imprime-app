@@ -26,7 +26,7 @@ import { prisma } from '@/lib/db';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: 'Mes commandes — Plio' };
+export const metadata = { title: 'Mes commandes' };
 
 export const dynamic = 'force-dynamic';
 

@@ -16,7 +16,7 @@ import { auth } from '@/auth';
 import SignUpForm from '@/components/auth/SignUpForm';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: 'Créer un compte — Plio' };
+export const metadata = { title: 'Créer un compte' };
 
 export default async function SignUpPage() {
   const session = await auth();

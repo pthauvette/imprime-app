@@ -27,7 +27,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { formatDate } from '@/lib/format';
 
-export const metadata = { title: 'Paramètres — Plio' };
+export const metadata = { title: 'Paramètres' };
 
 export const dynamic = 'force-dynamic';
 

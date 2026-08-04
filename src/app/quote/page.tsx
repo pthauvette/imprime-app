@@ -18,7 +18,7 @@ import MarketingFooter from '@/components/marketing/MarketingFooter';
 import { CAS_SUR_MESURE } from '@/lib/products/custom-quote';
 
 export const metadata = {
-  title: 'Devis sur-mesure — Plio',
+  title: 'Devis sur-mesure',
   description: 'Un projet d\'impression hors catalogue ? Grande quantité, papier spécifique, finition unique, signage, packaging — on te quote sous 1-2 jours ouvrables.',
 };
 

@@ -18,7 +18,7 @@ import { prisma } from '@/lib/db';
 import Sidebar from '@/components/account/Sidebar';
 import { Icon } from '@/components/ui/Icon';
 
-export const metadata = { title: 'Préférences email — Plio' };
+export const metadata = { title: 'Préférences email' };
 export const dynamic = 'force-dynamic';
 
 type PrefField = 'emailDeliveryNotifications' | 'emailMarketing' | 'emailReengagement';
