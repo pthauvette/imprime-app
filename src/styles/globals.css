@@ -128,6 +128,15 @@
   --tier-gold-soft: rgba(224, 169, 61, 0.16);
   --tier-platinum: #A88FE0;
   --tier-platinum-soft: rgba(168, 143, 224, 0.16);
+  /* Ombres — elles n'avaient AUCUNE valeur sombre : calibrées sur un fond
+     clair (rgba noir très diluée), elles sont INVISIBLES sur #0F1411, et les
+     cartes perdaient tout relief. En sombre on assombrit franchement. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, .55);
+  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, .65), 0 2px 6px rgba(0, 0, 0, .4);
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, .7), 0 4px 10px rgba(0, 0, 0, .45);
+  --shadow-xl: 0 24px 60px -16px rgba(0, 0, 0, .75), 0 6px 14px rgba(0, 0, 0, .5);
+  --shadow-accent: 0 8px 24px -8px rgba(111, 174, 137, .35);
 }
 
 /* Reset & base */
@@ -10157,3 +10166,71 @@ a, button, [role="button"], input[type="checkbox"] {
 .scenario.green .scenario-pill { color: color-mix(in srgb, var(--success) 76%, #000); }
 .scenario.warning .scenario-pill { color: color-mix(in srgb, var(--warning) 76%, #000); }
 .scenario.info .scenario-pill { color: color-mix(in srgb, var(--info) 82%, #000); }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRÉFÉRENCE SYSTÈME (thème sombre automatique)
+   ═══════════════════════════════════════════════════════════════════
+   Le thème sombre existait déjà, mais il n'était atteignable QUE par le
+   bouton du menu compte : un visiteur anonyme dont l'OS est en sombre
+   recevait le thème clair, sans aucun moyen d'en changer.
+
+   `:root:not([data-theme])` — la préférence système ne s'applique QUE si
+   aucun choix explicite n'a été fait. Dès que le client touche au bouton,
+   le cookie pose `data-theme` et son choix gagne, dans les deux sens.
+
+   ⚠️ DUPLICATION ASSUMÉE : ces déclarations reprennent le bloc
+   `[data-theme="dark"]` plus haut. CSS ne permet pas de partager un bloc
+   entre un sélecteur et une media query sans préprocesseur. Pour que la
+   copie ne DÉRIVE pas — le défaut qui a coûté le plus cher dans ce dépôt —
+   `tests/theme-dark-parity.test.ts` vérifie que les deux blocs déclarent
+   EXACTEMENT les mêmes jetons aux mêmes valeurs.
+   ═══════════════════════════════════════════════════════════════════ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg-canvas: #0F1411;
+    --bg-surface: #161D18;
+    --bg-sunken: #0A0E0C;
+    --bg-overlay: rgba(0, 0, 0, 0.64);
+    --text-primary: #ECEFEC;
+    --text-secondary: #A8B2AB;
+    /* Round 43 #3 — éclairci #6F7A72 → #8A958D pour WCAG AA (4.5:1).
+       Avant : 3.85–4.17:1 sur bg-surface/canvas (échec AA).
+       Après : 5.53–6.26:1 partout (en dark on éclaircit pour contraster). */
+    --text-muted: #8A958D;
+    --text-on-accent: #0F1411;
+    --border-subtle: rgba(236, 239, 236, 0.06);
+    --border-default: rgba(236, 239, 236, 0.12);
+    --border-strong: rgba(236, 239, 236, 0.24);
+    --accent-primary: #6FAE89;
+    --accent-hover: #82BD9C;
+    --accent-pressed: #5C9676;
+    --accent-soft: rgba(111, 174, 137, 0.14);
+    --success: #6FAE89;
+    --success-soft: rgba(111, 174, 137, 0.14);
+    --warning: #D9954D;
+    --warning-soft: rgba(217, 149, 77, 0.14);
+    --danger: #E66E6E;
+    --danger-soft: rgba(230, 110, 110, 0.14);
+    --info: #6F95E0;
+    --info-soft: rgba(111, 149, 224, 0.14);
+    /* Loyalty tiers (Round 43 #1) — éclaircis pour rester lisibles en dark */
+    --tier-bronze: #D9954D;
+    --tier-bronze-soft: rgba(217, 149, 77, 0.16);
+    --tier-silver: #A8B2BC;
+    --tier-silver-soft: rgba(168, 178, 188, 0.16);
+    --tier-gold: #E0A93D;
+    --tier-gold-soft: rgba(224, 169, 61, 0.16);
+    --tier-platinum: #A88FE0;
+    --tier-platinum-soft: rgba(168, 143, 224, 0.16);
+    /* Ombres — elles n'avaient AUCUNE valeur sombre : calibrées sur un fond
+       clair (rgba noir très diluée), elles sont INVISIBLES sur #0F1411, et les
+       cartes perdaient tout relief. En sombre on assombrit franchement. */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, .5);
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, .55);
+    --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, .65), 0 2px 6px rgba(0, 0, 0, .4);
+    --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, .7), 0 4px 10px rgba(0, 0, 0, .45);
+    --shadow-xl: 0 24px 60px -16px rgba(0, 0, 0, .75), 0 6px 14px rgba(0, 0, 0, .5);
+    --shadow-accent: 0 8px 24px -8px rgba(111, 174, 137, .35);
+  }
+}

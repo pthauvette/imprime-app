@@ -12,10 +12,14 @@ import { THEME_COOKIE, THEME_COOKIE_MAX_AGE, type Theme } from '@/lib/theme-shar
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('light');
 
-  // Sync depuis le DOM (le SSR a déjà set data-theme sur <html> via cookie).
+  // Sync depuis le DOM. ⚠️ L'attribut est ABSENT tant que le client n'a fait
+  // aucun choix explicite (cf. getServerTheme) — c'est alors la préférence
+  // SYSTÈME qui s'applique. Sans ce repli, le bouton affichait « clair » actif
+  // à quelqu'un dont l'écran était sombre : le contrôle mentait sur l'état.
   useEffect(() => {
     const t = document.documentElement.dataset.theme as Theme | undefined;
-    if (t === 'dark' || t === 'light') setTheme(t);
+    if (t === 'dark' || t === 'light') { setTheme(t); return; }
+    setTheme(window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   }, []);
 
   function apply(next: Theme) {

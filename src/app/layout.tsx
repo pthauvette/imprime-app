@@ -104,13 +104,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const locale = await getServerLocale();
   const htmlLang = locale === 'en' ? 'en-CA' : 'fr-CA';
   // Theme lu depuis cookie plio_theme — server-side pour éviter FOUC.
+  // `null` = aucun choix explicite → on N'ÉCRIT PAS l'attribut, pour laisser
+  // `@media (prefers-color-scheme: dark)` décider (cf. globals.css, EOF).
   const theme = await getServerTheme();
 
   return (
     // Round 44 #1 — fontVariables (next/font) expose --font-body/display/mono
     // sur <html>. Le <link> bloquant vers Google Fonts est retiré : les woff2
     // sont self-hostés + le CSS @font-face est injecté par next/font.
-    <html lang={htmlLang} data-theme={theme} className={fontVariables}>
+    <html lang={htmlLang} data-theme={theme ?? undefined} className={fontVariables}>
       <body>
         {/* Structured data (schema.org) — Google Knowledge Panel, Rich
             Snippets, Sitelinks search box. Injected once dans root layout,
