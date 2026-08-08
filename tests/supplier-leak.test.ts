@@ -28,6 +28,20 @@ describe('détecte ce qui a réellement fui en production', () => {
     expect(detecte('4 - 5 Business Days')).toBe(true);
   });
 
+  it('les groupes des BROCHURES et LIVRETS — l’angle mort du scanner', () => {
+    // Ces dix groupes n'existent que sur brochures / livrets / chemises. Le
+    // scanner ne visitait que des cartes et des flyers : il a donc rapporté
+    // « aucune fuite » pendant des semaines alors qu'une brochure affichait
+    // « Fold Type » et « Do you have a folding sample? » en clair.
+    expect(detecte('III. Fold Type')).toBe(true);
+    expect(detecte('Do you have a folding sample?')).toBe(true);
+    expect(detecte('Include Envelopes')).toBe(true);
+    expect(detecte('Spot UV\nOne sided')).toBe(true);
+    expect(detecte('Binding\nLong Edge / Portrait')).toBe(true);
+    expect(detecte('Pockets\nTwo Pockets')).toBe(true);
+    expect(detecte('Cover\nSelf Cover')).toBe(true);
+  });
+
   it('le conditionnement et le façonnage non traduits (#565)', () => {
     expect(detecte('No bundling - FREE')).toBe(true);
     expect(detecte('Single band - 25s')).toBe(true);
@@ -44,6 +58,20 @@ describe('laisse passer ce qui est VOULU', () => {
     expect(detecte('Papier\n14PT Printed 2 Sides (4/4)')).toBe(false);
     expect(detecte('Finition\nGloss AQ')).toBe(false);
     expect(detecte('16PT Printed 1 Side (4/0)')).toBe(false);
+  });
+
+  it('les NOMS DE PLIS restent tolérés — décision, pas oubli', () => {
+    // « Tri Fold » ≠ « Z Fold » alors que les deux font trois volets. Traduire
+    // de travers ferait recevoir un dépliant qui ne s'ouvre pas comme prévu.
+    for (const pli of ['Half Fold', 'Tri Fold', 'Z Fold', 'Roll Fold', 'Double Parallel',
+                       'Score and Tri', '4 Panel Accordion Fold', '8 Page Fold']) {
+      expect(detecte(`Type de pli\n${pli}`), `${pli} ne doit PAS être signalé`).toBe(false);
+    }
+  });
+
+  it('les laminations restent tolérées — ce sont des finitions', () => {
+    expect(detecte('Finition\nMatte Lamination 2 Sided')).toBe(false);
+    expect(detecte('Lamination\nSoft Touch Lamination 2 Sided')).toBe(false);
   });
 
   it('une page correctement francisée est propre', () => {

@@ -46,6 +46,16 @@ const ROUTES = [
   '/order/configure?productId=1',
   '/order/configure?productId=69',   // le plus fourni en options de service
   '/order/configure?productId=97',
+  // ⚠️ ANGLE MORT CORRIGÉ (2026-08). La liste ne contenait que des cartes et
+  // des flyers, d'où la conclusion — fausse — que #565 avait tout traduit. Les
+  // BROCHURES, LIVRETS et CHEMISES portent dix groupes d'options que les autres
+  // familles n'ont pas (Fold Type, Binding, Pockets, Cover, Lamination…) : une
+  // capture d'écran d'une brochure a montré « Fold Type » et « Do you have a
+  // folding sample? » en clair, des semaines après le « c'est traduit ».
+  // Un scanner ne vaut que ce que couvre sa liste de routes.
+  '/order/configure?productId=43',    // brochure — Fold Type (16 valeurs)
+  '/order/configure?productId=58',    // chemise de présentation — Pockets
+  '/order/configure?productId=14679', // livret — Binding, Cover, Lamination
   '/compare?ids=1,7,12',
   '/pricing',
   '/blog/comment-choisir-papier-cartes-de-visite',
