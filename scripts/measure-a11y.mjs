@@ -20,7 +20,16 @@
  *    principal mode de survol d'une page au lecteur d'écran ;
  *  · contraste du texte — seuils WCAG AA (4.5:1, ou 3:1 pour le grand texte).
  *
- * Usage : node scripts/measure-a11y.mjs [route…]   (défaut : toutes)
+ * Usage : node scripts/measure-a11y.mjs [route…]           (défaut : toutes)
+ *         THEME=dark node scripts/measure-a11y.mjs        (thème sombre)
+ *
+ * ⚠️ POURQUOI LE THÈME EST PARAMÉTRABLE (2026-08). Le thème sombre existait
+ * mais n'était atteignable que par le bouton du menu compte ; #568 l'a branché
+ * sur la préférence système, donc TOUT visiteur dont l'OS est en sombre le
+ * reçoit désormais — sans être connecté, sans avoir rien cliqué. Les contrastes
+ * de la palette sombre n'avaient jamais été mesurés sur les pages publiques :
+ * ouvrir un thème à tout le monde sans le vérifier, c'est déplacer le risque,
+ * pas le régler.
  */
 
 import { chromium } from '@playwright/test';
@@ -166,7 +175,15 @@ const AUDIT = () => {
 
 async function main() {
   const browser = await chromium.launch();
-  const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+  const theme = process.env.THEME === 'dark' ? 'dark' : 'light';
+  const contexte = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // Le cookie est lu en SSR (cf. lib/theme.ts) : la page arrive déjà dans le bon
+  // thème, sans bascule côté client qui fausserait la mesure de contraste.
+  if (theme === 'dark') {
+    const { hostname } = new URL(BASE_URL);
+    await contexte.addCookies([{ name: 'plio_theme', value: 'dark', domain: hostname, path: '/' }]);
+  }
+  const page = await contexte.newPage();
   let total = 0;
 
   console.log(`\nAudit a11y — ${BASE_URL}\n`);

@@ -298,7 +298,7 @@ function EmptyState() {
         style={{
           padding: '10px 18px',
           background: 'var(--accent-primary)',
-          color: '#fff',
+          color: 'var(--text-on-accent)',
           borderRadius: 'var(--r-pill)',
           fontSize: 13,
           fontWeight: 600,

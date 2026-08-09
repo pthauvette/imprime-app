@@ -211,7 +211,7 @@ export default function UserBulkBar() {
         style={{
           padding: '6px 14px',
           background: 'var(--accent-primary)',
-          color: '#fff',
+          color: 'var(--text-on-accent)',
           border: 'none',
           borderRadius: 'var(--r-pill)',
           fontSize: 12,
@@ -357,7 +357,7 @@ function EmailComposerModal({
           </button>
           <button
             type="button" onClick={onSend} disabled={!canSend}
-            style={{ padding: '8px 16px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: canSend ? 'pointer' : 'not-allowed', opacity: canSend ? 1 : 0.5, fontFamily: 'inherit' }}
+            style={{ padding: '8px 16px', background: 'var(--accent-primary)', color: 'var(--text-on-accent)', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: canSend ? 'pointer' : 'not-allowed', opacity: canSend ? 1 : 0.5, fontFamily: 'inherit' }}
           >
             {busy ? 'Envoi…' : `Envoyer (${recipientCount})`}
           </button>
@@ -370,7 +370,7 @@ function EmailComposerModal({
 const bulkBtnStyle: React.CSSProperties = {
   padding: '6px 14px',
   background: 'var(--accent-primary)',
-  color: '#fff',
+  color: 'var(--text-on-accent)',
   border: 'none',
   borderRadius: 'var(--r-pill)',
   fontSize: 12,

@@ -291,7 +291,7 @@ export default function QuoteActions({
             <button type="button" onClick={() => setOpenForm(null)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}>
               Annuler
             </button>
-            <button type="submit" disabled={busy} style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <button type="submit" disabled={busy} style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'var(--text-on-accent)', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               {busy ? '⏳ …' : 'Créer la commande + envoyer le lien'}
             </button>
           </div>

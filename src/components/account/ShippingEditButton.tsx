@@ -166,7 +166,7 @@ export default function ShippingEditButton({ orderId, status, current }: Props) 
                 style={{
                   padding: '10px 16px',
                   background: 'var(--accent-primary)',
-                  color: '#fff',
+                  color: 'var(--text-on-accent)',
                   border: 'none',
                   borderRadius: 'var(--r-md)',
                   cursor: submitting ? 'wait' : 'pointer',

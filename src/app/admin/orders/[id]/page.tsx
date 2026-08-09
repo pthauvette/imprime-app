@@ -233,7 +233,7 @@ export default async function AdminOrderDetailPage({
                             height: 28,
                             borderRadius: '50%',
                             background: 'var(--accent-primary)',
-                            color: '#fff',
+                            color: 'var(--text-on-accent)',
                             display: 'grid',
                             placeItems: 'center',
                             fontSize: 14,

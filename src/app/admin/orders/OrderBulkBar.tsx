@@ -285,7 +285,7 @@ export default function OrderBulkBar() {
             <button
               type="submit"
               disabled={busy}
-              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'var(--text-on-accent)', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
             >
               {busy ? '⏳ …' : `Ajouter à ${selectedIds.size}`}
             </button>
@@ -390,7 +390,7 @@ export default function OrderBulkBar() {
             <button
               type="submit"
               disabled={busy}
-              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'var(--text-on-accent)', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
             >
               {busy ? '⏳ …' : `Marquer ${shipPendingCount} expédiée${shipPendingCount > 1 ? 's' : ''}`}
             </button>
@@ -434,7 +434,7 @@ export default function OrderBulkBar() {
             style={{
               padding: '6px 14px',
               background: 'var(--accent-primary)',
-              color: '#fff',
+              color: 'var(--text-on-accent)',
               border: 'none',
               borderRadius: 'var(--r-pill)',
               fontSize: 12,

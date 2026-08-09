@@ -673,7 +673,12 @@ function Dropzone({
 
       <div
         style={{
-          background: isUploaded ? 'var(--paper-warm)' : 'white',
+          // Deux rôles dans un seul conteneur : une fois le fichier déposé,
+          // c'est le PAPIER sous l'aperçu (`--paper-warm`, ne bascule pas) ;
+          // vide, c'est une SURFACE d'interface qui porte des consignes en
+          // `--text-primary`. Le `white` en dur laissait ces consignes à
+          // 1,16:1 en thème sombre — illisible, sur le chemin d'achat.
+          background: isUploaded ? 'var(--paper-warm)' : 'var(--bg-surface)',
           borderRadius: 'var(--r-md)',
           padding: 32,
           display: 'grid',
@@ -975,7 +980,11 @@ function UploadedPreview({
       style={{
         width: '92%',
         aspectRatio: '7/4',
-        background: 'white',
+        // `white` en dur : en thème sombre le texte passait en clair sur ce
+        // fond resté blanc — « Glisse ton fichier ici » à 1,16:1, illisible, sur
+        // le chemin d'achat. C'est une SURFACE d'interface, pas un imprimé
+        // simulé : elle suit le thème (≠ .fc-card, cf. jetons --ink-*).
+        background: 'var(--bg-surface)',
         border: '1px solid var(--border-default)',
         borderRadius: 2,
         boxShadow: 'var(--shadow-md)',
