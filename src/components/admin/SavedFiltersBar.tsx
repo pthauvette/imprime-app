@@ -199,7 +199,7 @@ export default function SavedFiltersBar({ scope, basePath, initialFilters = [] }
             style={{
               padding: '4px 10px',
               background: 'var(--accent-primary)',
-              color: '#fff',
+              color: 'var(--text-on-accent)',
               border: 'none',
               borderRadius: 'var(--r-sm)',
               fontSize: 11,

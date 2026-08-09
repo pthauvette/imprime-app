@@ -60,7 +60,7 @@ export default function OrderError({
           style={{
             padding: '12px 24px',
             background: 'var(--accent-primary)',
-            color: '#fff',
+            color: 'var(--text-on-accent)',
             border: 'none',
             borderRadius: 'var(--r-pill)',
             fontSize: 14,

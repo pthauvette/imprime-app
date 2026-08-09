@@ -124,7 +124,7 @@ export default function ReviewReplyForm({
           style={{
             padding: '6px 14px',
             background: 'var(--accent-primary)',
-            color: '#fff',
+            color: 'var(--text-on-accent)',
             border: 'none',
             borderRadius: 'var(--r-sm)',
             fontSize: 12,

@@ -157,7 +157,7 @@ export default function ResellerGuidePage() {
                 display: 'inline-block',
                 padding: '14px 28px',
                 background: 'var(--accent-primary)',
-                color: '#fff',
+                color: 'var(--text-on-accent)',
                 borderRadius: 'var(--r-pill)',
                 textDecoration: 'none',
                 fontSize: 14,

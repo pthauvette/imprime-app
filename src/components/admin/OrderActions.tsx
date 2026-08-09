@@ -254,7 +254,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
                 <button type="button" onClick={() => setShipOpen(false)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}>
                   Annuler
                 </button>
-                <button type="submit" style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'var(--text-on-accent)', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   Marquer expédiée
                 </button>
               </div>

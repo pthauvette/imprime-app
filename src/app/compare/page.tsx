@@ -201,7 +201,10 @@ function EmptyState() {
           display: 'inline-block',
           padding: '12px 22px',
           background: 'var(--accent-primary)',
-          color: '#fff',
+          // `#fff` en dur sur un fond piloté par jeton : en thème sombre
+          // `--accent-primary` devient CLAIR, et le CTA tombait à 2,60:1.
+          // `--text-on-accent` est fait pour suivre ce fond.
+          color: 'var(--text-on-accent)',
           borderRadius: 'var(--r-pill)',
           textDecoration: 'none',
           fontSize: 14,
@@ -272,7 +275,7 @@ function ProductCard({
             top: -12,
             left: 12,
             background: 'var(--accent-primary)',
-            color: '#fff',
+            color: 'var(--text-on-accent)',
             fontSize: 10,
             fontFamily: 'var(--font-mono)',
             letterSpacing: '0.08em',

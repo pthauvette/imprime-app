@@ -294,7 +294,7 @@ export default function ProductOverrideActions({ productId, productName, overrid
             <button
               type="submit"
               disabled={busy}
-              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+              style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'var(--text-on-accent)', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
             >
               {busy ? '⏳ …' : formMeta.submitLabel}
             </button>

@@ -203,7 +203,7 @@ function ReviewCard({ review }: { review: ReviewForDisplay }) {
           height: 32,
           borderRadius: '50%',
           background: 'var(--accent-primary)',
-          color: '#fff',
+          color: 'var(--text-on-accent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
