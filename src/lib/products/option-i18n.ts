@@ -29,6 +29,16 @@
  * déjà curés de `virtual-products.ts` et `marketing-names.ts`.
  *
  * Toute valeur non reconnue retombe sur le nom brut — jamais de devinette.
+ *
+ * ⚠️ LES 16 NOMS DE PLIS RESTENT EN ANGLAIS, ET C'EST UNE DÉCISION.
+ * `Fold Type` propose « Half Fold », « Tri Fold », « Z Fold », « Roll Fold »,
+ * « Gate », « Double Parallel », « Score and Tri »… Ce sont des noms de pliages
+ * NORMALISÉS, et deux d'entre eux peuvent avoir le même nombre de volets tout
+ * en produisant un objet différent (« Tri Fold » ≠ « Z Fold »). Se tromper de
+ * terme, c'est faire recevoir au client un dépliant qui ne s'ouvre pas comme il
+ * l'imaginait — exactement le risque qui fait qu'on ne traduit pas les papiers.
+ * Le libellé du GROUPE est traduit (« Type de pli ») ; les valeurs attendent un
+ * glossaire validé par quelqu'un du métier. Ne pas les deviner.
  */
 
 import { isSidednessGroup, SIDEDNESS_LABEL } from './sidedness';
@@ -51,6 +61,19 @@ const GROUPES: Record<string, string> = {
   Bundling: 'Conditionnement',
   'Business Card Slit': 'Fente porte-carte',
   'Foil Color': 'Couleur du foil',
+  // Groupes découverts en 2026-08 sur les BROCHURES et LIVRETS — familles que
+  // ma mesure de #565 avait bien listées mais que mon scanner ne visitait pas,
+  // d'où l'impression que le travail était fini. Cf. la note en fin de fichier.
+  'Fold Type': 'Type de pli',
+  'Spot UV': 'Vernis sélectif',
+  'Do you have a folding sample?': 'As-tu un échantillon de pliage ?',
+  'Include Envelopes': 'Enveloppes incluses',
+  Dimensions: 'Dimensions',
+  Cover: 'Couverture',
+  Binding: 'Reliure',
+  Pockets: 'Poches',
+  Finishing: 'Finition',
+  Lamination: 'Lamination',
 };
 
 /**
@@ -124,9 +147,35 @@ export function optionValueFr(group: string, nom: string): string | null {
     return null;
   }
 
+  // ── Vernis sélectif : recto / recto-verso, même sémantique que les faces ──
+  if (group === 'Spot UV') {
+    if (/^one\s+sided$/i.test(v)) return 'Recto';
+    if (/^two\s+sided$/i.test(v)) return 'Recto-verso';
+    return null;
+  }
+
+  // ── Reliure : géométrie pure, aucune ambiguïté produit ───────────────────
+  if (group === 'Binding') {
+    if (/^long\s+edge\s*\/\s*portrait$/i.test(v)) return 'Bord long / Portrait';
+    if (/^short\s+edge\s*\/\s*landscape$/i.test(v)) return 'Bord court / Paysage';
+    return null;
+  }
+
+  // ── Poches (chemises de présentation) : géométrie ────────────────────────
+  if (group === 'Pockets') {
+    if (/^two\s+pockets$/i.test(v)) return 'Deux poches';
+    if (/^inside\s+right\s+pocket\s+only$/i.test(v)) return 'Poche intérieure droite seulement';
+    return null;
+  }
+
+  // ── Couverture : « Self Cover » décrit une CONSTRUCTION (même papier que
+  //    l'intérieur), pas un papier — traduisible sans risque. « 14pt Cover »
+  //    NOMME un papier : reste brut.
+  if (group === 'Cover' && /^self\s+cover$/i.test(v)) return 'Autocouverture (même papier que l’intérieur)';
+
   // ── Finition : uniquement l'ABSENCE, sans ambiguïté. Les noms de finitions
-  //    (« Gloss AQ », « Matte Finish ») restent bruts — cf. l'avertissement de
-  //    périmètre en tête de fichier.
+  //    (« Gloss AQ », « Matte Finish », « Matte Lamination 2 Sided ») restent
+  //    bruts — cf. l'avertissement de périmètre en tête de fichier.
   if (group === 'Coating' && /^no\s+coating$/i.test(v)) return 'Sans couche';
 
   return null;
