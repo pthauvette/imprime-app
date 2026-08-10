@@ -101,12 +101,21 @@ export default async function ComparePage({ searchParams }: PageProps) {
   return (
     <>
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 96px' }}>
-      <nav style={{ marginBottom: 12, fontSize: 12 }}>
-        <Link href={'/' as Route} style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>
+      {/* `alignItems: center` + les 44px des liens : la nav minimaliste est
+          VOULUE (deep-link SEO), mais ses deux liens mesuraient 15px de haut —
+          sous le minimum WCAG 2.5.8. */}
+      <nav style={{ marginBottom: 12, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <Link
+          href={'/' as Route}
+          style={{ color: 'var(--accent-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
+        >
           ← Plio
         </Link>
         {' · '}
-        <Link href={'/order/start' as Route} style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>
+        <Link
+          href={'/order/start' as Route}
+          style={{ color: 'var(--accent-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
+        >
           Tous les produits
         </Link>
       </nav>

@@ -193,7 +193,12 @@ export default function AboutPage() {
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
                 Email général
               </div>
-              <a href="mailto:bonjour@plio.ca" style={{ color: 'var(--accent-primary)', fontSize: 15, fontWeight: 600 }}>bonjour@plio.ca</a>
+              <a
+                href="mailto:bonjour@plio.ca"
+                /* 119×19 mesuré : lien de contact autonome, pas un lien en
+                   ligne dans une phrase — il lui faut une vraie cible. */
+                style={{ color: 'var(--accent-primary)', fontSize: 15, fontWeight: 600, display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
+              >bonjour@plio.ca</a>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Réponse en {SUPPORT_SLA}</div>
             </div>
             <div>

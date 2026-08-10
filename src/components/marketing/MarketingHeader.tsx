@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
+import MarketingMobileMenu from './MarketingMobileMenu';
 
 /**
  * Header partagé pour les pages marketing (about/pricing/contact/quote/
@@ -47,6 +48,8 @@ export default function MarketingHeader({ active }: { active?: MarketingNavKey }
   return (
     <nav className="mkt-nav">
       <Link href={'/' as Route} className="mkt-brand">Plio.</Link>
+
+      {/* Rendu BUREAU — masqué sous 700px, où le repli prend le relais. */}
       <div className="mkt-nav-links">
         {NAV_ITEMS.map((item) => (
           <Link
@@ -59,6 +62,14 @@ export default function MarketingHeader({ active }: { active?: MarketingNavKey }
         ))}
         <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
         <ClientHeaderUserSlot />
+      </div>
+
+      {/* Rendu MOBILE. Le CTA reste DEHORS, visible à toutes les largeurs :
+          c'est l'action de conversion (cf. MarketingMobileMenu). Les deux
+          rendus parcourent le même NAV_ITEMS — pas de seconde liste à tenir. */}
+      <div className="mkt-nav-mobile">
+        <Link href={'/order/start' as Route} className="mkt-nav-cta">Commander →</Link>
+        <MarketingMobileMenu items={NAV_ITEMS} active={active} />
       </div>
     </nav>
   );
