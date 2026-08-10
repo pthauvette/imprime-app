@@ -21,7 +21,6 @@ import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { formatCurrency } from '@/lib/format';
 import { listOrdersForUser, type OrderStatus } from '@/lib/db/orders';
 import { auth } from '@/auth';
-import { exigerTelephoneVerifie } from '@/lib/auth/require-phone';
 import { prisma } from '@/lib/db';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
 import { Icon } from '@/components/ui/Icon';
@@ -39,12 +38,10 @@ export default async function OrdersPage({
   // Middleware déjà rejette si non authentifié, mais on garde un fallback
   // pour les Server Components qui pourraient être rendus différemment.
   if (!session?.user) redirect('/sign-in?callbackUrl=/orders' as Route);
-  // Téléphone vérifié obligatoire. Inerte tant que Twilio n'est pas configuré
-  // (cf. require-phone.ts) : sans ce repli, déployer ce garde avant la config
-  // enfermerait tous les comptes dehors. NOTE : /settings est volontairement
-  // EXCLU du garde — c'est là que vit le panneau de vérification de secours,
-  // et le verrouiller couperait la seule porte de sortie.
-  await exigerTelephoneVerifie('/orders');
+  // Le garde « téléphone vérifié » vit désormais dans `orders/layout.tsx`, avec
+  // ses huit jumeaux : l'appeler ici ne couvrait ni /orders/[id] ni les huit
+  // autres surfaces de compte. L'exemption de /settings (panneau de
+  // vérification de secours) est conservée et documentée là-bas.
 
   // ─── Admin "view as user" — read-only impersonation ───────────────────
   // Feature support : un admin peut voir cette page comme un user
