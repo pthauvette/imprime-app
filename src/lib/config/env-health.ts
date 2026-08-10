@@ -78,6 +78,18 @@ const TWILIO_KEYS = [
   'TWILIO_VERIFY_SERVICE_SID',
 ] as const;
 
+/**
+ * Hôtes du SANDBOX Sinalite. Y pointer en production signifie que les commandes
+ * payées ne partent jamais en fabrication — sans la moindre erreur.
+ *
+ * ⚠️ `api.sinaliteuppy.com` est le sandbox pour l'API de TARIFICATION, mais
+ * c'est aussi le host LÉGITIME du endpoint de jeton, y compris en production
+ * (changelog Sinalite du 2021/07/27). On ne teste donc QUE `SINALITE_API_BASE`.
+ * Étendre ce contrôle à `SINALITE_AUTH_BASE` produirait une fausse alerte
+ * permanente — et une alerte permanente n'est plus lue.
+ */
+const SINALITE_SANDBOX_HOSTS = ['api.sinaliteuppy.com'];
+
 export interface EnvConfigReport {
   /** Noms des variables requises absentes — POUR LES LOGS, jamais pour une réponse HTTP publique. */
   missingRequired: string[];
@@ -94,6 +106,18 @@ export interface EnvConfigReport {
    * « l'onglet texto n'apparaît pas », qu'on ira chercher dans l'UI.
    */
   smsIncomplet: string[];
+  /**
+   * `SINALITE_API_BASE` pointe sur le SANDBOX alors qu'on tourne en production.
+   *
+   * Distinct de `missingRequired` : la variable est PRÉSENTE, le démarrage
+   * réussit, l'app sert des prix et accepte des paiements — mais les commandes
+   * partent chez un fournisseur fictif. Le défaut du code étant justement le
+   * sandbox (`client.ts`), l'oublier en console Amplify produit exactement cet
+   * état, en silence.
+   *
+   * Un booléen et non l'URL : ce rapport alimente un endpoint public.
+   */
+  sinaliteSandboxEnProd: boolean;
   /** true seulement si une variable REQUISE manque ET qu'on tourne en production. */
   failing: boolean;
 }
@@ -116,7 +140,17 @@ export function inspectEnvConfig(): EnvConfigReport {
   // des variables Twilio absentes sont l'état normal, pas une incohérence.
   const smsIncomplet = isSet('SMS_AUTH') ? TWILIO_KEYS.filter((k) => !isSet(k)) : [];
 
-  return { missingRequired, guardsInactive, smsIncomplet, failing };
+  // Hors production c'est l'état NORMAL et attendu — dev et CI travaillent
+  // contre le sandbox. Ne lever le drapeau qu'en production.
+  const base = (process.env.SINALITE_API_BASE ?? '').trim();
+  const sinaliteSandboxEnProd =
+    process.env.NODE_ENV === 'production' &&
+    // Absente = le défaut de `client.ts` s'applique, et ce défaut EST le
+    // sandbox. Une variable manquante est donc tout aussi fautive qu'une
+    // variable qui pointe explicitement dessus.
+    (base === '' || SINALITE_SANDBOX_HOSTS.some((h) => base.includes(h)));
+
+  return { missingRequired, guardsInactive, smsIncomplet, sinaliteSandboxEnProd, failing };
 }
 
 /** Exposées pour les tests — vérifier que ces listes ne divergent pas des

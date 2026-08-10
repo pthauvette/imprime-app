@@ -143,17 +143,27 @@ export async function GET() {
   // signal le rendrait vite ignoré.
   const envReport = inspectEnvConfig();
   const envCheck: CheckResult = {
-    status: envReport.failing ? 'fail' : 'pass',
+    // `config:env` n'est pas un check CRITIQUE : son `fail` devient un `warn`
+    // global en HTTP 200, jamais un 503. C'est précisément « alerter sans
+    // refuser le démarrage » (décision Patrick, 2026-08-10) — le site
+    // fonctionne, sert des prix et encaisse ; c'est la FABRICATION qui
+    // n'a pas lieu, et ça doit se voir sans faire chuter l'uptime.
+    status: envReport.failing || envReport.sinaliteSandboxEnProd ? 'fail' : 'pass',
     latencyMs: 0,
     ...(envReport.failing
       ? { error: `${envReport.missingRequired.length} variable(s) requise(s) absente(s) du runtime` }
-      : {}),
+      : envReport.sinaliteSandboxEnProd
+        ? { error: 'SINALITE_API_BASE pointe sur le sandbox en production' }
+        : {}),
     // ⚠️ Endpoint PUBLIC : des COMPTES, jamais les noms. Publier « ENFORCE_SHIPPING_SIG
     // est inactif » renseignerait un attaquant sur les gardes qu'il peut ignorer.
     detail: {
       missingRequired: envReport.missingRequired.length,
       guardsInactive: envReport.guardsInactive.length,
       smsIncomplet: envReport.smsIncomplet.length,
+      // Booléen et non l'URL — endpoint public. Il ne dit pas OÙ l'on pointe,
+      // seulement que la cible est le bac à sable.
+      sinaliteSandbox: envReport.sinaliteSandboxEnProd,
     },
   };
   // Les NOMS partent aux logs (privés) — c'est là que l'opérateur diagnostique.
@@ -170,6 +180,17 @@ export async function GET() {
     log.error(
       { manquantes: envReport.smsIncomplet },
       'config:env — SMS_AUTH=ON mais configuration Twilio INCOMPLÈTE : la connexion par texto reste éteinte',
+    );
+  }
+
+  // Journal SÉPARÉ et en `error` : ni « variable absente » ni « garde inactif »,
+  // mais « tout a l'air de marcher et rien ne se fabrique ». C'est le mode
+  // d'échec le plus coûteux du lot — un client paie, reçoit sa confirmation, et
+  // aucune presse ne tourne.
+  if (envReport.sinaliteSandboxEnProd) {
+    log.error(
+      { variable: 'SINALITE_API_BASE' },
+      'config:env — SINALITE_API_BASE pointe sur le SANDBOX en production : les commandes payées ne partiront JAMAIS en fabrication. Poser https://liveapi.sinalite.com',
     );
   }
 
