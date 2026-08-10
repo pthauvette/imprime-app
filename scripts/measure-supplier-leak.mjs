@@ -56,6 +56,12 @@ const ROUTES = [
   '/order/configure?productId=43',    // brochure — Fold Type (16 valeurs)
   '/order/configure?productId=58',    // chemise de présentation — Pockets
   '/order/configure?productId=14679', // livret — Binding, Cover, Lamination
+  // Ces deux étapes affichent désormais le NOM du produit dans leur
+  // récapitulatif (avant : « Produit #97 », ou rien du tout). Elles deviennent
+  // donc des surfaces de fuite possibles — on les ajoute EN MÊME TEMPS que le
+  // nom, pas après coup. C'est l'oubli inverse qui a produit #571.
+  '/order/upload?productId=1',
+  '/order/shipping?productId=1&options=30,4',
   '/compare?ids=1,7,12',
   '/pricing',
   '/blog/comment-choisir-papier-cartes-de-visite',

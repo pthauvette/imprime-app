@@ -6,6 +6,7 @@ import {
   supportsCustomSize,
   requiresRemotePricing,
 } from '@/lib/sinalite/pricing';
+import { applyProductOverrides } from '@/lib/products/overrides';
 import { getEnrichedVariantIndex } from '@/lib/products/pricing';
 import { withErrorHandler } from '@/lib/api-helpers';
 
@@ -32,10 +33,22 @@ export const GET = withErrorHandler(async (
 ) => {
   const { id } = ParamsSchema.parse(await ctx.params);
 
-  const [product, detail] = await Promise.all([
+  const [brut, detail] = await Promise.all([
     sinalite.getProduct(id),
     sinalite.getProductDetail(id),
   ]);
+
+  // ⚠️ `sinalite.getProduct` renvoie le nom FOURNISSEUR brut — « Business cards
+  // 14pt (Profit Maximizer) », « … (High Gloss) », « … (C1S) » : des paliers de
+  // marge et des codes d'atelier, jamais destinés au client. Rien ne fuyait
+  // encore par ici (les appelants ne lisaient que `category`), mais c'était un
+  // canal DORMANT : la même fuite a déjà atteint la production deux fois, sur
+  // /order/configure (#540) puis sur /compare (#563), à chaque fois parce que
+  // la couche de noms marketing existait sans être branchée partout.
+  // On l'applique donc À LA SOURCE, pour que le prochain appelant ne puisse
+  // plus se tromper. `applyProductOverrides` retombe sur le produit brut si la
+  // DB est injoignable — le catalogue continue de fonctionner.
+  const [product] = await applyProductOverrides([brut]);
 
   // Group options by `group` name for UI consumption
   const optionsByGroup = detail.options.reduce<Record<string, typeof detail.options>>(
@@ -47,7 +60,7 @@ export const GET = withErrorHandler(async (
   );
 
   return NextResponse.json({
-    product,
+    product: product ?? brut,
     optionGroups: optionsByGroup,
     metadata: detail.metadata,
     flags: {

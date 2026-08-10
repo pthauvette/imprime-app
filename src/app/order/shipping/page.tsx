@@ -14,6 +14,8 @@ import type { Route } from 'next';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import type { CaProvince } from '@/lib/sinalite/types';
 import { Icon } from '@/components/ui/Icon';
+import ProductMockup from '@/components/wizard/ProductMockup';
+import { useProductIdentity } from '@/hooks/useProductIdentity';
 import { readSavedShip, writeSavedShip } from '@/lib/cart/ship-store';
 import { buildShipPayload } from '@/lib/order/ship-payload';
 import AddressAutocomplete from '@/components/order/AddressAutocomplete';
@@ -75,6 +77,10 @@ function ShippingPageInner() {
   const productId = searchParams.get('productId');
   const options = searchParams.get('options') ?? '';
   const files = searchParams.get('files') ?? '';
+  // Identité produit du récapitulatif — même hook qu'à l'étape fichiers.
+  const identite = useProductIdentity(productId);
+  const nbOptions = options.split(',').filter(Boolean).length;
+  const nbFichiers = files.split('|').filter(Boolean).length;
 
   // Form state
   // Init avec strings vides — on hydrate depuis localStorage dans useEffect
@@ -439,10 +445,28 @@ function ShippingPageInner() {
         <aside className="recap">
           <div>
             <div className="recap-section-label">Ta commande</div>
-            <div style={{ marginTop: 16, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              <div>Produit #{productId}</div>
-              <div>Options: {options.split(',').length} sélections</div>
-              <div>Fichiers: {files.split('|').filter(Boolean).length} uploadé(s)</div>
+            {/* Affichait « Produit #97 » — un identifiant interne Sinalite, au
+                dernier écran avant le paiement. Le client vérifiait sa commande
+                sans jamais voir CE QU'il achète. */}
+            <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ flex: '0 0 auto' }}>
+                <ProductMockup
+                  shape={identite.shape}
+                  finish={identite.finish}
+                  spec={identite.spec}
+                  seed={identite.nom ?? undefined}
+                  height={44}
+                />
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, minWidth: 0 }}>
+                {/* Tant que le nom n'est pas résolu on n'affiche RIEN plutôt
+                    qu'un numéro interne ou un libellé inventé. */}
+                {identite.nom && (
+                  <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{identite.nom}</div>
+                )}
+                <div>{nbOptions} option{nbOptions > 1 ? 's' : ''} choisie{nbOptions > 1 ? 's' : ''}</div>
+                <div>{nbFichiers} fichier{nbFichiers > 1 ? 's' : ''} téléversé{nbFichiers > 1 ? 's' : ''}</div>
+              </div>
             </div>
           </div>
           <div>
