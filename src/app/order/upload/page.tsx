@@ -18,6 +18,8 @@ import type { Route } from 'next';
 import { useState, useEffect, useRef, Suspense, type ChangeEvent, type DragEvent } from 'react';
 import PdfMarginOverlay from '@/components/upload/PdfMarginOverlay';
 import { Icon } from '@/components/ui/Icon';
+import ProductMockup from '@/components/wizard/ProductMockup';
+import { useProductIdentity } from '@/hooks/useProductIdentity';
 import ClientHeaderUserSlot from '@/components/account/ClientHeaderUserSlot';
 import {
   getMarginSpecBySinaliteCategory,
@@ -42,6 +44,8 @@ function UploadPageInner() {
   const productId = searchParams.get('productId');
   const options = searchParams.get('options') ?? '';
   const designId = searchParams.get('designId');
+  // Identité produit du récapitulatif — même hook qu'à l'étape livraison.
+  const identiteProduit = useProductIdentity(productId);
 
   const [recto, setRecto] = useState<UploadedFile | null>(null);
   const [verso, setVerso] = useState<UploadedFile | null>(null);
@@ -304,6 +308,31 @@ function UploadPageInner() {
             sans exception dédiée faisait disparaître le bloc de réassurance
             (S3/90j/prépresse) sur mobile, sans repli visible ailleurs. */}
         <aside className="recap recap-upload">
+          {/* On demandait de téléverser un fichier sans jamais rappeler POUR
+              QUEL produit — aucune identité produit sur cet écran. C'est
+              pourtant là que le client doit vérifier qu'il exporte au bon
+              format. Même hook qu'à l'étape livraison. */}
+          {identiteProduit.nom && (
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <ProductMockup
+                shape={identiteProduit.shape}
+                finish={identiteProduit.finish}
+                spec={identiteProduit.spec}
+                seed={identiteProduit.nom}
+                height={44}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {identiteProduit.nom}
+                </div>
+                {expectedDims && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {expectedDims.widthIn} × {expectedDims.heightIn} po
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div>
             <div className="recap-section-label">Fichiers</div>
             <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
