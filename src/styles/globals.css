@@ -10279,3 +10279,111 @@ a, button, [role="button"], input[type="checkbox"] {
     --shadow-accent: 0 8px 24px -8px rgba(111, 174, 137, .35);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MENU MOBILE DE LA BARRE MARKETING (2026-08)
+   Mesuré avant : la barre n'avait aucune bascule mobile, ses 6 liens + CTA +
+   bloc compte passaient à la ligne et occupaient 209px = 26% d'un écran de
+   812px, avant tout contenu. Cf. scripts/measure-tap-targets.mjs.
+
+   En FIN DE FICHIER à dessein : `migrated-pages.css` redéfinit `.mkt-nav`
+   (flex-wrap) et `.mkt-nav-links` (width:100%) — on gagne par ordre source.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mkt-nav-mobile { display: none; }
+
+@media (max-width: 700px) {
+  /* Le rendu bureau disparaît ; c'est lui qui coûtait les 209px. */
+  .mkt-nav-links { display: none; }
+
+  .mkt-nav-mobile { display: flex; align-items: center; gap: 8px; }
+
+  /* Le CTA reste DANS la barre — action de conversion, jamais repliée. */
+  .mkt-nav-mobile .mkt-nav-cta { font-size: 13px; padding: 10px 14px; }
+}
+
+/* 44×44 : minimum tactile Apple, et bien au-dessus des 24px de WCAG 2.5.8. */
+.mkt-burger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* `flex: none` et pas seulement `width` : mesuré, le bouton tombait à 24×44
+     UNE FOIS OUVERT — comme tout item de flex il est rétrécissable par défaut,
+     et c'est justement la cible qu'il faut atteindre pour refermer. */
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-md);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.mkt-burger:hover { background: var(--bg-sunken); }
+
+/* Panneau DANS LE FLUX (et non en survol) : il pousse le contenu au lieu de le
+   recouvrir. Pas de z-index à arbitrer, pas de blocage du défilement à gérer,
+   et rien ne peut se retrouver masqué dessous. `.mkt-nav` a déjà
+   `flex-wrap: wrap` (migrated-pages.css) : le panneau prend donc sa propre
+   ligne tout seul. */
+.mkt-menu-panel {
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-default);
+}
+.mkt-menu-panel[hidden] { display: none; }
+
+.mkt-menu-panel nav { display: flex; flex-direction: column; }
+
+.mkt-menu-link {
+  display: flex;
+  align-items: center;
+  /* 48px : on a la place en pleine largeur, autant viser la recommandation
+     Google plutôt que le strict minimum. */
+  min-height: 48px;
+  padding: 0 4px;
+  font-size: 16px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-subtle, var(--border-default));
+}
+.mkt-menu-link:last-of-type { border-bottom: 0; }
+.mkt-menu-link.active { color: var(--accent-primary); font-weight: 600; }
+
+.mkt-menu-compte {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 4px;
+  border-top: 1px solid var(--border-default);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLANCHER TACTILE DE LA CHROME (2026-08) — fils d'Ariane, liens de retour,
+   coordonnées. Mesurés entre 15 et 22px de haut, sous le minimum WCAG 2.5.8
+   (24px). Le TEXTE ne change pas de taille : c'est la zone atteignable au
+   pouce qui manquait, faute de rembourrage.
+
+   Borné à ≤700px À DESSEIN : à la souris ces liens sont parfaitement
+   utilisables, et leur imposer 44px déformerait des mises en page denses
+   (fil d'Ariane du configurateur, colonne de coordonnées) sans rien gagner.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 700px) {
+  .blog-breadcrumb a,
+  .shell-header .breadcrumb a,
+  .auth-back,
+  .legal-back,
+  .contact-sidebar .row a,
+  .legal-body li > a[href^="mailto:"] {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* Le fil d'Ariane devient une rangée de 44px : on l'aligne pour qu'il ne
+     paraisse pas flotter au-dessus du titre. */
+  .blog-breadcrumb { align-items: center; }
+}

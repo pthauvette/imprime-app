@@ -58,8 +58,11 @@ export default function ClientHeaderUserSlot({
   }, []);
 
   if (!loaded) {
-    // Placeholder de la même taille que l'avatar pour éviter layout shift
-    return <div aria-hidden style={{ width: 36, height: 36 }} />;
+    // Placeholder de la même taille que l'avatar pour éviter layout shift.
+    // Hauteur alignée sur les 44px du lien « Se connecter » ci-dessous : le
+    // placeholder doit couvrir le PLUS GRAND des deux rendus possibles, sinon
+    // la barre sursaute de 8px à la résolution de la session.
+    return <div aria-hidden style={{ width: 36, height: 44 }} />;
   }
 
   if (!user || !user.email) {
@@ -68,6 +71,14 @@ export default function ClientHeaderUserSlot({
       <a
         href={signInHref}
         style={{
+          // Mesuré à 83×20px en prod sur presque toutes les pages publiques :
+          // sous le minimum WCAG 2.5.8 (24px) et à moins de la moitié des 44px
+          // recommandés. Le texte ne change pas de taille — c'est la ZONE
+          // CLIQUABLE qui manquait, faute du moindre rembourrage.
+          display: 'inline-flex',
+          alignItems: 'center',
+          minHeight: 44,
+          padding: '0 4px',
           fontSize: 13,
           color: 'var(--text-secondary)',
           textDecoration: 'none',
