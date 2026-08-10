@@ -60,9 +60,10 @@ describe('laisse passer ce qui est VOULU', () => {
     expect(detecte('16PT Printed 1 Side (4/0)')).toBe(false);
   });
 
-  it('les NOMS DE PLIS restent tolérés — décision, pas oubli', () => {
+  it('les NOMS DE PLIS restent tolérés — tranché par Patrick le 2026-08-10', () => {
     // « Tri Fold » ≠ « Z Fold » alors que les deux font trois volets. Traduire
     // de travers ferait recevoir un dépliant qui ne s'ouvre pas comme prévu.
+    // La question « faut-il un glossaire FR ? » est CLOSE : garder l'anglais.
     for (const pli of ['Half Fold', 'Tri Fold', 'Z Fold', 'Roll Fold', 'Double Parallel',
                        'Score and Tri', '4 Panel Accordion Fold', '8 Page Fold']) {
       expect(detecte(`Type de pli\n${pli}`), `${pli} ne doit PAS être signalé`).toBe(false);

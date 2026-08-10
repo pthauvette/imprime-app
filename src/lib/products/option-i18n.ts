@@ -37,8 +37,12 @@
  * en produisant un objet différent (« Tri Fold » ≠ « Z Fold »). Se tromper de
  * terme, c'est faire recevoir au client un dépliant qui ne s'ouvre pas comme il
  * l'imaginait — exactement le risque qui fait qu'on ne traduit pas les papiers.
- * Le libellé du GROUPE est traduit (« Type de pli ») ; les valeurs attendent un
- * glossaire validé par quelqu'un du métier. Ne pas les deviner.
+ *
+ * ✅ TRANCHÉ PAR PATRICK LE 2026-08-10 : « garder en anglais ». Ce n'est plus
+ * une attente de glossaire, c'est la position retenue. Le libellé du GROUPE
+ * reste traduit (« Type de pli »), les 16 valeurs restent telles quelles.
+ * Quiconque voudrait rouvrir le sujet doit d'abord obtenir les termes que les
+ * clients de l'atelier reconnaissent — pas les dériver.
  */
 
 import { isSidednessGroup, SIDEDNESS_LABEL } from './sidedness';
