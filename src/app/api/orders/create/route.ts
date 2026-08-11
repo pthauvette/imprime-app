@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sinalite } from '@/lib/sinalite/client';
 import { CaProvince, CaPostalCode, ShipMethod, type SinaliteOrderRequest } from '@/lib/sinalite/types';
+import { composerNotes } from '@/lib/sinalite/order-notes';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { findOrCreateUserByEmail } from '@/lib/db/orders';
 import { createReservedOrder, InsufficientCreditError } from '@/lib/orders/credit-reservation';
@@ -46,7 +47,7 @@ const CreateOrderSchema = z.object({
       url: z.string().url(),
     })).min(1),
     /** Internal reseller ID — passed as `extra` to Sinalite. */
-    internalRef: z.string().optional(),
+    internalRef: z.string().max(64).optional(),
   })).min(1),
 
   contact: z.object({
@@ -95,7 +96,7 @@ const CreateOrderSchema = z.object({
   /** Sub-total computed by client — server WILL recompute and verify. */
   expectedSubtotal: z.number().nonnegative(),
 
-  notes: z.string().optional(),
+  notes: z.string().max(500).optional(),
 
   /**
    * Optional : si le user vient de l'éditeur de template, lier l'order au
@@ -578,11 +579,15 @@ function buildSinalitePayload(
   };
 }
 
-/** Round 26 #2 — combine note customer livraison + notes générales. */
+/**
+ * Round 26 #2 — note client + notes générales, désormais via la SOURCE UNIQUE
+ * `composerNotes` partagée avec le chemin MCP (qui n'avait, lui, aucun plafond
+ * de longueur ni nettoyage sur un champ pourtant saisi par le client).
+ *
+ * Pas de référence de commande ici : l'id Plio n'existe pas encore quand cet
+ * instantané est figé. Elle est injectée à la SOUMISSION (stripe-process).
+ */
 function buildSinaliteNotes(shippingNote: string | undefined, notes: string | undefined): { notes?: string } {
-  const parts: string[] = [];
-  if (shippingNote) parts.push(`Livraison: ${shippingNote}`);
-  if (notes) parts.push(notes);
-  if (parts.length === 0) return {};
-  return { notes: parts.join('\n').slice(0, 500) };
+  const notesComposees = composerNotes({ shippingNote, notes });
+  return notesComposees ? { notes: notesComposees } : {};
 }

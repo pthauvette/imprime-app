@@ -54,6 +54,10 @@ describe('buildMcpSinalitePayload', () => {
       items: [{ productId: 2, optionIds: [30, 5, 203], fileUrl: 'https://plio-uploads.s3.ca-central-1.amazonaws.com/uploads/u1/a.pdf' }],
     });
     expect(() => SinaliteOrderRequest.parse(payload)).not.toThrow();
-    expect(payload.notes).toBe('Sonner à l\'interphone');
+    // Le préfixe « Livraison: » est ASSUMÉ : le chemin MCP passait le texte
+    // client brut, sans plafond ni nettoyage, là où le checkout web composait
+    // déjà. Les deux partagent désormais `composerNotes` — l'atelier lit la
+    // même chose quelle que soit la porte d'entrée de la commande.
+    expect(payload.notes).toBe('Livraison: Sonner à l\'interphone');
   });
 });

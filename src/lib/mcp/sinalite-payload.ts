@@ -7,6 +7,7 @@
  * jamais le customer_email Stripe ni le destinataire du courriel Plio (ceux-là =
  * email du COMPTE titulaire de la clé, cf. revue : anti-spam/phishing de tiers).
  */
+import { composerNotes } from '@/lib/sinalite/order-notes';
 import type { SinaliteOrderRequest, CaProvince, ShipMethod } from '@/lib/sinalite/types';
 import type { sinalite } from '@/lib/sinalite/client';
 import { toDeliverableUrl } from '@/lib/storage/artwork-url';
@@ -106,6 +107,11 @@ export function buildMcpSinalitePayload(input: {
       BillCountry: 'CA' as const,
       BillPhone: input.contact.phone,
     },
-    ...(input.shippingNote ? { notes: input.shippingNote } : {}),
+    // Passait le texte client BRUT, sans plafond ni nettoyage, vers un système
+    // tiers. Même composition que le checkout web depuis 2026-08.
+    ...(() => {
+      const n = composerNotes({ shippingNote: input.shippingNote });
+      return n ? { notes: n } : {};
+    })(),
   };
 }

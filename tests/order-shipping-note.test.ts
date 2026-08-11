@@ -8,6 +8,7 @@
  *     (le builder est privé donc on test via le contract)
  */
 
+import { composerNotes } from '@/lib/sinalite/order-notes';
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
@@ -51,12 +52,18 @@ describe('shippingNote Zod validation', () => {
  * recomposition manuelle ici — ce test lock-in l'invariant "shipping
  * note prefixée dans Sinalite notes, max 500 chars".
  */
+/**
+ * ⚠️ ON IMPORTE LA VRAIE FONCTION — ce fichier en tenait une COPIE locale.
+ *
+ * Le test passait donc au vert sur son propre double pendant que la production
+ * faisait autre chose : quand la composition a changé (source unique partagée
+ * avec le chemin MCP), ce fichier — SEUL verrou sur « plafond 500 » et
+ * « séparé par un saut de ligne » — n'a rien vu. Un test miroir sur le chemin
+ * money est pire qu'aucun test : il donne l'assurance sans la couverture.
+ */
 function buildSinaliteNotes(shippingNote: string | undefined, notes: string | undefined): { notes?: string } {
-  const parts: string[] = [];
-  if (shippingNote) parts.push(`Livraison: ${shippingNote}`);
-  if (notes) parts.push(notes);
-  if (parts.length === 0) return {};
-  return { notes: parts.join('\n').slice(0, 500) };
+  const n = composerNotes({ shippingNote, notes });
+  return n ? { notes: n } : {};
 }
 
 describe('buildSinaliteNotes (Round 26 #2 forwarding contract)', () => {
