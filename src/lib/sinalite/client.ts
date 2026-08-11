@@ -29,6 +29,7 @@ import {
 } from './types';
 import { withSinaliteCache, SINALITE_CATALOG_TTL_MS } from './cache';
 import { detecterFormeProduit, FormeProduitNonSupportee } from './product-shape';
+import { assainirChaines } from './order-notes';
 import { log } from '@/lib/logger';
 
 // ─── ENV (lazy) ─────────────────────────────────────────────────────────────
@@ -406,9 +407,19 @@ export const sinalite = {
 
   /** POST /order/new — débite le wallet Sinalite et déclenche la production. */
   async createOrder(payload: SinaliteOrderRequest) {
+    // On valide D'ABORD (les bornes portent sur ce que le client a envoyé),
+    // puis on assainit ce qu'on SÉRIALISE. `assainirChaines` ne fait que rendre
+    // les chaînes sérialisables : un demi-surrogate orphelin dans n'importe
+    // quel champ — une adresse, un nom, un téléphone — fait refuser le corps
+    // ENTIER par le fournisseur, et l'échec tombe après encaissement.
+    //
+    // Ici et pas champ par champ : c'est le seul point de convergence des deux
+    // chemins de soumission, donc la couverture des champs FUTURS est acquise
+    // par construction.
+    const valide = SinaliteOrderRequest.parse(payload);
     return request('/order/new', {
       method: 'POST',
-      body: JSON.stringify(SinaliteOrderRequest.parse(payload)),
+      body: JSON.stringify(assainirChaines(valide)),
       schema: SinaliteOrderResponse,
     });
   },

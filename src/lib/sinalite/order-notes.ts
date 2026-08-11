@@ -184,3 +184,60 @@ export function enrichirPayloadSoumis<
     ...(notes ? { notes } : {}),
   };
 }
+
+/**
+ * Assainit RÉCURSIVEMENT toutes les chaînes d'un payload avant envoi au
+ * fournisseur.
+ *
+ * POURQUOI CE BALAYAGE PLUTÔT QU'UN NETTOYAGE PAR CHAMP. Le durcissement de
+ * `notes` et `extra` fermait deux portes sur une douzaine. `firstName`,
+ * `lastName`, `phone`, `line1`, `line2`, `city` sont tous des
+ * `z.string().min(1)` sans nettoyage, saisis par le client, et ils partent
+ * bruts dans `shippingInfo`/`billingInfo`.
+ *
+ * L'attaque : `{"shippingAddress":{"line2":"app \ud83d 3"}}`. `JSON.parse`
+ * accepte un demi-surrogate orphelin, Zod aussi, Postgres le stocke échappé —
+ * et le `json_decode` du fournisseur REFUSE le corps entier
+ * (`JSON_ERROR_UTF16`). L'échec tombe donc APRÈS encaissement : remboursement
+ * automatique, frais Stripe perdus, et une alerte qui ressemble trait pour
+ * trait à une panne fournisseur. Répété par script, ça saigne les frais et
+ * noie le canal d'alerte — le jour où Sinalite tombe pour de vrai, l'alerte
+ * est déjà du bruit.
+ *
+ * Nettoyer champ par champ laisserait passer le PROCHAIN champ ajouté. Ici la
+ * couverture est acquise par construction.
+ *
+ * ⚠️ À APPELER APRÈS `parse`, JAMAIS AVANT. C'est le parse qui applique les
+ * valeurs par défaut et retire les clés inconnues ; assainir d'abord ferait
+ * re-trouer le résultat ensuite. La signature générique est volontairement
+ * permissive — cette contrainte-là n'est pas exprimable dans le type.
+ *
+ * ⚠️ CE N'EST PAS UNE VALIDATION. `bienForme` ne fait que rendre la chaîne
+ * sérialisable : elle ne tronque pas, ne borne pas, ne juge pas le contenu.
+ * Les bornes restent la responsabilité des schémas Zod à la frontière.
+ */
+export function assainirChaines<T>(valeur: T): T {
+  if (typeof valeur === 'string') return bienForme(valeur) as T;
+  if (Array.isArray(valeur)) return valeur.map((v) => assainirChaines(v)) as T;
+  // `null` est `typeof 'object'`, et un objet à prototype exotique (Date, Map)
+  // serait détruit par la reconstruction — on ne touche qu'aux objets simples.
+  if (valeur !== null && typeof valeur === 'object' && Object.getPrototypeOf(valeur) === Object.prototype) {
+    return Object.fromEntries(
+      // La CLÉ aussi : le premier jet ne balayait que les valeurs, alors que
+      // `items[].options` est un `z.record` dont les clés viennent du
+      // catalogue fournisseur. Non exploitable par un client aujourd'hui, mais
+      // le docstring affirmait « couverture acquise par construction » — une
+      // demi-couverture annoncée comme totale est pire qu'une limite écrite.
+      //
+      // ⚠️ COLLISION POSSIBLE : `A\uD800` et `A\uD801` deviennent le même
+      // `A\uFFFD`, et `Object.fromEntries` garde le DERNIER — une clé
+      // disparaîtrait en silence. Sur `items[].options`, ce serait une option
+      // perdue, donc le mauvais produit imprimé après encaissement. Aujourd'hui
+      // inatteignable (ces clés viennent du catalogue fournisseur), mais on
+      // troque un refus bruyant contre une impression silencieusement fausse :
+      // à surveiller si un jour une clé devient saisissable.
+      Object.entries(valeur as Record<string, unknown>).map(([k, v]) => [bienForme(k), assainirChaines(v)]),
+    ) as T;
+  }
+  return valeur;
+}
