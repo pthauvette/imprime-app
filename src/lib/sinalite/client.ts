@@ -28,6 +28,8 @@ import {
   type StoreCode,
 } from './types';
 import { withSinaliteCache, SINALITE_CATALOG_TTL_MS } from './cache';
+import { detecterFormeProduit, FormeProduitNonSupportee } from './product-shape';
+import { log } from '@/lib/logger';
 
 // ─── ENV (lazy) ─────────────────────────────────────────────────────────────
 
@@ -299,10 +301,34 @@ export const sinalite = {
     // Round 36 #3 — TTL 10 min, même rationale que listProducts
     return withSinaliteCache(`/product/${id}/${this.storeCode}`,
       async () => {
-        const data = await request(`/product/${id}/${this.storeCode}`, {
+        // BRUT d'abord : c'est le parsing Zod lui-même qui échoue sur la forme
+        // « étiquette en rouleau », donc il faut regarder AVANT lui. Sans ça,
+        // trois produits vendables rendaient un 502 et le configurateur
+        // annonçait « service temporairement indisponible » — alors que la
+        // cause est structurelle et permanente.
+        const brut = await request(`/product/${id}/${this.storeCode}`, {
           method: 'GET',
-          schema: SinaliteProductDetail,
+          schema: z.unknown(),
         });
+        const forme = detecterFormeProduit(brut);
+        if (forme !== 'standard') {
+          // Journal ENVELOPPÉ : constaté en dev, un `log.error` dont le worker
+          // pino est mort lève une uncaughtException et transforme une erreur
+          // typée et propre en plantage de requête. Le garde doit produire son
+          // erreur même quand le journal échoue — c'est lui le contrat, pas la
+          // ligne de log.
+          try {
+            log.error(
+              { productId: id, forme },
+              "sinalite:product — structure d'options non supportée. Ce produit ne peut PAS être configuré en ligne : le masquer via ProductOverride.disabled ou le router vers un devis sur mesure.",
+            );
+          } catch {
+            // Rien à faire de plus : l'erreur levée juste après porte déjà
+            // l'id et la marche à suivre.
+          }
+          throw new FormeProduitNonSupportee(id, forme);
+        }
+        const data = SinaliteProductDetail.parse(brut);
         return {
           options: data[0],
           pricing: data[1],
