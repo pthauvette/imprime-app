@@ -68,7 +68,21 @@ export default function SignInSms({ callbackUrl }: { callbackUrl: string }) {
         // Message VOLONTAIREMENT identique quel que soit l'échec réel (code
         // erroné, expiré, ou numéro sans compte) : distinguer ces cas
         // transformerait l'écran en test « ce numéro a-t-il un compte ? ».
-        setErreur('Code invalide ou expiré. Vérifie les chiffres, ou demande un nouveau code.');
+        //
+        // ⚠️ MAIS IL DOIT ÊTRE VRAI DANS LES TROIS CAS. L'ancien texte —
+        // « Code invalide ou expiré » — affirmait quelque chose de FAUX pour
+        // le troisième : le code venait d'être validé par Twilio, seul le
+        // rattachement manquait. Signalé en production sur un vrai numéro :
+        // l'utilisateur revérifie ses chiffres, redemande un code, recommence,
+        // et rien ne peut marcher tant qu'il ignore la vraie cause.
+        //
+        // La formulation ci-dessous couvre les trois causes sans en désigner
+        // aucune — donc aucun oracle — et nomme la seule action qui débloque.
+        setErreur(
+          'Connexion impossible. Le code peut être erroné ou expiré, ou ce numéro ' +
+            'peut ne pas encore être rattaché à un compte Plio. Connecte-toi par ' +
+            'courriel, puis rattache ton numéro dans tes réglages.',
+        );
         return;
       }
       window.location.href = res?.url ?? callbackUrl;
