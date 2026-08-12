@@ -20,6 +20,7 @@
 import Stripe from 'stripe';
 import { sinalite } from '@/lib/sinalite/client';
 import { SinaliteOrderRequest } from '@/lib/sinalite/types';
+import { enrichirPayloadSoumis } from '@/lib/sinalite/order-notes';
 import { prisma } from '@/lib/db';
 import {
   markOrderPaid,
@@ -458,9 +459,20 @@ async function handlePaymentSucceeded(
     return;
   }
 
-  let sinalitePayload: SinaliteOrderRequest;
+  let payloadSoumis: SinaliteOrderRequest;
   try {
-    sinalitePayload = SinaliteOrderRequest.parse(JSON.parse(order.sinalitePayload));
+    const instantane = SinaliteOrderRequest.parse(JSON.parse(order.sinalitePayload));
+    // ⚠️ DANS LE MÊME try/catch QUE LE PARSE, à dessein. On est ici APRÈS la
+    // transition irréversible PENDING→PAID : une levée non rattrapée
+    // laisserait une commande payée, wallet débité, jamais soumise — et
+    // SILENCIEUSE, car le rejeu Stripe ressort en amont sur
+    // `status !== 'PENDING'` en rendant 200, ce qui efface la ligne
+    // dead-letter. Le gestionnaire d'erreur du webhook n'alerte PAS : c'est
+    // `markOrderFailed` qui rend l'échec visible.
+    //
+    // SEULE DÉVIATION par rapport à l'instantané : du texte libre. Les
+    // articles, options, fichiers et montants sont rejoués tels quels.
+    payloadSoumis = enrichirPayloadSoumis(instantane, order.id);
   } catch (err) {
     await markOrderFailed({
       orderId: order.id,
@@ -471,7 +483,7 @@ async function handlePaymentSucceeded(
   }
 
   try {
-    const result = await sinalite.createOrder(sinalitePayload);
+    const result = await sinalite.createOrder(payloadSoumis);
     await markOrderSubmitted({
       orderId: order.id,
       sinaliteOrderId: result.orderId,

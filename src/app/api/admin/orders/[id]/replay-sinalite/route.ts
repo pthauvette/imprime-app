@@ -7,121 +7,146 @@
  *   - L'admin veut force-resync
  */
 
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { withErrorHandler } from '@/lib/api-helpers';
-import { requireAdmin } from '@/lib/admin-auth';
-import { recordAdminAudit } from '@/lib/db/admin-audit';
-import { sinalite } from '@/lib/sinalite/client';
-import { SinaliteOrderRequest } from '@/lib/sinalite/types';
-import { markOrderSubmitted, markOrderFailed } from '@/lib/db/orders';
-import { sendOrderConfirmationEmail } from '@/lib/emails/send';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { withErrorHandler } from "@/lib/api-helpers";
+import { requireAdmin } from "@/lib/admin-auth";
+import { recordAdminAudit } from "@/lib/db/admin-audit";
+import { sinalite } from "@/lib/sinalite/client";
+import { enrichirPayloadSoumis } from "@/lib/sinalite/order-notes";
+import { SinaliteOrderRequest } from "@/lib/sinalite/types";
+import { markOrderSubmitted, markOrderFailed } from "@/lib/db/orders";
+import { sendOrderConfirmationEmail } from "@/lib/emails/send";
 
-export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const guard = await requireAdmin();
-  if (!guard.ok) return guard.response;
+export const POST = withErrorHandler(
+  async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
+    const guard = await requireAdmin();
+    if (!guard.ok) return guard.response;
 
-  const { id } = await ctx.params;
+    const { id } = await ctx.params;
 
-  const order = await prisma.order.findUnique({
-    where: { id },
-    include: { user: true },
-  });
-  if (!order) {
-    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-  }
-  if (order.sinaliteOrderId) {
-    return NextResponse.json(
-      { error: 'Order already submitted to Sinalite', sinaliteOrderId: order.sinaliteOrderId },
-      { status: 400 },
-    );
-  }
-  if (order.status === 'PENDING' || order.status === 'CANCELLED') {
-    return NextResponse.json(
-      { error: `Cannot replay an order in ${order.status} status` },
-      { status: 400 },
-    );
-  }
-  // finding [129] — commande manuelle depuis un devis sur mesure (production
-  // hors Sinalite) : sinalitePayload est un JSON inerte, jamais un vrai
-  // SinaliteOrderRequest. Sans ce guard, on tombe quand même proprement sur
-  // l'erreur de parse ci-dessous (fail-safe), mais avec un message cryptique —
-  // défense en profondeur explicite ici.
-  if (order.skipSinaliteSubmission) {
-    return NextResponse.json(
-      { error: 'Commande manuelle (devis sur mesure) — production gérée hors Sinalite, rien à soumettre.' },
-      { status: 400 },
-    );
-  }
-
-  let payload;
-  try {
-    payload = SinaliteOrderRequest.parse(JSON.parse(order.sinalitePayload));
-  } catch {
-    return NextResponse.json({ error: 'Invalid sinalitePayload snapshot' }, { status: 500 });
-  }
-
-  try {
-    const result = await sinalite.createOrder(payload);
-    await markOrderSubmitted({ orderId: order.id, sinaliteOrderId: result.orderId });
-    // Best-effort confirmation email (now that we have a Sinalite ID)
-    const fresh = await prisma.order.findUnique({
-      where: { id: order.id },
+    const order = await prisma.order.findUnique({
+      where: { id },
       include: { user: true },
     });
-    if (fresh) {
-      await sendOrderConfirmationEmail({ order: fresh, user: fresh.user });
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-    await recordAdminAudit({
-      kind: 'ADMIN_REPLAY_SINALITE',
-      adminId: guard.userId,
-      adminEmail: guard.user.email,
-      targetType: 'ORDER',
-      targetId: order.id,
-      data: {
-        sinaliteOrderId: result.orderId,
-        previousStatus: order.status,
-        success: true,
-        customerEmail: order.user.email,
-      },
-    });
-    return NextResponse.json({ ok: true, sinaliteOrderId: result.orderId });
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : 'Sinalite replay failed';
-    // Audit admin 2026-07 §8.3 — ne PAS dégrader une commande valide. Avant, un
-    // hoquet transitoire Sinalite (503, timeout) pendant un replay de rattrapage
-    // faisait basculer une commande PAID en FAILED : l'action de RATTRAPAGE
-    // empirait l'état (fausse alerte « Échecs », email d'échec possible). On ne
-    // marque FAILED que si la commande l'était déjà ; sinon on conserve le statut
-    // et on trace l'échec dans la timeline (OrderEvent ERROR) + l'audit.
-    if (order.status === 'FAILED') {
-      await markOrderFailed({
+    if (order.sinaliteOrderId) {
+      return NextResponse.json(
+        {
+          error: "Order already submitted to Sinalite",
+          sinaliteOrderId: order.sinaliteOrderId,
+        },
+        { status: 400 },
+      );
+    }
+    if (order.status === "PENDING" || order.status === "CANCELLED") {
+      return NextResponse.json(
+        { error: `Cannot replay an order in ${order.status} status` },
+        { status: 400 },
+      );
+    }
+    // finding [129] — commande manuelle depuis un devis sur mesure (production
+    // hors Sinalite) : sinalitePayload est un JSON inerte, jamais un vrai
+    // SinaliteOrderRequest. Sans ce guard, on tombe quand même proprement sur
+    // l'erreur de parse ci-dessous (fail-safe), mais avec un message cryptique —
+    // défense en profondeur explicite ici.
+    if (order.skipSinaliteSubmission) {
+      return NextResponse.json(
+        {
+          error:
+            "Commande manuelle (devis sur mesure) — production gérée hors Sinalite, rien à soumettre.",
+        },
+        { status: 400 },
+      );
+    }
+
+    let payload;
+    try {
+      payload = SinaliteOrderRequest.parse(JSON.parse(order.sinalitePayload));
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid sinalitePayload snapshot" },
+        { status: 500 },
+      );
+    }
+
+    try {
+      // Même enrichissement que le webhook — sinon le seul bon de production
+      // sans numéro citable serait celui d'un rejeu manuel.
+      const result = await sinalite.createOrder(
+        enrichirPayloadSoumis(payload, order.id),
+      );
+      await markOrderSubmitted({
         orderId: order.id,
-        reason,
-        data: { adminUserId: guard.userId, action: 'replay-sinalite' },
+        sinaliteOrderId: result.orderId,
       });
-    } else {
-      await prisma.orderEvent.create({
+      // Best-effort confirmation email (now that we have a Sinalite ID)
+      const fresh = await prisma.order.findUnique({
+        where: { id: order.id },
+        include: { user: true },
+      });
+      if (fresh) {
+        await sendOrderConfirmationEmail({ order: fresh, user: fresh.user });
+      }
+      await recordAdminAudit({
+        kind: "ADMIN_REPLAY_SINALITE",
+        adminId: guard.userId,
+        adminEmail: guard.user.email,
+        targetType: "ORDER",
+        targetId: order.id,
         data: {
-          orderId: order.id,
-          kind: 'ERROR',
-          data: JSON.stringify({ action: 'replay-sinalite', reason, adminUserId: guard.userId, statusKept: order.status }),
+          sinaliteOrderId: result.orderId,
+          previousStatus: order.status,
+          success: true,
+          customerEmail: order.user.email,
         },
       });
+      return NextResponse.json({ ok: true, sinaliteOrderId: result.orderId });
+    } catch (err) {
+      const reason =
+        err instanceof Error ? err.message : "Sinalite replay failed";
+      // Audit admin 2026-07 §8.3 — ne PAS dégrader une commande valide. Avant, un
+      // hoquet transitoire Sinalite (503, timeout) pendant un replay de rattrapage
+      // faisait basculer une commande PAID en FAILED : l'action de RATTRAPAGE
+      // empirait l'état (fausse alerte « Échecs », email d'échec possible). On ne
+      // marque FAILED que si la commande l'était déjà ; sinon on conserve le statut
+      // et on trace l'échec dans la timeline (OrderEvent ERROR) + l'audit.
+      if (order.status === "FAILED") {
+        await markOrderFailed({
+          orderId: order.id,
+          reason,
+          data: { adminUserId: guard.userId, action: "replay-sinalite" },
+        });
+      } else {
+        await prisma.orderEvent.create({
+          data: {
+            orderId: order.id,
+            kind: "ERROR",
+            data: JSON.stringify({
+              action: "replay-sinalite",
+              reason,
+              adminUserId: guard.userId,
+              statusKept: order.status,
+            }),
+          },
+        });
+      }
+      await recordAdminAudit({
+        kind: "ADMIN_REPLAY_SINALITE",
+        adminId: guard.userId,
+        adminEmail: guard.user.email,
+        targetType: "ORDER",
+        targetId: order.id,
+        data: {
+          success: false,
+          reason,
+          previousStatus: order.status,
+          customerEmail: order.user.email,
+        },
+      });
+      return NextResponse.json({ error: reason }, { status: 502 });
     }
-    await recordAdminAudit({
-      kind: 'ADMIN_REPLAY_SINALITE',
-      adminId: guard.userId,
-      adminEmail: guard.user.email,
-      targetType: 'ORDER',
-      targetId: order.id,
-      data: {
-        success: false,
-        reason,
-        previousStatus: order.status,
-        customerEmail: order.user.email,
-      },
-    });
-    return NextResponse.json({ error: reason }, { status: 502 });
-  }
-});
+  },
+);

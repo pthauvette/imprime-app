@@ -15,25 +15,40 @@
  * À venir : get_product_options, get_print_quote, estimate_shipping (read-only),
  * puis create_order (mutation, derrière auth).
  */
-import { createMcpHandler, withMcpAuth } from 'mcp-handler';
-import { z } from 'zod';
-import { mcpVerifyToken } from '@/lib/mcp/verify-token';
-import { mcpResourceUri, isOAuthEnabled } from '@/lib/mcp/oauth-config';
-import { maybeOAuthChallenge } from '@/lib/mcp/oauth-challenge';
-import { requireUser, requireScope } from '@/lib/mcp/auth';
-import { prepareOrderHandoff, formatOrderHandoffText } from '@/lib/mcp/tools/create-order';
-import { listPrintProducts, formatProductsText } from '@/lib/mcp/tools/list-products';
-import { getCustomQuoteInfo, formatCustomQuoteText } from '@/lib/mcp/tools/custom-quote';
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import { z } from "zod";
+import { mcpVerifyToken } from "@/lib/mcp/verify-token";
+import { mcpResourceUri, isOAuthEnabled } from "@/lib/mcp/oauth-config";
+import { maybeOAuthChallenge } from "@/lib/mcp/oauth-challenge";
+import { requireUser, requireScope } from "@/lib/mcp/auth";
+import {
+  prepareOrderHandoff,
+  formatOrderHandoffText,
+} from "@/lib/mcp/tools/create-order";
+import {
+  listPrintProducts,
+  formatProductsText,
+} from "@/lib/mcp/tools/list-products";
+import {
+  getCustomQuoteInfo,
+  formatCustomQuoteText,
+} from "@/lib/mcp/tools/custom-quote";
 import {
   getProductOptions,
   getPrintQuote,
   formatProductOptionsText,
   formatQuoteText,
-} from '@/lib/mcp/tools/quote';
-import { estimatePrintShipping, formatShippingText } from '@/lib/mcp/tools/shipping';
-import { buildConfiguratorPayload } from '@/lib/mcp/tools/configure';
-import { validatePrintFile, formatValidatePrintFileText } from '@/lib/mcp/tools/validate-file';
-import { getUploadPresign, uploadWidgetPayload } from '@/lib/mcp/tools/upload';
+} from "@/lib/mcp/tools/quote";
+import {
+  estimatePrintShipping,
+  formatShippingText,
+} from "@/lib/mcp/tools/shipping";
+import { buildConfiguratorPayload } from "@/lib/mcp/tools/configure";
+import {
+  validatePrintFile,
+  formatValidatePrintFileText,
+} from "@/lib/mcp/tools/validate-file";
+import { getUploadPresign, uploadWidgetPayload } from "@/lib/mcp/tools/upload";
 import {
   listUserOrders,
   formatOrdersListText,
@@ -41,15 +56,21 @@ import {
   formatOrderStatusText,
   buildUserReorderLink,
   formatReorderText,
-} from '@/lib/mcp/tools/orders';
-import { plioFileHost } from '@/lib/mcp/file-url-guard';
-import { CONFIGURATOR_HTML, UPLOAD_HTML } from '@/lib/mcp/widget/configurator-html.generated';
-import { placeHeadlessOrder, formatHeadlessResult } from '@/lib/mcp/place-order';
-import { CaProvince, ShipMethod } from '@/lib/sinalite/types';
-import { rateLimit, clientIp, rateLimitEnabled } from '@/lib/ratelimit';
+} from "@/lib/mcp/tools/orders";
+import { plioFileHost } from "@/lib/mcp/file-url-guard";
+import {
+  CONFIGURATOR_HTML,
+  UPLOAD_HTML,
+} from "@/lib/mcp/widget/configurator-html.generated";
+import {
+  placeHeadlessOrder,
+  formatHeadlessResult,
+} from "@/lib/mcp/place-order";
+import { CaProvince, ShipMethod } from "@/lib/sinalite/types";
+import { rateLimit, clientIp, rateLimitEnabled } from "@/lib/ratelimit";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const handler = createMcpHandler(
   (server) => {
@@ -62,38 +83,71 @@ const handler = createMcpHandler(
     // Hôtes sans support « Apps » : _meta.ui est ignoré → le texte JSON du tool sert
     // de fallback (dégradation automatique).
     server.registerResource(
-      'Configurateur Plio',
-      'ui://plio/configurator.html',
-      { mimeType: 'text/html;profile=mcp-app' },
+      "Configurateur Plio",
+      "ui://plio/configurator.html",
+      { mimeType: "text/html;profile=mcp-app" },
       async () => ({
-        contents: [{ uri: 'ui://plio/configurator.html', mimeType: 'text/html;profile=mcp-app', text: CONFIGURATOR_HTML }],
+        contents: [
+          {
+            uri: "ui://plio/configurator.html",
+            mimeType: "text/html;profile=mcp-app",
+            text: CONFIGURATOR_HTML,
+          },
+        ],
       }),
     );
 
     server.registerTool(
-      'configure_print',
+      "configure_print",
       {
-        title: 'Configurateur de commande',
+        title: "Configurateur de commande",
         description:
           "Ouvre un CONFIGURATEUR interactif (produit, papier, finition, quantité) avec prix live, rendu dans la conversation quand le client le supporte. Renvoie aussi les options + le devis en JSON (fallback). Le widget rappelle ce tool à chaque changement ; « Commander » mène au paiement sur plio.ca.",
         inputSchema: {
-          slug: z.string().optional().describe('Slug produit (list_print_products). Absent → 1er produit.'),
-          paper: z.string().optional().describe('Clé papier (get_product_options). Absent → 1er papier.'),
-          finish: z.string().optional().describe('Clé finition. Absent → 1re finition du papier.'),
-          quantity: z.number().int().positive().optional().describe('Quantité. Absent → 500 ou la 1re disponible.'),
-          options: z.array(z.number().int()).optional().describe("IDs des options choisies (faces, coins, délai…), une par groupe ; le reste = défaut. Renvoyés dans optionGroups[].selectedId."),
+          slug: z
+            .string()
+            .optional()
+            .describe(
+              "Slug produit (list_print_products). Absent → 1er produit.",
+            ),
+          paper: z
+            .string()
+            .optional()
+            .describe("Clé papier (get_product_options). Absent → 1er papier."),
+          finish: z
+            .string()
+            .optional()
+            .describe("Clé finition. Absent → 1re finition du papier."),
+          quantity: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Quantité. Absent → 500 ou la 1re disponible."),
+          options: z
+            .array(z.number().int())
+            .optional()
+            .describe(
+              "IDs des options choisies (faces, coins, délai…), une par groupe ; le reste = défaut. Renvoyés dans optionGroups[].selectedId.",
+            ),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
-        _meta: { ui: { resourceUri: 'ui://plio/configurator.html' } },
+        _meta: { ui: { resourceUri: "ui://plio/configurator.html" } },
       },
       async ({ slug, paper, finish, quantity, options }) => {
-        const payload = await buildConfiguratorPayload({ slug, paper, finish, quantity, options });
-        return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
+        const payload = await buildConfiguratorPayload({
+          slug,
+          paper,
+          finish,
+          quantity,
+          options,
+        });
+        return { content: [{ type: "text", text: JSON.stringify(payload) }] };
       },
     );
 
     server.registerTool(
-      'list_print_products',
+      "list_print_products",
       {
         title: "Lister les produits d'impression",
         description:
@@ -101,111 +155,169 @@ const handler = createMcpHandler(
         annotations: { readOnlyHint: true, openWorldHint: false },
       },
       async () => ({
-        content: [{ type: 'text', text: formatProductsText(listPrintProducts()) }],
+        content: [
+          { type: "text", text: formatProductsText(listPrintProducts()) },
+        ],
       }),
     );
 
     server.registerTool(
-      'get_custom_quote_info',
+      "get_custom_quote_info",
       {
-        title: 'Ce que Plio imprime hors catalogue (devis sur mesure)',
+        title: "Ce que Plio imprime hors catalogue (devis sur mesure)",
         description:
           "Ce que Plio imprime AU-DELÀ des familles libre-service : substrats rigides (coroplast, foamcore, dibond), grand format, bannières, packaging, très gros tirages, papiers ou finitions spéciales. À consulter AVANT de conclure qu'un produit n'est pas disponible chez Plio — list_print_products ne montre que le libre-service. Renvoie le lien où l'humain dépose sa demande ; ne crée aucune demande. Aucun prix instantané sur ces produits.",
         inputSchema: {},
         annotations: { readOnlyHint: true, openWorldHint: false },
       },
-      async () => ({ content: [{ type: 'text', text: formatCustomQuoteText(getCustomQuoteInfo()) }] }),
+      async () => ({
+        content: [
+          { type: "text", text: formatCustomQuoteText(getCustomQuoteInfo()) },
+        ],
+      }),
     );
 
     server.registerTool(
-      'get_product_options',
+      "get_product_options",
       {
         title: "Options d'un produit (papiers, finitions, quantités)",
         description:
           "Pour un produit (slug de list_print_products), retourne les papiers, les finitions par papier, et les quantités disponibles. À appeler avant get_print_quote pour connaître les valeurs valides. ⚠️ Les quantités DÉPENDENT du papier et de la finition (ex. flyers : 30 paliers en 100lb, 6 en lin) — passe `paper` et `finish` pour obtenir la liste exacte de ta combinaison.",
         inputSchema: {
           slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
-          paper: z.string().optional().describe('Clé papier. Fournis-la pour des quantités EXACTES ; absente → variante par défaut.'),
-          finish: z.string().optional().describe('Clé finition. Idem — à fournir avec `paper`.'),
+          paper: z
+            .string()
+            .optional()
+            .describe(
+              "Clé papier. Fournis-la pour des quantités EXACTES ; absente → variante par défaut.",
+            ),
+          finish: z
+            .string()
+            .optional()
+            .describe("Clé finition. Idem — à fournir avec `paper`."),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async ({ slug, paper, finish }) => {
         const opts = await getProductOptions(slug, paper, finish);
         if (!opts) {
-          return { content: [{ type: 'text', text: `Produit inconnu : ${slug}. Utilise list_print_products.` }], isError: true };
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Produit inconnu : ${slug}. Utilise list_print_products.`,
+              },
+            ],
+            isError: true,
+          };
         }
-        return { content: [{ type: 'text', text: formatProductOptionsText(opts) }] };
+        return {
+          content: [{ type: "text", text: formatProductOptionsText(opts) }],
+        };
       },
     );
 
     server.registerTool(
-      'get_print_quote',
+      "get_print_quote",
       {
-        title: 'Obtenir un devis de prix',
+        title: "Obtenir un devis de prix",
         description:
           "Calcule le prix CAD (taxes en sus) pour un produit + papier + finition + quantité. Le prix correspond exactement à celui du checkout. Utilise get_product_options pour les valeurs valides.",
         inputSchema: {
           slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
-          paper: z.string().describe("Clé du papier, ex. '14pt' (cf. get_product_options)"),
-          finish: z.string().describe("Clé de la finition, ex. 'aq' (cf. get_product_options)"),
-          quantity: z.number().int().positive().describe('Quantité voulue, ex. 500'),
+          paper: z
+            .string()
+            .describe("Clé du papier, ex. '14pt' (cf. get_product_options)"),
+          finish: z
+            .string()
+            .describe("Clé de la finition, ex. 'aq' (cf. get_product_options)"),
+          quantity: z
+            .number()
+            .int()
+            .positive()
+            .describe("Quantité voulue, ex. 500"),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async ({ slug, paper, finish, quantity }) => {
         const quote = await getPrintQuote(slug, paper, finish, quantity);
         return {
-          content: [{ type: 'text', text: formatQuoteText(slug, paper, finish, quote) }],
+          content: [
+            { type: "text", text: formatQuoteText(slug, paper, finish, quote) },
+          ],
           isError: !quote.ok,
         };
       },
     );
 
     server.registerTool(
-      'estimate_shipping',
+      "estimate_shipping",
       {
-        title: 'Estimer la livraison',
+        title: "Estimer la livraison",
         description:
           "Estime le coût de livraison (CAD) pour un produit configuré vers une destination au Canada. Avec get_print_quote, donne le coût TOTAL (produit + port). Quantité = même valeur que le devis.",
         inputSchema: {
           slug: z.string().describe("Slug du produit, ex. 'cartes-de-visite'"),
           paper: z.string().describe("Clé du papier, ex. '14pt'"),
           finish: z.string().describe("Clé de la finition, ex. 'aq'"),
-          quantity: z.number().int().positive().describe('Quantité, ex. 500'),
-          province: CaProvince.describe('Province canadienne (2 lettres), ex. QC'),
-          postalCode: z.string().describe('Code postal, ex. H2X 1Y7'),
+          quantity: z.number().int().positive().describe("Quantité, ex. 500"),
+          province: CaProvince.describe(
+            "Province canadienne (2 lettres), ex. QC",
+          ),
+          postalCode: z.string().describe("Code postal, ex. H2X 1Y7"),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async ({ slug, paper, finish, quantity, province, postalCode }) => {
-        const r = await estimatePrintShipping(slug, paper, finish, quantity, province, postalCode);
+        const r = await estimatePrintShipping(
+          slug,
+          paper,
+          finish,
+          quantity,
+          province,
+          postalCode,
+        );
         return {
-          content: [{ type: 'text', text: formatShippingText(slug, province, postalCode, r) }],
+          content: [
+            {
+              type: "text",
+              text: formatShippingText(slug, province, postalCode, r),
+            },
+          ],
           isError: !r.ok,
         };
       },
     );
 
     server.registerTool(
-      'validate_print_file',
+      "validate_print_file",
       {
         title: "Vérifier un fichier d'impression",
         description:
           "Préflight d'un fichier print-ready DÉJÀ téléversé sur Plio (URL S3 uploads/…). Pour un PDF : vérifie l'intégrité, le nombre de pages, les dimensions et le bleed vs la taille typique du produit. La COULEUR (CMYK/RGB) et le DPI restent validés par Plio à la production (non vérifiés ici). Téléverse d'abord le fichier via Plio pour obtenir l'URL.",
         inputSchema: {
-          fileUrl: z.string().url().describe('URL S3 Plio du fichier (uploads/…), obtenue au téléversement.'),
-          slug: z.string().optional().describe('Slug produit (compare aux dimensions typiques + bleed).'),
+          fileUrl: z
+            .string()
+            .url()
+            .describe(
+              "URL S3 Plio du fichier (uploads/…), obtenue au téléversement.",
+            ),
+          slug: z
+            .string()
+            .optional()
+            .describe(
+              "Slug produit (compare aux dimensions typiques + bleed).",
+            ),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async ({ fileUrl, slug }) => {
         const r = await validatePrintFile({ fileUrl, slug });
         return {
-          content: [{ type: 'text', text: formatValidatePrintFileText(r) }],
+          content: [{ type: "text", text: formatValidatePrintFileText(r) }],
           // isError seulement si la validation n'a PAS pu être faite (URL/fetch KO),
           // pas si le fichier est simplement non conforme (c'est un résultat valide).
-          isError: r.fileType === 'other' && r.level === 'error',
+          isError: r.fileType === "other" && r.level === "error",
         };
       },
     );
@@ -216,54 +328,85 @@ const handler = createMcpHandler(
     // Calculée dans le read (env lu à l'appel) ; le contenu de resources/read prime
     // sur le _meta.ui de resources/list. Puis le widget appelle validate_print_file.
     server.registerResource(
-      'Téléversement Plio',
-      'ui://plio/upload.html',
-      { mimeType: 'text/html;profile=mcp-app' },
+      "Téléversement Plio",
+      "ui://plio/upload.html",
+      { mimeType: "text/html;profile=mcp-app" },
       async () => {
         const host = plioFileHost();
-        const ui = host ? { csp: { connectDomains: [`https://${host}`] } } : undefined;
+        const ui = host
+          ? { csp: { connectDomains: [`https://${host}`] } }
+          : undefined;
         return {
-          contents: [{
-            uri: 'ui://plio/upload.html',
-            mimeType: 'text/html;profile=mcp-app',
-            text: UPLOAD_HTML,
-            ...(ui ? { _meta: { ui } } : {}),
-          }],
+          contents: [
+            {
+              uri: "ui://plio/upload.html",
+              mimeType: "text/html;profile=mcp-app",
+              text: UPLOAD_HTML,
+              ...(ui ? { _meta: { ui } } : {}),
+            },
+          ],
         };
       },
     );
 
     server.registerTool(
-      'upload_print_file',
+      "upload_print_file",
       {
-        title: 'Téléverser un fichier',
+        title: "Téléverser un fichier",
         description:
           "Ouvre un outil pour TÉLÉVERSER un fichier print-ready directement dans la conversation, puis le vérifier (intégrité, dimensions, bleed). Sur un hôte sans widgets, dirige vers plio.ca pour téléverser. Passe le slug produit pour comparer aux dimensions.",
-        inputSchema: { slug: z.string().optional().describe('Slug produit (pour la vérification après upload).') },
+        inputSchema: {
+          slug: z
+            .string()
+            .optional()
+            .describe("Slug produit (pour la vérification après upload)."),
+        },
         annotations: { readOnlyHint: true, openWorldHint: false },
-        _meta: { ui: { resourceUri: 'ui://plio/upload.html' } },
+        _meta: { ui: { resourceUri: "ui://plio/upload.html" } },
       },
-      async ({ slug }) => ({ content: [{ type: 'text', text: JSON.stringify(uploadWidgetPayload(slug)) }] }),
+      async ({ slug }) => ({
+        content: [
+          { type: "text", text: JSON.stringify(uploadWidgetPayload(slug)) },
+        ],
+      }),
     );
 
     server.registerTool(
-      'get_upload_url',
+      "get_upload_url",
       {
-        title: 'Lien de téléversement (interne au widget)',
+        title: "Lien de téléversement (interne au widget)",
         description:
           "Signe un POST S3 présigné pour téléverser un fichier vers le stockage Plio. Appelé par le widget d'upload — pas destiné à un appel direct. Retourne {presigned, publicUrl}.",
         inputSchema: {
-          filename: z.string().min(1).max(255).describe('Nom du fichier (pour l\'extension).'),
-          contentType: z.string().min(1).describe('Type MIME (ex. application/pdf).'),
-          kind: z.enum(['front', 'back', 'other']).optional().describe('Face du fichier (défaut front).'),
+          filename: z
+            .string()
+            .min(1)
+            .max(255)
+            .describe("Nom du fichier (pour l'extension)."),
+          contentType: z
+            .string()
+            .min(1)
+            .describe("Type MIME (ex. application/pdf)."),
+          kind: z
+            .enum(["front", "back", "other"])
+            .optional()
+            .describe("Face du fichier (défaut front)."),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async ({ filename, contentType, kind }, extra) => {
         const u = requireUser(extra);
         const userId = u.ok ? u.userId : undefined; // signé sous le compte si connecté, sinon guest
-        const r = await getUploadPresign({ filename, contentType, kind, userId });
-        return { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok };
+        const r = await getUploadPresign({
+          filename,
+          contentType,
+          kind,
+          userId,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(r) }],
+          isError: !r.ok,
+        };
       },
     );
 
@@ -271,9 +414,9 @@ const handler = createMcpHandler(
     // Les 4 tools ci-dessus restent PUBLICS (ils n'inspectent pas extra.authInfo).
     // whoami EXIGE une clé API valide via requireUser → preuve E2E que l'auth marche.
     server.registerTool(
-      'whoami',
+      "whoami",
       {
-        title: 'Identité du compte connecté',
+        title: "Identité du compte connecté",
         description:
           "Renvoie l'identité associée à la connexion (OAuth ou clé API). Nécessite d'être connecté (Bearer : JWT OAuth ou clé plio_sk_live_…).",
         inputSchema: {},
@@ -282,7 +425,14 @@ const handler = createMcpHandler(
       async (_args, extra) => {
         const u = requireUser(extra);
         if (!u.ok) return u.error;
-        return { content: [{ type: 'text', text: `Authentifié comme user ${u.userId} (rôle ${u.role}). Clé ${u.keyId}, scopes: ${u.scopes.join(', ') || '(aucun)'}.` }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Authentifié comme user ${u.userId} (rôle ${u.role}). Clé ${u.keyId}, scopes: ${u.scopes.join(", ") || "(aucun)"}.`,
+            },
+          ],
+        };
       },
     );
 
@@ -291,13 +441,19 @@ const handler = createMcpHandler(
     // de base d'une identité connectée) + filtrage STRICT par userId dans
     // src/lib/mcp/tools/orders.ts (jamais la commande d'un autre). Read-only.
     server.registerTool(
-      'list_orders',
+      "list_orders",
       {
-        title: 'Mes commandes récentes',
+        title: "Mes commandes récentes",
         description:
           "Liste tes commandes Plio récentes (statut, date, résumé, total). Nécessite d'être connecté (clé API ou OAuth). Ne renvoie QUE tes propres commandes.",
         inputSchema: {
-          limit: z.number().int().min(1).max(25).optional().describe('Nombre de commandes (défaut 10, max 25).'),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(25)
+            .optional()
+            .describe("Nombre de commandes (défaut 10, max 25)."),
         },
         annotations: { readOnlyHint: true, openWorldHint: false },
       },
@@ -305,18 +461,23 @@ const handler = createMcpHandler(
         const u = requireUser(extra);
         if (!u.ok) return u.error;
         const orders = await listUserOrders(u.userId, limit ?? 10);
-        return { content: [{ type: 'text', text: formatOrdersListText(orders) }] };
+        return {
+          content: [{ type: "text", text: formatOrdersListText(orders) }],
+        };
       },
     );
 
     server.registerTool(
-      'get_order_status',
+      "get_order_status",
       {
         title: "Statut d'une commande",
         description:
           "Détaille le statut d'une commande (articles, total, suivi d'expédition avec numéro + lien transporteur, livraison estimée). Fournis l'orderId (cf. list_orders). Ne renvoie que TES commandes ; un id qui n'est pas à toi → « introuvable ».",
         inputSchema: {
-          orderId: z.string().min(1).describe('Identifiant de commande (cf. list_orders).'),
+          orderId: z
+            .string()
+            .min(1)
+            .describe("Identifiant de commande (cf. list_orders)."),
         },
         annotations: { readOnlyHint: true, openWorldHint: false },
       },
@@ -324,19 +485,35 @@ const handler = createMcpHandler(
         const u = requireUser(extra);
         if (!u.ok) return u.error;
         const r = await getUserOrderStatus(u.userId, orderId);
-        if (!r.ok) return { content: [{ type: 'text', text: `Commande #${orderId} introuvable sur ton compte.` }], isError: true };
-        return { content: [{ type: 'text', text: formatOrderStatusText(r.view) }] };
+        if (!r.ok)
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Commande #${orderId} introuvable sur ton compte.`,
+              },
+            ],
+            isError: true,
+          };
+        return {
+          content: [{ type: "text", text: formatOrderStatusText(r.view) }],
+        };
       },
     );
 
     server.registerTool(
-      'reorder',
+      "reorder",
       {
-        title: 'Recommander une commande',
+        title: "Recommander une commande",
         description:
           "Génère un lien pour REFAIRE une commande passée : rouvre le configurateur pré-rempli (produit + options) sur plio.ca. Handoff SÛR — aucun paiement, tu re-téléverses le fichier et paies sur le site. Fournis l'orderId (cf. list_orders).",
         inputSchema: {
-          orderId: z.string().min(1).describe('Identifiant de la commande à refaire (cf. list_orders).'),
+          orderId: z
+            .string()
+            .min(1)
+            .describe(
+              "Identifiant de la commande à refaire (cf. list_orders).",
+            ),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
@@ -344,39 +521,100 @@ const handler = createMcpHandler(
         const u = requireUser(extra);
         if (!u.ok) return u.error;
         const r = await buildUserReorderLink(u.userId, orderId);
-        return { content: [{ type: 'text', text: formatReorderText(orderId, r) }], isError: !r.ok };
+        return {
+          content: [{ type: "text", text: formatReorderText(orderId, r) }],
+          isError: !r.ok,
+        };
       },
     );
 
     server.registerTool(
-      'create_order',
+      "create_order",
       {
         title: "Passer une commande d'impression",
         description:
           "Passe une commande d'impression. DEUX modes : (A, défaut) sans fileUrl → renvoie un récap + un lien pour téléverser le fichier et payer sur plio.ca (scope orders:write). (B, headless) avec fileUrl sur chaque article (URL S3 Plio) + contact/livraison/expectedGrossCents/idempotencyKey → crée la commande et renvoie un lien de paiement Stripe (scope orders:write:headless, activé sur clés de confiance). Le prix et le port sont TOUJOURS recalculés côté serveur.",
-        annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          openWorldHint: true,
+        },
         inputSchema: {
-          items: z.array(z.object({
-            slug: z.string().describe("Slug produit (list_print_products)"),
-            paper: z.string().describe("Clé papier (get_product_options)"),
-            finish: z.string().describe("Clé finition (get_product_options)"),
-            quantity: z.number().int().positive().describe("Quantité (cf. get_product_options)"),
-            fileUrl: z.string().url().optional().describe("URL S3 Plio du fichier print-ready. Présent → mode headless (scope orders:write:headless)."),
-            internalRef: z.string().max(120).optional().describe("Référence interne (PO, etc.)."),
-          })).min(1).max(10).describe("Articles à commander (1 à 10)"),
+          items: z
+            .array(
+              z.object({
+                slug: z.string().describe("Slug produit (list_print_products)"),
+                paper: z.string().describe("Clé papier (get_product_options)"),
+                finish: z
+                  .string()
+                  .describe("Clé finition (get_product_options)"),
+                quantity: z
+                  .number()
+                  .int()
+                  .positive()
+                  .describe("Quantité (cf. get_product_options)"),
+                fileUrl: z
+                  .string()
+                  .url()
+                  .optional()
+                  .describe(
+                    "URL S3 Plio du fichier print-ready. Présent → mode headless (scope orders:write:headless).",
+                  ),
+                // 64 et non 120 : au-delà, `nettoyerTexteLibre` tronquait EN SILENCE
+                // sur le bon de production (EXTRA_MAX). Mieux vaut refuser à la
+                // frontière que rogner sans le dire.
+                internalRef: z
+                  .string()
+                  .max(64)
+                  .optional()
+                  .describe("Référence interne (PO, etc.)."),
+              }),
+            )
+            .min(1)
+            .max(10)
+            .describe("Articles à commander (1 à 10)"),
           // Champs du mode HEADLESS (requis seulement si fileUrl présent) :
-          contact: z.object({
-            firstName: z.string().min(1), lastName: z.string().min(1),
-            email: z.string().email().describe("Courriel de LIVRAISON (le paiement/confirmation vont au compte de la clé)."),
-            phone: z.string().min(7),
-          }).optional(),
-          shippingAddress: z.object({
-            line1: z.string().min(1), line2: z.string().optional(),
-            city: z.string().min(1), province: CaProvince, postalCode: z.string().min(3),
-          }).optional(),
-          shippingMethod: ShipMethod.optional().describe("Méthode (cf. estimate_shipping). Le PRIX est recalculé serveur."),
-          expectedGrossCents: z.number().int().nonnegative().optional().describe("Total CAD AVANT crédits, en cents. Garde-fou anti-tamper."),
-          idempotencyKey: z.string().min(8).max(64).optional().describe("Nonce stable, réutilisé À L'IDENTIQUE sur retry (évite la double commande)."),
+          contact: z
+            .object({
+              firstName: z.string().min(1),
+              lastName: z.string().min(1),
+              email: z
+                .string()
+                .email()
+                .describe(
+                  "Courriel de LIVRAISON (le paiement/confirmation vont au compte de la clé).",
+                ),
+              phone: z.string().min(7),
+            })
+            .optional(),
+          shippingAddress: z
+            .object({
+              line1: z.string().min(1),
+              line2: z.string().optional(),
+              city: z.string().min(1),
+              province: CaProvince,
+              postalCode: z.string().min(3),
+            })
+            .optional(),
+          shippingMethod: ShipMethod.optional().describe(
+            "Méthode (cf. estimate_shipping). Le PRIX est recalculé serveur.",
+          ),
+          expectedGrossCents: z
+            .number()
+            .int()
+            .nonnegative()
+            .optional()
+            .describe(
+              "Total CAD AVANT crédits, en cents. Garde-fou anti-tamper.",
+            ),
+          idempotencyKey: z
+            .string()
+            .min(8)
+            .max(64)
+            .optional()
+            .describe(
+              "Nonce stable, réutilisé À L'IDENTIQUE sur retry (évite la double commande).",
+            ),
           promoCode: z.string().max(64).optional(),
           shippingNote: z.string().max(200).optional(),
         },
@@ -385,32 +623,68 @@ const handler = createMcpHandler(
         const headless = args.items.some((i) => i.fileUrl);
         if (headless) {
           // Mode B : scope SENSIBLE (clés de confiance only) + tous les champs requis.
-          const u = requireScope(extra, 'orders:write:headless');
+          const u = requireScope(extra, "orders:write:headless");
           if (!u.ok) return u.error;
           if (!args.items.every((i) => i.fileUrl)) {
-            return { content: [{ type: 'text', text: 'Mode headless : TOUS les articles doivent avoir un fileUrl.' }], isError: true };
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Mode headless : TOUS les articles doivent avoir un fileUrl.",
+                },
+              ],
+              isError: true,
+            };
           }
-          if (!args.contact || !args.shippingAddress || !args.shippingMethod || args.expectedGrossCents === undefined || !args.idempotencyKey) {
-            return { content: [{ type: 'text', text: 'Mode headless : fournis contact, shippingAddress, shippingMethod, expectedGrossCents et idempotencyKey.' }], isError: true };
+          if (
+            !args.contact ||
+            !args.shippingAddress ||
+            !args.shippingMethod ||
+            args.expectedGrossCents === undefined ||
+            !args.idempotencyKey
+          ) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Mode headless : fournis contact, shippingAddress, shippingMethod, expectedGrossCents et idempotencyKey.",
+                },
+              ],
+              isError: true,
+            };
           }
           const r = await placeHeadlessOrder(
             {
-              items: args.items.map((i) => ({ slug: i.slug, paper: i.paper, finish: i.finish, quantity: i.quantity, fileUrl: i.fileUrl as string, internalRef: i.internalRef })),
-              contact: args.contact, shippingAddress: args.shippingAddress, shippingMethod: args.shippingMethod,
-              expectedGrossCents: args.expectedGrossCents, idempotencyKey: args.idempotencyKey,
-              promoCode: args.promoCode, shippingNote: args.shippingNote,
+              items: args.items.map((i) => ({
+                slug: i.slug,
+                paper: i.paper,
+                finish: i.finish,
+                quantity: i.quantity,
+                fileUrl: i.fileUrl as string,
+                internalRef: i.internalRef,
+              })),
+              contact: args.contact,
+              shippingAddress: args.shippingAddress,
+              shippingMethod: args.shippingMethod,
+              expectedGrossCents: args.expectedGrossCents,
+              idempotencyKey: args.idempotencyKey,
+              promoCode: args.promoCode,
+              shippingNote: args.shippingNote,
             },
             { userId: u.userId },
             Date.now(),
           );
-          return { content: [{ type: 'text', text: formatHeadlessResult(r) }], isError: !r.ok };
+          return {
+            content: [{ type: "text", text: formatHeadlessResult(r) }],
+            isError: !r.ok,
+          };
         }
         // Mode A (défaut) : récap + lien de finalisation. Scope orders:write.
-        const u = requireScope(extra, 'orders:write');
+        const u = requireScope(extra, "orders:write");
         if (!u.ok) return u.error;
         const handoff = await prepareOrderHandoff(args.items);
         return {
-          content: [{ type: 'text', text: formatOrderHandoffText(handoff) }],
+          content: [{ type: "text", text: formatOrderHandoffText(handoff) }],
           isError: handoff.anyError && handoff.items.every((r) => !r.ok),
         };
       },
@@ -418,13 +692,13 @@ const handler = createMcpHandler(
   },
   {
     // Identité du serveur (sinon mcp-handler met « mcp-typescript server on vercel »).
-    serverInfo: { name: 'plio', version: '1.0.0' },
+    serverInfo: { name: "plio", version: "1.0.0" },
     // ServerOptions (SDK) — instructions affichées à l'agent au handshake.
     instructions:
       "Serveur MCP de Plio, imprimerie québécoise. Permet de parcourir le catalogue d'impression, d'obtenir des devis et (bientôt) de passer commande. Tous les prix sont en CAD, taxes en sus. Commence par list_print_products. Pour les actions authentifiées, fournis une clé API dans Authorization: Bearer.",
   },
   {
-    basePath: '/api/mcp',
+    basePath: "/api/mcp",
     // verboseLogs DÉSACTIVÉ : mcp-handler pourrait sérialiser l'objet AuthInfo
     // dans ses logs verbeux ; on évite toute fuite de contexte d'auth (même si
     // AuthInfo.token ne contient plus le secret — défense en profondeur).
@@ -445,13 +719,15 @@ const handler = createMcpHandler(
 const authHandler = withMcpAuth(handler, mcpVerifyToken, {
   required: false,
   resourceUrl: mcpResourceUri(),
-  resourceMetadataPath: '/.well-known/oauth-protected-resource',
+  resourceMetadataPath: "/.well-known/oauth-protected-resource",
 });
 
 // Fail-open silencieux du rate-limit = coût Sinalite non borné. En prod, si
 // Upstash est absent, on le SIGNALE au chargement (sans bloquer l'endpoint public).
-if (process.env.NODE_ENV === 'production' && !rateLimitEnabled) {
-  console.warn('[mcp] RATE LIMIT INACTIF en production (UPSTASH_REDIS_REST_* absent) — coût Sinalite NON borné.');
+if (process.env.NODE_ENV === "production" && !rateLimitEnabled) {
+  console.warn(
+    "[mcp] RATE LIMIT INACTIF en production (UPSTASH_REDIS_REST_* absent) — coût Sinalite NON borné.",
+  );
 }
 
 /**
@@ -463,9 +739,9 @@ if (process.env.NODE_ENV === 'production' && !rateLimitEnabled) {
  * (stateless) → une vérif par message.
  */
 async function gated(req: Request): Promise<Response> {
-  const perIp = await rateLimit('mcp', clientIp(req));
+  const perIp = await rateLimit("mcp", clientIp(req));
   if (!perIp.ok) return perIp.response;
-  const global = await rateLimit('mcpGlobal', 'all');
+  const global = await rateLimit("mcpGlobal", "all");
   if (!global.ok) return global.response;
 
   // Challenge OAuth (RFC 9728) — uniquement si le flag MCP_OAUTH est ON. TOUT appel
@@ -476,13 +752,19 @@ async function gated(req: Request): Promise<Response> {
   // JWT) passent → mcpVerifyToken les vérifie. Flag OFF (défaut) → on saute tout ce
   // bloc → comportement byte-identique à avant (corps non lu, requête intacte,
   // serveur public/anonyme).
-  if (isOAuthEnabled() && req.method === 'POST') {
+  if (isOAuthEnabled() && req.method === "POST") {
     const bodyText = await req.text();
     const challenge = maybeOAuthChallenge(req, bodyText);
     if (challenge) return challenge;
     // Corps déjà consommé par .text() → on reconstruit la requête pour le handler
     // (mêmes headers + corps bufferisé) ; le handler MCP relit le JSON-RPC.
-    return authHandler(new Request(req.url, { method: 'POST', headers: req.headers, body: bodyText }));
+    return authHandler(
+      new Request(req.url, {
+        method: "POST",
+        headers: req.headers,
+        body: bodyText,
+      }),
+    );
   }
 
   // authHandler (pas handler) : le rate-limit s'applique AVANT la vérif de clé,
