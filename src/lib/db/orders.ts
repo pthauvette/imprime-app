@@ -372,8 +372,27 @@ const ALLOWED_PRIOR_STATUSES: Record<string, OrderStatus[]> = {
   SHIPPED: ['SUBMITTED', 'IN_PRODUCTION', 'SHIPPED'], // skip IN_PRODUCTION OK
   DELIVERED: ['SHIPPED', 'DELIVERED'], // idempotent
   CANCELLED: ['PENDING', 'PAID', 'SUBMITTED'], // pas après production lancée
-  FAILED: ['PENDING', 'PAID', 'SUBMITTED', 'IN_PRODUCTION'], // pas après SHIPPED
+  // FAILED→FAILED inclus : le commentaire de `markOrderFailed` affirmait déjà
+  // « Si déjà CANCELLED/FAILED, idempotent skip » — c'était FAUX, la transition
+  // levait. Un gestionnaire d'erreur qui lève transforme un échec traçable en
+  // exception silencieuse. pas après SHIPPED.
+  FAILED: ['PENDING', 'PAID', 'SUBMITTED', 'IN_PRODUCTION', 'FAILED'],
 };
+
+/**
+ * Statuts antérieurs propres à `markOrderSubmitted`.
+ *
+ * ⚠️ SÉPARÉE DE `ALLOWED_PRIOR_STATUSES` À DESSEIN. Cette table est partagée
+ * avec `applySinaliteStatusChange`, où `SINALITE_TO_DB_STATUS.NEW = 'SUBMITTED'`.
+ * Y ajouter `FAILED` pour les besoins du rejeu ADMIN ouvrait du même coup
+ * `FAILED → SUBMITTED` au WEBHOOK FOURNISSEUR : un event `NEW` rejoué depuis
+ * /admin/webhooks faisait repasser « en traitement » une commande remboursée,
+ * qui disparaissait alors du compteur d'échecs. C'est exactement la
+ * non-régression de statut posée par l'Audit v2 #3.2.
+ *
+ * Un besoin du chemin admin ne réécrit pas la FSM du chemin fournisseur.
+ */
+const PRIORS_SUBMITTED: OrderStatus[] = ['PAID', 'FAILED'];
 
 export async function markOrderSubmitted(input: {
   orderId: string;
@@ -384,7 +403,7 @@ export async function markOrderSubmitted(input: {
     const result = await tx.order.updateMany({
       where: {
         id: input.orderId,
-        status: { in: ALLOWED_PRIOR_STATUSES.SUBMITTED },
+        status: { in: PRIORS_SUBMITTED },
       },
       data: {
         status: 'SUBMITTED',
@@ -440,7 +459,23 @@ export async function markOrderFailed(input: {
       data: {
         orderId: input.orderId,
         kind: 'ERROR',
-        data: input.data ? JSON.stringify(input.data).slice(0, 2000) : null,
+        // ⚠️ `reason` DOIT figurer ici. `failureReason` sur la commande est
+        // ÉCRASÉ à chaque échec : maintenant que la transition FAILED→FAILED
+        // est permise, un second échec transitoire (« fetch failed ») remplace
+        // la cause racine utile (« invalid option 4172 for product 97 »).
+        // Sans cette ligne, elle disparaît DÉFINITIVEMENT, timeline comprise —
+        // rendre le gestionnaire idempotent sans elle, c'est troquer une
+        // exception contre une perte de diagnostic.
+        // `reason` BORNÉ à 500 (même limite que `failureReason`) et placé EN
+        // DERNIER : non borné, une raison longue — le client Sinalite embarque
+        // jusqu'à 1200 caractères de réponse — pouvait franchir la troncature
+        // à 2000 et produire un JSON invalide, donc un event qui ne rend PLUS
+        // RIEN au lieu d'une partie. Le spread avant permettrait à un appelant
+        // d'écraser `reason` avec son propre champ.
+        data: JSON.stringify({
+          ...(typeof input.data === 'object' && input.data !== null ? input.data : {}),
+          reason: input.reason.slice(0, 500),
+        }).slice(0, 2000),
       },
     });
   });

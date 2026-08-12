@@ -57,7 +57,19 @@ export function describeEvent(event: DescribableEvent): string | null {
   }
 
   if (event.kind === 'ERROR') {
-    const message = parsed.message as string | undefined ?? parsed.error as string | undefined;
+    // `reason` inclus : `markOrderFailed` le persiste désormais dans l'event,
+    // parce que `failureReason` sur la commande est ÉCRASÉ à chaque échec —
+    // et la transition FAILED→FAILED est maintenant permise, donc un second
+    // échec transitoire remplacerait la cause racine utile.
+    //
+    // La page admin rend déjà le JSON brut de l'event, donc la cause était
+    // lisible ; ici c'est le RÉSUMÉ de la timeline qui la montre enfin.
+    // Aucune fuite : les events ERROR ne sont rendus que si `showErrors`,
+    // réservé à l'admin (finding [50] non rouvert).
+    const message =
+      (parsed.message as string | undefined) ??
+      (parsed.error as string | undefined) ??
+      (parsed.reason as string | undefined);
     return message ?? null;
   }
 
