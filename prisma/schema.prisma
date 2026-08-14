@@ -250,6 +250,19 @@ model Order {
   // Sinalite — null jusqu'à ce que /order/new ait répondu
   sinaliteOrderId  String?  @unique
 
+  // Verrou du REJEU admin (/api/admin/orders/[id]/replay-sinalite).
+  //
+  // Le garde « déjà soumise » y était un read-then-act : deux requêtes
+  // concurrentes lisaient toutes deux `sinaliteOrderId = null` et soumettaient
+  // DEUX FOIS, donc deux productions réelles facturées. Le webhook Stripe, lui,
+  // est protégé par un `updateMany` atomique — ce champ donne la même chose à
+  // ce chemin.
+  //
+  // Horodatage et non booléen : une tentative interrompue (Lambda tuée, réseau
+  // coupé) laisserait un verrou éternel sur une route dont TOUT l'objet est de
+  // réessayer. La péremption libère au bout de quelques minutes.
+  replayClaimedAt  DateTime?
+
   // finding [129] — devis sur mesure : production gérée manuellement HORS
   // Sinalite (ex. signage extérieur, projet qui n'existe pas au catalogue).
   // Quand true, le webhook Stripe (payment_intent.succeeded) s'arrête à PAID

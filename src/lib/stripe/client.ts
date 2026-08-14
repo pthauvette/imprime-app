@@ -40,6 +40,15 @@ export function getStripe(): Stripe {
         "Vérifie les variables d'env (console Amplify / .env).",
     );
   }
+  // ⚠️ NE PAS borner `timeout`/`maxNetworkRetries` ICI. Un jet précédent l'a
+  // fait, et ça débordait sur TOUT le chemin money : création de
+  // PaymentIntent au checkout, auto-remboursements, remboursements et
+  // annulations admin, session MCP. Raccourcir le délai global déplace la
+  // frontière « Stripe a traité, on a abandonné » — sur l'auto-remboursement,
+  // un abandon prématuré marque la commande d'un motif mensonger, n'envoie
+  // aucun courriel au client, et envoie l'admin rembourser une seconde fois.
+  // Les bornes se posent PAR APPEL, là où la contrainte existe (cf. le
+  // `charges.list` sous verrou de `replay-sinalite`).
   cached = new Stripe(key, { apiVersion: STRIPE_API_VERSION });
   return cached;
 }
