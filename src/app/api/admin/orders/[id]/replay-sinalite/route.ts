@@ -9,10 +9,11 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { log } from "@/lib/logger";
 import { withErrorHandler } from "@/lib/api-helpers";
 import { requireAdmin } from "@/lib/admin-auth";
 import { recordAdminAudit } from "@/lib/db/admin-audit";
-import { sinalite } from "@/lib/sinalite/client";
+import { sinalite, SinaliteError } from "@/lib/sinalite/client";
 import { enrichirPayloadSoumis } from "@/lib/sinalite/order-notes";
 import { getStripe } from '@/lib/stripe/client';
 import { formatCents } from '@/lib/format';
@@ -99,6 +100,66 @@ export const POST = withErrorHandler(
       );
     }
 
+    // ═══ VERROU ATOMIQUE ═══════════════════════════════════════════════
+    // Le garde `sinaliteOrderId` plus haut est un read-then-act : deux
+    // requêtes concurrentes le franchissent toutes deux. Seul un `updateMany`
+    // conditionnel départage — c'est ce que fait le webhook Stripe, et ce
+    // chemin ne l'avait pas.
+    //
+    // POSÉ AVANT LA VÉRIFICATION DES REMBOURSEMENTS : un seul rejeu peut être
+    // en vol, donc deux rejeux ne peuvent plus lire Stripe chacun de leur côté
+    // puis soumettre tous les deux.
+    //
+    // ⚠️ CE VERROU NE FERME PAS LA FENÊTRE TOCTOU DU REMBOURSEMENT, et un jet
+    // précédent l'affirmait — à tort, jusque dans un nom de test. Il sérialise
+    // REJEU CONTRE REJEU, rien d'autre : ni `/api/admin/orders/[id]/refund` ni
+    // le Dashboard Stripe ne lisent `replayClaimedAt`. Un admin peut donc
+    // toujours rembourser entre notre lecture de `charges.list` et l'envoi à
+    // `/order/new`. Cette fenêtre est exactement aussi ouverte qu'avant.
+    //
+    // Péremption : une tentative interrompue (Lambda tuée, réseau coupé)
+    // laisserait sinon un verrou éternel sur une route dont TOUT l'objet est
+    // de réessayer.
+    const PEREMPTION_VERROU_MS = 5 * 60_000;
+    const perime = new Date(Date.now() - PEREMPTION_VERROU_MS);
+    const prisAt = new Date();
+    const verrou = await prisma.order.updateMany({
+      where: {
+        id: order.id,
+        sinaliteOrderId: null,
+        OR: [{ replayClaimedAt: null }, { replayClaimedAt: { lt: perime } }],
+      },
+      data: { replayClaimedAt: prisAt },
+    });
+    if (verrou.count === 0) {
+      return NextResponse.json(
+        { error: "Un rejeu est déjà en cours pour cette commande. Réessaie dans quelques minutes." },
+        { status: 409 },
+      );
+    }
+
+    /**
+     * Libère le verrou. À appeler sur TOUTE sortie qui ne soumet pas —
+     * sinon un refus légitime bloquerait la commande pendant la péremption.
+     * Jamais après une soumission réussie : `sinaliteOrderId` prend le relais.
+     */
+    const libererVerrou = async () => {
+      const r = await prisma.order.updateMany({
+        // `replayClaimedAt: prisAt` — on ne libère QUE le verrou qu'on a posé
+        // soi-même. Sans cette clause, une requête qui survit à sa propre
+        // péremption effacerait le verrou de la suivante : « atomique » à la
+        // prise, et n'importe quoi à la libération.
+        where: { id: order.id, sinaliteOrderId: null, replayClaimedAt: prisAt },
+        data: { replayClaimedAt: null },
+      });
+      // `count === 0` = on n'a pas libéré notre verrou (quelqu'un l'a repris
+      // après péremption, ou la commande a été soumise entre-temps). Sans
+      // trace, ça se manifesterait par 5 minutes de blocage inexpliqué.
+      if (r.count === 0) {
+        log.warn({ orderId: order.id }, 'rejeu sinalite : libération de verrou sans effet');
+      }
+    };
+
     // ⚠️ DÉJÀ REMBOURSÉE → NE PAS PRODUIRE.
     // C'est le cas le PLUS fréquent parmi les commandes FAILED sans
     // sinaliteOrderId : l'auto-refund déclenché quand Sinalite refuse la
@@ -115,14 +176,21 @@ export const POST = withErrorHandler(
     // exactement la population que notre propre runbook fabrique. Même
     // dérivation que `/api/admin/orders/[id]/refund`.
     //
-    // Limite connue et assumée : une CONTESTATION de carte (`charge.dispute.*`)
-    // n'apparaît pas dans `refunds.list`. Ce chemin-là reste ouvert.
+    // ⚠️ `charges.list` ET NON `refunds.list` : l'objet Charge expose À LA FOIS
+    // `amount_refunded` et `disputed`. Une CONTESTATION de carte n'est pas un
+    // remboursement — elle n'apparaît nulle part dans `refunds.list` — et le
+    // scénario est fabriqué par notre propre runbook : soumission échouée,
+    // auto-refund échoué lui aussi, alerte qui demande une intervention
+    // manuelle, client sans nouvelles qui conteste auprès de sa banque. Stripe
+    // retient alors le montant ET les frais, et le bouton « rejouer » lançait
+    // la presse. Un seul appel couvre les deux.
     // ⚠️ Pas d'identifiant de paiement → REFUS, jamais « zéro remboursement ».
     // La colonne est NOT NULL aujourd'hui, donc cette branche est morte ; le
     // jour où elle ne l'est plus, un `rembourseCents = 0` implicite sauterait
     // toute la vérification et produirait. Dans un garde fail-closed, ne pas
     // pouvoir vérifier doit refuser.
     if (!order.paymentIntentId) {
+      await libererVerrou();
       return NextResponse.json(
         { error: "Aucun identifiant de paiement — impossible de vérifier les remboursements." },
         { status: 409 },
@@ -130,18 +198,25 @@ export const POST = withErrorHandler(
     }
 
     let rembourseCents = 0;
+    let conteste = false;
     {
       try {
-        const refunds = await getStripe().refunds.list({
-          payment_intent: order.paymentIntentId,
-          limit: 100,
-        });
-        rembourseCents = refunds.data
-          .filter((r) => r.status !== "failed" && r.status !== "canceled")
-          .reduce((somme, r) => somme + r.amount, 0);
+        const charges = await getStripe().charges.list(
+          { payment_intent: order.paymentIntentId, limit: 100 },
+          // Borne POSÉE ICI et nulle part ailleurs : cet appel est le seul
+          // enfermé DANS le verrou à péremption. Aux défauts de la librairie
+          // (80 s × 3 tentatives ≈ 250 s), il mangerait le budget de 300 s et
+          // rouvrirait la double soumission qu'on vient de fermer.
+          { timeout: 10_000, maxNetworkRetries: 1 },
+        );
+        for (const c of charges.data) {
+          rembourseCents += c.amount_refunded ?? 0;
+          if (c.disputed) conteste = true;
+        }
       } catch (err) {
         // Fail-closed : ne pas savoir, c'est ne pas produire. La sanction d'un
         // faux négatif ici est « imprimer gratuitement ».
+        await libererVerrou();
         return NextResponse.json(
           {
             error:
@@ -153,7 +228,22 @@ export const POST = withErrorHandler(
         );
       }
     }
+    if (conteste) {
+      await libererVerrou();
+      return NextResponse.json(
+        {
+          error:
+            "Paiement CONTESTÉ auprès de la banque — Stripe retient le montant et les frais. " +
+            "Relancer la production ferait payer l'impression sans contrepartie. " +
+            "⚠️ Ce blocage est PERMANENT : `disputed` reste vrai même après une contestation " +
+            "gagnée. Vérifie l'issue au portail Stripe et passe par une commande neuve.",
+        },
+        { status: 409 },
+      );
+    }
+
     if (rembourseCents > 0) {
+      await libererVerrou();
       // `formatCents` et non `.toFixed(2)` : ce dernier produit « 15.00 », un
       // point décimal anglais dans une application fr-CA. Le dépôt a ce
       // helper précisément parce que 48 sites le faisaient à la main.
@@ -174,6 +264,7 @@ export const POST = withErrorHandler(
     try {
       payload = SinaliteOrderRequest.parse(JSON.parse(order.sinalitePayload));
     } catch {
+      await libererVerrou();
       return NextResponse.json(
         { error: "Invalid sinalitePayload snapshot" },
         { status: 500 },
@@ -213,6 +304,41 @@ export const POST = withErrorHandler(
       });
       return NextResponse.json({ ok: true, sinaliteOrderId: result.orderId });
     } catch (err) {
+      // ⚠️ LIBÉRATION CONDITIONNELLE, et la condition est « a-t-on VRAIMENT
+      // envoyé /order/new ? ».
+      //
+      // Une levée APRÈS l'envoi ne prouve pas que le fournisseur n'a rien créé
+      // — un délai d'attente sur la réponse laisse une commande bien réelle de
+      // l'autre côté — donc on garde le verrou.
+      //
+      // ⚠️ ET LA PÉREMPTION NE RÈGLE RIEN : au bout de 5 minutes elle REND le
+      // risque à l'admin, qui recliquera sans avoir le moindre signal qu'une
+      // commande existe peut-être déjà chez le fournisseur. Une incertitude
+      // sur un appel money ne se résout pas par une minuterie. Fermer ça
+      // demande un marqueur DURABLE « /order/new émis, issue inconnue » + une
+      // alerte critique + un déblocage humain explicite — ticket séparé, ce
+      // verrou en est le socle.
+      //
+      // Mais `sinalite.createOrder` lève AUSSI avant tout paquet. Deux cas
+      // seulement sont reconnus par ce test, et c'est VOLONTAIREMENT écrit
+      // ainsi plutôt que « tous les échecs pré-envoi » :
+      //   ✓ configuration invalide → `SinaliteError(…, '<config>')`
+      //   ✓ `/auth/token` en 401   → `SinaliteError(…, '/auth/token')`
+      //   ✗ `/auth/token` en TIMEOUT → `DOMException`, pas une `SinaliteError`
+      //   ✗ validation locale du payload → `ZodError`
+      // Les deux derniers CONSERVENT donc le verrou. C'est fail-closed, donc
+      // sans risque d'argent — simplement cinq minutes d'attente de trop. Un
+      // commentaire qui promettrait les quatre serait faux, et ce dépôt vient
+      // d'en retirer deux du même genre.
+      //
+      // Le cas qui compte est couvert : identifiants fournisseur expirés,
+      // l'échec de rejeu le plus banal. Ne pas libérer condamnait l'admin à un
+      // 409 « rejeu déjà en cours » pendant cinq minutes, sur une route dont
+      // l'objet est justement de réessayer.
+      const preEnvoi =
+        err instanceof SinaliteError && err.endpoint !== '/order/new';
+      if (preEnvoi) await libererVerrou();
+
       const reason =
         err instanceof Error ? err.message : "Sinalite replay failed";
       // Audit admin 2026-07 §8.3 — ne PAS dégrader une commande valide. Avant, un
