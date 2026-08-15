@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { Icon } from '@/components/ui/Icon';
 import { PEREMPTION_VERROU_MS } from '@/lib/orders/replay-lock';
+import { referencePlio } from '@/lib/sinalite/order-notes';
 
 interface Props {
   orderId: string;
@@ -40,9 +41,15 @@ interface Props {
    * geste celui qui détruit le verrou de l'appel en vol.
    */
   replayClaimedAt?: string | null;
+  /**
+   * `paidAt` posé. Sert à n'offrir le remboursement que sur de l'argent
+   * RÉELLEMENT encaissé : une commande FAILED faute de 3-D Secure n'a rien à
+   * rendre, et proposer le geste ferait échouer l'appel côté Stripe.
+   */
+  encaissee?: boolean;
 }
 
-export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1, alreadyRefundedCents = 0, submitUncertainAt = null, replayClaimedAt = null }: Props) {
+export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1, alreadyRefundedCents = 0, submitUncertainAt = null, replayClaimedAt = null, encaissee = false }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +64,10 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   const enVol =
     replayClaimedAt !== null &&
     Date.now() - new Date(replayClaimedAt).getTime() < PEREMPTION_VERROU_MS;
+  // Formulaire de rattachement du numéro fournisseur (issue « je l'ai trouvée
+  // au portail » de la vérification exigée par l'encadré).
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [attachId, setAttachId] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('Geste commercial');
@@ -74,7 +85,21 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
 
   // §8.5 — restant remboursable (le form refund raisonne dessus, pas sur le total).
   const remainingCents = Math.max(0, amountCents - alreadyRefundedCents);
-  const canRefund = status !== 'PENDING' && status !== 'CANCELLED' && status !== 'FAILED' && remainingCents > 0;
+  // ⚠️ `FAILED` N'EST PLUS EXCLU, et c'est une conséquence directe du marqueur
+  // d'incertitude. Une soumission partie sans réponse laisse la commande
+  // FAILED avec l'argent CONSERVÉ. Si la vérification au portail conclut
+  // « rien », l'admin n'avait alors que deux gestes : relancer la production,
+  // ou ne rien faire — rembourser n'était offert nulle part, alors que la
+  // route l'accepte (elle ne refuse que PENDING). On gardait l'argent d'un
+  // client sans produire, et le runbook s'arrêtait là.
+  //
+  // `encaissee` borne le geste à de l'argent réel : les FAILED du 3-D Secure
+  // abandonné (`paidAt` nul) n'ont rien à rendre. Et `remainingCents > 0`
+  // écarte tout seul les FAILED déjà remboursées automatiquement, qui sont la
+  // population majoritaire.
+  const canRefund =
+    status !== 'PENDING' && status !== 'CANCELLED' && remainingCents > 0 &&
+    (status !== 'FAILED' || encaissee);
   const canReplay = !hasSinaliteId && status !== 'PENDING' && status !== 'CANCELLED';
   const canCancel = status !== 'SHIPPED' && status !== 'DELIVERED' && status !== 'CANCELLED' && status !== 'FAILED';
 
@@ -152,13 +177,41 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
     const ok = await confirm({
       title: "Lever le blocage « issue inconnue » ?",
       body:
-        "Une soumission précédente est partie sans réponse. Confirme que tu as VÉRIFIÉ au portail " +
-        "Sinalite qu'aucune commande n'y a été créée. Cette action est journalisée à ton nom — " +
+        `Confirme que tu as cherché « ${referencePlio(orderId)} » au portail Sinalite et ` +
+        "qu'AUCUNE commande n'y correspond. Cette action est journalisée à ton nom — " +
         "si une commande existe et que tu relances, l'imprimeur produira deux fois.",
-      confirmLabel: 'J\'ai vérifié au portail',
+      confirmLabel: 'Rien au portail — lever',
     });
     if (!ok) return;
     void call('Lever incertitude', `/api/admin/orders/${orderId}/clear-submit-uncertainty`);
+  }
+
+  // ⚠️ LE SECOND GESTE DE LA MÊME VÉRIFICATION. L'encadré demande d'aller
+  // regarder le portail ; ça a deux issues, et une seule avait un bouton.
+  // L'admin qui TROUVAIT la commande n'avait que de mauvais choix : affirmer
+  // par écrit qu'il n'avait rien vu, ou ne rien faire — en laissant une
+  // commande en production sans identifiant fournisseur, donc invisible aux
+  // webhooks de statut et sans aucun suivi pour le client.
+  async function handleRattacherSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const numero = attachId.trim();
+    if (!/^\d+$/.test(numero)) {
+      setError('Numéro fournisseur invalide — chiffres seulement.');
+      return;
+    }
+    setAttachOpen(false);
+    const ok = await confirm({
+      title: `Rattacher la commande fournisseur #${numero} ?`,
+      body:
+        `La commande passera « Soumise à la presse » avec le numéro ${numero}, et le rejeu sera ` +
+        'bloqué définitivement. À ne faire que si tu as LU ce numéro au portail sur une commande ' +
+        `qui correspond à ${referencePlio(orderId)}. Journalisé à ton nom.`,
+      confirmLabel: 'Rattacher',
+    });
+    if (!ok) return;
+    void call('Numéro fournisseur rattaché', `/api/admin/orders/${orderId}/attach-sinalite-id`, {
+      sinaliteOrderId: numero,
+    });
   }
 
   // Round 37 #5 — handleRefund ouvre maintenant un mini-form inline
@@ -276,11 +329,85 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
             La commande existe <strong>peut-être déjà</strong> chez l&apos;imprimeur. Le rejeu
             est bloqué tant que ce n&apos;est pas vérifié au portail Sinalite.
           </span>
+
+          {/* ⚠️ LA CLÉ DE CORRÉLATION, MONTRÉE. L'encadré exigeait d'attester
+              l'absence d'une commande sans jamais dire SOUS QUEL NOM la
+              chercher : `referencePlio` existait et n'était affiché nulle
+              part. On demandait une vérification en retenant ce qui permet de
+              la faire. Elle est envoyée dans `notes` sur chaque soumission —
+              c'est donc bien ce texte qui est cherchable au portail. */}
+          <div
+            style={{
+              display: 'grid',
+              gap: 6,
+              padding: 10,
+              borderRadius: 'var(--r-sm)',
+              background: 'var(--bg-sunken)',
+            }}
+          >
+            <span style={{ color: 'var(--text-secondary)' }}>
+              Cherche cette référence dans les notes des commandes au portail :
+            </span>
+            <code style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700 }}>
+              {referencePlio(orderId)}
+            </code>
+            <a
+              href="https://apifrontend.sinaliteuppy.com/index.php"
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}
+            >
+              Ouvrir le portail Sinalite ↗
+            </a>
+          </div>
+
+          {/* Les DEUX issues de la vérification, côte à côte. N'en offrir
+              qu'une poussait à mentir : voir le commentaire de
+              `handleRattacherSubmit`. */}
           <ActionBtn
-            label={<><Icon name="check" /> J&apos;ai vérifié — lever le blocage</>}
+            label={<><Icon name="check" /> Rien au portail — lever le blocage</>}
             onClick={handleLeverIncertitude}
             busy={busy === 'Lever incertitude'}
           />
+          {attachOpen ? (
+            <form onSubmit={handleRattacherSubmit} style={{ display: 'grid', gap: 6 }}>
+              <label htmlFor="attach-sin" style={{ display: 'block', fontSize: 11, fontWeight: 600 }}>
+                Numéro de commande lu au portail
+              </label>
+              <input
+                id="attach-sin"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                required
+                autoFocus
+                placeholder="123456"
+                value={attachId}
+                onChange={(e) => setAttachId(e.target.value.replace(/\D/g, ''))}
+                style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)' }}
+              />
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setAttachOpen(false)}
+                  style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'var(--text-on-accent)', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Rattacher
+                </button>
+              </div>
+            </form>
+          ) : (
+            <ActionBtn
+              label={<><Icon name="clip" /> Je l&apos;ai trouvée — rattacher son numéro</>}
+              onClick={() => { setAttachId(''); setError(null); setAttachOpen(true); }}
+              busy={busy === 'Numéro fournisseur rattaché'}
+            />
+          )}
         </div>
       )}
 

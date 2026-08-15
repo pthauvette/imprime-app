@@ -126,3 +126,31 @@ describe('sinalite/client — un échec de jeton est PROUVABLEMENT pré-envoi', 
     expect((err as InstanceType<typeof SinaliteError>).status).toBe(0);
   });
 });
+
+describe('createOrder — un payload invalide DOIT se dire pré-envoi', () => {
+  it('lève un SinaliteError d’endpoint `<payload>`, jamais un ZodError nu', async () => {
+    // POURQUOI CE TEST. La validation locale s'exécute avant le moindre paquet,
+    // donc elle PROUVE qu'aucune commande n'a été créée — mais un `ZodError`
+    // nu ne porte pas cette preuve. Les deux chemins de soumission rangent
+    // toute exception non reconnue en « issue inconnue » : marqueur durable,
+    // aucun remboursement, blocage jusqu'à ce qu'un humain aille au portail.
+    // Sur le webhook, un payload invalide — c'est-à-dire un bug de NOTRE
+    // côté — aurait donc gelé chaque commande payée au lieu de la rembourser.
+    //
+    // Écrit après une campagne de mutation : étiqueter cette erreur
+    // `/order/new` au lieu de `<payload>` ne faisait rougir AUCUN test.
+    vi.resetModules();
+    const { sinalite, SinaliteError } = await import('@/lib/sinalite/client');
+    const { aucuneCreationPossible } = await import('@/lib/sinalite/submit-outcome');
+
+    const err = await sinalite
+      .createOrder({ items: [] } as never)
+      .then(() => null)
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(SinaliteError);
+    expect((err as InstanceType<typeof SinaliteError>).endpoint).toBe('<payload>');
+    // Ce qui compte in fine : l'appelant peut en conclure « rien n'est parti ».
+    expect(aucuneCreationPossible(err)).toBe(true);
+  });
+});

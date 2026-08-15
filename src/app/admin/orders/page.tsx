@@ -34,6 +34,14 @@ interface SP {
   status?: string;
   q?: string;
   page?: string;
+  /**
+   * Filtre TRANSVERSE au statut. `incertaine` isole les commandes dont la
+   * soumission est partie sans réponse — elles peuvent être FAILED (webhook)
+   * ou PAID (rattachement raté), donc aucune pastille de statut ne les
+   * rassemble. Sans ce filtre, `sinaliteSubmitUncertainAt` n'était lisible que
+   * sur la fiche d'une commande qu'on a déjà ouverte.
+   */
+  flag?: string;
 }
 
 export default async function AdminOrdersPage({
@@ -48,12 +56,16 @@ export default async function AdminOrdersPage({
     ? (sp.status as OrderStatus)
     : null;
   const search = (sp.q ?? '').trim();
+  const filtreIncertaine = sp.flag === 'incertaine';
 
   // ─── WHERE clause ──────────────────────────────────────────────────────
   const where: Parameters<typeof prisma.order.findMany>[0] extends infer F
     ? F extends { where?: infer W } ? W : never
     : never = {
     ...(filterStatus ? { status: filterStatus } : {}),
+    // `sinaliteOrderId: null` : une commande dont le numéro fournisseur a fini
+    // par être rattaché n'est plus incertaine, même si le marqueur traînait.
+    ...(filtreIncertaine ? { sinaliteSubmitUncertainAt: { not: null }, sinaliteOrderId: null } : {}),
     ...(search ? {
       OR: [
         { sinaliteOrderId: { contains: search } },
@@ -70,7 +82,7 @@ export default async function AdminOrdersPage({
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [orders, totalCount, statusCounts, statsToday, stats7d, stats30d, pendingAction, slaMetrics, savedFilters] = await Promise.all([
+  const [orders, totalCount, statusCounts, statsToday, stats7d, stats30d, pendingAction, incertainesCount, slaMetrics, savedFilters] = await Promise.all([
     prisma.order.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -100,6 +112,11 @@ export default async function AdminOrdersPage({
     }),
     prisma.order.count({
       where: { status: { in: ['PENDING', 'PAID', 'FAILED'] } },
+    }),
+    // Compteur du filtre transverse — il doit être visible SANS filtrer,
+    // sinon on ne cherche que ce qu'on sait déjà chercher.
+    prisma.order.count({
+      where: { sinaliteSubmitUncertainAt: { not: null }, sinaliteOrderId: null },
     }),
     // Round 25 #3 — SLA widget (P50/P95 time-to-submit + time-to-ship).
     // .catch fallback : si la query échoue (Prisma down, schema drift),
@@ -232,6 +249,10 @@ export default async function AdminOrdersPage({
               const params = new URLSearchParams();
               if (p.key) params.set('status', p.key);
               if (search) params.set('q', search);
+              // Le drapeau SURVIT au changement de statut : il est transverse,
+              // et le perdre à chaque clic rendrait les deux filtres
+              // mutuellement exclusifs sans raison.
+              if (filtreIncertaine) params.set('flag', 'incertaine');
               const href = `/admin/orders${params.toString() ? '?' + params.toString() : ''}`;
               const isActive = (p.key === null && !filterStatus) || p.key === filterStatus;
               return (
@@ -247,8 +268,37 @@ export default async function AdminOrdersPage({
             })}
           </div>
 
+          {/* ⚠️ RENDU SEULEMENT S'IL Y EN A, et c'est délibéré : une pastille
+              « 0 » permanente devient du mobilier qu'on cesse de lire. Quand
+              elle apparaît, c'est qu'une production a peut-être été lancée
+              sans qu'on le sache. */}
+          {(incertainesCount > 0 || filtreIncertaine) && (
+            <div style={{ marginTop: 10 }}>
+              <Link
+                href={
+                  (() => {
+                    const params = new URLSearchParams();
+                    if (filterStatus) params.set('status', filterStatus);
+                    if (search) params.set('q', search);
+                    if (!filtreIncertaine) params.set('flag', 'incertaine');
+                    return `/admin/orders${params.toString() ? '?' + params.toString() : ''}`;
+                  })() as Route
+                }
+                className={`ord-pill${filtreIncertaine ? ' active' : ''}`}
+                style={{
+                  borderColor: 'var(--danger)',
+                  color: filtreIncertaine ? undefined : 'var(--danger)',
+                }}
+              >
+                Soumission sans réponse
+                <span className="ord-pill-count">{incertainesCount}</span>
+              </Link>
+            </div>
+          )}
+
           <form action="/admin/orders" method="get" className="ord-search" style={{ marginTop: 12 }}>
             {filterStatus && <input type="hidden" name="status" value={filterStatus} />}
+            {filtreIncertaine && <input type="hidden" name="flag" value="incertaine" />}
             <svg className="ord-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <circle cx={11} cy={11} r={7} />
               <path d="m21 21-4.3-4.3" />
@@ -342,6 +392,7 @@ export default async function AdminOrdersPage({
               totalCount={totalCount}
               status={filterStatus}
               search={search}
+              flagIncertaine={filtreIncertaine}
             />
           )}
         </section>
@@ -374,15 +425,19 @@ function EmptyState() {
 }
 
 function Pagination({
-  page, totalPages, totalCount, status, search,
+  page, totalPages, totalCount, status, search, flagIncertaine,
 }: {
   page: number; totalPages: number; totalCount: number;
-  status: OrderStatus | null; search: string;
+  status: OrderStatus | null; search: string; flagIncertaine: boolean;
 }) {
   const buildHref = (p: number): Route => {
     const params = new URLSearchParams();
     if (status) params.set('status', status);
     if (search) params.set('q', search);
+    // Sans ça, page 2 perdait le filtre et rendait la liste ENTIÈRE sous le
+    // même en-tête — une pagination qui change silencieusement de jeu de
+    // résultats est pire qu'une pagination absente.
+    if (flagIncertaine) params.set('flag', 'incertaine');
     if (p > 1) params.set('page', String(p));
     return `/admin/orders${params.toString() ? '?' + params.toString() : ''}` as Route;
   };

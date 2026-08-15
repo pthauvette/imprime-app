@@ -20,7 +20,9 @@
 import Stripe from 'stripe';
 import { sinalite } from '@/lib/sinalite/client';
 import { SinaliteOrderRequest } from '@/lib/sinalite/types';
-import { enrichirPayloadSoumis } from '@/lib/sinalite/order-notes';
+import { enrichirPayloadSoumis, referencePlio } from '@/lib/sinalite/order-notes';
+import { aucuneCreationPossible } from '@/lib/sinalite/submit-outcome';
+import { PEREMPTION_VERROU_MS } from '@/lib/orders/replay-lock';
 import { prisma } from '@/lib/db';
 import {
   markOrderPaid,
@@ -271,6 +273,67 @@ async function handlePaymentSucceeded(
     const candidate = await prisma.order.findUnique({
       where: { id: intent.metadata.orderId },
     });
+    // ⚠️ COMMANDE ENCAISSÉE DONT L'ISSUE DE PRODUCTION EST INCONNUE.
+    //
+    // La page `/payment/retry` refuse désormais d'ouvrir une session sur cet
+    // état, mais le client a pu en ouvrir une AVANT que le marqueur soit posé
+    // — les deux gestes tiennent dans les mêmes secondes. Ici, l'argent est
+    // déjà arrivé : le seul rattrapage est de le rendre, pas d'adopter le
+    // nouveau PaymentIntent.
+    //
+    // Adopter reviendrait à écraser `paymentIntentId`, donc à ORPHELINER le
+    // premier encaissement — celui qu'on n'a justement pas remboursé. Tous les
+    // gardes en aval (`charges.list({ payment_intent: order.paymentIntentId })`
+    // dans le rejeu, le remboursement admin) interrogeraient le mauvais
+    // paiement, et un remboursement « complet » laisserait le premier débit
+    // intact et introuvable.
+    //
+    // Même filet que la branche CANCELLED ci-dessous : remboursement idempotent
+    // du charge en trop, et on NE finalise PAS.
+    if (candidate && candidate.sinaliteSubmitUncertainAt) {
+      logStripe.error(
+        { orderId: candidate.id, intentId: intent.id, receivedCents: intent.amount_received },
+        'payment-retry: commande à issue de soumission INCONNUE — refus d’adopter le nouveau PI, refund du charge en double',
+      );
+      try {
+        await getStripe().refunds.create(
+          { payment_intent: intent.id, reason: 'duplicate', metadata: { orderId: candidate.id, reason: 'submit_uncertain_double_charge' } },
+          { idempotencyKey: `uncertain_dup_${intent.id}` },
+        );
+      } catch (err) {
+        logStripe.fatal(
+          { err, orderId: candidate.id, intentId: intent.id },
+          'CRITICAL: refund du charge en double impossible sur commande à issue inconnue',
+        );
+        await sendCriticalAlert({
+          severity: 'critical',
+          title: 'DOUBLE DÉBIT sur une commande à issue de soumission inconnue',
+          body:
+            `Commande ${candidate.id} (${referencePlio(candidate.id)}) — le client a payé une SECONDE ` +
+            `fois (PI ${intent.id}) une commande déjà encaissée dont la production est incertaine, et ` +
+            'le remboursement automatique a échoué. Rembourse ce PI à la main dans Stripe. ' +
+            'Ne touche PAS au premier paiement tant que la vérification au portail n’est pas faite.',
+          context: { orderId: candidate.id, paymentIntentId: intent.id },
+          actionUrl: `/admin/orders/${candidate.id}`,
+          actionLabel: 'Voir la commande',
+        });
+        // Audit 2026-07 #2 — THROW plutôt que return : sans ça, l'event est
+        // marqué traité et la ligne dead-letter disparaît.
+        throw err;
+      }
+      await sendCriticalAlert({
+        severity: 'warning',
+        title: 'Double paiement remboursé — commande à issue de soumission inconnue',
+        body:
+          `Commande ${candidate.id} (${referencePlio(candidate.id)}) — le client a repayé une commande ` +
+          'déjà encaissée dont la production est incertaine. Le second débit a été remboursé ' +
+          'automatiquement. La vérification au portail reste à faire.',
+        context: { orderId: candidate.id, paymentIntentId: intent.id },
+        actionUrl: `/admin/orders/${candidate.id}`,
+        actionLabel: 'Voir la commande',
+      });
+      return;
+    }
     if (candidate && (candidate.status === 'PENDING' || candidate.status === 'FAILED')) {
       // Patch le PI reference pour que markOrderPaid() ci-dessous puisse
       // match. Note : markOrderPaid lookups par paymentIntentId.
@@ -482,12 +545,125 @@ async function handlePaymentSucceeded(
     throw err;
   }
 
+  // ═══ MARQUEUR D'INCERTITUDE — POSÉ AVANT L'APPEL ═══════════════════════
+  //
+  // Ce chemin porte ~100 % des commandes réelles ; le rejeu admin est
+  // marginal. Il n'avait pourtant AUCUN marqueur, et le scénario était
+  // déterministe :
+  //
+  //   `/order/new` expire à 15 s alors que Sinalite A CRÉÉ la commande → le
+  //   `catch` tente `refunds.create`, qui échoue lui aussi (PaymentIntent dans
+  //   un état qui refuse le remboursement) → `catch (refundErr)` →
+  //   `markOrderFailed` + alerte « rembourse à la main ». État final : FAILED,
+  //   `paidAt` posé, `sinaliteOrderId` null, aucun marqueur. L'admin ouvre la
+  //   fiche : rien de rouge, bouton « Soumettre » actif. Il clique,
+  //   `charges.list` rend `amount_refunded = 0` — le remboursement a échoué —
+  //   tous les gardes passent. SECONDE PRODUCTION pour un seul encaissement.
+  //
+  // ⚠️ AVANT L'APPEL, et c'est le seul ordre qui vaut : le cas couvert est
+  // précisément celui où le conteneur meurt sans jamais atteindre la ligne
+  // suivante.
+  //
+  // ⚠️ LE VERROU `replayClaimedAt` EST POSÉ ICI AUSSI, et le premier jet de ce
+  // lot ne le faisait pas — au motif que le webhook n'en a pas besoin contre
+  // lui-même. C'est vrai et hors sujet. `markOrderPaidWithWalletDebit` est un
+  // `updateMany` ATOMIQUE PENDING→PAID dont seul le gagnant descend jusqu'ici,
+  // donc deux livraisons concurrentes de `payment_intent.succeeded` ne peuvent
+  // effectivement pas soumettre toutes les deux.
+  //
+  // Mais cette colonne ne sert pas qu'à exclure : c'est LE SIGNAL « un envoi
+  // est en vol », lu par l'encadré admin (`OrderActions`) et par la route de
+  // levée d'incertitude. Un marqueur posé sans elle paraît périmé À LA
+  // SECONDE : l'interface affiche « Soumission partie sans réponse » et
+  // propose « J'ai vérifié » pendant que `/order/new` est encore en l'air.
+  // L'admin regarde le portail, n'y voit rien — normal, la commande n'y est
+  // pas ENCORE — lève le blocage de bonne foi, et relance. C'est très
+  // exactement le défaut fermé en #582, réintroduit par l'autre chemin.
+  //
+  // Les deux chemins partagent donc le même verrou, ce qui ferme du même coup
+  // la course INTER-CHEMINS dans les deux sens : le rejeu ne peut pas prendre
+  // un verrou vivant, et sa pose porte la clause symétrique
+  // `sinaliteSubmitUncertainAt: null`.
+  const poseAt = new Date();
+  const perime = new Date(poseAt.getTime() - PEREMPTION_VERROU_MS);
+  const pose = await prisma.order.updateMany({
+    where: {
+      id: order.id,
+      sinaliteOrderId: null,
+      sinaliteSubmitUncertainAt: null,
+      // Péremption : sinon une tentative interrompue (conteneur tué) laisserait
+      // un verrou éternel. Même seuil que le rejeu, même source.
+      OR: [{ replayClaimedAt: null }, { replayClaimedAt: { lt: perime } }],
+    },
+    data: { sinaliteSubmitUncertainAt: poseAt, replayClaimedAt: poseAt },
+  });
+  if (pose.count === 0) {
+    // Identifiant fournisseur déjà présent (commande soumise), marqueur déjà
+    // posé (un doute subsiste), ou envoi encore en vol. Dans les trois cas, ne
+    // RIEN envoyer : ne pas pouvoir prouver qu'on est seul, c'est ne pas
+    // produire.
+    logStripe.error(
+      { orderId: order.id, intentId: intent.id },
+      'webhook : soumission refusée — identifiant fournisseur, marqueur d’incertitude ou envoi en vol déjà présent',
+    );
+    await sendCriticalAlert({
+      severity: 'critical',
+      title: 'Webhook : soumission Sinalite refusée (commande déjà réclamée)',
+      body:
+        `Commande ${order.id} (${referencePlio(order.id)}) — le paiement est encaissé mais la ` +
+        'soumission a été refusée : la commande porte déjà un identifiant fournisseur, un ' +
+        'marqueur d’incertitude, ou un envoi encore en vol. Vérifie la fiche avant toute ' +
+        'action manuelle — ne relance PAS à l’aveugle.',
+      context: { orderId: order.id, paymentIntentId: intent.id },
+      actionUrl: `/admin/orders/${order.id}`,
+      actionLabel: 'Voir la commande',
+    });
+    return;
+  }
+
+  /**
+   * Efface le marqueur ET le verrou qu'on a posés — et EUX SEULS.
+   *
+   * Les deux clauses `…: poseAt` sont la même discipline que la libération de
+   * verrou du rejeu : sans elles, on effacerait le marqueur tout neuf d'un
+   * AUTRE envoi, c'est-à-dire la faute même que ce marqueur existe pour
+   * empêcher, déplacée de quelques lignes.
+   *
+   * ⚠️ N'EST PAS APPELÉE SUR UNE ISSUE INCONNUE, et c'est tout le sujet. Le
+   * verrou y expire de lui-même au bout de `PEREMPTION_VERROU_MS` — c'est ce
+   * délai qui donne à l'encadré admin sa fenêtre « Soumission en cours… »
+   * avant de basculer sur « partie sans réponse ». Le marqueur, lui, ne
+   * s'efface jamais tout seul.
+   */
+  const effacerMarqueur = async () => {
+    await prisma.order.updateMany({
+      where: { id: order.id, sinaliteSubmitUncertainAt: poseAt, replayClaimedAt: poseAt },
+      data: { sinaliteSubmitUncertainAt: null, replayClaimedAt: null },
+    });
+  };
+
+  // ⚠️ HISSÉS HORS DU `try`. Quand `markOrderSubmitted` ou l'envoi du courriel
+  // échouent APRÈS une soumission réussie, on CONNAÎT l'identifiant
+  // fournisseur — et le code précédent le jetait, pour ensuite REMBOURSER une
+  // commande dont la production était lancée.
+  let idFournisseur: number | null = null;
+  // Distinct de `idFournisseur !== null` : `markOrderSubmitted` écrit le statut
+  // ET l'identifiant dans une seule `$transaction`. Si elle lève, elle
+  // ROLLBACK — l'identifiant nous est connu, mais absent de la base.
+  let enregistre = false;
+
   try {
     const result = await sinalite.createOrder(payloadSoumis);
+    idFournisseur = result.orderId;
     await markOrderSubmitted({
       orderId: order.id,
       sinaliteOrderId: result.orderId,
     });
+    enregistre = true;
+    // Effacé APRÈS `markOrderSubmitted`, pas après `createOrder` : entre les
+    // deux, on connaît l'identifiant sans l'avoir encore enregistré. Si cette
+    // écriture-là échoue, l'incertitude doit survivre.
+    await effacerMarqueur();
     logStripe.info(
       { sinaliteOrderId: result.orderId, intentId: intent.id, orderId: order.id },
       'Sinalite order created',
@@ -502,6 +678,37 @@ async function handlePaymentSucceeded(
     }
   } catch (err) {
     logStripe.error({ err, orderId: order.id, intentId: intent.id }, 'Sinalite createOrder FAILED');
+
+    // ⚠️ LE REMBOURSEMENT AUTOMATIQUE N'EST PLUS INCONDITIONNEL.
+    //
+    // Il ne s'applique qu'aux échecs dont on peut PROUVER qu'ils précèdent la
+    // création (`aucuneCreationPossible` — jeton, configuration, payload
+    // invalide, ou refus de `/order/new` sur un code de la liste blanche).
+    // Partout ailleurs, la commande existe peut-être : rembourser, c'est payer
+    // une production ET rendre l'argent, puis annoncer au client une
+    // annulation qui n'a pas eu lieu.
+    //
+    // ⚠️ `status = 200` EST UN ÉCHEC INCONNU, PAS UN REFUS. Un décalage de
+    // schéma sur la réponse lève un `SinaliteError` portant le statut HTTP
+    // réel (`res.ok` était vrai) : la commande a bien été créée, c'est son
+    // identifiant qu'on a perdu. La liste blanche ne contient que des codes de
+    // refus, donc ce cas retombe correctement dans l'inconnu.
+    if (!(idFournisseur === null && aucuneCreationPossible(err))) {
+      await traiterIssueNonProuvee({
+        order,
+        intentId: intent.id,
+        err,
+        idFournisseur,
+        enregistre,
+        effacerMarqueur,
+      });
+      throw err;
+    }
+
+    // ── Refus PROUVÉ avant création : rien n'existe chez le fournisseur. ──
+    // Le marqueur n'a plus lieu d'être, et le remboursement automatique
+    // historique s'applique tel quel.
+    await effacerMarqueur();
 
     try {
       // Round 38 #3 — idempotencyKey : si le webhook Stripe retry pour
@@ -613,6 +820,150 @@ async function handlePaymentSucceeded(
 
     throw err;
   }
+}
+
+/**
+ * Traite tout échec de soumission dont on ne peut PAS prouver qu'il précède la
+ * création — et, par la même occasion, les échecs qui surviennent APRÈS une
+ * création réussie.
+ *
+ * ⚠️ AUCUN REMBOURSEMENT N'EST ÉMIS ICI, dans aucune branche, et c'est le
+ * cœur du correctif. Le code précédent remboursait sur TOUTE levée, y compris
+ * quand `markOrderSubmitted` avait déjà écrit l'identifiant fournisseur et que
+ * seul le courriel de confirmation avait échoué : production lancée, client
+ * remboursé, courriel d'annulation envoyé. Un incident SES suffisait.
+ *
+ * Extrait en fonction plutôt qu'en branches imbriquées parce que chaque cas
+ * doit être atteignable par un test isolé — c'est la seule façon de vérifier
+ * par MUTATION que la bonne branche fait la bonne chose.
+ */
+async function traiterIssueNonProuvee(input: {
+  order: { id: string; status: string; amountCents: number };
+  intentId: string;
+  err: unknown;
+  idFournisseur: number | null;
+  enregistre: boolean;
+  effacerMarqueur: () => Promise<void>;
+}) {
+  const { order, intentId, err, idFournisseur, enregistre, effacerMarqueur } = input;
+  const raison = err instanceof Error ? err.message.slice(0, 300) : 'inconnue';
+
+  if (idFournisseur !== null && !enregistre) {
+    // La soumission a RÉUSSI mais l'identifiant n'a pas été persisté
+    // (transaction annulée). Le rattacher est la seule chose qui empêche un
+    // second envoi, et on ne lève le marqueur QUE si ça marche.
+    //
+    // ⚠️ `sinaliteOrderId` est `@unique` : si ce numéro est déjà rattaché à
+    // une autre commande, Prisma lève P2002. Sans ce filet, l'exception
+    // sortirait d'ici et on perdrait l'alerte ET l'événement, précisément dans
+    // le cas où la trace compte le plus.
+    let rattache = { count: 0 };
+    try {
+      rattache = await prisma.order.updateMany({
+        where: { id: order.id, sinaliteOrderId: null },
+        data: { sinaliteOrderId: String(idFournisseur) },
+      });
+    } catch (e) {
+      logStripe.error(
+        { orderId: order.id, sinaliteOrderId: idFournisseur, err: e },
+        'webhook : rattachement de l’identifiant fournisseur impossible',
+      );
+    }
+    if (rattache.count > 0) await effacerMarqueur();
+
+    // ⚠️ ALERTE D'ABORD, ÉCRITURES ENSUITE. La cause la plus probable d'un
+    // rollback est une base indisponible — mettre l'écriture avant l'alerte
+    // placerait le seul canal indépendant de la base derrière une écriture
+    // qui, si elle lève, emporte l'alerte avec elle.
+    await sendCriticalAlert({
+      severity: 'critical',
+      title: 'Webhook : commande SOUMISE, enregistrement ÉCHOUÉ',
+      body:
+        `Commande ${order.id} (${referencePlio(order.id)}) — soumission RÉUSSIE ` +
+        `(fournisseur #${idFournisseur}) mais l'enregistrement a échoué. Rattachement ` +
+        `automatique : ${rattache.count > 0 ? 'OK' : 'ÉCHOUÉ — rattacher à la main'}. ` +
+        'Ne PAS relancer, ne PAS rembourser : la production est lancée.',
+      context: { orderId: order.id, paymentIntentId: intentId, sinaliteOrderId: idFournisseur },
+      actionUrl: `/admin/orders/${order.id}`,
+      actionLabel: 'Voir la commande',
+    });
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        kind: 'SINALITE_SUBMIT_UNCERTAIN',
+        data: JSON.stringify({ sinaliteOrderId: idFournisseur, rattache: rattache.count > 0, raison }),
+      },
+    });
+    return;
+  }
+
+  if (idFournisseur !== null) {
+    // L'ISSUE N'EST PAS INCONNUE : soumission réussie ET enregistrée. Seule
+    // une écriture annexe a échoué — en pratique le courriel de confirmation.
+    // Crier « partie sans réponse » serait faux, et bloquerait derrière une
+    // vérification de portail qui n'a aucun lieu d'être.
+    //
+    // ⚠️ ALERTE AVANT L'ÉCRITURE, comme dans la branche précédente. Le premier
+    // jet plaçait `effacerMarqueur()` en tête et appliquait donc la règle à
+    // moitié, dans la même fonction : si la base est le composant en panne,
+    // l'écriture lève et emporte avec elle le seul canal qui n'en dépend pas.
+    await sendCriticalAlert({
+      severity: 'warning',
+      title: 'Webhook : commande soumise et enregistrée, courriel non envoyé',
+      body:
+        `Commande ${order.id} (${referencePlio(order.id)}) — soumission et enregistrement OK ` +
+        `(fournisseur #${idFournisseur}). Seule une écriture annexe a échoué ; aucun risque de ` +
+        'double production. Le client n’a peut-être pas reçu sa confirmation.',
+      context: { orderId: order.id, paymentIntentId: intentId, sinaliteOrderId: idFournisseur },
+      actionUrl: `/admin/orders/${order.id}`,
+      actionLabel: 'Voir la commande',
+    });
+    await effacerMarqueur();
+    return;
+  }
+
+  // ── ISSUE INCONNUE ────────────────────────────────────────────────────
+  // L'envoi a PEUT-ÊTRE eu lieu. Le marqueur RESTE : il ne s'efface que sur
+  // preuve, et la preuve est un humain qui a regardé le portail.
+  //
+  // Le client n'est ni remboursé ni prévenu d'une annulation, à dessein : on
+  // ignore si sa commande est en production. Le geste juste est humain et
+  // rapide — d'où l'alerte critique immédiate, le balayage quotidien du cron
+  // `order-sla-alerts`, et la référence citable au portail dans les deux.
+  await sendCriticalAlert({
+    severity: 'critical',
+    title: 'Webhook : soumission partie sans réponse — vérification portail requise',
+    body:
+      `Commande ${order.id} (${referencePlio(order.id)}) — /order/new a été émis, la réponse ` +
+      "n'est jamais revenue. La commande existe PEUT-ÊTRE chez l'imprimeur.\n\n" +
+      `Cherche « ${referencePlio(order.id)} » dans les notes au portail Sinalite AVANT toute ` +
+      'action. AUCUN remboursement n’a été émis, précisément parce que la production est ' +
+      "peut-être lancée. Le rejeu reste bloqué tant qu'un humain n'a pas tranché.\n\n" +
+      "Trois issues, toutes sur la fiche :\n" +
+      "· la commande Y EST → « Je l'ai trouvée — rattacher son numéro » ;\n" +
+      "· elle n'y est PAS → « Rien au portail — lever le blocage », puis « Soumettre » ;\n" +
+      "· l'imprimeur est hors service durablement → « Rembourser » et préviens le client. " +
+      "Ne laisse pas la commande dans cet état : l'argent est encaissé et rien n'est produit.",
+    context: { orderId: order.id, paymentIntentId: intentId, amountCents: order.amountCents, raison },
+    actionUrl: `/admin/orders/${order.id}`,
+    actionLabel: 'Voir la commande',
+  });
+  await prisma.orderEvent.create({
+    data: {
+      orderId: order.id,
+      kind: 'SINALITE_SUBMIT_UNCERTAIN',
+      data: JSON.stringify({ raison, paymentIntentId: intentId }),
+    },
+  });
+  // FAILED et non PAID : la commande DOIT ressortir comme un problème dans la
+  // liste admin. Le libellé client (« Échec ») ne promet aucun remboursement,
+  // donc il ne ment pas — et `failureReason` nomme l'incertitude au lieu
+  // d'affirmer un échec.
+  await markOrderFailed({
+    orderId: order.id,
+    reason: `Soumission Sinalite partie sans réponse — issue INCONNUE, vérification portail requise. Cause : ${raison}`,
+    data: { paymentIntentId: intentId, soumissionIncertaine: true },
+  });
 }
 
 /** Best-effort extraction du last4 de la card via PaymentIntent expand. */

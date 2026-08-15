@@ -464,7 +464,26 @@ export const sinalite = {
     // Ici et pas champ par champ : c'est le seul point de convergence des deux
     // chemins de soumission, donc la couverture des champs FUTURS est acquise
     // par construction.
-    const valide = SinaliteOrderRequest.parse(payload);
+    //
+    // ⚠️ CETTE VALIDATION DOIT DIRE QU'ELLE EST PRÉ-ENVOI. Elle s'exécute avant
+    // le moindre paquet, donc elle PROUVE qu'aucune commande n'a été créée —
+    // mais un `ZodError` nu ne porte pas cette information. Les deux chemins de
+    // soumission classent une exception non reconnue en « issue inconnue » :
+    // marqueur durable, aucun remboursement, blocage jusqu'à ce qu'un humain
+    // aille regarder le portail. Sur le webhook Stripe, un payload invalide —
+    // c'est-à-dire un bug de NOTRE côté — aurait donc gelé chaque commande
+    // payée au lieu de la rembourser. Même correction qu'au jeton : l'erreur
+    // porte son endpoint, et la preuve vit là où elle est vraie.
+    let valide: SinaliteOrderRequest;
+    try {
+      valide = SinaliteOrderRequest.parse(payload);
+    } catch (err) {
+      throw new SinaliteError(
+        `Sinalite order payload invalide : ${err instanceof Error ? err.message.slice(0, 300) : 'zod'}`,
+        0,
+        '<payload>',
+      );
+    }
     return request('/order/new', {
       method: 'POST',
       body: JSON.stringify(assainirChaines(valide)),

@@ -76,6 +76,10 @@ beforeEach(() => {
   m.createOrder.mockResolvedValue({ orderId: 999, message: 'ok', status: 'success' });
   // Par défaut, cet appel GAGNE la transition atomique PENDING→PAID.
   m.markOrderPaidWithWalletDebit.mockResolvedValue({ order: { id: 'ord_1' }, transitioned: true });
+  // Par défaut, la pose du marqueur d'incertitude RÉUSSIT (`count: 1`). Sans
+  // valeur de retour, `pose.count` levait un TypeError avant même d'atteindre
+  // le comportement testé — un mock muet est un test qui ment.
+  m.updateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('webhook payment_intent.succeeded — garde montant (C1)', () => {

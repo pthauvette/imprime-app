@@ -55,13 +55,35 @@ vi.mock('@/lib/db/orders', () => {
 
 vi.mock('@/lib/db', () => ({
   prisma: {
-    order: { findUnique: vi.fn() },
+    // `updateMany` : pose et effacement du marqueur d'incertitude, désormais
+    // encadrant `createOrder`. `orderEvent.create` : trace SINALITE_SUBMIT_UNCERTAIN.
+    order: { findUnique: vi.fn(), updateMany: vi.fn() },
+    orderEvent: { create: vi.fn() },
   },
 }));
 
 // ─── Sinalite client + types ─────────────────────────────────────────────────
+// `SinaliteError` DOIT être exporté par le mock : c'est lui qui porte
+// `endpoint` + `status`, les deux seules preuves qu'un refus précède la
+// création. Sans lui, tout échec simulé retombe dans « issue inconnue ».
+// `vi.hoisted` : les fabriques `vi.mock` sont remontées AU-DESSUS des
+// déclarations du fichier, donc une `class` déclarée normalement n'existe pas
+// encore quand la fabrique s'exécute.
+const { SinaliteError } = vi.hoisted(() => ({
+  SinaliteError: class SinaliteError extends Error {
+    status: number;
+    endpoint: string;
+    constructor(message: string, status: number, endpoint: string) {
+      super(message);
+      this.name = 'SinaliteError';
+      this.status = status;
+      this.endpoint = endpoint;
+    }
+  },
+}));
 vi.mock('@/lib/sinalite/client', () => ({
   sinalite: { createOrder: vi.fn() },
+  SinaliteError,
 }));
 
 vi.mock('@/lib/sinalite/types', () => ({
@@ -173,6 +195,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Reset to default success-path behaviors
   vi.mocked(orders.recordWebhookEvent).mockResolvedValue({ isNew: true, alreadyCompleted: false });
+  // La pose du marqueur RÉUSSIT par défaut : sans valeur de retour, `pose.count`
+  // levait avant même d'atteindre le comportement annoncé par chaque titre.
+  vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 1 } as never);
+  vi.mocked(prisma.orderEvent.create).mockResolvedValue({} as never);
   vi.mocked(orders.markOrderPaid).mockResolvedValue(undefined as never);
   vi.mocked(orders.markOrderSubmitted).mockResolvedValue(undefined as never);
   vi.mocked(orders.markOrderFailed).mockResolvedValue(undefined as never);
@@ -307,7 +333,15 @@ describe('D. Sinalite failure → auto-refund (CRITICAL)', () => {
       .mockResolvedValueOnce(order as never)
       // post-refund fresh fetch (with user joined) for emails
       .mockResolvedValueOnce({ ...order, user: baseUser } as never);
-    vi.mocked(sinalite.createOrder).mockRejectedValueOnce(new Error('Sinalite 500: internal'));
+    // ⚠️ REFUS PROUVÉ, et c'est désormais la condition du remboursement
+    // automatique. Ce test simulait `new Error('Sinalite 500: internal')` —
+    // c'est-à-dire le cas où la commande peut parfaitement EXISTER chez le
+    // fournisseur. Il verrouillait donc le défaut : rembourser sur un doute,
+    // c'est payer une production ET rendre l'argent. Le cas inconnu a
+    // maintenant son propre test (D-bis), qui exige l'inverse.
+    vi.mocked(sinalite.createOrder).mockRejectedValueOnce(
+      new SinaliteError('Sinalite POST /order/new → 422', 422, '/order/new'),
+    );
 
     const res = await POST(makeStripeRequest());
 
@@ -321,7 +355,7 @@ describe('D. Sinalite failure → auto-refund (CRITICAL)', () => {
         metadata: {
           reason: 'sinalite_creation_failed',
           orderId: order.id,
-          error: 'Sinalite 500: internal',
+          error: 'Sinalite POST /order/new → 422',
         },
       },
       expect.objectContaining({
@@ -335,7 +369,7 @@ describe('D. Sinalite failure → auto-refund (CRITICAL)', () => {
     expect(orders.markOrderFailed).toHaveBeenCalledWith(
       expect.objectContaining({
         orderId: order.id,
-        reason: 'Sinalite 500: internal',
+        reason: 'Sinalite POST /order/new → 422',
         data: expect.objectContaining({ refundId: 're_test123' }),
       }),
     );
@@ -377,7 +411,11 @@ describe('E. Sinalite + refund both fail (CRITICAL CRITICAL)', () => {
     vi.mocked(stripeInstance.webhooks.constructEvent).mockReturnValueOnce(event as never);
     const order = { ...baseOrder, paymentIntentId: 'pi_double_fail' };
     vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(order as never);
-    vi.mocked(sinalite.createOrder).mockRejectedValueOnce(new Error('Sinalite 500'));
+    // Refus PROUVÉ, sinon on n'entre même pas dans la branche de
+    // remboursement — c'est bien celle-ci qu'on veut éprouver ici.
+    vi.mocked(sinalite.createOrder).mockRejectedValueOnce(
+      new SinaliteError('Sinalite 500', 400, '/order/new'),
+    );
     vi.mocked(stripeInstance.refunds.create).mockRejectedValueOnce(new Error('Stripe down'));
 
     const res = await POST(makeStripeRequest());
