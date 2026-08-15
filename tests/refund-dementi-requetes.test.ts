@@ -108,3 +108,30 @@ describe('purge — les kinds financiers ne sont jamais supprimés', () => {
     expect(purge).toContain("const KINDS_FINANCIERS = ['REFUND_ISSUED', 'REFUND_FAILED', 'PAYMENT_DISPUTED']");
   });
 });
+
+describe('les commentaires ne certifient que du vrai', () => {
+  const taxHelper = sansCommentaires(lire('src', 'lib', 'finances', 'tax-report.ts'));
+
+  it('⚠️ l’écran PORTE la note que le helper dit qu’il porte', () => {
+    // Motif récurrent de toute cette série : un commentaire qui certifie un
+    // comportement absent. Ici le helper affirmait « l'écran le dit
+    // explicitement » à propos du `count` de province non incrémenté, et
+    // l'écran ne disait rien — une ligne « QC · 1 commande · −723,65 $ »
+    // ressemble alors à un bug sur un tableau qui sert à remplir une
+    // déclaration.
+    expect(taxPage).toMatch(/ne compte que les commandes payées dans la période/);
+    expect(taxPage).toContain('summary.ajustementHorsPeriode !== 0');
+  });
+
+  it('le helper n’importe rien qu’il n’utilise pas', () => {
+    // Pas de `noUnusedLocals` dans tsconfig : le gate ne voit pas un import
+    // mort, et un import mort fait croire à une dépendance qui n'existe plus.
+    const imports = [...taxHelper.matchAll(/import \{([^}]+)\} from/g)]
+      .flatMap((m) => m[1]!.split(',').map((x) => x.trim()))
+      .filter(Boolean);
+    for (const nom of imports) {
+      const usages = [...taxHelper.matchAll(new RegExp(`\\b${nom}\\b`, 'g'))];
+      expect(usages.length, `${nom} importé mais jamais utilisé`).toBeGreaterThan(1);
+    }
+  });
+});

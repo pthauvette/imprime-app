@@ -317,6 +317,19 @@ export default async function TaxReportPage({
                   ))}
               </tbody>
             </table>
+            {/* ⚠️ SANS CETTE NOTE, une ligne « QC · 1 commande · −723,65 $ »
+                ressemble à un bug. Le compte ne porte QUE les commandes de la
+                période ; les montants portent en plus les ajustements sur des
+                commandes d'une autre période, qui n'ont pas de commande à
+                compter ici. */}
+            {summary.ajustementHorsPeriode !== 0 && (
+              <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                La colonne « Commandes » ne compte que les commandes payées dans la période. Les montants
+                incluent en plus {formatCurrency(summary.ajustementHorsPeriode)} d&apos;ajustement sur des
+                commandes d&apos;une période antérieure — remboursées ou reprises dans celle-ci — qui n&apos;ont
+                donc aucune commande à compter ici.
+              </p>
+            )}
           </section>
         )}
       </main>

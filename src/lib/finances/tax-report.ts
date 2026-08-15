@@ -12,7 +12,6 @@
  */
 import { computeTax } from '@/lib/taxes';
 import type { CaProvince } from '@/lib/sinalite/types';
-import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
 
 export interface TaxReportOrderInput {
   id: string;
@@ -356,9 +355,13 @@ export function computeTaxReport(
     }
 
     // ⚠️ `count` N'EST PAS INCRÉMENTÉ : aucune COMMANDE n'appartient à cette
-    // période, seul un ajustement s'y rattache. L'écran le dit explicitement,
-    // sinon une ligne « BC · 0 commande · 100,00 $ » ressemble à un bug sur un
-    // tableau qui sert à remplir une déclaration.
+    // période, seul un ajustement s'y rattache. Une ligne « BC · 0 commande ·
+    // 100,00 $ » ressemblerait sinon à un bug sur un tableau qui sert à
+    // remplir une déclaration — c'est pourquoi l'écran porte une note sous ce
+    // tableau (`tax-report/page.tsx`). Un jet précédent affirmait ici que
+    // « l'écran le dit explicitement » alors qu'il ne disait rien : un
+    // commentaire qui certifie un comportement absent est précisément ce que
+    // toute cette série a appris à ne plus écrire.
     const prov = provMap.get(cmd.shipProvince) ?? { count: 0, subtotalCents: 0, taxCents: 0 };
     prov.subtotalCents += subtotal;
     prov.taxCents += taxe;
