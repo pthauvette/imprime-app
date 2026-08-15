@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db';
 import { withErrorHandler } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
+import { enAttenteDeTranchage } from '@/lib/orders/uncertain-marker';
 import { sendOrderConfirmationEmail } from '@/lib/emails/send';
 
 export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -24,6 +25,26 @@ export const POST = withErrorHandler(async (_req: Request, ctx: { params: Promis
   });
   if (!order) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  }
+  // ⚠️ « C'EST IMPRIMÉ! » — c'est l'objet ET le titre de ce gabarit, et il
+  // joint la facture. Sur une commande dont la soumission est partie sans
+  // réponse, c'est une affirmation qu'on ne peut pas tenir.
+  //
+  // Ce bouton est le PREMIER du panneau et se rend sans condition, donc
+  // AU-DESSUS de l'encadré rouge qui explique de ne rien faire. Et le filtre
+  // `?flag=incertaine` que ce lot ajoute pour rassembler ces commandes rend le
+  // geste groupé naturel : sélectionner tout, « Renvoyer la confirmation », et
+  // N clients apprennent que leur commande est imprimée.
+  if (enAttenteDeTranchage(order)) {
+    return NextResponse.json(
+      {
+        error:
+          "Soumission partie sans réponse : ce courriel annonce « c'est imprimé » et joint la " +
+          'facture. On ne peut pas le tenir tant que la production n’est pas confirmée. ' +
+          'Tranche d’abord depuis la fiche.',
+      },
+      { status: 409 },
+    );
   }
 
   const result = await sendOrderConfirmationEmail({ order, user: order.user });

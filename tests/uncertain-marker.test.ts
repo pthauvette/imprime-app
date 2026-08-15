@@ -10,7 +10,7 @@
  * réelle.
  */
 import { describe, it, expect } from 'vitest';
-import { numeroFournisseurConnu } from '@/lib/orders/uncertain-marker';
+import { numeroFournisseurConnu, enAttenteDeTranchage } from '@/lib/orders/uncertain-marker';
 
 const ev = (data: unknown, min: number, kind = 'SINALITE_SUBMIT_UNCERTAIN') => ({
   kind,
@@ -60,5 +60,52 @@ describe('numéro connu malgré l’absence de sinaliteOrderId', () => {
 
   it('accepte un numéro sérialisé en chaîne', () => {
     expect(numeroFournisseurConnu([ev({ sinaliteOrderId: '481203' }, 0)])).toBe(481203);
+  });
+});
+
+describe('une levée efface ce qu’on savait de l’épisode PRÉCÉDENT', () => {
+  const leve = (min: number) => ({
+    kind: 'SINALITE_SUBMIT_UNCERTAIN_CLEARED',
+    data: JSON.stringify({ adminEmail: 'a@plio.ca' }),
+    createdAt: new Date(2026, 0, 1, 0, min),
+  });
+
+  it('épisode A avec numéro → levée → épisode B inconnu ⇒ null', () => {
+    // Sinon la fiche affiche « Production LANCÉE #481203 » pour un épisode B
+    // dont on ne sait rien : elle affirme plus qu'elle ne sait, exactement le
+    // défaut que ce lot corrige ailleurs.
+    expect(numeroFournisseurConnu([
+      ev({ sinaliteOrderId: 481203 }, 5),
+      leve(10),
+      ev({ raison: 'TimeoutError' }, 15),
+    ])).toBeNull();
+  });
+
+  it('un numéro appris APRÈS la levée compte toujours', () => {
+    expect(numeroFournisseurConnu([
+      ev({ sinaliteOrderId: 111 }, 5),
+      leve(10),
+      ev({ sinaliteOrderId: 999 }, 15),
+    ])).toBe(999);
+  });
+
+  it('sans aucune levée, rien ne change', () => {
+    expect(numeroFournisseurConnu([ev({ sinaliteOrderId: 481203 }, 5)])).toBe(481203);
+  });
+});
+
+describe('enAttenteDeTranchage — la question que quatre routes doivent poser', () => {
+  it('marqueur posé et aucun numéro rattaché → true', () => {
+    expect(enAttenteDeTranchage({ sinaliteSubmitUncertainAt: new Date(), sinaliteOrderId: null })).toBe(true);
+  });
+
+  it('numéro rattaché → false, même si le marqueur traîne', () => {
+    // Dès qu'un numéro existe, la commande est réellement en production et son
+    // statut dit vrai : la bloquer n'aurait plus de sens.
+    expect(enAttenteDeTranchage({ sinaliteSubmitUncertainAt: new Date(), sinaliteOrderId: '481203' })).toBe(false);
+  });
+
+  it('aucun marqueur → false', () => {
+    expect(enAttenteDeTranchage({ sinaliteSubmitUncertainAt: null, sinaliteOrderId: null })).toBe(false);
   });
 });

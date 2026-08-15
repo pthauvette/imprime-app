@@ -39,9 +39,24 @@ export interface EvenementIncertitude {
  * appelants pourraient ne pas le faire.
  */
 export function numeroFournisseurConnu(evenements: EvenementIncertitude[]): number | null {
+  // ⚠️ ON IGNORE TOUT CE QUI PRÉCÈDE LA DERNIÈRE LEVÉE. Sans ça, la séquence
+  // « épisode A avec numéro → levée par un humain → épisode B réellement
+  // inconnu » faisait afficher « Production LANCÉE #481203 » pour un épisode B
+  // dont on ne sait rien. L'instruction restait directionnellement juste — le
+  // numéro de A correspond à une production réelle — mais la fiche affirmait
+  // plus qu'elle ne savait, et c'est exactement le défaut que ce lot corrige
+  // ailleurs. Aucune mutation ne pouvait le voir : il faut une séquence avec
+  // une levée au milieu.
+  const derniereLevee = evenements.reduce(
+    (max, e) =>
+      e.kind === 'SINALITE_SUBMIT_UNCERTAIN_CLEARED' ? Math.max(max, e.createdAt.getTime()) : max,
+    -Infinity,
+  );
   let meilleur: { id: number; at: number } | null = null;
   for (const e of evenements) {
     if (e.kind !== 'SINALITE_SUBMIT_UNCERTAIN' || !e.data) continue;
+    if (e.createdAt.getTime() < derniereLevee) continue;
+    
     let parsed: unknown;
     try {
       parsed = JSON.parse(e.data);
@@ -57,3 +72,28 @@ export function numeroFournisseurConnu(evenements: EvenementIncertitude[]): numb
   }
   return meilleur?.id ?? null;
 }
+
+/** Forme minimale pour décider si une commande est « en attente de tranchage ». */
+export interface CommandeIncertaine {
+  sinaliteSubmitUncertainAt: Date | null;
+  sinaliteOrderId: string | null;
+}
+
+/**
+ * `true` tant qu'un humain n'a pas tranché sur une soumission d'issue inconnue.
+ *
+ * ⚠️ SOURCE UNIQUE, ET C'EST LE POINT. Quatre routes doivent poser la même
+ * question — `cancel`, `resend-confirmation`, `status`, et le bulk — et la
+ * revue money-path a trouvé cette famille RÉCIDIVISTE : chaque consommateur
+ * qui lit `status` sans connaître le marqueur rouvre un trou d'un genre
+ * différent. Quatre copies du même `if` finiraient par diverger.
+ *
+ * `sinaliteOrderId` non nul lève la condition : dès qu'un numéro est rattaché,
+ * la commande est réellement en production et son statut dit vrai.
+ */
+export function enAttenteDeTranchage(o: CommandeIncertaine): boolean {
+  return o.sinaliteSubmitUncertainAt !== null && o.sinaliteOrderId === null;
+}
+
+/** Clause Prisma correspondante, pour les requêtes de lot. */
+export const OU_TRANCHEE = { OR: [{ sinaliteSubmitUncertainAt: null }, { sinaliteOrderId: { not: null } }] };

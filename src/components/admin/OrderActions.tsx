@@ -16,6 +16,7 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { Icon } from '@/components/ui/Icon';
 import { PEREMPTION_VERROU_MS } from '@/lib/orders/replay-lock';
 import { referencePlio } from '@/lib/sinalite/order-notes';
+import { remboursementProposable } from '@/lib/orders/client-groups';
 
 interface Props {
   orderId: string;
@@ -105,9 +106,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   // abandonné (`paidAt` nul) n'ont rien à rendre. Et `remainingCents > 0`
   // écarte tout seul les FAILED déjà remboursées automatiquement, qui sont la
   // population majoritaire.
-  const canRefund =
-    status !== 'PENDING' && status !== 'CANCELLED' && remainingCents > 0 &&
-    (status !== 'FAILED' || encaissee);
+  const canRefund = remboursementProposable({ status, restantCents: remainingCents, encaissee });
   const canReplay = !hasSinaliteId && status !== 'PENDING' && status !== 'CANCELLED';
   const canCancel = status !== 'SHIPPED' && status !== 'DELIVERED' && status !== 'CANCELLED' && status !== 'FAILED';
 

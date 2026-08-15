@@ -67,3 +67,33 @@ export function bucketStatus(orders: CommandeGroupable[]) {
   }
   return counts;
 }
+
+/**
+ * Le remboursement est-il proposable depuis la fiche ?
+ *
+ * ⚠️ EXTRAIT DE `OrderActions.tsx` POUR ÊTRE ÉPROUVÉ POUR DE VRAI. La revue
+ * money-path a relevé, à raison, que le test qui « verrouillait » cette règle
+ * lisait le TEXTE SOURCE et assertait des motifs de chaîne : il passait donc
+ * sur `… && (status !== 'FAILED' || encaissee) && false`. Un test de chaîne se
+ * tue trivialement en changeant la chaîne, sans rien prouver du comportement.
+ *
+ * Le dépôt tourne en `environment: 'node'` sans RTL ni jsdom installés —
+ * rendre le composant demanderait deux dépendances de plus. Extraire la règle
+ * coûte trois lignes et la rend vérifiable.
+ *
+ * `FAILED` n'est plus exclu sèchement : une soumission partie sans réponse
+ * laisse la commande FAILED avec l'argent CONSERVÉ, et rembourser n'était
+ * offert nulle part alors que la route l'accepte. `encaissee` borne le geste à
+ * de l'argent réel (une commande FAILED faute de 3-D Secure n'a rien à rendre)
+ * et `restantCents > 0` écarte seul les FAILED déjà auto-remboursées.
+ */
+export function remboursementProposable(o: {
+  status: string;
+  restantCents: number;
+  encaissee: boolean;
+}): boolean {
+  if (o.status === 'PENDING' || o.status === 'CANCELLED') return false;
+  if (o.restantCents <= 0) return false;
+  if (o.status === 'FAILED') return o.encaissee;
+  return true;
+}

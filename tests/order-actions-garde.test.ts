@@ -122,17 +122,14 @@ describe('l’encadré distingue « on sait » de « on ne sait pas »', () => {
 });
 
 describe('le remboursement est offert sur une commande à vérifier', () => {
-  it('`canRefund` n’exclut plus FAILED quand la commande est encaissée', () => {
-    // Une soumission partie sans réponse laisse FAILED avec l'argent CONSERVÉ.
-    // Si la vérification conclut « rien au portail » et que l'imprimeur est
-    // hors service, rembourser n'était offert NULLE PART — on gardait l'argent
-    // d'un client sans produire, et le runbook s'arrêtait là.
-    const ligne = sansCommentaires.match(/const canRefund =([\s\S]*?);/)![1];
-    // FAILED reste mentionné, mais en DISJONCTION avec `encaissee` — jamais
-    // comme exclusion sèche. (Premier jet : `not.toMatch(/status !== 'FAILED'/)`,
-    // qui échouait sur le code correct puisque la disjonction contient le motif.)
-    expect(ligne).toContain('encaissee');
-    expect(ligne).toMatch(/status !== 'FAILED' \|\| encaissee/);
-    expect(ligne).not.toMatch(/&& status !== 'FAILED' &&/);
+  it('la règle est DÉLÉGUÉE à une fonction pure, pas réécrite ici', () => {
+    // La revue money-path a relevé, à raison, que l'assertion ci-dessous lisait
+    // le TEXTE SOURCE : elle passait sur `… && (…) && false`. La règle vit
+    // maintenant dans `remboursementProposable`, éprouvée pour de vrai dans
+    // `tests/orders-client-verification.test.ts`. Ce qu'on verrouille ici, c'est
+    // qu'elle n'a pas été RÉÉCRITE en dur dans le composant.
+    expect(sansCommentaires).toContain('const canRefund = remboursementProposable(');
+    expect(sansCommentaires).not.toMatch(/const canRefund =[\s\S]{0,200}status !== 'FAILED'/);
   });
+
 });

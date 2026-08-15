@@ -13,7 +13,7 @@
  * la même dérivation que le filtre — sinon « Annulées 1 » n'affiche rien.
  */
 import { describe, it, expect } from 'vitest';
-import { groupeDe, bucketStatus } from '@/lib/orders/client-groups';
+import { groupeDe, bucketStatus, remboursementProposable } from '@/lib/orders/client-groups';
 import type { OrderRowProps } from '@/components/account/OrderRow';
 
 const base: OrderRowProps = {
@@ -73,5 +73,51 @@ describe('les comptes suivent EXACTEMENT le filtre', () => {
       const compte = { live: c.live, shipped: c.SHIPPED, delivered: c.DELIVERED, cancelled: c.CANCELLED }[groupe];
       expect(compte).toBe(attendu);
     }
+  });
+});
+
+/**
+ * Règle de proposition du remboursement — ÉPROUVÉE, pas lue.
+ *
+ * La revue money-path a relevé que le test qui « verrouillait » cette règle
+ * lisait le texte source de `OrderActions.tsx` et assertait des motifs de
+ * chaîne : il passait donc sur `… && (status !== 'FAILED' || encaissee) &&
+ * false`. La règle est maintenant une fonction pure, et voici son
+ * comportement.
+ */
+describe('remboursement proposable depuis la fiche', () => {
+  const r = (o: Partial<Parameters<typeof remboursementProposable>[0]>) =>
+    remboursementProposable({ status: 'PAID', restantCents: 5000, encaissee: true, ...o });
+
+  it('⚠️ FAILED ENCAISSÉE → proposable (c’est le cas que ce lot crée)', () => {
+    // Une soumission partie sans réponse laisse FAILED avec l'argent conservé.
+    // Rembourser n'était offert nulle part alors que la route l'accepte.
+    expect(r({ status: 'FAILED', encaissee: true })).toBe(true);
+  });
+
+  it('FAILED jamais encaissée (3-D Secure abandonné) → PAS proposable', () => {
+    // Rien à rendre ; proposer le geste ferait échouer l'appel côté Stripe.
+    expect(r({ status: 'FAILED', encaissee: false })).toBe(false);
+  });
+
+  it('FAILED déjà auto-remboursée → PAS proposable (restant nul)', () => {
+    // La population majoritaire des FAILED s'écarte toute seule.
+    expect(r({ status: 'FAILED', encaissee: true, restantCents: 0 })).toBe(false);
+  });
+
+  it.each(['PENDING', 'CANCELLED'])('%s → jamais proposable', (status) => {
+    expect(r({ status })).toBe(false);
+  });
+
+  it.each(['PAID', 'SUBMITTED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'])(
+    '%s avec un restant → proposable (non-régression)',
+    (status) => {
+      expect(r({ status })).toBe(true);
+    },
+  );
+
+  it('restant négatif ou nul → jamais proposable, quel que soit le statut', () => {
+    expect(r({ restantCents: 0 })).toBe(false);
+    expect(r({ restantCents: -1 })).toBe(false);
   });
 });
