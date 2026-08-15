@@ -122,7 +122,18 @@ async function getToken(): Promise<string> {
   }
 
   const env = getEnv();
-  const res = await fetch(`${env.SINALITE_AUTH_BASE}/auth/token`, {
+  // ⚠️ LE REJET RÉSEAU DOIT PORTER SON ENDPOINT, LUI AUSSI.
+  // Un `!res.ok` levait bien un `SinaliteError('/auth/token')` ; un TIMEOUT ou
+  // un échec DNS levait une `DOMException`/`TypeError` nue. Or `getToken`
+  // s'exécute DANS `request()`, donc AVANT le `fetch` de `/order/new` : côté
+  // appelant, cette exception anonyme était indiscernable d'un envoi parti
+  // sans réponse. Le rejeu admin classait donc l'échec le PLUS fréquent — le
+  // jeton n'est en cache que par conteneur, absent à chaque démarrage à froid —
+  // en « issue inconnue », avec une alerte critique affirmant que
+  // « /order/new a été émis ». Faux : rien n'était parti.
+  let res: Response;
+  try {
+    res = await fetch(`${env.SINALITE_AUTH_BASE}/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -136,7 +147,16 @@ async function getToken(): Promise<string> {
     // requests Sinalite (qui appellent getToken d'abord) hangent aussi.
     // 10s couvre les pires latences observées + buffer.
     signal: AbortSignal.timeout(10_000),
-  });
+    });
+  } catch (err) {
+    // 0 : aucune réponse HTTP exploitable. L'appelant peut en déduire avec
+    // certitude que rien n'a été soumis en aval.
+    throw new SinaliteError(
+      `Sinalite token request failed: ${err instanceof Error ? err.message : 'network error'}`,
+      0,
+      '/auth/token',
+    );
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '<unparseable>');
@@ -148,7 +168,23 @@ async function getToken(): Promise<string> {
     );
   }
 
-  const json = await res.json();
+  // ⚠️ LA LECTURE DU CORPS EST DANS LE MÊME FILET QUE LE FETCH.
+  // Un jet précédent n'enveloppait que le `fetch` — or `AbortSignal.timeout`
+  // avorte AUSSI la lecture du corps, et un corps tronqué lève une
+  // `SyntaxError`. Ces exceptions nues ressortaient anonymes, donc classées
+  // « /order/new a été émis » par le rejeu admin : une alerte mensongère, et
+  // surtout un blocage PERMANENT là où l'ancien code n'imposait que cinq
+  // minutes d'attente. Sur ce sous-cas précis, le correctif AGGRAVAIT.
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch (err) {
+    throw new SinaliteError(
+      `Sinalite token response unreadable: ${err instanceof Error ? err.message : 'parse error'}`,
+      0,
+      '/auth/token',
+    );
+  }
   // Sinalite live répond HTTP 200 même quand les credentials sont rejetées,
   // avec un body `{"message": "Invalid authentication request"}` au lieu du
   // OAuth standard. Détecter ce cas explicitement pour donner un message
@@ -162,7 +198,19 @@ async function getToken(): Promise<string> {
       json,
     );
   }
-  const parsed = SinaliteTokenResponse.parse(json);
+  // Même raison : un schéma de jeton inattendu est un échec PRÉ-ENVOI, il doit
+  // le dire. Un `ZodError` nu ne le dit pas.
+  let parsed: z.infer<typeof SinaliteTokenResponse>;
+  try {
+    parsed = SinaliteTokenResponse.parse(json);
+  } catch (err) {
+    throw new SinaliteError(
+      `Sinalite token schema unexpected: ${err instanceof Error ? err.message.slice(0, 200) : 'zod'}`,
+      0,
+      '/auth/token',
+      json,
+    );
+  }
 
   // Decode JWT exp from payload (no verification — we trust Auth0's response)
   const expiresAt = decodeJwtExp(parsed.access_token) ?? Date.now() + 60 * 60 * 1000;

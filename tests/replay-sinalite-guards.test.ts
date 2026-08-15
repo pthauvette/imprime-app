@@ -22,6 +22,9 @@ const createOrder = vi.fn();
 const findUnique = vi.fn();
 const chargesList = vi.fn();
 const updateMany = vi.fn();
+const update = vi.fn();
+const orderEventCreate = vi.fn();
+const sendCriticalAlert = vi.fn();
 
 class SinaliteError extends Error {
   constructor(message: string, public status: number, public endpoint: string) {
@@ -44,7 +47,7 @@ const payloadValide = {
     BillCity: 'Mtl', BillState: 'QC', BillZip: 'H2X1Y7', BillCountry: 'CA', BillPhone: '5145551234',
   },
 };
-vi.mock('@/lib/db', () => ({ prisma: { order: { findUnique, updateMany }, orderEvent: { create: vi.fn() } } }));
+vi.mock('@/lib/db', () => ({ prisma: { order: { findUnique, updateMany, update }, orderEvent: { create: orderEventCreate } } }));
 // ⚠️ FORME EXACTE de `requireAdmin` : `{ ok, user, userId }` — PAS
 // `{ ok, session }`. Le mock précédent mentait, donc la route levait un
 // TypeError sur `guard.user.email` AVANT d'atteindre le comportement que
@@ -59,8 +62,11 @@ vi.mock('@/lib/admin-auth', () => ({
   }),
 }));
 vi.mock('@/lib/db/admin-audit', () => ({ recordAdminAudit: vi.fn() }));
+vi.mock('@/lib/alerting/slack', () => ({ sendCriticalAlert }));
 vi.mock('@/lib/emails/send', () => ({ sendOrderConfirmationEmail: vi.fn() }));
-vi.mock('@/lib/db/orders', () => ({ markOrderSubmitted: vi.fn(), markOrderFailed: vi.fn() }));
+const markOrderSubmitted = vi.fn();
+const markOrderFailed = vi.fn();
+vi.mock('@/lib/db/orders', () => ({ markOrderSubmitted, markOrderFailed }));
 vi.mock('@/lib/stripe/client', () => ({ getStripe: () => ({ charges: { list: chargesList } }) }));
 
 const { POST } = await import('@/app/api/admin/orders/[id]/replay-sinalite/route');
@@ -85,6 +91,9 @@ beforeEach(() => {
   chargesList.mockResolvedValue({ data: [] });
   // Par défaut le verrou est OBTENU (count 1).
   updateMany.mockResolvedValue({ count: 1 });
+  update.mockResolvedValue({});
+  orderEventCreate.mockResolvedValue({});
+  markOrderSubmitted.mockResolvedValue({});
 });
 
 describe('commande jamais encaissée', () => {
@@ -279,5 +288,298 @@ describe('sémantique des remboursements', () => {
     const res = await appeler();
     expect(createOrder).not.toHaveBeenCalled();
     expect((await res.json()).error).toMatch(/15,00/);
+  });
+});
+
+describe("marqueur durable « /order/new émis, issue inconnue »", () => {
+  it('bloque le rejeu, sans même regarder Stripe', async () => {
+    // Le verrou d'exécution EXPIRE ; ce marqueur-ci, non. C'est toute la
+    // différence : une minuterie rendait le droit de produire une seconde fois.
+    findUnique.mockResolvedValue(commande({ sinaliteSubmitUncertainAt: new Date('2026-08-12T10:00:00Z') }));
+    const res = await appeler();
+    expect(createOrder).not.toHaveBeenCalled();
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/portail Sinalite/i);
+  });
+
+  it('est posé AVANT l’appel — sinon il ne servirait à rien', async () => {
+    // Le cas couvert est celui où le processus MEURT pendant l'appel : poser
+    // le marqueur après n'aurait jamais lieu.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    const ordre: string[] = [];
+    updateMany.mockImplementation(async (a: { data: Record<string, unknown> }) => {
+      if ('sinaliteSubmitUncertainAt' in a.data) {
+        ordre.push(a.data.sinaliteSubmitUncertainAt ? 'pose' : 'efface');
+      }
+      return { count: 1 };
+    });
+    createOrder.mockImplementation(async () => { ordre.push('envoi'); return { orderId: 71204 }; });
+    await appeler();
+    expect(ordre[0]).toBe('pose');
+    expect(ordre.indexOf('pose')).toBeLessThan(ordre.indexOf('envoi'));
+  });
+
+  it("markOrderSubmitted échoué : on RATTACHE l'id, et on ne lève qu'alors", async () => {
+    // ⚠️ Ce test encodait d'abord une croyance FAUSSE — « l'issue est connue,
+    // donc pas de blocage ». Or `markOrderSubmitted` écrit statut ET id dans
+    // une seule transaction : si elle lève, elle ROLLBACK, et `sinaliteOrderId`
+    // reste nul. Effacer le marqueur rendait alors le bouton cliquable après
+    // péremption → deuxième production. Le test verrouillait le bug.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71400 });
+    markOrderSubmitted.mockRejectedValue(new Error('transition invalide'));
+    await appeler();
+
+    // On tente de rattacher l'id — c'est la seule chose qui empêche un second envoi.
+    const rattachements = updateMany.mock.calls.filter((c) => 'sinaliteOrderId' in (c[0].data ?? {}));
+    expect(rattachements).toHaveLength(1);
+    expect(rattachements[0]![0].data.sinaliteOrderId).toBe('71400');
+    // Rattachement réussi (count 1 par défaut) → le marqueur peut tomber.
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(1);
+    // L'alerte nomme l'id et dit de NE PAS relancer.
+    const alerte = sendCriticalAlert.mock.calls[0]![0];
+    expect(alerte.body).toMatch(/71400/);
+    expect(alerte.body).toMatch(/Ne PAS relancer/i);
+  });
+
+  it('une commande SOUMISE ne peut plus être rétrogradée en FAILED', async () => {
+    // `ALLOWED_PRIOR_STATUSES.FAILED` autorise SUBMITTED→FAILED : rien
+    // n'empêchait de marquer échouée une commande dont la presse tourne.
+    findUnique.mockResolvedValue(
+      commande({ status: 'FAILED', sinalitePayload: JSON.stringify(payloadValide) }),
+    );
+    createOrder.mockResolvedValue({ orderId: 71400 });
+    markOrderSubmitted.mockRejectedValue(new Error('transition invalide'));
+    await appeler();
+    expect(markOrderFailed).not.toHaveBeenCalled();
+  });
+
+  it('un échec APRÈS envoi LAISSE le marqueur et alerte', async () => {
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockRejectedValue(new SinaliteError('timeout', 504, '/order/new'));
+    await appeler();
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(0);
+    expect(sendCriticalAlert).toHaveBeenCalledTimes(1);
+    expect(orderEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'SINALITE_SUBMIT_UNCERTAIN' }) }),
+    );
+  });
+
+  it('un échec PRÉ-ENVOI efface le marqueur et n’alerte pas', async () => {
+    // Rien n'est parti : ni verrou ni incertitude n'ont lieu d'être, et une
+    // alerte critique pour des identifiants expirés serait du bruit.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockRejectedValue(new SinaliteError('unauthorized', 401, '/auth/token'));
+    await appeler();
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(1);
+    expect(sendCriticalAlert).not.toHaveBeenCalled();
+  });
+
+  it('un SUCCÈS confirmé efface le marqueur', async () => {
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71204 });
+    const res = await appeler();
+    expect(res.status).toBe(200);
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(1);
+  });
+});
+
+describe("les clauses `where` — ce que 30 tests verts ne prouvaient pas", () => {
+  /**
+   * Les assertions précédentes lisaient `c[0].data` et jamais `c[0].where`.
+   * Trois mutations passaient donc au vert en produisant une DOUBLE PRODUCTION
+   * réelle : pose non portée sur `prisAt`, garde `pose.count === 0` retirée,
+   * péremption abaissée sous le plancher documenté.
+   */
+  const posesDuMarqueur = () =>
+    updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt instanceof Date);
+
+  it('la pose du marqueur est portée par le propriétaire du verrou', async () => {
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71204 });
+    await appeler();
+    const prise = updateMany.mock.calls[0]![0];
+    const pose = posesDuMarqueur()[0]![0];
+    expect(pose.where.replayClaimedAt).toBe(prise.data.replayClaimedAt);
+  });
+
+  it("la pose RÉAFFIRME `sinaliteOrderId: null` — 20 s séparent la prise de l'envoi", async () => {
+    // Entre la prise et la pose s'intercale `charges.list`. Le webhook Stripe
+    // peut écrire l'id pendant ce temps : sans cette clause, on soumettait une
+    // commande déjà soumise.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71204 });
+    await appeler();
+    expect(posesDuMarqueur()[0]![0].where.sinaliteOrderId).toBeNull();
+  });
+
+  it('perdre le verrou entre la prise et la pose ANNULE la soumission', async () => {
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    updateMany.mockImplementation(async (a: { data: Record<string, unknown> }) =>
+      a.data?.sinaliteSubmitUncertainAt instanceof Date ? { count: 0 } : { count: 1 },
+    );
+    const res = await appeler();
+    expect(createOrder).not.toHaveBeenCalled();
+    expect(res.status).toBe(409);
+  });
+
+  it("l'effacement du marqueur est porté par la pose qu'on a faite", async () => {
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71204 });
+    await appeler();
+    const pose = posesDuMarqueur()[0]![0];
+    const effacement = updateMany.mock.calls.find((c) => c[0].data?.sinaliteSubmitUncertainAt === null)![0];
+    expect(effacement.where.sinaliteSubmitUncertainAt).toBe(pose.data.sinaliteSubmitUncertainAt);
+  });
+
+  it('la péremption reste au-dessus de son plancher documenté', async () => {
+    // Elle borne le temps pendant lequel un envoi peut être en vol. Sous la
+    // somme des délais enfermés dans le verrou (charges.list 20 s + jeton 10 s
+    // + /order/new 15 s), le verrou périme pendant que l'appel court encore.
+    const { PEREMPTION_VERROU_MS } = await import('@/lib/orders/replay-lock');
+    expect(PEREMPTION_VERROU_MS).toBeGreaterThan(45_000);
+  });
+});
+
+describe("B1 — soumission réussie mais NON enregistrée", () => {
+  it("garde le marqueur si le rattachement de l'id échoue", async () => {
+    // `markOrderSubmitted` lève → sa transaction ROLLBACK → `sinaliteOrderId`
+    // reste nul. Effacer le marqueur ici rendait le bouton cliquable après
+    // péremption : deuxième production.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71400 });
+    markOrderSubmitted.mockRejectedValue(new Error('transition invalide'));
+    updateMany.mockImplementation(async (a: { data: Record<string, unknown> }) =>
+      'sinaliteOrderId' in a.data ? { count: 0 } : { count: 1 },
+    );
+    await appeler();
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(0);
+  });
+
+  it("met l'id dans l'ÉVÉNEMENT — Slack peut être muet, la timeline non", async () => {
+    // `sendCriticalAlert` rend `false` en silence sans SLACK_WEBHOOK_URL.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71400 });
+    markOrderSubmitted.mockRejectedValue(new Error('transition invalide'));
+    await appeler();
+    const evenement = orderEventCreate.mock.calls.find(
+      (c) => c[0].data.kind === 'SINALITE_SUBMIT_UNCERTAIN',
+    )![0];
+    expect(JSON.parse(evenement.data.data)).toMatchObject({ sinaliteOrderId: 71400 });
+  });
+});
+
+describe('B3 — un refus REÇU prouve que rien n’a été créé', () => {
+  it.each([400, 401, 403, 404, 413, 422])('un %i sur /order/new libère au lieu de bloquer', async (code) => {
+    // Refus prouvablement AVANT création. Jeton live/sandbox mal apparié :
+    // le mode d'échec le plus banal du bouton.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockRejectedValue(new SinaliteError('refus', code, '/order/new'));
+    await appeler();
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(1);
+    expect(sendCriticalAlert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [503, 'le fournisseur a peut-être créé la commande avant de tomber'],
+    [409, '« existe déjà » : une commande A été créée'],
+    [429, 'posable APRÈS traitement de la requête'],
+  ])('un %i reste une issue inconnue — %s', async (code) => {
+    // ⚠️ 409 et 429 étaient dans ma plage 4xx d'origine. Les relâcher effaçait
+    // le marqueur SANS alerte et rendait le bouton cliquable dans la seconde.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockRejectedValue(new SinaliteError('boom', code, '/order/new'));
+    await appeler();
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(0);
+    expect(sendCriticalAlert).toHaveBeenCalled();
+  });
+
+  it("un échec RÉSEAU du jeton libère — il porte désormais son endpoint", async () => {
+    // `getToken` s'exécute DANS `request()`, donc avant le fetch de
+    // /order/new. Son timeout levait une DOMException anonyme, classée
+    // « issue inconnue » avec une alerte affirmant que /order/new était parti.
+    // C'est l'échec le plus fréquent : le jeton n'est en cache que par
+    // conteneur, donc absent à chaque démarrage à froid.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockRejectedValue(new SinaliteError('token timeout', 0, '/auth/token'));
+    await appeler();
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    expect(effacements).toHaveLength(1);
+    expect(sendCriticalAlert).not.toHaveBeenCalled();
+  });
+});
+
+describe("P2002 au rattachement — la trace doit survivre", () => {
+  it("garde l'alerte et l'événement même si l'écriture de l'id échoue", async () => {
+    // `sinaliteOrderId` est `@unique` : si ce numéro appartient déjà à une
+    // autre commande, Prisma lève P2002. Sans filet, l'exception sortait du
+    // `catch` → 500 nu, ni événement ni alerte ni audit, précisément dans le
+    // cas où la trace compte le plus.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71400 });
+    markOrderSubmitted.mockRejectedValue(new Error('transition invalide'));
+    updateMany.mockImplementation(async (a: { data: Record<string, unknown> }) => {
+      if ('sinaliteOrderId' in a.data) throw new Error('Unique constraint failed');
+      return { count: 1 };
+    });
+
+    await appeler();
+    expect(sendCriticalAlert).toHaveBeenCalledTimes(1);
+    expect(orderEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'SINALITE_SUBMIT_UNCERTAIN' }) }),
+    );
+  });
+
+  it("l'alerte part AVANT l'écriture de l'événement", async () => {
+    // La cause la plus probable du rollback qui nous amène ici est une base
+    // indisponible. Mettre l'écriture DB avant l'alerte plaçait le seul canal
+    // indépendant de la DB derrière une écriture DB.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71400 });
+    markOrderSubmitted.mockRejectedValue(new Error('transition invalide'));
+    const ordre: string[] = [];
+    sendCriticalAlert.mockImplementation(async () => { ordre.push('alerte'); return true; });
+    orderEventCreate.mockImplementation(async () => { ordre.push('evenement'); return {}; });
+
+    await appeler();
+    // L'invariant est « l'alerte précède la PREMIÈRE écriture DB », pas une
+    // égalité stricte : la route écrit un second événement plus loin.
+    expect(ordre[0]).toBe('alerte');
+    expect(ordre.indexOf('alerte')).toBeLessThan(ordre.indexOf('evenement'));
+  });
+});
+
+describe("défense en profondeur : `idFournisseur === null &&` devant preEnvoi", () => {
+  it("un échec pré-envoi APRÈS un envoi abouti ne libère NI le verrou NI le marqueur", async () => {
+    // ⚠️ MUTANT ÉQUIVALENT AUJOURD'HUI, PAS DEMAIN. Aucun chemin actuel ne
+    // produit une `SinaliteError` pré-envoi après un `createOrder` abouti.
+    // Mais qu'on ajoute un second appel fournisseur dans le même `try` — une
+    // note de production, un `getOrderStatus` — et le jeton, mis en cache par
+    // conteneur, peut y expirer : `preEnvoi` deviendrait vrai APRÈS que
+    // `/order/new` ait créé la commande. Sans cette garde, on effacerait le
+    // marqueur et libérerait le verrou sur une commande bel et bien produite.
+    findUnique.mockResolvedValue(commande({ sinalitePayload: JSON.stringify(payloadValide) }));
+    createOrder.mockResolvedValue({ orderId: 71400 });
+    markOrderSubmitted.mockRejectedValue(new SinaliteError('jeton expiré', 401, '/auth/token'));
+
+    await appeler();
+
+    const effacements = updateMany.mock.calls.filter((c) => c[0].data?.sinaliteSubmitUncertainAt === null);
+    const liberations = updateMany.mock.calls.filter((c) => c[0].data?.replayClaimedAt === null);
+    const rattachements = updateMany.mock.calls.filter((c) => 'sinaliteOrderId' in (c[0].data ?? {}));
+
+    // On part en branche « soumis mais non enregistré », pas en « rien n'est parti ».
+    expect(rattachements).toHaveLength(1);
+    expect(liberations).toHaveLength(0);
+    expect(sendCriticalAlert).toHaveBeenCalledTimes(1);
+    // Le marqueur ne tombe que parce que le rattachement a réussi (count 1).
+    expect(effacements).toHaveLength(1);
   });
 });

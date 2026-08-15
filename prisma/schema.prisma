@@ -263,6 +263,21 @@ model Order {
   // réessayer. La péremption libère au bout de quelques minutes.
   replayClaimedAt  DateTime?
 
+  // « /order/new a été ÉMIS, l'issue est inconnue ».
+  //
+  // Distinct de `replayClaimedAt`, et c'est tout l'enjeu : celui-là est un
+  // verrou d'EXÉCUTION qui expire, celui-ci est un fait DURABLE qui ne
+  // s'efface que sur preuve. Quand la réponse de `/order/new` ne revient
+  // jamais — délai d'attente, conteneur Lambda tué — la commande peut
+  // parfaitement exister chez le fournisseur. Laisser une minuterie rendre le
+  // droit de recliquer, c'est parier sur l'absence d'une commande qu'on n'a
+  // pas vérifiée : deuxième production, deuxième facture, un seul encaissement.
+  //
+  // Posé AVANT l'appel, effacé UNIQUEMENT sur succès confirmé ou sur un échec
+  // prouvablement pré-envoi. Sinon : refus + alerte critique + déblocage
+  // humain explicite.
+  sinaliteSubmitUncertainAt DateTime?
+
   // finding [129] — devis sur mesure : production gérée manuellement HORS
   // Sinalite (ex. signage extérieur, projet qui n'existe pas au catalogue).
   // Quand true, le webhook Stripe (payment_intent.succeeded) s'arrête à PAID
