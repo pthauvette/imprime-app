@@ -102,14 +102,38 @@ export default async function TaxReportPage({
 
   // Audit admin 2026-07 §4a — MÊME calcul que l'export CSV via le helper PUR
   // partagé (taxable subtotal réel + NET des remboursements) → écran == export.
-  const orderIds = orders.map((o) => o.id);
-  const refundEvents = orderIds.length > 0
-    ? await prisma.orderEvent.findMany({
-        where: { kind: 'REFUND_ISSUED', orderId: { in: orderIds }, createdAt: { gte: range.from, lte: toEnd } },
-        include: { order: { select: { amountCents: true } } },
-      })
-    : [];
-  const report = computeTaxReport(orders, refundEvents);
+  // Mêmes requêtes que l'export — la garantie « écran == export » en dépend.
+  // Voir `tax-report/route.ts` pour le détail des deux clauses (pas de filtre
+  // sur les commandes du rapport ; filtre de STATUT obligatoire).
+  const refundEvents = await prisma.orderEvent.findMany({
+    where: {
+      kind: 'REFUND_ISSUED',
+      createdAt: { gte: range.from, lte: toEnd },
+      order: { status: { in: [...PAID_STATUSES] } },
+    },
+    select: {
+      orderId: true,
+      data: true,
+      order: { select: { amountCents: true, subtotalCents: true, taxCents: true, shipProvince: true } },
+    },
+  });
+  // ⚠️ MÊMES REPRISES QUE L'EXPORT — la garantie « écran == export » ci-dessus
+  // en dépend. Non filtrées sur `orderIds` : le cas visé est le remboursement
+  // émis en mai et démenti en juillet, dont la commande n'est pas dans le
+  // rapport de juillet.
+  const repriseEvents = await prisma.orderEvent.findMany({
+    where: {
+      kind: 'REFUND_FAILED',
+      createdAt: { gte: range.from, lte: toEnd },
+      order: { status: { in: [...PAID_STATUSES] } },
+    },
+    select: {
+      orderId: true,
+      data: true,
+      order: { select: { amountCents: true, subtotalCents: true, taxCents: true, shipProvince: true } },
+    },
+  });
+  const report = computeTaxReport(orders, refundEvents, repriseEvents);
   // Adaptateur en dollars pour le rendu (le helper retourne des cents).
   const summary = {
     gst: report.summary.gstCents / 100,
@@ -120,6 +144,8 @@ export default async function TaxReportPage({
     totalTax: report.summary.totalTaxCents / 100,
     charged: report.summary.totalChargedCents / 100,
     orderCount: report.summary.orderCount,
+    reprise: report.summary.repriseCents / 100,
+    repriseHorsPeriode: report.summary.repriseHorsPeriodeCents / 100,
   };
   const provinces = new Map(
     report.byProvince.map((p) => [p.province, { count: p.count, subtotal: p.subtotalCents / 100, tax: p.taxCents / 100 }]),
@@ -222,6 +248,25 @@ export default async function TaxReportPage({
             <Row label="Sous-total facturé" value={formatCurrency(summary.subtotal)} />
             <Row label="Total taxes" value={formatCurrency(summary.totalTax)} highlight />
             <Row label="Total chargé (avec shipping)" value={formatCurrency(summary.charged)} bold />
+            {/* ⚠️ LA REPRISE DOIT SE VOIR. Elle AUGMENTE l'assiette de cette
+                période : un ajustement fiscal silencieux serait exactement le
+                défaut que ce lot corrige. */}
+            {summary.reprise > 0 && (
+              <Row
+                label="↩ Reprises de remboursement (inclus ci-dessus)"
+                value={formatCurrency(summary.reprise)}
+              />
+            )}
+            {/* ⚠️ CALCULÉ ET JAMAIS RENDU dans un jet précédent — le CSV
+                l'imprimait, l'écran non. L'admin ne pouvait donc pas savoir
+                quelle part de son assiette vient d'une AUTRE période : c'est
+                exactement l'ajustement fiscal silencieux qu'on veut éviter. */}
+            {summary.repriseHorsPeriode > 0 && (
+              <Row
+                label="↳ dont sur commandes d’une période antérieure"
+                value={formatCurrency(summary.repriseHorsPeriode)}
+              />
+            )}
           </div>
         </section>
 

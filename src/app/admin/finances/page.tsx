@@ -27,7 +27,7 @@ import { prisma } from '@/lib/db';
 import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
+import { refundAmountCentsOf, sommeRemboursementsValidesCents } from '@/lib/finances/refund-amount';
 import { calculerNonReconcilie, STATUTS_VOIDES } from '@/lib/finances/encaisse-non-reconcilie';
 
 /**
@@ -129,22 +129,39 @@ export default async function AdminFinancesPage({
     // `data.amountCents` (montant réel) via refundAmountCentsOf au lieu de
     // sommer le total de la commande. Le champ `data` est inclus par défaut
     // (findMany sans select restrictif).
+    // ⚠️ `REFUND_FAILED` CHARGÉ EN PLUS, SANS BORNE DE PÉRIODE.
+    //
+    // Un remboursement émis en mai peut être démenti en juillet : filtrer les
+    // démentis sur la même période que les émissions raterait exactement ce
+    // cas. On charge donc les deux kinds pour les COMMANDES concernées, et on
+    // écarte ensuite les remboursements annulés.
+    //
+    // ⚠️ VÉRITÉ D'AUJOURD'HUI, décision assumée et DIFFÉRENTE du rapport de
+    // taxes. Ce tableau de bord est une vue de gestion : « revenu net de mai »
+    // doit refléter ce qui est réellement encaissé maintenant. Le rapport de
+    // taxes, lui, est une déclaration — il laisse mai inchangé et reprend le
+    // montant dans la période du démenti, pour ne jamais réécrire une période
+    // déjà remise. Les deux peuvent donc diverger pour un même mois.
     prisma.orderEvent.findMany({
       where: {
-        kind: 'REFUND_ISSUED',
-        createdAt: { gte: periodStart, lt: periodEnd },
+        kind: { in: ['REFUND_ISSUED', 'REFUND_FAILED'] },
         // Audit admin 2026-07 §3.3 — ne compter que les refunds sur commandes
         // VIVANTES (chemin /refund) : une commande annulée est déjà exclue du brut,
         // soustraire aussi son refund la retrancherait deux fois.
-        order: { status: { notIn: [...STATUTS_VOIDES] } },
+        order: {
+          status: { notIn: [...STATUTS_VOIDES] },
+          events: { some: { kind: 'REFUND_ISSUED', createdAt: { gte: periodStart, lt: periodEnd } } },
+        },
       },
       include: { order: { select: { amountCents: true } } },
     }).catch(() => []),
     prisma.orderEvent.findMany({
       where: {
-        kind: 'REFUND_ISSUED',
-        createdAt: { gte: prevStart, lt: prevEnd },
-        order: { status: { notIn: [...STATUTS_VOIDES] } },
+        kind: { in: ['REFUND_ISSUED', 'REFUND_FAILED'] },
+        order: {
+          status: { notIn: [...STATUTS_VOIDES] },
+          events: { some: { kind: 'REFUND_ISSUED', createdAt: { gte: prevStart, lt: prevEnd } } },
+        },
       },
       include: { order: { select: { amountCents: true } } },
     }).catch(() => []),
@@ -290,9 +307,13 @@ export default async function AdminFinancesPage({
   const orderCount = revenueAgg._count._all;
   const aovCents = orderCount > 0 ? Math.round(revCents / orderCount) : 0;
 
-  const refundsCents = refundsInPeriod.reduce((a, r) => a + refundAmountCentsOf(r), 0);
-  const refundsCount = refundsInPeriod.length;
-  const refundsPrevCents = refundsPrevPeriod.reduce((a, r) => a + refundAmountCentsOf(r), 0);
+  // ⚠️ LE FILTRE DE PÉRIODE EST FAIT ICI, PAS DANS LE `where`. La requête
+  // ramène volontairement les `REFUND_FAILED` hors période (un remboursement
+  // de mai peut être démenti en juillet) ; borner en SQL les aurait perdus.
+  const refundsAgg = sommeRemboursementsValidesCents(refundsInPeriod, { debut: periodStart, fin: periodEnd });
+  const refundsCents = refundsAgg.totalCents;
+  const refundsCount = refundsAgg.count;
+  const refundsPrevCents = sommeRemboursementsValidesCents(refundsPrevPeriod, { debut: prevStart, fin: prevEnd }).totalCents;
   const refundsDelta = refundsPrevCents > 0
     ? Math.round(((refundsCents - refundsPrevCents) / refundsPrevCents) * 100)
     : null;

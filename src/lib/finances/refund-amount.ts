@@ -104,3 +104,41 @@ export function dejaRembourseCents(
     .reduce((s, e) => s + refundAmountCentsOf({ data: e.data, order: { amountCents } }), 0);
   return Math.min(amountCents, somme);
 }
+
+/**
+ * Somme des remboursements RÉELLEMENT rendus sur une période.
+ *
+ * ⚠️ POURQUOI LA LISTE CONTIENT DEUX KINDS ET DEUX PÉRIODES.
+ * Un remboursement émis en mai peut être démenti en juillet : filtrer les
+ * `REFUND_FAILED` sur la même fenêtre que les `REFUND_ISSUED` raterait
+ * exactement ce cas. L'appelant charge donc TOUS les événements des commandes
+ * concernées, sans borne, et c'est ici qu'on borne — mais SEULEMENT les
+ * émissions.
+ *
+ * ⚠️ LE FILTRE TEMPOREL EST INDISPENSABLE. Sans lui, une commande remboursée
+ * en avril PUIS en mai verrait ses deux remboursements comptés dans le chiffre
+ * de mai. Le `where` Prisma ne peut pas le faire à notre place : il doit
+ * ramener les démentis hors période.
+ *
+ * ⚠️ VÉRITÉ D'AUJOURD'HUI. Un remboursement démenti ne compte JAMAIS, même si
+ * le démenti est postérieur à la période. C'est le choix des surfaces de
+ * GESTION (tableau de bord, export) ; le rapport de taxes applique la règle
+ * inverse — chaque événement dans sa période — pour ne pas réécrire une
+ * période déjà déclarée. Voir `computeTaxReport`.
+ */
+export function sommeRemboursementsValidesCents(
+  events: { kind: string; data: string | null; createdAt: Date; order: { amountCents: number } | null }[],
+  periode: { debut: Date; fin: Date },
+): { totalCents: number; count: number } {
+  const annules = refundsAnnulesDe(events);
+  let totalCents = 0;
+  let count = 0;
+  for (const e of events) {
+    if (e.kind !== 'REFUND_ISSUED') continue;
+    if (e.createdAt < periode.debut || e.createdAt >= periode.fin) continue;
+    if (refundEstAnnule(e, annules)) continue;
+    totalCents += refundAmountCentsOf(e);
+    count++;
+  }
+  return { totalCents, count };
+}

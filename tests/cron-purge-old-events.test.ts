@@ -95,7 +95,16 @@ describe('GET /api/cron/purge-old-events (Round 29 #2)', () => {
     expect(json.deletedEvents).toBe(15);
 
     const delArgs = vi.mocked(prisma.orderEvent.deleteMany).mock.calls[0]![0];
-    expect(delArgs?.where).toEqual({ orderId: { in: ['o1', 'o2', 'o3'] } });
+    // ⚠️ LES KINDS FINANCIERS SONT EXCLUS, et c'est une garantie money.
+    // `admin/finances` reconstruit l'argent encaissé et non rendu À PARTIR DES
+    // ÉVÉNEMENTS : une commande CANCELLED correctement remboursée en 2024
+    // perdait son `REFUND_ISSUED` à la purge et RÉAPPARAISSAIT à plein montant
+    // dans l'encadré « encaissé non réconcilié ». Le tableau bâti pour montrer
+    // l'argent retenu se serait mis à inventer des rétentions.
+    expect(delArgs?.where).toEqual({
+      orderId: { in: ['o1', 'o2', 'o3'] },
+      kind: { notIn: ['REFUND_ISSUED', 'REFUND_FAILED', 'PAYMENT_DISPUTED'] },
+    });
   });
 
   it('PURGE_DRY_RUN=1 → count only, jamais delete', async () => {
