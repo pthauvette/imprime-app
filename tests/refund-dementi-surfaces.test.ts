@@ -246,3 +246,120 @@ describe('rapport de taxes — chaque événement dans SA période', () => {
     expect(r.summary.totalSubtotalCents).toBeGreaterThanOrEqual(0);
   });
 });
+
+/**
+ * ⚠️ LES INVARIANTS STRUCTURELS DU RAPPORT — ceux qui attrapent un défaut sans
+ * qu'on ait à l'imaginer.
+ *
+ * La revue a trouvé que le rapport ne justifiait plus son propre total : les
+ * ajustements hors période ne touchaient que `summary`, jamais `rows`. Depuis
+ * la symétrie, ces ajustements sont la NORME — tout remboursement qui traverse
+ * une frontière de période en produit un. La colonne `total_tax_cents` cessait
+ * donc de sommer au « Total tax collected » imprimé juste au-dessus, sur un
+ * artefact dont la raison d'être est que le détail justifie le sommaire.
+ *
+ * Aucun des tests précédents ne pouvait le voir : ils assertaient tous des
+ * champs de `summary`.
+ */
+describe('le détail doit justifier le sommaire', () => {
+  const cmdHors = (id: string, prov = 'QC') => ({
+    orderId: id,
+    data: JSON.stringify({ refundId: `re_${id}`, amountCents: 11498 }),
+    order: { amountCents: 11498, subtotalCents: 10000, taxCents: 1498, shipProvince: prov },
+  });
+
+  it('Σ lignes === totaux du résumé, avec ajustements dans les deux sens', () => {
+    const r = computeTaxReport(
+      [commande],
+      [refundEvt(3000), cmdHors('o_ancienne')],       // un remboursement hors période
+      [cmdHors('o_autre', 'ON')],                      // une reprise hors période
+    );
+    const somme = (f: (x: typeof r.rows[number]) => number) => r.rows.reduce((a, x) => a + f(x), 0);
+    expect(somme((x) => x.totalTaxCents)).toBe(r.summary.totalTaxCents);
+    expect(somme((x) => x.subtotalCents)).toBe(r.summary.totalSubtotalCents);
+    expect(somme((x) => x.totalChargedCents)).toBe(r.summary.totalChargedCents);
+    expect(somme((x) => x.gstCents + x.pstCents + x.qstCents + x.hstCents)).toBe(r.summary.totalTaxCents);
+  });
+
+  it('les lignes d’ajustement sont IDENTIFIÉES et sans date', () => {
+    // Sans le drapeau, une ligne d'ajustement se lit comme une vente de la
+    // période — et son `paid_at` vide passerait pour une donnée manquante.
+    const r = computeTaxReport([], [], [cmdHors('o_mai')]);
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]!.ajustement).toBe(true);
+    expect(r.rows[0]!.paidAt).toBeNull();
+  });
+
+  it('une vente ordinaire n’est PAS marquée comme ajustement', () => {
+    const r = computeTaxReport([commande], []);
+    expect(r.rows[0]!.ajustement).toBeUndefined();
+  });
+});
+
+describe('assiette NÉGATIVE — la sortie normale d’un trimestre calme', () => {
+  it('un gros remboursement tardif rend le total négatif, et une ligne l’explique', () => {
+    // Trimestre calme : une commande de 57,49 $, et une commande de 890,00 $
+    // du trimestre PRÉCÉDENT remboursée dans celui-ci.
+    const petite = { ...commande, id: 'o_petite', subtotalCents: 5000, taxCents: 749, amountCents: 5749 };
+    const grosse = {
+      orderId: 'o_grosse',
+      data: JSON.stringify({ refundId: 're_grosse', amountCents: 89000 }),
+      order: { amountCents: 89000, subtotalCents: 77365, taxCents: 11635, shipProvince: 'QC' },
+    };
+    const r = computeTaxReport([petite], [grosse], []);
+
+    expect(r.summary.totalTaxCents).toBeLessThan(0);
+    // ⚠️ CE QUI COMPTE : le montant qui explique le négatif est VISIBLE.
+    expect(r.summary.ajustementHorsPeriodeCents).toBe(-89000);
+    // …et il a sa ligne, donc la colonne somme toujours.
+    expect(r.rows.reduce((a, x) => a + x.totalTaxCents, 0)).toBe(r.summary.totalTaxCents);
+    expect(r.rows.filter((x) => x.ajustement)).toHaveLength(1);
+  });
+});
+
+describe('les compteurs annoncés disent ce qu’ils font', () => {
+  it('une reprise annulée par un remboursement égal reste comptée dans « hors période »', () => {
+    // Placée après le `continue` de `net === 0`, elle n'y arrivait jamais : le
+    // CSV imprimait « Reprises : 889,50 $ / dont hors période : 0 $ », ce qui
+    // se lit « toutes portent sur des commandes du rapport ».
+    const evt = (kind: 'e' | 'r') => ({
+      orderId: 'o_x',
+      data: JSON.stringify({ refundId: `re_${kind}`, amountCents: 88950 }),
+      order: { amountCents: 88950, subtotalCents: 77365, taxCents: 11585, shipProvince: 'QC' },
+    });
+    const r = computeTaxReport([], [evt('e')], [evt('r')]);
+    expect(r.summary.repriseCents).toBe(88950);
+    expect(r.summary.repriseHorsPeriodeCents).toBe(88950);
+    expect(r.summary.ajustementHorsPeriodeCents).toBe(0);
+  });
+
+  it('⚠️ une reprise SANS refundId est écartée (indédupliquable)', () => {
+    // `handleRefundUpdated` en écrit toujours un ; une reprise anonyme ne peut
+    // venir que d'une donnée corrompue, et deux occurrences rouvriraient le
+    // double-comptage à l'identique.
+    const anon = {
+      orderId: 'o_x',
+      data: JSON.stringify({ amountCents: 44500 }),
+      order: { amountCents: 89000, subtotalCents: 77365, taxCents: 11635, shipProvince: 'QC' },
+    };
+    const r = computeTaxReport([], [], [anon, anon]);
+    expect(r.summary.repriseCents).toBe(0);
+    expect(r.summary.totalSubtotalCents).toBe(0);
+  });
+});
+
+describe('sous-total proraté nul — la taxe doit atterrir quelque part', () => {
+  it('l’invariant tient même quand computeTax rend zéro', () => {
+    // Le garde `totalCalcule > 0` sautait toute la ventilation alors que
+    // `totalTaxCents` avait déjà été incrémenté : la taxe entrait dans le
+    // total et dans AUCUN code. C'est B4 par une autre porte.
+    const r = computeTaxReport([], [], [{
+      orderId: 'o_livraison',
+      data: JSON.stringify({ refundId: 're_l', amountCents: 1498 }),
+      order: { amountCents: 1498, subtotalCents: 0, taxCents: 1498, shipProvince: 'QC' },
+    }]);
+    expect(r.summary.gstCents + r.summary.pstCents + r.summary.qstCents + r.summary.hstCents)
+      .toBe(r.summary.totalTaxCents);
+    expect(r.summary.totalTaxCents).toBe(1498);
+  });
+});

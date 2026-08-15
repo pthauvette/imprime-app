@@ -146,6 +146,7 @@ export default async function TaxReportPage({
     orderCount: report.summary.orderCount,
     reprise: report.summary.repriseCents / 100,
     repriseHorsPeriode: report.summary.repriseHorsPeriodeCents / 100,
+    ajustementHorsPeriode: report.summary.ajustementHorsPeriodeCents / 100,
   };
   const provinces = new Map(
     report.byProvince.map((p) => [p.province, { count: p.count, subtotal: p.subtotalCents / 100, tax: p.taxCents / 100 }]),
@@ -261,10 +262,22 @@ export default async function TaxReportPage({
                 l'imprimait, l'écran non. L'admin ne pouvait donc pas savoir
                 quelle part de son assiette vient d'une AUTRE période : c'est
                 exactement l'ajustement fiscal silencieux qu'on veut éviter. */}
-            {summary.repriseHorsPeriode > 0 && (
+            {/* ⚠️ L'AJUSTEMENT EST SIGNÉ, ET C'EST CE QUI DOIT S'AFFICHER.
+                Ne rendre que la part POSITIVE (les reprises) annonçait « ajouté
+                à l'assiette » pendant qu'un remboursement tardif la
+                retranchait. Un trimestre calme après un gros remboursement
+                affiche un total négatif : sans cette ligne, rien nulle part ne
+                nomme le montant qui l'explique — et un nombre négatif
+                inexpliqué sur un rapport de taxes, c'est ce qui fait qu'on le
+                « corrige » à la main avant de remplir le FPZ-500. */}
+            {summary.ajustementHorsPeriode !== 0 && (
               <Row
-                label="↳ dont sur commandes d’une période antérieure"
-                value={formatCurrency(summary.repriseHorsPeriode)}
+                label={
+                  summary.ajustementHorsPeriode < 0
+                    ? '↳ dont remboursements sur commandes d’une période antérieure'
+                    : '↳ dont reprises sur commandes d’une période antérieure'
+                }
+                value={formatCurrency(summary.ajustementHorsPeriode)}
               />
             )}
           </div>
