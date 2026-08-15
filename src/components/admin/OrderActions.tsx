@@ -47,9 +47,17 @@ interface Props {
    * rendre, et proposer le geste ferait échouer l'appel côté Stripe.
    */
   encaissee?: boolean;
+  /**
+   * Numéro de commande fournisseur retrouvé dans la timeline alors que
+   * `sinaliteOrderId` est absent — cas « le fournisseur a répondu, notre
+   * enregistrement a échoué ». Quand il est là, l'issue n'est PAS inconnue :
+   * la production est lancée, et le geste juste est de rattacher ce numéro,
+   * pas d'aller le chercher au portail.
+   */
+  numeroFournisseurConnu?: number | null;
 }
 
-export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1, alreadyRefundedCents = 0, submitUncertainAt = null, replayClaimedAt = null, encaissee = false }: Props) {
+export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1, alreadyRefundedCents = 0, submitUncertainAt = null, replayClaimedAt = null, encaissee = false, numeroFournisseurConnu = null }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -320,15 +328,36 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
           }}
         >
           <strong style={{ color: 'var(--danger)' }}>
-            <Icon name="alert" size={14} /> Soumission partie sans réponse
+            <Icon name="alert" size={14} />{' '}
+            {numeroFournisseurConnu
+              ? 'Production LANCÉE — enregistrement échoué'
+              : 'Soumission partie sans réponse'}
           </strong>
-          <span style={{ color: 'var(--text-secondary)' }}>
-            Une soumission a été émise le{' '}
-            {new Date(submitUncertainAt).toLocaleString('fr-CA')} et la réponse n&apos;est
-            jamais revenue.
-            La commande existe <strong>peut-être déjà</strong> chez l&apos;imprimeur. Le rejeu
-            est bloqué tant que ce n&apos;est pas vérifié au portail Sinalite.
-          </span>
+          {/* ⚠️ DEUX SITUATIONS, DEUX TEXTES. Le premier jet affichait « la
+              commande existe peut-être » dans les deux cas. Quand le
+              fournisseur a répondu et que seul notre enregistrement a échoué,
+              c'est FAUX — elle existe certainement, et on envoyait l'admin
+              chercher au portail un numéro qu'on avait sous la main. */}
+          {numeroFournisseurConnu ? (
+            <span style={{ color: 'var(--text-secondary)' }}>
+              L&apos;imprimeur a répondu le{' '}
+              {new Date(submitUncertainAt).toLocaleString('fr-CA')} avec le numéro{' '}
+              <code style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                {numeroFournisseurConnu}
+              </code>{' '}
+              — <strong>la production est lancée</strong> — mais l&apos;enregistrement chez
+              nous a échoué. Rattache ce numéro. Ne relance pas, et ne rembourse pas :
+              l&apos;imprimeur facturera cette impression.
+            </span>
+          ) : (
+            <span style={{ color: 'var(--text-secondary)' }}>
+              Une soumission a été émise le{' '}
+              {new Date(submitUncertainAt).toLocaleString('fr-CA')} et la réponse n&apos;est
+              jamais revenue.
+              La commande existe <strong>peut-être déjà</strong> chez l&apos;imprimeur. Le rejeu
+              est bloqué tant que ce n&apos;est pas vérifié au portail Sinalite.
+            </span>
+          )}
 
           {/* ⚠️ LA CLÉ DE CORRÉLATION, MONTRÉE. L'encadré exigeait d'attester
               l'absence d'une commande sans jamais dire SOUS QUEL NOM la
@@ -338,7 +367,7 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
               c'est donc bien ce texte qui est cherchable au portail. */}
           <div
             style={{
-              display: 'grid',
+              display: numeroFournisseurConnu ? 'none' : 'grid',
               gap: 6,
               padding: 10,
               borderRadius: 'var(--r-sm)',
@@ -364,11 +393,13 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
           {/* Les DEUX issues de la vérification, côte à côte. N'en offrir
               qu'une poussait à mentir : voir le commentaire de
               `handleRattacherSubmit`. */}
-          <ActionBtn
-            label={<><Icon name="check" /> Rien au portail — lever le blocage</>}
-            onClick={handleLeverIncertitude}
-            busy={busy === 'Lever incertitude'}
-          />
+          {!numeroFournisseurConnu && (
+            <ActionBtn
+              label={<><Icon name="check" /> Rien au portail — lever le blocage</>}
+              onClick={handleLeverIncertitude}
+              busy={busy === 'Lever incertitude'}
+            />
+          )}
           {attachOpen ? (
             <form onSubmit={handleRattacherSubmit} style={{ display: 'grid', gap: 6 }}>
               <label htmlFor="attach-sin" style={{ display: 'block', fontSize: 11, fontWeight: 600 }}>
@@ -403,8 +434,16 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
             </form>
           ) : (
             <ActionBtn
-              label={<><Icon name="clip" /> Je l&apos;ai trouvée — rattacher son numéro</>}
-              onClick={() => { setAttachId(''); setError(null); setAttachOpen(true); }}
+              label={
+                numeroFournisseurConnu
+                  ? <><Icon name="clip" /> Rattacher le n&#176; {numeroFournisseurConnu}</>
+                  : <><Icon name="clip" /> Je l&apos;ai trouvée — rattacher son numéro</>
+              }
+              onClick={() => {
+                setAttachId(numeroFournisseurConnu ? String(numeroFournisseurConnu) : '');
+                setError(null);
+                setAttachOpen(true);
+              }}
               busy={busy === 'Numéro fournisseur rattaché'}
             />
           )}

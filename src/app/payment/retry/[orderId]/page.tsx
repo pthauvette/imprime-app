@@ -104,6 +104,33 @@ export default async function PaymentRetryPage({
   if (order.sinaliteSubmitUncertainAt) {
     return <ErrorPage code="order_verification_en_cours" />;
   }
+  // ⚠️ SOUS-CAS PLUS LARGE : ENCAISSÉE ET NON REMBOURSÉE, SANS MARQUEUR.
+  //
+  // Le garde ci-dessus ne couvre que l'issue inconnue. Il reste l'état
+  // « refus PROUVÉ, mais le remboursement automatique a échoué lui aussi » :
+  // `effacerMarqueur()` a déjà tourné, donc la commande est FAILED avec
+  // `paidAt` posé, l'argent conservé, et AUCUN marqueur.
+  //
+  // Il préexiste à ce lot, qui le rétrécit plutôt qu'il ne l'aggrave (avant,
+  // toute levée passait par la tentative de remboursement). Mais ses trois
+  // jambes sont CORRÉLÉES : un `SINALITE_API_BASE` resté en sandbox ou des
+  // identifiants expirés mettent TOUTES les commandes sur le chemin du refus
+  // prouvé en même temps, et un hoquet Stripe fait alors échouer les
+  // remboursements en lot. La forme réaliste n'est pas « une commande de temps
+  // en temps » mais « un paquet un mauvais jour ».
+  //
+  // ⚠️ FAIL-CLOSED ASSUMÉ : un remboursement fait à la main dans le Dashboard
+  // Stripe ne laisse pas d'`OrderEvent`, donc la reprise reste bloquée et le
+  // client passe par le support. C'est la direction sûre — l'autre erreur est
+  // un second débit.
+  if (order.paidAt) {
+    const rembourse = await prisma.orderEvent.count({
+      where: { orderId: order.id, kind: 'REFUND_ISSUED' },
+    });
+    if (rembourse === 0) {
+      return <ErrorPage code="order_already_paid" />;
+    }
+  }
 
   if (!stripe) {
     log.error({ orderId }, 'payment-retry: STRIPE_SECRET_KEY not configured');

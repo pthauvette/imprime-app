@@ -16,6 +16,7 @@ import OrderActions from '@/components/admin/OrderActions';
 import AdminNotesPanel from '@/components/admin/AdminNotesPanel';
 import SendCustomMessageButton from '@/components/admin/SendCustomMessageButton';
 import type { OrderEventKind, OrderStatus } from '@/lib/db/orders';
+import { numeroFournisseurConnu } from '@/lib/orders/uncertain-marker';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
 import { extractTracking } from '@/lib/orders/timeline';
@@ -462,6 +463,7 @@ export default async function AdminOrderDetailPage({
                 itemsCount={order.itemsCount}
                 alreadyRefundedCents={alreadyRefundedCents}
                 encaissee={order.paidAt !== null}
+                numeroFournisseurConnu={numeroFournisseurConnu(order.events)}
               />
               <div style={{ marginTop: 8 }}>
                 <SendCustomMessageButton orderId={order.id} customerEmail={order.user.email} />

@@ -53,6 +53,39 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
       { status: 400 },
     );
   }
+  // ⚠️ SOUMISSION D'ISSUE INCONNUE → NE PAS ANNULER, ET SURTOUT PAS ICI.
+  //
+  // C'est la route qui rend l'argent SANS que l'admin soit passé par l'encadré
+  // de vérification, et elle ne lisait pas le marqueur. Le scénario est un
+  // clic, pas une course :
+  //
+  //   `/order/new` répond `{ orderId: 481203 }` — la presse est lancée — puis
+  //   la transaction de `markOrderSubmitted` est annulée (coupure du pooler).
+  //   Le rattachement automatique échoue lui aussi : le marqueur reste, et
+  //   l'identifiant est perdu de la base. La commande demeure **PAID** (cette
+  //   branche n'appelle pas `markOrderFailed`), donc `canCancel` est vrai et
+  //   le bouton « Annuler » s'affiche juste sous l'encadré rouge.
+  //
+  //   Clic : remboursement Stripe intégral + restauration wallet + referral,
+  //   avec `computeCancelFeeCents` qui rend ZÉRO — les frais ne s'appliquent
+  //   qu'à SUBMITTED/IN_PRODUCTION, or le statut est resté PAID. Plio paie
+  //   l'impression et rend tout l'argent, y compris quand l'admin a coché
+  //   « répercuter les frais ».
+  //
+  // Tant que le doute n'est pas levé, l'annulation passe par la fiche : lever
+  // le blocage, rattacher le numéro, ou rembourser en connaissance de cause.
+  if (order.sinaliteSubmitUncertainAt) {
+    return NextResponse.json(
+      {
+        error:
+          "Soumission partie sans réponse : la production est PEUT-ÊTRE lancée. Annuler " +
+          "maintenant rembourserait intégralement une impression que l'imprimeur facturera, " +
+          "et sans frais d'annulation. Tranche d'abord depuis la fiche — rattacher le numéro " +
+          'fournisseur, ou lever le blocage après vérification au portail.',
+      },
+      { status: 409 },
+    );
+  }
 
   // Round 38 #3 — idempotencyKey : double-cancel = double refund risk.
   let refund: Stripe.Refund | null = null;

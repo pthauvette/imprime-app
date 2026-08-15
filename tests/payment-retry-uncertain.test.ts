@@ -16,13 +16,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const { findUnique, verifyToken, checkoutCreate } = vi.hoisted(() => ({
+const { findUnique, verifyToken, checkoutCreate, countEvents } = vi.hoisted(() => ({
   findUnique: vi.fn(),
   verifyToken: vi.fn(),
   checkoutCreate: vi.fn(),
+  countEvents: vi.fn(),
 }));
 
-vi.mock('@/lib/db', () => ({ prisma: { order: { findUnique } } }));
+vi.mock('@/lib/db', () => ({ prisma: { order: { findUnique }, orderEvent: { count: countEvents } } }));
 vi.mock('@/lib/payment/retry-token', () => ({ verifyPaymentRetryToken: verifyToken }));
 vi.mock('@/lib/logger', () => ({ logStripe: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('next/navigation', () => ({ redirect: vi.fn(() => { throw new Error('NEXT_REDIRECT'); }) }));
@@ -55,6 +56,9 @@ beforeEach(() => {
   vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_x');
   verifyToken.mockReturnValue(true);
   checkoutCreate.mockResolvedValue({ url: 'https://checkout.stripe.com/x' });
+  // Par défaut, la commande a bien été remboursée : les tests de non-régression
+  // portent sur la reprise LÉGITIME.
+  countEvents.mockResolvedValue(1);
 });
 
 describe('commande à issue de soumission INCONNUE', () => {
@@ -103,5 +107,37 @@ describe('non-régression — la reprise LÉGITIME reste ouverte', () => {
       rendre({ ...base, status: 'PENDING', paidAt: null, sinaliteSubmitUncertainAt: null }),
     ).rejects.toThrow('NEXT_REDIRECT');
     expect(checkoutCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Sous-cas C — encaissée, NON remboursée, sans marqueur.
+ *
+ * « Refus prouvé, mais le remboursement automatique a échoué lui aussi » :
+ * `effacerMarqueur()` a déjà tourné, donc FAILED + `paidAt` + argent conservé
+ * + AUCUN marqueur. Préexiste au lot, mais ses trois jambes sont corrélées
+ * (une config sandbox met TOUTES les commandes sur le chemin du refus prouvé,
+ * un hoquet Stripe fait échouer les remboursements en lot).
+ */
+describe('encaissée et non remboursée, sans marqueur', () => {
+  it('aucune session ouverte quand aucun REFUND_ISSUED n’existe', async () => {
+    countEvents.mockResolvedValue(0);
+    await rendre({ ...base, sinaliteSubmitUncertainAt: null });
+    expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it('remboursement TRACÉ → la reprise redevient possible', async () => {
+    // Le discriminant est la preuve du remboursement, pas `paidAt` : sinon on
+    // bloquerait la reprise légitime d'une commande rendue au client.
+    countEvents.mockResolvedValue(1);
+    await expect(rendre({ ...base, sinaliteSubmitUncertainAt: null })).rejects.toThrow('NEXT_REDIRECT');
+    expect(checkoutCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('jamais encaissée → aucune requête d’événements, session créée', async () => {
+    await expect(
+      rendre({ ...base, status: 'PENDING', paidAt: null, sinaliteSubmitUncertainAt: null }),
+    ).rejects.toThrow('NEXT_REDIRECT');
+    expect(countEvents).not.toHaveBeenCalled();
   });
 });
