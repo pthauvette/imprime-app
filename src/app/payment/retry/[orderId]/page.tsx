@@ -22,6 +22,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
+import { dejaRembourseCents } from '@/lib/finances/refund-amount';
 import { verifyPaymentRetryToken } from '@/lib/payment/retry-token';
 import { logStripe as log } from '@/lib/logger';
 import { Icon } from '@/components/ui/Icon';
@@ -73,6 +74,8 @@ export default async function PaymentRetryPage({
     where: { id: orderId },
     include: {
       user: { select: { email: true } },
+      // Les événements servent au garde « encaissée et non rendue » ci-dessous.
+      events: { where: { kind: { in: ['REFUND_ISSUED', 'REFUND_FAILED'] } }, select: { kind: true, data: true } },
     },
   });
 
@@ -123,13 +126,32 @@ export default async function PaymentRetryPage({
   // Stripe ne laisse pas d'`OrderEvent`, donc la reprise reste bloquée et le
   // client passe par le support. C'est la direction sûre — l'autre erreur est
   // un second débit.
-  if (order.paidAt) {
-    const rembourse = await prisma.orderEvent.count({
-      where: { orderId: order.id, kind: 'REFUND_ISSUED' },
-    });
-    if (rembourse === 0) {
-      return <ErrorPage code="order_already_paid" />;
-    }
+  //
+  // ⚠️ UN `REFUND_ISSUED` NE PROUVE PAS QUE L'ARGENT EST RENDU, et un simple
+  // `count` ne le voyait pas. Deux angles morts, tous deux payés par le client :
+  //
+  //   · Le remboursement PARTIEL. 20 $ rendus sur 890 $ suffisaient à rouvrir
+  //     la reprise, alors que 870 $ sont toujours encaissés.
+  //   · Le remboursement DÉMENTI. Depuis `charge.refund.updated`, un
+  //     `REFUND_FAILED` dit que Stripe l'a annulé et que l'argent est revenu
+  //     chez Plio. Le `count` le comptait quand même.
+  //
+  // Le second est le scénario complet : refus Sinalite prouvé → auto-refund →
+  // courriel « Remboursement : 890 $ » → trois jours plus tard la carte est
+  // fermée, le refund échoue. Le client, qui n'a rien vu revenir, rouvre le
+  // vieux courriel « paiement refusé » et reclique. Il paie une SECONDE fois.
+  // Le webhook adopte alors le nouveau PaymentIntent et ÉCRASE
+  // `paymentIntentId` : le seul encaissement non rendu devient introuvable
+  // pour tous les gardes en aval, et la commande repasse PAID — donc elle sort
+  // de `STATUTS_VOIDES` et quitte le tableau de réconciliation. 1780 $
+  // encaissés, une impression, et plus aucune surface qui le dise.
+  //
+  // `dejaRembourseCents` est le MÊME helper que la fiche admin et la
+  // réconciliation : il déduit les remboursements démentis et somme les
+  // montants réels. La reprise LÉGITIME — refus prouvé, remboursement
+  // intégral abouti — garde `dejaRembourse === amountCents` et passe.
+  if (order.paidAt && dejaRembourseCents(order.events, order.amountCents) < order.amountCents) {
+    return <ErrorPage code="order_already_paid" />;
   }
 
   if (!stripe) {

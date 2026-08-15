@@ -16,14 +16,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const { findUnique, verifyToken, checkoutCreate, countEvents } = vi.hoisted(() => ({
+const { findUnique, verifyToken, checkoutCreate } = vi.hoisted(() => ({
   findUnique: vi.fn(),
   verifyToken: vi.fn(),
   checkoutCreate: vi.fn(),
-  countEvents: vi.fn(),
 }));
 
-vi.mock('@/lib/db', () => ({ prisma: { order: { findUnique }, orderEvent: { count: countEvents } } }));
+vi.mock('@/lib/db', () => ({ prisma: { order: { findUnique } } }));
 vi.mock('@/lib/payment/retry-token', () => ({ verifyPaymentRetryToken: verifyToken }));
 vi.mock('@/lib/logger', () => ({ logStripe: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('next/navigation', () => ({ redirect: vi.fn(() => { throw new Error('NEXT_REDIRECT'); }) }));
@@ -46,9 +45,15 @@ async function rendre(order: unknown): Promise<string> {
   return JSON.stringify(el);
 }
 
+/** Remboursement intégral abouti — l'état de la reprise LÉGITIME. */
+const rembourseIntegral = [
+  { kind: 'REFUND_ISSUED', data: JSON.stringify({ refundId: 're_1', amountCents: 5000 }) },
+];
+
 const base = {
   id: 'ord_1', status: 'FAILED', paidAt: new Date(), amountCents: 5000,
   sinaliteSubmitUncertainAt: null, user: { email: 'c@exemple.ca' },
+  events: rembourseIntegral,
 };
 
 beforeEach(() => {
@@ -56,9 +61,6 @@ beforeEach(() => {
   vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_x');
   verifyToken.mockReturnValue(true);
   checkoutCreate.mockResolvedValue({ url: 'https://checkout.stripe.com/x' });
-  // Par défaut, la commande a bien été remboursée : les tests de non-régression
-  // portent sur la reprise LÉGITIME.
-  countEvents.mockResolvedValue(1);
 });
 
 describe('commande à issue de soumission INCONNUE', () => {
@@ -120,24 +122,62 @@ describe('non-régression — la reprise LÉGITIME reste ouverte', () => {
  * un hoquet Stripe fait échouer les remboursements en lot).
  */
 describe('encaissée et non remboursée, sans marqueur', () => {
-  it('aucune session ouverte quand aucun REFUND_ISSUED n’existe', async () => {
-    countEvents.mockResolvedValue(0);
-    await rendre({ ...base, sinaliteSubmitUncertainAt: null });
+  it('aucune session ouverte quand aucun remboursement n’existe', async () => {
+    await rendre({ ...base, events: [] });
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 
-  it('remboursement TRACÉ → la reprise redevient possible', async () => {
+  it('remboursement INTÉGRAL abouti → la reprise redevient possible', async () => {
     // Le discriminant est la preuve du remboursement, pas `paidAt` : sinon on
     // bloquerait la reprise légitime d'une commande rendue au client.
-    countEvents.mockResolvedValue(1);
-    await expect(rendre({ ...base, sinaliteSubmitUncertainAt: null })).rejects.toThrow('NEXT_REDIRECT');
+    await expect(rendre({ ...base })).rejects.toThrow('NEXT_REDIRECT');
     expect(checkoutCreate).toHaveBeenCalledTimes(1);
   });
 
-  it('jamais encaissée → aucune requête d’événements, session créée', async () => {
+  it('⚠️ remboursement PARTIEL → BLOQUÉ (20 $ rendus sur 5000 ne rouvrent rien)', async () => {
+    // Le `count` d'origine laissait passer : un seul événement suffisait,
+    // quel que soit le montant. 4980 $ restaient pourtant encaissés.
+    await rendre({
+      ...base,
+      events: [{ kind: 'REFUND_ISSUED', data: JSON.stringify({ refundId: 're_1', amountCents: 2000 }) }],
+    });
+    expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it('⚠️ remboursement DÉMENTI par Stripe → BLOQUÉ (le scénario du double débit)', async () => {
+    // Refus Sinalite prouvé → auto-refund → courriel « Remboursement : X $ » →
+    // trois jours plus tard la carte est fermée, le refund échoue. Le client,
+    // qui n'a rien vu revenir, rouvre le vieux courriel et reclique.
+    await rendre({
+      ...base,
+      events: [
+        ...rembourseIntegral,
+        { kind: 'REFUND_FAILED', data: JSON.stringify({ refundId: 're_1', raison: 'expired_or_canceled' }) },
+      ],
+    });
+    expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it('jamais encaissée → session créée sans regarder les remboursements', async () => {
     await expect(
-      rendre({ ...base, status: 'PENDING', paidAt: null, sinaliteSubmitUncertainAt: null }),
+      rendre({ ...base, status: 'PENDING', paidAt: null, events: [] }),
     ).rejects.toThrow('NEXT_REDIRECT');
-    expect(countEvents).not.toHaveBeenCalled();
+    expect(checkoutCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('la requête doit CHARGER de quoi voir le démenti', () => {
+  it('⚠️ `findUnique` demande REFUND_ISSUED **et** REFUND_FAILED', async () => {
+    // Sans cette assertion, retirer `REFUND_FAILED` du `where` laissait tout
+    // vert : le mock rend la fixture telle quelle, donc la clause n'est jamais
+    // observée. En production, le démenti serait invisible et le garde
+    // rouvrirait la reprise — un second débit.
+    await rendre({ ...base }).catch(() => {});
+    const args = findUnique.mock.calls[0]![0] as {
+      include?: { events?: { where?: { kind?: { in?: string[] } } } };
+    };
+    expect(args.include?.events?.where?.kind?.in).toEqual(
+      expect.arrayContaining(['REFUND_ISSUED', 'REFUND_FAILED']),
+    );
   });
 });

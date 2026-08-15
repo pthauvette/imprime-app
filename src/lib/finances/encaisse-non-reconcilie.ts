@@ -33,9 +33,14 @@
  * commande VIVANTE (livrée, geste commercial, carte fermée depuis) écrit bien
  * un `REFUND_FAILED` que personne d'autre ne lit : le revenu net du dashboard,
  * l'export XLSX et surtout le RAPPORT DE TAXES continuent de soustraire un
- * remboursement qui n'a jamais eu lieu. Le rapport de taxes est le seul endroit
- * où l'erreur sort vers l'extérieur. Préexistant et non aggravé — mais
- * l'information existe désormais et n'est branchée nulle part ailleurs.
+ * remboursement qui n'a jamais eu lieu.
+ *
+ * ⚠️ ET LE SENS DE CETTE ERREUR-LÀ N'EST PAS CELUI QU'ON TOLÈRE ICI. Soustraire
+ * un remboursement fantôme réduit le revenu net, donc l'assiette TPS/TVQ : Plio
+ * remet MOINS que dû. Ce n'est pas du sur-signalement, c'est une
+ * SOUS-DÉCLARATION, et c'est le seul endroit où l'erreur sort vers l'extérieur.
+ * Préexistant et non aggravé — mais l'information existe désormais et n'est
+ * branchée nulle part ailleurs.
  *
  * Conséquence assumée : ce tableau SUR-SIGNALE. Une ligne peut être déjà
  * réglée au dashboard. C'est le bon sens d'erreur pour un écart de caisse —
