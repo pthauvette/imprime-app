@@ -28,6 +28,14 @@ import { requireAdminPage } from '@/lib/admin-auth';
 import { getAdminSidebarCounts } from '@/lib/admin/sidebar-counts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
+import { calculerNonReconcilie, STATUTS_VOIDES } from '@/lib/finances/encaisse-non-reconcilie';
+
+/**
+ * Plafond de commandes voidées examinées. Il est VISIBLE à l'écran quand il
+ * mord : un total tronqué présenté comme complet est pire qu'un total absent.
+ */
+const PLAFOND_RECONCILIATION = 500;
+import { referencePlio } from '@/lib/sinalite/order-notes';
 import { Icon } from '@/components/ui/Icon';
 
 export const metadata = { title: 'Admin — Finances' };
@@ -78,13 +86,16 @@ export default async function AdminFinancesPage({
     sidebarUsers,
     sidebarWebhooks,
     revenueByUserId,
+    voideesSansRemboursement,
+    voideesAvecRemboursement,
+    totalCandidats,
   ] = await Promise.all([
     // Round 16 #3 : .catch fallbacks pour éviter 500 dashboard si table manque.
     // Aggregates throwers → fallback à un shape minimal vide.
     prisma.order.aggregate({
       // Audit admin 2026-07 §3.3 — exclure CANCELLED/FAILED (ventes voidées) du
       // brut, comme le fait déjà revenueByUserId. Le refund est soustrait à part.
-      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: [...STATUTS_VOIDES] } },
       _sum: { amountCents: true, taxCents: true, subtotalCents: true, shippingCents: true },
       _count: { _all: true },
     }).catch(() => ({
@@ -92,26 +103,26 @@ export default async function AdminFinancesPage({
       _count: { _all: 0 },
     })),
     prisma.order.aggregate({
-      where: { paidAt: { gte: prevStart, lt: prevEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
+      where: { paidAt: { gte: prevStart, lt: prevEnd }, status: { notIn: [...STATUTS_VOIDES] } },
       _sum: { amountCents: true },
       _count: { _all: true },
     }).catch(() => ({ _sum: { amountCents: 0 }, _count: { _all: 0 } })),
     prisma.order.groupBy({
       by: ['province'],
-      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: [...STATUTS_VOIDES] } },
       _sum: { amountCents: true, taxCents: true, subtotalCents: true },
       _count: { _all: true },
     }).catch(() => []),
     prisma.order.groupBy({
       by: ['userId'],
-      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: [...STATUTS_VOIDES] } },
       _sum: { amountCents: true },
       _count: { _all: true },
       orderBy: { _sum: { amountCents: 'desc' } },
       take: 8,
     }).catch(() => []),
     prisma.order.findMany({
-      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: ['CANCELLED', 'FAILED'] } },
+      where: { paidAt: { gte: periodStart, lt: periodEnd }, status: { notIn: [...STATUTS_VOIDES] } },
       select: { amountCents: true, paidAt: true },
     }).catch(() => []),
     // Refunds in period — REFUND_ISSUED events. Audit v2 #10.6 — on lit
@@ -125,7 +136,7 @@ export default async function AdminFinancesPage({
         // Audit admin 2026-07 §3.3 — ne compter que les refunds sur commandes
         // VIVANTES (chemin /refund) : une commande annulée est déjà exclue du brut,
         // soustraire aussi son refund la retrancherait deux fois.
-        order: { status: { notIn: ['CANCELLED', 'FAILED'] } },
+        order: { status: { notIn: [...STATUTS_VOIDES] } },
       },
       include: { order: { select: { amountCents: true } } },
     }).catch(() => []),
@@ -133,7 +144,7 @@ export default async function AdminFinancesPage({
       where: {
         kind: 'REFUND_ISSUED',
         createdAt: { gte: prevStart, lt: prevEnd },
-        order: { status: { notIn: ['CANCELLED', 'FAILED'] } },
+        order: { status: { notIn: [...STATUTS_VOIDES] } },
       },
       include: { order: { select: { amountCents: true } } },
     }).catch(() => []),
@@ -155,12 +166,82 @@ export default async function AdminFinancesPage({
       by: ['userId'],
       where: {
         paidAt: { gte: periodStart, lt: periodEnd },
-        status: { notIn: ['CANCELLED', 'FAILED'] },
+        status: { notIn: [...STATUTS_VOIDES] },
       },
       _sum: { amountCents: true },
       _count: { _all: true },
     }).catch(() => []),
+    // ⚠️ HORS PÉRIODE, À DESSEIN. Un écart de caisse ne se périme pas : une
+    // commande encaissée et jamais rendue en juin est toujours de l'argent
+    // détenu en août. Le borner à la période sélectionnée le ferait
+    // disparaître de l'écran dès le lendemain — exactement le défaut qu'on
+    // corrige.
+    // ═══ REQUÊTE 1/2 — CANDIDATS PAR CONSTRUCTION ═══════════════════════
+    // Voidée, encaissée, et AUCUN remboursement enregistré. Il ne peut donc
+    // y avoir aucun bruit ici : chaque ligne est un écart. C'est là que vit le
+    // cas #583 (soumission partie sans réponse, jamais remboursée), donc le
+    // cas phare ne peut plus être chassé de la fenêtre par du volume.
+    //
+    // ⚠️ UN JET PRÉCÉDENT FAISAIT UNE SEULE REQUÊTE `paidAt desc`, en croyant
+    // que soustraire les frais d'annulation suffisait à éliminer le bruit.
+    // Faux : le bruit dominant est l'échec Sinalite AUTO-REMBOURSÉ
+    // INTÉGRALEMENT (`stripe-process.ts`), qui n'a jamais de frais — c'est le
+    // chemin FAILED-avec-`paidAt` le plus fréquent du système. Et trier par
+    // date décroissante faisait PÉRIMER le plus ancien écart non réglé,
+    // exactement l'inverse du « un écart de caisse ne se périme pas » écrit
+    // trois lignes plus haut.
+    prisma.order.findMany({
+      where: {
+        paidAt: { not: null },
+        status: { in: [...STATUTS_VOIDES] },
+        events: { none: { kind: 'REFUND_ISSUED' } },
+      },
+      select: {
+        id: true, status: true, amountCents: true, paidAt: true,
+        // `ERROR` seul : c'est là que `cancel` écrit `cancelFeeCents`. Sans
+        // lui, une annulation dont les frais couvrent TOUTE la charge (donc
+        // sans remboursement Stripe, donc sans `REFUND_ISSUED`) s'affichait
+        // entière comme retenue.
+        events: { where: { kind: 'ERROR' }, select: { kind: true, data: true } },
+      },
+      orderBy: { amountCents: 'desc' },
+      take: PLAFOND_RECONCILIATION,
+    }).catch(() => []),
+    // ═══ REQUÊTE 2/2 — REMBOURSEMENTS PARTIELS ═════════════════════════
+    // Au moins un remboursement enregistré : la majorité sont intégraux et
+    // ressortiront à écart nul. Population volontairement séparée pour qu'elle
+    // ne consomme pas le budget de la première.
+    prisma.order.findMany({
+      where: {
+        paidAt: { not: null },
+        status: { in: [...STATUTS_VOIDES] },
+        events: { some: { kind: 'REFUND_ISSUED' } },
+      },
+      select: {
+        id: true, status: true, amountCents: true, paidAt: true,
+        events: { where: { kind: { in: ['REFUND_ISSUED', 'ERROR'] } }, select: { kind: true, data: true } },
+      },
+      orderBy: { amountCents: 'desc' },
+      take: PLAFOND_RECONCILIATION,
+    }).catch(() => []),
+    // Compte total des candidats, pour dire HONNÊTEMENT quand la vue tronque.
+    prisma.order.count({
+      where: { paidAt: { not: null }, status: { in: [...STATUTS_VOIDES] } },
+    }).catch(() => 0),
   ]);
+
+  // Argent encaissé que ni le revenu ni les remboursements ne comptent.
+  const commandesVoidees = [...voideesSansRemboursement, ...voideesAvecRemboursement];
+  const nonReconcilie = calculerNonReconcilie(
+    commandesVoidees.map((o) => ({
+      id: o.id,
+      status: o.status,
+      amountCents: o.amountCents,
+      paidAt: o.paidAt,
+      events: o.events.map((e) => ({ kind: e.kind, data: e.data })),
+    })),
+  );
+  const vueTronquee = commandesVoidees.length < totalCandidats;
 
   // Round 23 #5 — Map userIds → resellerStatus, puis bucket par status.
   // Round 44 #2 — ces 2 user.findMany (resellerStatus + top customers) sont
@@ -298,6 +379,124 @@ export default async function AdminFinancesPage({
             </a>
           </div>
         </header>
+
+        {/* ⚠️ AVANT LES CHIFFRES DE REVENU, ET SEULEMENT S'IL Y EN A.
+            Ce bloc dit ce que les tableaux du dessous NE COMPTENT PAS : le
+            revenu, les remboursements, les taxes et l'export excluent tous
+            CANCELLED/FAILED — à raison pour une vraie vente voidée, à tort
+            quand l'argent n'a pas été rendu. Le placer après les KPI en
+            ferait une note de bas de page ; c'est un écart de caisse. */}
+        {/* ⚠️ LA CONDITION INCLUT LA TRONCATURE, et pas seulement le total.
+            Un jet précédent rendait cette section sur `totalRetenuCents > 0`
+            avec la bannière « Vue TRONQUÉE » IMBRIQUÉE dedans : une fenêtre
+            saturée de lignes à écart nul donnait total = 0, donc section
+            absente, donc bannière absente. Un zéro silencieux — exactement ce
+            que la bannière existe pour empêcher. */}
+        {(nonReconcilie.totalRetenuCents > 0 || vueTronquee) && (
+          <section
+            style={{
+              marginBottom: 24,
+              padding: 20,
+              background: 'color-mix(in srgb, var(--danger) 7%, transparent)',
+              border: '1px solid var(--danger)',
+              borderRadius: 'var(--r-xl)',
+            }}
+          >
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+              <h2 className="adm-panel-title" style={{ margin: 0, color: 'var(--danger)' }}>
+                <Icon name="alert" size={15} /> Encaissé non réconcilié
+                <span className="adm-panel-title-meta">toutes périodes</span>
+              </h2>
+              <strong style={{ fontSize: 20, color: 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>
+                ≈ {formatCurrency(nonReconcilie.totalRetenuCents / 100)}
+              </strong>
+            </header>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {nonReconcilie.lignes.length} commande{nonReconcilie.lignes.length > 1 ? 's' : ''} annulée
+              {nonReconcilie.lignes.length > 1 ? 's' : ''} ou en échec dont l&apos;argent a été encaissé et
+              n&apos;a <strong>pas manifestement été rendu</strong>. Ce montant n&apos;apparaît{' '}
+              <strong>ni dans le revenu ni dans les remboursements</strong> ci-dessous — les deux excluent
+              ces statuts. Les frais d&apos;annulation facturés sont déjà déduits.
+            </p>
+            {/* ⚠️ NE PAS PRÉSENTER CECI COMME UN SOLDE. La base ignore les
+                remboursements émis depuis le dashboard Stripe — et c'est
+                justement la remédiation que nos alertes recommandent. Le
+                tableau sur-signale à dessein : une ligne à vérifier est
+                actionnable, une ligne absente ne l'est pas. */}
+            {/* ⚠️ NE PAS RÉÉCRIRE « BORNE SUPÉRIEURE » ICI. Ce contrat était FAUX
+                dans les deux sens, et c'est le second qui coûte cher :
+                `markRefundIssued` est appelé à la CRÉATION du remboursement.
+                Si Stripe le passe ensuite à `failed` (carte fermée, banque qui
+                refuse le retour), l'argent revient chez Plio et RIEN n'amende
+                l'événement — il n'existe aucun handler `charge.refund.updated`.
+                La ligne disparaît alors sans le moindre drapeau.
+                `/api/admin/orders/[id]/refund` connaît ce cas et le filtre
+                (`r.status !== 'failed'`) en lisant Stripe ; ce tableau lit les
+                événements, donc il ne peut pas. */}
+            <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              <strong>Estimation, pas un solde</strong> — à vérifier dans Stripe avant d&apos;agir. Elle peut
+              SUR-estimer (un remboursement fait au dashboard ne laisse aucune trace en base) comme
+              SOUS-estimer (un remboursement enregistré ici peut avoir échoué chez Stripe ensuite : l&apos;argent
+              revient alors chez Plio sans que rien ne l&apos;indique).
+              {nonReconcilie.contientIncertain && (
+                <> Les lignes marquées <strong>?</strong> portent un remboursement dont le montant est
+                illisible (événement antérieur au correctif de traçabilité) : leur écart est surestimé.</>
+              )}
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '6px 10px' }}>Commande</th>
+                    <th style={{ padding: '6px 10px' }}>Statut</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right' }}>Encaissé</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right' }}>Remboursé</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right' }}>Frais</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right' }}>Écart max.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nonReconcilie.lignes.slice(0, 10).map((l) => (
+                    <tr key={l.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '6px 10px' }}>
+                        <Link href={`/admin/orders/${l.id}` as Route} style={{ fontFamily: 'var(--font-mono)' }}>
+                          {referencePlio(l.id)}
+                        </Link>
+                      </td>
+                      <td style={{ padding: '6px 10px' }}>{l.status}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.encaisseCents / 100)}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {formatCurrency(l.rembourseCents / 100)}
+                        {l.montantIncertain && (
+                          <strong title="Un remboursement existe mais son montant est illisible — l'écart est surestimé."> ?</strong>
+                        )}
+                      </td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>{formatCurrency(l.fraisRetenusCents / 100)}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.retenuCents / 100)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {nonReconcilie.lignes.length > 10 && (
+              <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+                … et {nonReconcilie.lignes.length - 10} autre{nonReconcilie.lignes.length - 10 > 1 ? 's' : ''}.
+                Le total ci-dessus inclut toutes les lignes examinées.
+              </p>
+            )}
+            {/* ⚠️ LA TRONCATURE DOIT SE VOIR. Un total tronqué présenté comme
+                complet est pire qu'un total absent : le premier jet écrivait
+                « le total les inclut toutes » sans le moindre indice à
+                l'écran, donc certifiait une exhaustivité qu'il n'avait pas. */}
+            {vueTronquee && (
+              <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--danger)', fontWeight: 600 }}>
+                ⚠ Vue TRONQUÉE : {commandesVoidees.length} commandes voidées examinées sur{' '}
+                {totalCandidats}. Les plus GROS montants sont examinés en premier, mais le total réel
+                peut être plus élevé.
+              </p>
+            )}
+          </section>
+        )}
 
         {/* ─── Hero stats ──────────────────────────────────────── */}
         <section className="adm-hero-stats">
