@@ -22,6 +22,7 @@ import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
+import { OU_TRANCHEE } from '@/lib/orders/uncertain-marker';
 
 const BULK_ALLOWED_STATUSES = ['IN_PRODUCTION', 'SHIPPED', 'DELIVERED'] as const;
 
@@ -88,6 +89,12 @@ export const POST = withErrorHandler(async (req: Request) => {
       where: {
         id: { in: body.ids },
         status: { notIn: ['PENDING', 'FAILED'] },
+        // ⚠️ EXCLUSION DES COMMANDES À TRANCHER. Ce gabarit affirme « c'est
+        // imprimé! » et joint la facture. Le filtre `?flag=incertaine` que ce
+        // lot ajoute rend le geste groupé naturel — sélectionner tout, puis
+        // « Renvoyer la confirmation » — et N clients apprendraient d'un coup
+        // que leur commande est imprimée alors qu'on ne peut pas le confirmer.
+        ...OU_TRANCHEE,
       },
       include: { user: true },
     });
@@ -108,6 +115,11 @@ export const POST = withErrorHandler(async (req: Request) => {
       where: {
         id: { in: body.ids },
         status: { notIn: ['DELIVERED', 'CANCELLED', 'FAILED'] },
+        // Même exclusion que la route unitaire : avancer le statut d'une
+        // commande à trancher rend `attach-sinalite-id` impossible
+        // (`markOrderSubmitted` n'accepte que PAID|FAILED), donc supprime en
+        // silence la seule résolution correcte.
+        ...OU_TRANCHEE,
       },
       select: { id: true, status: true, sinaliteOrderId: true },
     });

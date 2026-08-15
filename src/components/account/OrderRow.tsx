@@ -24,6 +24,17 @@ export type OrderRowProps = {
   /** External display id — Sinalite si dispo, sinon notre cuid. */
   displayId: string;
   status: OrderStatus;
+  /**
+   * La soumission à l'imprimeur est partie sans réponse : le paiement est
+   * encaissé, la production peut-être lancée, et un humain doit trancher.
+   *
+   * ⚠️ SANS CE DRAPEAU, LE CLIENT LISAIT « Échec », rangé sous « Annulées ».
+   * C'est faux dans les deux sens : rien n'a été annulé et rien n'a été
+   * remboursé (à dessein — la commande existe peut-être chez l'imprimeur).
+   * L'état est devenu courant avec le marqueur d'incertitude, donc le mensonge
+   * aussi.
+   */
+  verificationEnCours?: boolean;
   createdAt: Date | string;
   amountCents: number;
   shippingMethod: string;
@@ -37,7 +48,11 @@ export type OrderRowProps = {
 };
 
 export default function OrderRow({ order }: { order: OrderRowProps }) {
-  const status = STATUS_CONFIG[order.status];
+  // Le drapeau PRIME sur le statut : `FAILED` décrit ce que notre base sait,
+  // pas ce que le client vit.
+  const status = order.verificationEnCours
+    ? { label: 'Vérification en cours', className: 'status-new' }
+    : STATUS_CONFIG[order.status];
   const isLive =
     order.status === 'PAID' ||
     order.status === 'SUBMITTED' ||

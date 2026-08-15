@@ -16,6 +16,8 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Sidebar from '@/components/account/Sidebar';
 import OrderRow, { type OrderRowProps } from '@/components/account/OrderRow';
+// Regroupement extrait : une seule dérivation pour la liste ET les pastilles.
+import { groupeDe, bucketStatus, isStatusFilter, type StatusFilter } from '@/lib/orders/client-groups';
 import { parseItemsSnapshot, shortItemSummary } from '@/lib/orders/items';
 import ViewAsBanner from '@/components/admin/ViewAsBanner';
 import { formatCurrency } from '@/lib/format';
@@ -101,6 +103,9 @@ export default async function OrdersPage({
       // pas la marque). En admin on garde #SIN-X pour distinguer Sinalite ID vs Plio ID.
       displayId: o.sinaliteOrderId ? `#${o.sinaliteOrderId}` : `#${o.id.slice(-6).toUpperCase()}`,
       status: o.status as OrderStatus,
+      // `sinaliteOrderId` absent : dès qu'un numéro est rattaché, la commande
+      // est réellement en production et son statut dit vrai.
+      verificationEnCours: o.sinaliteSubmitUncertainAt !== null && o.sinaliteOrderId === null,
       createdAt: o.createdAt,
       amountCents: o.amountCents,
       shippingMethod: o.shippingMethod,
@@ -119,7 +124,7 @@ export default async function OrdersPage({
   // La liste affichée, elle, est filtrée par le statut actif (filtrage en
   // mémoire sur ≤50 lignes déjà chargées — pas de requête DB supplémentaire).
   const visibleOrders = activeStatus
-    ? orders.filter((o) => STATUS_GROUPS[activeStatus].includes(o.status))
+    ? orders.filter((o) => groupeDe(o) === activeStatus)
     : orders;
 
   return (
@@ -209,41 +214,8 @@ export default async function OrdersPage({
 // Mapping pill → statuts DB regroupés. Une seule source de vérité, partagée
 // entre le filtrage de la liste et la définition des pills de la Toolbar.
 
-type StatusFilter = 'live' | 'shipped' | 'delivered' | 'cancelled';
-
-const STATUS_GROUPS: Record<StatusFilter, OrderStatus[]> = {
-  live: ['PAID', 'SUBMITTED', 'IN_PRODUCTION'],
-  shipped: ['SHIPPED'],
-  delivered: ['DELIVERED'],
-  cancelled: ['CANCELLED', 'FAILED'],
-};
-
-function isStatusFilter(s: string | undefined): s is StatusFilter {
-  return s === 'live' || s === 'shipped' || s === 'delivered' || s === 'cancelled';
-}
-
 // ─── Sub-components ───────────────────────────────────────────────────────
 
-function bucketStatus(orders: OrderRowProps[]) {
-  const counts = {
-    total: orders.length,
-    live: 0,
-    done: 0,
-    SHIPPED: 0,
-    DELIVERED: 0,
-    CANCELLED: 0,
-  };
-  for (const o of orders) {
-    if (o.status === 'PAID' || o.status === 'SUBMITTED' || o.status === 'IN_PRODUCTION') {
-      counts.live++;
-    }
-    if (o.status === 'SHIPPED') counts.SHIPPED++;
-    if (o.status === 'DELIVERED') counts.DELIVERED++;
-    if (o.status === 'CANCELLED' || o.status === 'FAILED') counts.CANCELLED++;
-    if (o.status === 'DELIVERED' || o.status === 'SHIPPED') counts.done++;
-  }
-  return counts;
-}
 
 function Toolbar({
   counts,

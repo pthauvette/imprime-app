@@ -168,7 +168,19 @@ describe('GET /api/cron/order-sla-alerts (Round 34)', () => {
 
   it('200 + envoie email à chaque admin avec liste des stuck orders', async () => {
     const oldDate = new Date(Date.now() - 72 * 3600 * 1000); // 72h ago
-    vi.mocked(prisma.order.findMany).mockResolvedValue([
+    // ⚠️ AIGUILLAGE PAR `where`, pas par ORDRE D'APPEL. Le cron fait maintenant
+    // DEUX `findMany` : les commandes bloquées et les soumissions d'issue
+    // inconnue. Un `mockResolvedValue` unique rendait la même liste aux deux —
+    // la commande bloquée apparaissait donc aussi comme « sans réponse », et
+    // l'assertion sur l'objet de l'email échouait pour la bonne raison.
+    // `mockResolvedValueOnce` aurait marché mais aurait couplé le test à
+    // l'ordre des requêtes dans le code.
+    vi.mocked(prisma.order.findMany).mockImplementation((async (args?: { where?: Record<string, unknown> }) => {
+      const where = args?.where ?? {};
+      if (where.sinaliteSubmitUncertainAt && typeof where.sinaliteSubmitUncertainAt === 'object') {
+        return [];
+      }
+      return [
       {
         id: 'o_stuck_1',
         status: 'PAID',
@@ -181,7 +193,8 @@ describe('GET /api/cron/order-sla-alerts (Round 34)', () => {
         productSummary: 'Cartes 14pt (250)',
         user: { email: 'p@plio.ca' },
       },
-    ] as never);
+    ];
+    }) as never);
 
     const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
     const res = await GET(makeReq('Bearer test_secret') as never);
@@ -224,5 +237,95 @@ describe('GET /api/cron/order-sla-alerts (Round 34)', () => {
     const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
     const res = await GET(makeReq('Bearer test_secret') as never);
     expect(res.status).toBe(500);
+  });
+});
+
+/**
+ * Balayage des soumissions d'issue inconnue.
+ *
+ * POURQUOI. `sinaliteSubmitUncertainAt` n'était lu QUE sur la fiche d'une
+ * commande — donc seulement par un admin qui l'ouvre déjà, pour une raison
+ * qu'il ne peut pas avoir. Aucun filtre dans la liste, aucun cron : ce
+ * balayage-ci ne prenait que PAID/SUBMITTED, or une commande marquée par le
+ * webhook est FAILED. Le seul canal restant était Slack, MUET sans
+ * `SLACK_WEBHOOK_URL`. Un marqueur que personne ne voit ne protège de rien.
+ */
+describe('soumissions d’issue inconnue — balayage sans seuil ni dédup', () => {
+  const marquee = {
+    id: 'ord_abcdef123456',
+    status: 'FAILED',
+    paidAt: new Date(Date.now() - 3 * 3600 * 1000),
+    amountCents: 8900,
+    currency: 'cad',
+    sinaliteSubmitUncertainAt: new Date(Date.now() - 3 * 3600 * 1000),
+    failureReason: 'issue INCONNUE',
+    user: { email: 'client@exemple.ca' },
+  };
+
+  /** Aiguillage par `where` : le cron fait deux `findMany` distincts. */
+  function router(stuck: unknown[], incertaines: unknown[]) {
+    vi.mocked(prisma.order.findMany).mockImplementation((async (args?: { where?: Record<string, unknown> }) => {
+      const where = args?.where ?? {};
+      return where.sinaliteSubmitUncertainAt && typeof where.sinaliteSubmitUncertainAt === 'object'
+        ? incertaines
+        : stuck;
+    }) as never);
+  }
+
+  it('une commande FAILED marquée est relevée, alors qu’aucun statut ne la balaie', async () => {
+    router([], [marquee]);
+    const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
+    const res = await GET(makeReq('Bearer test_secret') as never);
+    const json = await res.json();
+
+    expect(json.incertainesCount).toBe(1);
+    expect(json.sent).toBe(2);
+    const vars = vi.mocked(sendAdminCustomMessageEmail).mock.calls[0]![0].vars;
+    // L'objet doit porter le cas urgent : sous « N commandes bloquées », une
+    // soumission sans réponse se lit comme de la routine.
+    expect(vars.SUBJECT).toMatch(/SANS RÉPONSE/);
+    // La clé de corrélation citable au portail, sinon on demande une
+    // vérification en retenant ce qui permet de la faire.
+    expect(vars.BODY_HTML).toContain('PLIO-123456');
+    expect(vars.BODY_HTML).toMatch(/apifrontend\.sinaliteuppy\.com/);
+  });
+
+  it('zéro bloquée + une marquée → l’email part quand même', async () => {
+    // Le premier jet sortait tôt sur `stuckOrders.length === 0` : le cas le
+    // plus urgent était précisément celui qui ne déclenchait rien.
+    router([], [marquee]);
+    const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
+    const res = await GET(makeReq('Bearer test_secret') as never);
+    expect((await res.json()).sent).toBe(2);
+  });
+
+  it('la requête exclut les envois ENCORE EN VOL et les commandes déjà rattachées', async () => {
+    router([], []);
+    const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
+    await GET(makeReq('Bearer test_secret') as never);
+    const where = vi.mocked(prisma.order.findMany).mock.calls
+      .map((c) => c[0]?.where as Record<string, unknown>)
+      .find((w) => w?.sinaliteSubmitUncertainAt && typeof w.sinaliteSubmitUncertainAt === 'object')!;
+
+    // `sinaliteOrderId: null` : une commande dont le numéro a fini par être
+    // rattaché n'est plus incertaine.
+    expect(where.sinaliteOrderId).toBeNull();
+    // `lt` : pendant la péremption du verrou, l'envoi peut encore aboutir seul.
+    // Alerter là-dessus serait un faux positif à chaque déploiement malchanceux.
+    expect((where.sinaliteSubmitUncertainAt as { not: unknown; lt: Date }).lt).toBeInstanceOf(Date);
+    expect((where.sinaliteSubmitUncertainAt as { not: unknown }).not).toBeNull();
+    // AUCUN filtre de dédup : le marqueur doit revenir chaque jour.
+    expect(where.slaAlertedAt).toBeUndefined();
+    expect(where.OR).toBeUndefined();
+  });
+
+  it('les commandes marquées sont EXCLUES du bloc SLA (pas de doublon)', async () => {
+    router([], []);
+    const { GET } = await import('@/app/api/cron/order-sla-alerts/route');
+    await GET(makeReq('Bearer test_secret') as never);
+    const whereSla = vi.mocked(prisma.order.findMany).mock.calls
+      .map((c) => c[0]?.where as Record<string, unknown>)
+      .find((w) => Array.isArray((w?.status as { in?: unknown[] })?.in))!;
+    expect(whereSla.sinaliteSubmitUncertainAt).toBeNull();
   });
 });

@@ -24,6 +24,11 @@ export type AdminAuditKind =
   // d'issue inconnue n'a PAS créé de commande. C'est le seul moyen de lever cet
   // état — jamais l'écoulement du temps.
   | 'ADMIN_CLEAR_SUBMIT_UNCERTAINTY'
+  // L'AUTRE issue de la même vérification : l'admin a TROUVÉ la commande au
+  // portail et rattache son numéro. Kind distinct à dessein — « je n'ai rien
+  // vu » et « je l'ai vue, la voici » sont deux affirmations différentes, et
+  // c'est précisément ce qu'un audit doit pouvoir distinguer.
+  | 'ADMIN_ATTACH_SINALITE_ID'
   | 'ADMIN_PROMO_CREATE'
   | 'ADMIN_PROMO_TOGGLE'
   | 'ADMIN_PROMO_UPDATE'

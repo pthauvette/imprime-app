@@ -15,7 +15,8 @@ import { sendCriticalAlert } from "@/lib/alerting/slack";
 import { withErrorHandler } from "@/lib/api-helpers";
 import { requireAdmin } from "@/lib/admin-auth";
 import { recordAdminAudit } from "@/lib/db/admin-audit";
-import { sinalite, SinaliteError } from "@/lib/sinalite/client";
+import { sinalite } from "@/lib/sinalite/client";
+import { aucuneCreationPossible } from "@/lib/sinalite/submit-outcome";
 import { enrichirPayloadSoumis } from "@/lib/sinalite/order-notes";
 import { getStripe } from '@/lib/stripe/client';
 import { formatCents } from '@/lib/format';
@@ -152,8 +153,11 @@ export const POST = withErrorHandler(
       data: { replayClaimedAt: prisAt },
     });
     if (verrou.count === 0) {
+      // « une soumission » et non « un rejeu » : depuis que le webhook Stripe
+      // pose le même verrou, le détenteur peut parfaitement être l'envoi
+      // automatique qui suit l'encaissement.
       return NextResponse.json(
-        { error: "Un rejeu est déjà en cours pour cette commande. Réessaie dans quelques minutes." },
+        { error: "Une soumission est déjà en cours pour cette commande. Réessaie dans quelques minutes." },
         { status: 409 },
       );
     }
@@ -306,14 +310,29 @@ export const POST = withErrorHandler(
       // point s'intercale `charges.list`, jusqu'à 20 s pendant lesquelles le
       // webhook Stripe peut parfaitement écrire l'id. Sans cette clause, on
       // soumettait une commande déjà soumise.
-      where: { id: order.id, replayClaimedAt: prisAt, sinaliteOrderId: null },
+      //
+      // ⚠️ `sinaliteSubmitUncertainAt: null` : clause SYMÉTRIQUE de celle du
+      // webhook. Le garde en tête de route lit le marqueur, mais c'est un
+      // read-then-act — le webhook peut poser le sien pendant nos ~20 s de
+      // vérifications. Sans cette clause, le rejeu partait pendant qu'un envoi
+      // du webhook était en vol : deux `/order/new` pour un encaissement. Le
+      // verrou `replayClaimedAt` ne l'aurait pas vu, il ne sérialise que
+      // rejeu-contre-rejeu.
+      where: {
+        id: order.id,
+        replayClaimedAt: prisAt,
+        sinaliteOrderId: null,
+        sinaliteSubmitUncertainAt: null,
+      },
       data: { sinaliteSubmitUncertainAt: poseAt },
     });
     if (pose.count === 0) {
-      // On a perdu le verrou entre-temps (péremption + reprise par une autre
-      // requête). Ne rien envoyer : c'est l'autre qui a la main.
+      // Trois causes : verrou repris après péremption, identifiant fournisseur
+      // écrit entre-temps, ou marqueur d'incertitude posé par le webhook
+      // pendant nos vérifications. Ne rien envoyer : c'est un autre qui a la
+      // main.
       return NextResponse.json(
-        { error: "Le verrou de rejeu a été repris — réessaie dans quelques minutes." },
+        { error: "Une autre soumission a pris la main entre-temps — recharge la fiche." },
         { status: 409 },
       );
     }
@@ -388,52 +407,29 @@ export const POST = withErrorHandler(
       // (Un commentaire précédent renvoyait ici à un « ticket séparé » : il
       // datait d'avant ce lot, qui l'implémente.)
       //
-      // Mais `sinalite.createOrder` lève AUSSI avant tout paquet. Deux cas
-      // seulement sont reconnus par ce test, et c'est VOLONTAIREMENT écrit
-      // ainsi plutôt que « tous les échecs pré-envoi » :
-      //   ✓ configuration invalide      → `SinaliteError(…, '<config>')`
-      //   ✓ `/auth/token` en 401         → `SinaliteError(…, '/auth/token')`
-      //   ✓ `/auth/token` en TIMEOUT     → idem, status 0 (corrigé à la racine
-      //                                     dans `sinalite/client.ts`)
-      //   ✓ corps ou schéma de jeton illisible → idem, status 0
-      //   ✗ validation locale du payload → `ZodError`, non reconnue
-      // Le dernier CONSERVE le verrou ET le marqueur. Fail-closed, donc sans
-      // risque d'argent — mais depuis ce lot la sanction n'est plus « cinq
-      // minutes d'attente », c'est un blocage jusqu'à geste humain. À traiter
-      // si ça se voit en production.
+      // Mais `sinalite.createOrder` lève AUSSI avant tout paquet. Les cas
+      // reconnus vivent maintenant dans `lib/sinalite/submit-outcome.ts`,
+      // PARTAGÉ avec le webhook Stripe : les deux chemins de soumission
+      // doivent répondre la même chose à « le fournisseur a-t-il pu créer la
+      // commande ? », et deux copies de cette règle se paieraient en
+      // productions doubles le jour où elles divergeraient.
       //
-      // Le cas qui compte est couvert : identifiants fournisseur expirés,
+      // Y figure désormais la validation locale du payload, que ce fichier
+      // documentait comme NON reconnue (`ZodError` nu → blocage jusqu'à geste
+      // humain). Corrigé à la racine : `createOrder` lève un
+      // `SinaliteError(…, '<payload>')`, donc la preuve vit là où elle est
+      // vraie plutôt que dans la capacité de chaque appelant à la deviner.
+      //
+      // Le cas qui compte reste couvert : identifiants fournisseur expirés,
       // l'échec de rejeu le plus banal. Ne pas libérer condamnait l'admin à un
       // 409 « rejeu déjà en cours » pendant cinq minutes, sur une route dont
       // l'objet est justement de réessayer.
-      const preEnvoi =
-        err instanceof SinaliteError && err.endpoint !== '/order/new';
-
-      // ⚠️ LISTE BLANCHE, ET SURTOUT PAS LA PLAGE 4xx ENTIÈRE.
-      // Un jet précédent déduisait « aucune commande n'existe » de
-      // `status >= 400 && status < 500`. C'est faux pour au moins deux codes,
-      // et ce sont précisément ceux qui coûtent cher :
-      //   - 409 signifie LITTÉRALEMENT « existe déjà » — donc une commande a
-      //     été créée, peut-être par notre propre envoi précédent ;
-      //   - 429 est posable à n'importe quelle couche, y compris APRÈS que la
-      //     requête ait été traitée.
-      // Les relâcher effaçait le marqueur SANS alerte et rendait le bouton
-      // cliquable dans la seconde : deuxième production.
       //
-      // Ne figurent ici que les codes qui prouvent un refus AVANT création.
-      // Dans le doute, on garde le marqueur : la sanction d'un faux négatif
-      // est une impression payée deux fois, celle d'un faux positif quelques
-      // minutes d'attente.
-      const REFUS_AVANT_CREATION = [400, 401, 403, 404, 413, 422];
-      const refusRecu =
-        err instanceof SinaliteError &&
-        err.endpoint === '/order/new' &&
-        REFUS_AVANT_CREATION.includes(err.status);
-      // `idFournisseur === null` explicite : aujourd'hui ces deux drapeaux ne
-      // peuvent pas coexister avec un id connu, mais c'est un accident
+      // `idFournisseur === null` explicite : aujourd'hui ce drapeau ne peut
+      // pas coexister avec une preuve de non-création, mais c'est un accident
       // d'implémentation, pas un invariant. Le rendre explicite empêche qu'un
       // futur remaniement libère un verrou après un envoi abouti.
-      if (idFournisseur === null && (preEnvoi || refusRecu)) {
+      if (idFournisseur === null && aucuneCreationPossible(err)) {
         // Rien n'est parti : ni verrou ni incertitude n'ont lieu d'être.
         await prisma.order.updateMany({
           where: { id: order.id, sinaliteSubmitUncertainAt: poseAt },

@@ -19,6 +19,7 @@ import { prisma } from '@/lib/db';
 import { withErrorHandler, parseBody } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
+import { enAttenteDeTranchage } from '@/lib/orders/uncertain-marker';
 
 const ALLOWED_STATUSES = ['IN_PRODUCTION', 'SHIPPED', 'DELIVERED'] as const;
 
@@ -37,7 +38,7 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
 
   const order = await prisma.order.findUnique({
     where: { id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, sinaliteSubmitUncertainAt: true, sinaliteOrderId: true },
   });
   if (!order) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -53,6 +54,27 @@ export const POST = withErrorHandler(async (req: Request, ctx: { params: Promise
   }
   if (order.status === body.status) {
     return NextResponse.json({ error: `Commande déjà en ${body.status}` }, { status: 400 });
+  }
+  // ⚠️ FAIRE AVANCER LE STATUT SUPPRIME LA SEULE RÉSOLUTION CORRECTE.
+  //
+  // `markOrderSubmitted` n'accepte que PAID|FAILED comme statuts antérieurs.
+  // Passer une commande marquée en IN_PRODUCTION ou SHIPPED rend donc
+  // `attach-sinalite-id` définitivement impossible : l'issue « je l'ai trouvée
+  // au portail, voici son numéro » disparaît, et il ne reste que « rien au
+  // portail » — l'attestation fausse que cette route existe pour éviter.
+  // `sinaliteOrderId` resterait nul pour toujours, la commande ne se
+  // réconcilierait jamais, et le cron l'alerterait chaque jour sans fin.
+  //
+  // Une action de routine ne doit pas fermer en silence le seul bon chemin.
+  if (enAttenteDeTranchage(order)) {
+    return NextResponse.json(
+      {
+        error:
+          'Soumission partie sans réponse : fais avancer le statut APRÈS avoir tranché. ' +
+          'Avancer maintenant rendrait le rattachement du numéro fournisseur impossible.',
+      },
+      { status: 409 },
+    );
   }
 
   const eventData = JSON.stringify({

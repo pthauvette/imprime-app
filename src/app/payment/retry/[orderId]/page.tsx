@@ -39,6 +39,7 @@ type ErrCode =
   | 'order_not_found'
   | 'order_already_paid'
   | 'order_cancelled'
+  | 'order_verification_en_cours'
   | 'stripe_unconfigured'
   | 'stripe_failed';
 
@@ -81,6 +82,54 @@ export default async function PaymentRetryPage({
   }
   if (order.status === 'CANCELLED') {
     return <ErrorPage code="order_cancelled" />;
+  }
+  // ⚠️ ARGENT DÉJÀ ENCAISSÉ, ISSUE DE PRODUCTION INCONNUE → NE PAS REPRENDRE.
+  //
+  // Ce garde existe à cause d'un état que le marqueur d'incertitude rend
+  // COURANT : une soumission partie sans réponse laisse la commande FAILED,
+  // `paidAt` posé, et l'argent CONSERVÉ (on ne rembourse plus sur un doute,
+  // parce que la production est peut-être lancée). Or FAILED passait ici — le
+  // test au-dessus ne bloque que PAID/IN_PRODUCTION/SHIPPED/DELIVERED — et le
+  // lien de reprise envoyé par `sendPaymentFailedEmail` n'expire pas. Le
+  // client rouvrait un vieux courriel « paiement refusé », cliquait, et
+  // payait une SECONDE fois une commande déjà encaissée. Pire : le webhook du
+  // second paiement écrase `paymentIntentId`, ce qui rend le PREMIER débit —
+  // le seul non remboursé — introuvable pour tous les gardes en aval, qui
+  // interrogent `charges.list({ payment_intent: order.paymentIntentId })`.
+  //
+  // ⚠️ LE DISCRIMINANT EST LE MARQUEUR, PAS `paidAt`. Une commande refusée
+  // AVANT création est remboursée puis marquée FAILED : elle porte donc
+  // `paidAt` elle aussi, et sa reprise est parfaitement légitime — c'est le
+  // cas d'usage même de cette page. Bloquer sur `paidAt` la casserait.
+  if (order.sinaliteSubmitUncertainAt) {
+    return <ErrorPage code="order_verification_en_cours" />;
+  }
+  // ⚠️ SOUS-CAS PLUS LARGE : ENCAISSÉE ET NON REMBOURSÉE, SANS MARQUEUR.
+  //
+  // Le garde ci-dessus ne couvre que l'issue inconnue. Il reste l'état
+  // « refus PROUVÉ, mais le remboursement automatique a échoué lui aussi » :
+  // `effacerMarqueur()` a déjà tourné, donc la commande est FAILED avec
+  // `paidAt` posé, l'argent conservé, et AUCUN marqueur.
+  //
+  // Il préexiste à ce lot, qui le rétrécit plutôt qu'il ne l'aggrave (avant,
+  // toute levée passait par la tentative de remboursement). Mais ses trois
+  // jambes sont CORRÉLÉES : un `SINALITE_API_BASE` resté en sandbox ou des
+  // identifiants expirés mettent TOUTES les commandes sur le chemin du refus
+  // prouvé en même temps, et un hoquet Stripe fait alors échouer les
+  // remboursements en lot. La forme réaliste n'est pas « une commande de temps
+  // en temps » mais « un paquet un mauvais jour ».
+  //
+  // ⚠️ FAIL-CLOSED ASSUMÉ : un remboursement fait à la main dans le Dashboard
+  // Stripe ne laisse pas d'`OrderEvent`, donc la reprise reste bloquée et le
+  // client passe par le support. C'est la direction sûre — l'autre erreur est
+  // un second débit.
+  if (order.paidAt) {
+    const rembourse = await prisma.orderEvent.count({
+      where: { orderId: order.id, kind: 'REFUND_ISSUED' },
+    });
+    if (rembourse === 0) {
+      return <ErrorPage code="order_already_paid" />;
+    }
   }
 
   if (!stripe) {
@@ -210,6 +259,15 @@ function ErrorPage({ code }: { code: ErrCode }) {
       body: 'Bonne nouvelle — le paiement a déjà été enregistré pour cette commande. Tu peux suivre l\'avancement depuis ton compte.',
       cta: 'Voir la commande',
       href: '/account',
+    },
+    order_verification_en_cours: {
+      title: 'On vérifie cette commande',
+      body:
+        "Ton paiement a bien été reçu. Une vérification est en cours auprès de notre imprimeur avant " +
+        "de lancer la production — ça ne demande rien de ta part. Surtout, ne repaie pas : tu serais " +
+        "débité une seconde fois. On te confirme tout par courriel dès que c'est réglé.",
+      cta: 'Nous écrire',
+      href: '/contact',
     },
     order_cancelled: {
       title: 'Cette commande a été annulée',

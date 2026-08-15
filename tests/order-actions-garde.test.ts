@@ -83,3 +83,53 @@ describe('les deux encadrés sont MUTUELLEMENT exclusifs', () => {
     expect(sansCommentaires).not.toMatch(/enVol[\s\S]{0,120}5\s*\*\s*60/);
   });
 });
+
+describe('l’encadré distingue « on sait » de « on ne sait pas »', () => {
+  it('le texte « peut-être » est réservé au cas où le numéro est INCONNU', () => {
+    // Quand le fournisseur a répondu et que seul l'enregistrement a échoué, la
+    // production est lancée — c'est CERTAIN. Afficher « peut-être » envoyait
+    // l'admin fouiller le portail pour un chiffre qu'on avait sous la main.
+    // ⚠️ DÉCOUPAGE PAR MARQUEURS, pas par regex non-gourmande : `[\s\S]*?)`
+    // s'arrête à la PREMIÈRE parenthèse fermante, qui est à l'intérieur du
+    // JSX. Le premier jet de ce test découpait donc au mauvais endroit et
+    // échouait sur du code correct.
+    const debut = sansCommentaires.indexOf('numeroFournisseurConnu ? (');
+    expect(debut, 'branche ternaire de l’encadré introuvable').toBeGreaterThan(-1);
+    const sep = sansCommentaires.indexOf('\n          ) : (\n', debut);
+    expect(sep, 'séparateur de la ternaire introuvable').toBeGreaterThan(-1);
+    const fin = sansCommentaires.indexOf('\n          )}\n', sep);
+    const siConnu = sansCommentaires.slice(debut, sep);
+    const siInconnu = sansCommentaires.slice(sep, fin);
+
+    expect(siConnu).not.toContain('peut-être');
+    expect(siConnu).toContain('production est lancée');
+    expect(siInconnu).toContain('peut-être');
+  });
+
+  it('« rien au portail » n’est PAS proposé quand le numéro est connu', () => {
+    // Ce n'est plus une issue possible : la commande EST au portail. L'offrir
+    // invitait à attester une fausseté, puis à relancer.
+    expect(sansCommentaires).toMatch(
+      /\{!numeroFournisseurConnu && \([\s\S]{0,400}?Rien au portail/,
+    );
+  });
+
+  it('le formulaire de rattachement est PRÉ-REMPLI avec le numéro connu', () => {
+    expect(sansCommentaires).toMatch(
+      /setAttachId\(numeroFournisseurConnu \? String\(numeroFournisseurConnu\) : ''\)/,
+    );
+  });
+});
+
+describe('le remboursement est offert sur une commande à vérifier', () => {
+  it('la règle est DÉLÉGUÉE à une fonction pure, pas réécrite ici', () => {
+    // La revue money-path a relevé, à raison, que l'assertion ci-dessous lisait
+    // le TEXTE SOURCE : elle passait sur `… && (…) && false`. La règle vit
+    // maintenant dans `remboursementProposable`, éprouvée pour de vrai dans
+    // `tests/orders-client-verification.test.ts`. Ce qu'on verrouille ici, c'est
+    // qu'elle n'a pas été RÉÉCRITE en dur dans le composant.
+    expect(sansCommentaires).toContain('const canRefund = remboursementProposable(');
+    expect(sansCommentaires).not.toMatch(/const canRefund =[\s\S]{0,200}status !== 'FAILED'/);
+  });
+
+});
