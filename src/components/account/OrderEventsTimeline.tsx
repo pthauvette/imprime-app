@@ -23,7 +23,14 @@ interface OrderEvent {
 
 interface Props {
   events: OrderEvent[];
-  /** Si true, affiche les event ERROR (admin only). Default false (cache du customer). */
+  /**
+   * Si true, affiche les événements INTERNES (admin only). Défaut false.
+   *
+   * Couvre `ERROR` et les deux `SINALITE_SUBMIT_UNCERTAIN*` : « une soumission
+   * est partie sans réponse » est une information d'exploitation, pas un état
+   * de commande. La montrer au client l'inquiéterait sur une commande qui, le
+   * plus souvent, s'avère parfaitement soumise.
+   */
   showErrors?: boolean;
 }
 
@@ -36,6 +43,8 @@ const KIND_TONES: Record<OrderEventKind, 'success' | 'danger' | 'info' | 'warnin
   ERROR: 'danger',
   CANCEL_REQUESTED: 'warning',
   MANUAL_ORDER_CREATED: 'info',
+  SINALITE_SUBMIT_UNCERTAIN: 'danger',
+  SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'info',
 };
 
 const KIND_DOTS: Record<OrderEventKind, string> = {
@@ -47,6 +56,8 @@ const KIND_DOTS: Record<OrderEventKind, string> = {
   ERROR: '!',
   CANCEL_REQUESTED: '⚠',
   MANUAL_ORDER_CREATED: '✎',
+  SINALITE_SUBMIT_UNCERTAIN: '?',
+  SINALITE_SUBMIT_UNCERTAIN_CLEARED: '✓',
 };
 
 const TONE_COLORS: Record<'success' | 'danger' | 'info' | 'warning' | 'muted', { bg: string; color: string }> = {
@@ -62,7 +73,8 @@ function timeShort(d: Date): string {
 }
 
 export default function OrderEventsTimeline({ events, showErrors = false }: Props) {
-  const visible = showErrors ? events : events.filter((e) => e.kind !== 'ERROR');
+  const INTERNES = ['ERROR', 'SINALITE_SUBMIT_UNCERTAIN', 'SINALITE_SUBMIT_UNCERTAIN_CLEARED'];
+  const visible = showErrors ? events : events.filter((e) => !INTERNES.includes(e.kind));
 
   if (visible.length === 0) {
     return (

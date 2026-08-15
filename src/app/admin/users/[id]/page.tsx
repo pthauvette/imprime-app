@@ -46,6 +46,8 @@ const EVENT_DOT: Record<OrderEventKind, string> = {
   ERROR: 'security',
   CANCEL_REQUESTED: 'commerce',
   MANUAL_ORDER_CREATED: 'commerce',
+  SINALITE_SUBMIT_UNCERTAIN: 'security',
+  SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'commerce',
 };
 
 const EVENT_LABEL: Record<OrderEventKind, string> = {
@@ -57,6 +59,8 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
   ERROR: 'Erreur de traitement',
   CANCEL_REQUESTED: 'Annulation demandée',
   MANUAL_ORDER_CREATED: 'Commande créée depuis un devis sur mesure',
+  SINALITE_SUBMIT_UNCERTAIN: 'Soumission partie sans réponse — issue inconnue',
+  SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'Incertitude levée manuellement',
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -960,6 +964,8 @@ function eventIcon(k: OrderEventKind): string {
     ERROR: '!',
     CANCEL_REQUESTED: '⚠',
     MANUAL_ORDER_CREATED: '✎',
+    SINALITE_SUBMIT_UNCERTAIN: '?',
+    SINALITE_SUBMIT_UNCERTAIN_CLEARED: '✓',
   }[k] ?? '·';
 }
 

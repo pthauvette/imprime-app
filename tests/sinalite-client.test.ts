@@ -45,3 +45,84 @@ describe('sinalite/client — résolution paresseuse de l’env (R45)', () => {
     expect(mod.sinalite.storeCode).toBe('en_ca');
   });
 });
+
+/**
+ * Un échec du JETON doit porter son endpoint — sinon l'appelant ne peut pas
+ * savoir si `/order/new` est parti.
+ *
+ * POURQUOI CE BLOC. `getToken()` s'exécute DANS `request()`, donc AVANT le
+ * `fetch` de `/order/new`. Ses échecs réseau levaient des exceptions ANONYMES
+ * (`DOMException` sur timeout, `SyntaxError` sur corps tronqué, `ZodError` sur
+ * schéma inattendu). Le rejeu admin les classait donc « /order/new a été
+ * émis, issue inconnue » : alerte critique mensongère et, depuis l'ajout du
+ * marqueur durable, blocage jusqu'à intervention humaine — alors que RIEN
+ * n'était parti. C'est le mode d'échec le plus fréquent : le jeton n'est mis
+ * en cache que par conteneur, donc absent à chaque démarrage à froid.
+ *
+ * ⚠️ Ces tests exercent le CLIENT. Le test symétrique côté route
+ * (`replay-sinalite-guards`) fabrique lui-même la `SinaliteError` : il prouve
+ * que la route réagit bien, pas que le client la produit. Sans ce bloc-ci, la
+ * chaîne complète n'était démontrée nulle part.
+ */
+describe('sinalite/client — un échec de jeton est PROUVABLEMENT pré-envoi', () => {
+  const creds = () => {
+    vi.stubEnv('SINALITE_CLIENT_ID', 'id');
+    vi.stubEnv('SINALITE_CLIENT_SECRET', 'secret');
+    vi.stubEnv('SINALITE_API_BASE', 'https://api.exemple.test');
+    vi.stubEnv('SINALITE_AUTH_BASE', 'https://auth.exemple.test');
+    vi.stubEnv('SINALITE_AUDIENCE', 'https://audience.exemple.test');
+  };
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it('rejet RÉSEAU → SinaliteError sur /auth/token, status 0', async () => {
+    creds();
+    vi.resetModules();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('timed out', 'TimeoutError')));
+    const { sinalite, SinaliteError } = await import('@/lib/sinalite/client');
+
+    const err = await sinalite.listProducts().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(SinaliteError);
+    expect((err as InstanceType<typeof SinaliteError>).endpoint).toBe('/auth/token');
+    expect((err as InstanceType<typeof SinaliteError>).status).toBe(0);
+  });
+
+  it('corps ILLISIBLE → SinaliteError sur /auth/token, pas une SyntaxError nue', async () => {
+    creds();
+    vi.resetModules();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')),
+    }));
+    const { sinalite, SinaliteError } = await import('@/lib/sinalite/client');
+
+    const err = await sinalite.listProducts().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(SinaliteError);
+    expect((err as InstanceType<typeof SinaliteError>).endpoint).toBe('/auth/token');
+    // `status: 0` = « aucune réponse exploitable ». C'est ce que l'appelant
+    // pourrait vouloir distinguer d'un refus HTTP ; l'épingler ici évite qu'un
+    // remaniement le remplace par un 503 trompeur.
+    expect((err as InstanceType<typeof SinaliteError>).status).toBe(0);
+  });
+
+  it('schéma INATTENDU → SinaliteError sur /auth/token, pas un ZodError nu', async () => {
+    creds();
+    vi.resetModules();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ access_token: 12345 }), // type faux
+    }));
+    const { sinalite, SinaliteError } = await import('@/lib/sinalite/client');
+
+    const err = await sinalite.listProducts().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(SinaliteError);
+    expect((err as InstanceType<typeof SinaliteError>).endpoint).toBe('/auth/token');
+    expect((err as InstanceType<typeof SinaliteError>).status).toBe(0);
+  });
+});

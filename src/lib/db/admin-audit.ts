@@ -20,6 +20,10 @@ export type AdminAuditKind =
   | 'ADMIN_RESEND_EMAIL'
   | 'ADMIN_TEMPLATE_EDIT'
   | 'ADMIN_REPLAY_SINALITE'
+  // Un humain affirme avoir vérifié au portail fournisseur qu'une soumission
+  // d'issue inconnue n'a PAS créé de commande. C'est le seul moyen de lever cet
+  // état — jamais l'écoulement du temps.
+  | 'ADMIN_CLEAR_SUBMIT_UNCERTAINTY'
   | 'ADMIN_PROMO_CREATE'
   | 'ADMIN_PROMO_TOGGLE'
   | 'ADMIN_PROMO_UPDATE'

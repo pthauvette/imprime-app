@@ -95,4 +95,6 @@ export const KIND_LABELS: Record<OrderEventKind, string> = {
   ERROR: 'Erreur',
   CANCEL_REQUESTED: 'Annulation demandée',
   MANUAL_ORDER_CREATED: 'Commande créée depuis un devis sur mesure',
+  SINALITE_SUBMIT_UNCERTAIN: 'Soumission partie sans réponse',
+  SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'Incertitude levée par un admin',
 };

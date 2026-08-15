@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { Icon } from '@/components/ui/Icon';
+import { PEREMPTION_VERROU_MS } from '@/lib/orders/replay-lock';
 
 interface Props {
   orderId: string;
@@ -25,9 +26,23 @@ interface Props {
   /** Audit §8.5 — déjà remboursé (Σ REFUND_ISSUED) : le form refund montre le
    *  RESTANT au lieu de pré-remplir le total (double-refund accidentel). */
   alreadyRefundedCents?: number;
+  /**
+   * Horodatage « `/order/new` émis, issue inconnue ». Quand il est posé, le
+   * rejeu est REFUSÉ côté serveur tant qu'un humain n'a pas vérifié au portail
+   * fournisseur. On le montre ici parce qu'un bouton qui refuse sans expliquer
+   * envoie l'admin recliquer.
+   */
+  submitUncertainAt?: string | null;
+  /**
+   * Horodatage du verrou de rejeu. Sert à distinguer « soumission EN COURS »
+   * de « soumission SANS RÉPONSE » — sans lui, l'encadré affirmait la seconde
+   * pendant les ~25 s où la première est vraie, et proposait comme unique
+   * geste celui qui détruit le verrou de l'appel en vol.
+   */
+  replayClaimedAt?: string | null;
 }
 
-export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1, alreadyRefundedCents = 0 }: Props) {
+export default function OrderActions({ orderId, status, amountCents, hasSinaliteId, itemsCount = 1, alreadyRefundedCents = 0, submitUncertainAt = null, replayClaimedAt = null }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +50,13 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
   // Round 37 #5 — Custom modal vs window.confirm/prompt (mobile unusable,
   // unbranded). Inline form pour le refund amount au lieu de prompt × 2.
   const { confirm, dialog } = useConfirmDialog();
+
+  // Même seuil que le serveur (`lib/orders/replay-lock.ts`). Tant que le verrou
+  // est vivant, l'envoi peut ENCORE aboutir : on ne propose pas de lever.
+  const PEREMPTION_MIN = Math.round(PEREMPTION_VERROU_MS / 60_000);
+  const enVol =
+    replayClaimedAt !== null &&
+    Date.now() - new Date(replayClaimedAt).getTime() < PEREMPTION_VERROU_MS;
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('Geste commercial');
@@ -99,10 +121,15 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
       } else {
         setSuccess(`✓ ${label} OK`);
       }
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue');
     } finally {
+      // ⚠️ RAFRAÎCHIR AUSSI EN CAS D'ÉCHEC. Un rejeu qui échoue a pu ÉCRIRE
+      // en base — le marqueur d'incertitude est posé AVANT l'appel. Ne
+      // rafraîchir que sur succès laissait l'admin devant une erreur brute et
+      // un bouton toujours actif, alors que le serveur refuse déjà : l'UI
+      // fabriquait le mauvais geste.
+      router.refresh();
       setBusy(null);
     }
   }
@@ -119,6 +146,19 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
     });
     if (!ok) return;
     void call('Replay Sinalite', `/api/admin/orders/${orderId}/replay-sinalite`);
+  }
+
+  async function handleLeverIncertitude() {
+    const ok = await confirm({
+      title: "Lever le blocage « issue inconnue » ?",
+      body:
+        "Une soumission précédente est partie sans réponse. Confirme que tu as VÉRIFIÉ au portail " +
+        "Sinalite qu'aucune commande n'y a été créée. Cette action est journalisée à ton nom — " +
+        "si une commande existe et que tu relances, l'imprimeur produira deux fois.",
+      confirmLabel: 'J\'ai vérifié au portail',
+    });
+    if (!ok) return;
+    void call('Lever incertitude', `/api/admin/orders/${orderId}/clear-submit-uncertainty`);
   }
 
   // Round 37 #5 — handleRefund ouvre maintenant un mini-form inline
@@ -190,11 +230,65 @@ export default function OrderActions({ orderId, status, amountCents, hasSinalite
         onClick={handleResend}
         busy={busy === 'Email renvoyé'}
       />
+      {/* ⚠️ AVANT le bouton de rejeu, et non après : un admin qui voit
+          « Soumettre » en premier clique, se fait refuser, et ne comprend pas.
+          L'explication doit précéder l'action qu'elle bloque. */}
+      {submitUncertainAt && !hasSinaliteId && enVol && (
+        <div
+          style={{
+            padding: 12,
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--r-md)',
+            background: 'var(--bg-sunken)',
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          <strong><Icon name="info" size={14} /> Soumission en cours…</strong>
+          <div style={{ color: 'var(--text-secondary)', marginTop: 4 }}>
+            Un envoi est parti il y a moins de {PEREMPTION_MIN} minutes et peut
+            encore aboutir. Recharge la page dans un instant — ne lève rien
+            maintenant, ça ferait partir une seconde production.
+          </div>
+        </div>
+      )}
+
+      {submitUncertainAt && !hasSinaliteId && !enVol && (
+        <div
+          style={{
+            padding: 12,
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--r-md)',
+            background: 'color-mix(in srgb, var(--danger) 8%, transparent)',
+            fontSize: 13,
+            lineHeight: 1.5,
+            display: 'grid',
+            gap: 8,
+          }}
+        >
+          <strong style={{ color: 'var(--danger)' }}>
+            <Icon name="alert" size={14} /> Soumission partie sans réponse
+          </strong>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Une soumission a été émise le{' '}
+            {new Date(submitUncertainAt).toLocaleString('fr-CA')} et la réponse n&apos;est
+            jamais revenue.
+            La commande existe <strong>peut-être déjà</strong> chez l&apos;imprimeur. Le rejeu
+            est bloqué tant que ce n&apos;est pas vérifié au portail Sinalite.
+          </span>
+          <ActionBtn
+            label={<><Icon name="check" /> J&apos;ai vérifié — lever le blocage</>}
+            onClick={handleLeverIncertitude}
+            busy={busy === 'Lever incertitude'}
+          />
+        </div>
+      )}
+
       <ActionBtn
         label={hasSinaliteId ? "↻ Déjà soumis à Sinalite" : "↻ Soumettre à Sinalite"}
         onClick={handleReplay}
         busy={busy === 'Replay Sinalite'}
-        disabled={!canReplay}
+        disabled={!canReplay || Boolean(submitUncertainAt) || enVol}
       />
 
       {/* Audit §8.2 — faire avancer le fulfillment depuis la fiche */}

@@ -41,6 +41,10 @@ export const ORDER_EVENT_KIND = [
   // finding [129] — commande créée manuellement par un admin depuis un devis
   // sur mesure accepté (production hors Sinalite).
   'MANUAL_ORDER_CREATED',
+  // `/order/new` émis, réponse jamais reçue : la commande existe PEUT-ÊTRE
+  // chez le fournisseur. État à lever par un humain, jamais par le temps.
+  'SINALITE_SUBMIT_UNCERTAIN',
+  'SINALITE_SUBMIT_UNCERTAIN_CLEARED',
 ] as const;
 export type OrderEventKind = (typeof ORDER_EVENT_KIND)[number];
 

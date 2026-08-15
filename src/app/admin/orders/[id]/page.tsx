@@ -54,6 +54,8 @@ const EVENT_LABEL: Record<OrderEventKind, { title: string; type: string; dot: st
   ERROR: { title: 'Erreur enregistrée', type: 'ERROR', dot: 'failed', icon: '!' },
   CANCEL_REQUESTED: { title: 'Annulation demandée par le client', type: 'CANCEL_REQUESTED', dot: 'failed', icon: '⚠' },
   MANUAL_ORDER_CREATED: { title: 'Commande créée depuis un devis sur mesure', type: 'MANUAL_ORDER_CREATED', dot: 'submitted', icon: '✎' },
+  SINALITE_SUBMIT_UNCERTAIN: { title: 'Soumission partie sans réponse — issue inconnue', type: 'SINALITE_SUBMIT_UNCERTAIN', dot: 'failed', icon: '?' },
+  SINALITE_SUBMIT_UNCERTAIN_CLEARED: { title: 'Incertitude levée manuellement', type: 'SINALITE_SUBMIT_UNCERTAIN_CLEARED', dot: 'submitted', icon: '✓' },
 };
 
 export default async function AdminOrderDetailPage({
@@ -451,6 +453,8 @@ export default async function AdminOrderDetailPage({
 
             <Card label="Actions">
               <OrderActions
+                submitUncertainAt={order.sinaliteSubmitUncertainAt?.toISOString() ?? null}
+                replayClaimedAt={order.replayClaimedAt?.toISOString() ?? null}
                 orderId={order.id}
                 status={order.status}
                 amountCents={order.amountCents}

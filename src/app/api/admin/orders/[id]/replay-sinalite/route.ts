@@ -10,6 +10,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { log } from "@/lib/logger";
+import { PEREMPTION_VERROU_MS } from "@/lib/orders/replay-lock";
+import { sendCriticalAlert } from "@/lib/alerting/slack";
 import { withErrorHandler } from "@/lib/api-helpers";
 import { requireAdmin } from "@/lib/admin-auth";
 import { recordAdminAudit } from "@/lib/db/admin-audit";
@@ -55,8 +57,9 @@ export const POST = withErrorHandler(
     // rejeu réussi est enregistré au lieu de lever après avoir lancé la
     // production.
     //
-    // Ce qui reste ouvert : deux onglets, ou deux administrateurs, à quelques
-    // millisecondes d'écart. Rare, privilégié, auto-infligé.
+    // Ce qui était resté ouvert — deux onglets, deux administrateurs — est
+    // FERMÉ depuis la prise atomique ci-dessous : un seul rejeu peut être en
+    // vol. Ce commentaire décrivait l'état d'avant ce verrou.
     if (order.sinaliteOrderId) {
       return NextResponse.json(
         {
@@ -66,6 +69,24 @@ export const POST = withErrorHandler(
         { status: 400 },
       );
     }
+    // ⚠️ SOUMISSION D'ISSUE INCONNUE → NE PAS RELANCER.
+    // `/order/new` est parti une fois sans que la réponse revienne. La commande
+    // existe PEUT-ÊTRE chez le fournisseur. Le verrou d'exécution expire au
+    // bout de quelques minutes ; ce marqueur-ci, non — il ne se lève que sur
+    // preuve, et la preuve est un humain qui a regardé le portail.
+    if (order.sinaliteSubmitUncertainAt) {
+      return NextResponse.json(
+        {
+          error:
+            "Une soumission précédente est partie sans réponse — la commande existe PEUT-ÊTRE déjà " +
+            "chez l'imprimeur. Vérifie au portail Sinalite (apifrontend.sinaliteuppy.com) avant de " +
+            "relancer, puis lève le blocage depuis la fiche de commande.",
+          depuis: order.sinaliteSubmitUncertainAt,
+        },
+        { status: 409 },
+      );
+    }
+
     // ⚠️ JAMAIS ENCAISSÉE → RIEN À PRODUIRE.
     // Il n'y avait aucun test de paiement ici. Le chemin est direct : un client
     // abandonne au 3-D Secure, `payment_intent.payment_failed` marque la
@@ -120,7 +141,6 @@ export const POST = withErrorHandler(
     // Péremption : une tentative interrompue (Lambda tuée, réseau coupé)
     // laisserait sinon un verrou éternel sur une route dont TOUT l'objet est
     // de réessayer.
-    const PEREMPTION_VERROU_MS = 5 * 60_000;
     const perime = new Date(Date.now() - PEREMPTION_VERROU_MS);
     const prisAt = new Date();
     const verrou = await prisma.order.updateMany({
@@ -271,15 +291,65 @@ export const POST = withErrorHandler(
       );
     }
 
+    // ⚠️ POSÉ AVANT L'APPEL, et c'est le seul ordre qui vaut. Après, il serait
+    // inutile : le cas qu'on couvre est précisément celui où le processus meurt
+    // sans jamais atteindre la ligne suivante.
+    // ⚠️ POSE PORTÉE PAR LE PROPRIÉTAIRE (`replayClaimedAt: prisAt`) et
+    // horodatage MÉMORISÉ. Sans ça, le succès d'une requête A effacerait le
+    // marqueur posé par B — « propriétaire » à la libération du verrou et
+    // n'importe quoi ici aurait été la même faute, déplacée d'un cran.
+    const poseAt = new Date();
+    const pose = await prisma.order.updateMany({
+      // ⚠️ `sinaliteOrderId: null` RÉAFFIRMÉ ici. La prise du verrou et sa
+      // libération le portent toutes deux ; la pose — seule écriture juste
+      // avant l'appel IRRÉVERSIBLE — ne l'avait pas. Or entre la prise et ce
+      // point s'intercale `charges.list`, jusqu'à 20 s pendant lesquelles le
+      // webhook Stripe peut parfaitement écrire l'id. Sans cette clause, on
+      // soumettait une commande déjà soumise.
+      where: { id: order.id, replayClaimedAt: prisAt, sinaliteOrderId: null },
+      data: { sinaliteSubmitUncertainAt: poseAt },
+    });
+    if (pose.count === 0) {
+      // On a perdu le verrou entre-temps (péremption + reprise par une autre
+      // requête). Ne rien envoyer : c'est l'autre qui a la main.
+      return NextResponse.json(
+        { error: "Le verrou de rejeu a été repris — réessaie dans quelques minutes." },
+        { status: 409 },
+      );
+    }
+
+    // ⚠️ HISSÉ HORS DU `try`. Quand `markOrderSubmitted` ou l'envoi du courriel
+    // échouent APRÈS une soumission réussie, on CONNAÎT l'id fournisseur — et
+    // le premier jet le jetait, pour envoyer ensuite un humain fouiller le
+    // portail à la recherche d'un numéro qu'on avait sous la main.
+    let idFournisseur: number | null = null;
+    // ⚠️ DISTINCT de `idFournisseur !== null`, et c'est tout le sujet.
+    // `markOrderSubmitted` écrit le statut ET `sinaliteOrderId` dans une SEULE
+    // `$transaction` : si elle lève, elle ROLLBACK — l'id est connu de nous,
+    // mais absent de la base. Effacer le marqueur dans ce cas rendait le
+    // bouton cliquable après péremption, avec `sinaliteOrderId` toujours nul :
+    // deuxième production, et le seul témoin de la première était un message
+    // Slack (que `sendCriticalAlert` n'envoie même pas sans webhook configuré).
+    let enregistre = false;
+
     try {
       // Même enrichissement que le webhook — sinon le seul bon de production
       // sans numéro citable serait celui d'un rejeu manuel.
       const result = await sinalite.createOrder(
         enrichirPayloadSoumis(payload, order.id),
       );
+      idFournisseur = result.orderId;
       await markOrderSubmitted({
         orderId: order.id,
         sinaliteOrderId: result.orderId,
+      });
+      enregistre = true;
+      // Effacé APRÈS `markOrderSubmitted`, pas après `createOrder` : entre les
+      // deux, on connaît l'id fournisseur sans l'avoir encore enregistré. Si
+      // cette écriture-là échoue, l'incertitude doit survivre.
+      await prisma.order.updateMany({
+        where: { id: order.id, sinaliteSubmitUncertainAt: poseAt },
+        data: { sinaliteSubmitUncertainAt: null },
       });
       // Best-effort confirmation email (now that we have a Sinalite ID)
       const fresh = await prisma.order.findUnique({
@@ -311,25 +381,26 @@ export const POST = withErrorHandler(
       // — un délai d'attente sur la réponse laisse une commande bien réelle de
       // l'autre côté — donc on garde le verrou.
       //
-      // ⚠️ ET LA PÉREMPTION NE RÈGLE RIEN : au bout de 5 minutes elle REND le
-      // risque à l'admin, qui recliquera sans avoir le moindre signal qu'une
-      // commande existe peut-être déjà chez le fournisseur. Une incertitude
-      // sur un appel money ne se résout pas par une minuterie. Fermer ça
-      // demande un marqueur DURABLE « /order/new émis, issue inconnue » + une
-      // alerte critique + un déblocage humain explicite — ticket séparé, ce
-      // verrou en est le socle.
+      // ⚠️ LA PÉREMPTION NE RÈGLE RIEN À ELLE SEULE : au bout de 5 minutes
+      // elle REND le droit de recliquer. C'est le marqueur DURABLE
+      // `sinaliteSubmitUncertainAt`, posé quelques lignes plus haut, qui
+      // prend le relais — lui ne s'efface que sur preuve ou sur geste humain.
+      // (Un commentaire précédent renvoyait ici à un « ticket séparé » : il
+      // datait d'avant ce lot, qui l'implémente.)
       //
       // Mais `sinalite.createOrder` lève AUSSI avant tout paquet. Deux cas
       // seulement sont reconnus par ce test, et c'est VOLONTAIREMENT écrit
       // ainsi plutôt que « tous les échecs pré-envoi » :
-      //   ✓ configuration invalide → `SinaliteError(…, '<config>')`
-      //   ✓ `/auth/token` en 401   → `SinaliteError(…, '/auth/token')`
-      //   ✗ `/auth/token` en TIMEOUT → `DOMException`, pas une `SinaliteError`
-      //   ✗ validation locale du payload → `ZodError`
-      // Les deux derniers CONSERVENT donc le verrou. C'est fail-closed, donc
-      // sans risque d'argent — simplement cinq minutes d'attente de trop. Un
-      // commentaire qui promettrait les quatre serait faux, et ce dépôt vient
-      // d'en retirer deux du même genre.
+      //   ✓ configuration invalide      → `SinaliteError(…, '<config>')`
+      //   ✓ `/auth/token` en 401         → `SinaliteError(…, '/auth/token')`
+      //   ✓ `/auth/token` en TIMEOUT     → idem, status 0 (corrigé à la racine
+      //                                     dans `sinalite/client.ts`)
+      //   ✓ corps ou schéma de jeton illisible → idem, status 0
+      //   ✗ validation locale du payload → `ZodError`, non reconnue
+      // Le dernier CONSERVE le verrou ET le marqueur. Fail-closed, donc sans
+      // risque d'argent — mais depuis ce lot la sanction n'est plus « cinq
+      // minutes d'attente », c'est un blocage jusqu'à geste humain. À traiter
+      // si ça se voit en production.
       //
       // Le cas qui compte est couvert : identifiants fournisseur expirés,
       // l'échec de rejeu le plus banal. Ne pas libérer condamnait l'admin à un
@@ -337,7 +408,135 @@ export const POST = withErrorHandler(
       // l'objet est justement de réessayer.
       const preEnvoi =
         err instanceof SinaliteError && err.endpoint !== '/order/new';
-      if (preEnvoi) await libererVerrou();
+
+      // ⚠️ LISTE BLANCHE, ET SURTOUT PAS LA PLAGE 4xx ENTIÈRE.
+      // Un jet précédent déduisait « aucune commande n'existe » de
+      // `status >= 400 && status < 500`. C'est faux pour au moins deux codes,
+      // et ce sont précisément ceux qui coûtent cher :
+      //   - 409 signifie LITTÉRALEMENT « existe déjà » — donc une commande a
+      //     été créée, peut-être par notre propre envoi précédent ;
+      //   - 429 est posable à n'importe quelle couche, y compris APRÈS que la
+      //     requête ait été traitée.
+      // Les relâcher effaçait le marqueur SANS alerte et rendait le bouton
+      // cliquable dans la seconde : deuxième production.
+      //
+      // Ne figurent ici que les codes qui prouvent un refus AVANT création.
+      // Dans le doute, on garde le marqueur : la sanction d'un faux négatif
+      // est une impression payée deux fois, celle d'un faux positif quelques
+      // minutes d'attente.
+      const REFUS_AVANT_CREATION = [400, 401, 403, 404, 413, 422];
+      const refusRecu =
+        err instanceof SinaliteError &&
+        err.endpoint === '/order/new' &&
+        REFUS_AVANT_CREATION.includes(err.status);
+      // `idFournisseur === null` explicite : aujourd'hui ces deux drapeaux ne
+      // peuvent pas coexister avec un id connu, mais c'est un accident
+      // d'implémentation, pas un invariant. Le rendre explicite empêche qu'un
+      // futur remaniement libère un verrou après un envoi abouti.
+      if (idFournisseur === null && (preEnvoi || refusRecu)) {
+        // Rien n'est parti : ni verrou ni incertitude n'ont lieu d'être.
+        await prisma.order.updateMany({
+          where: { id: order.id, sinaliteSubmitUncertainAt: poseAt },
+          data: { sinaliteSubmitUncertainAt: null },
+        });
+        await libererVerrou();
+      } else if (idFournisseur !== null && !enregistre) {
+        // La soumission a RÉUSSI mais l'id n'a pas été persisté (transaction
+        // annulée). On tente de le rattacher — c'est la seule chose qui
+        // empêche un second envoi — et on ne lève le marqueur QUE si ça marche.
+        // ⚠️ `sinaliteOrderId` est `@unique` : si ce numéro est DÉJÀ rattaché
+        // à une autre commande, Prisma lève P2002. Sans ce filet, l'exception
+        // sortait du `catch` et on perdait TOUT — l'événement, l'alerte et
+        // l'audit — sur un 500 nu, précisément dans le cas où la trace compte
+        // le plus.
+        let rattache = { count: 0 };
+        try {
+          rattache = await prisma.order.updateMany({
+            where: { id: order.id, sinaliteOrderId: null },
+            data: { sinaliteOrderId: String(idFournisseur) },
+          });
+        } catch (e) {
+          log.error(
+            { orderId: order.id, sinaliteOrderId: idFournisseur, err: e },
+            'rejeu sinalite : rattachement de l’id impossible',
+          );
+        }
+        if (rattache.count > 0) {
+          await prisma.order.updateMany({
+            where: { id: order.id, sinaliteSubmitUncertainAt: poseAt },
+            data: { sinaliteSubmitUncertainAt: null },
+          });
+        }
+        // ⚠️ ALERTE D'ABORD, ÉVÉNEMENT ENSUITE. La cause la plus probable du
+        // rollback qui nous amène ici est une base indisponible — mettre
+        // l'écriture DB avant l'alerte plaçait le SEUL canal indépendant de la
+        // DB derrière une écriture DB. Si l'`orderEvent.create` lève,
+        // l'exception sort du `catch` et l'alerte n'est jamais envoyée.
+        await sendCriticalAlert({
+          severity: 'critical',
+          title: 'Rejeu Sinalite : soumis, enregistrement ÉCHOUÉ',
+          body:
+            `Commande ${order.id} — soumission RÉUSSIE (fournisseur #${idFournisseur}) mais ` +
+            `l'enregistrement a échoué. Rattachement automatique : ` +
+            `${rattache.count > 0 ? 'OK' : 'ÉCHOUÉ — rattacher à la main'}. ` +
+            'Ne PAS relancer : la production est lancée.',
+        });
+        await prisma.orderEvent.create({
+          data: {
+            orderId: order.id,
+            kind: 'SINALITE_SUBMIT_UNCERTAIN',
+            data: JSON.stringify({
+              sinaliteOrderId: idFournisseur,
+              rattache: rattache.count > 0,
+              raison: err instanceof Error ? err.message.slice(0, 300) : 'inconnue',
+            }),
+          },
+        });
+      } else if (idFournisseur !== null) {
+        // ⚠️ L'ISSUE N'EST PAS INCONNUE : la soumission a RÉUSSI et on a son
+        // numéro. Ce qui a échoué, c'est une écriture postérieure
+        // (`markOrderSubmitted`, le courriel). Crier « la réponse n'est jamais
+        // revenue » serait faux, et bloquerait la commande derrière une
+        // vérification de portail qui n'a aucun lieu d'être.
+        await prisma.order.updateMany({
+          where: { id: order.id, sinaliteSubmitUncertainAt: poseAt },
+          data: { sinaliteSubmitUncertainAt: null },
+        });
+        // Ici l'id EST enregistré : `route.ts` bloquera tout reclic sur
+        // `order.sinaliteOrderId`. Seule une écriture annexe a échoué (le
+        // courriel de confirmation). `warning` et non `critical` : crier au
+        // feu pour un courriel use l'attention qu'on veut garder intacte pour
+        // les vraies pertes d'argent.
+        await sendCriticalAlert({
+          severity: 'warning',
+          title: 'Rejeu Sinalite : soumis et enregistré, courriel non envoyé',
+          body:
+            `Commande ${order.id} — soumission et enregistrement OK (fournisseur ` +
+            `#${idFournisseur}). Seule une écriture annexe a échoué. Aucun risque de ` +
+            'double production ; le client n\'a peut-être pas reçu sa confirmation.',
+        });
+      } else {
+        // L'envoi a PEUT-ÊTRE eu lieu. Le marqueur reste, et un humain doit
+        // le savoir maintenant — pas dans cinq minutes quand la péremption
+        // rendra le bouton cliquable.
+        await prisma.orderEvent.create({
+          data: {
+            orderId: order.id,
+            kind: 'SINALITE_SUBMIT_UNCERTAIN',
+            data: JSON.stringify({
+              raison: err instanceof Error ? err.message.slice(0, 300) : 'inconnue',
+            }),
+          },
+        });
+        await sendCriticalAlert({
+          severity: 'critical',
+          title: 'Rejeu Sinalite : soumission partie sans réponse',
+          body:
+            `Commande ${order.id} — /order/new a été émis, la réponse n'est jamais revenue. ` +
+            "La commande existe PEUT-ÊTRE chez le fournisseur. Vérifie au portail Sinalite AVANT " +
+            "de relancer : le bouton restera bloqué tant qu'un humain n'aura pas levé l'incertitude.",
+        });
+      }
 
       const reason =
         err instanceof Error ? err.message : "Sinalite replay failed";
@@ -347,7 +546,12 @@ export const POST = withErrorHandler(
       // empirait l'état (fausse alerte « Échecs », email d'échec possible). On ne
       // marque FAILED que si la commande l'était déjà ; sinon on conserve le statut
       // et on trace l'échec dans la timeline (OrderEvent ERROR) + l'audit.
-      if (order.status === "FAILED") {
+      // ⚠️ ET JAMAIS quand la soumission a RÉUSSI. `markOrderSubmitted` a pu
+      // écrire `SUBMITTED` avant que l'échec survienne (courriel, écriture
+      // suivante) : marquer FAILED ici RÉTROGRADE une commande dont la
+      // production est lancée, et `ALLOWED_PRIOR_STATUSES.FAILED` autorise
+      // SUBMITTED→FAILED, donc rien ne l'arrête.
+      if (order.status === "FAILED" && idFournisseur === null) {
         await markOrderFailed({
           orderId: order.id,
           reason,
