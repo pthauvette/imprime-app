@@ -23,6 +23,7 @@ import { SinaliteOrderRequest } from '@/lib/sinalite/types';
 import { enrichirPayloadSoumis, referencePlio } from '@/lib/sinalite/order-notes';
 import { aucuneCreationPossible } from '@/lib/sinalite/submit-outcome';
 import { PEREMPTION_VERROU_MS } from '@/lib/orders/replay-lock';
+import { formatCents } from '@/lib/format';
 import { prisma } from '@/lib/db';
 import {
   markOrderPaid,
@@ -113,6 +114,25 @@ export async function processStripeEvent(
       }
       break;
     }
+    case 'charge.refund.updated': {
+      // ⚠️ UN REMBOURSEMENT ENREGISTRÉ N'EST PAS UN REMBOURSEMENT ATTERRI.
+      // `markRefundIssued` est appelé à la CRÉATION du refund, qui répond
+      // `pending`. Stripe peut le passer à `failed` des jours plus tard —
+      // carte fermée, banque qui refuse le retour — et l'argent revient sur le
+      // compte Plio. Sans ce handler, rien n'amendait l'`OrderEvent` : le
+      // client attendait son argent pendant que tous nos tableaux affichaient
+      // « remboursé », et l'encadré « encaissé non réconcilié » calculait
+      // `montant − montant = 0` puis ÉCARTAIT la ligne.
+      await handleRefundUpdated(event.data.object as Stripe.Refund);
+      break;
+    }
+    case 'charge.dispute.created': {
+      // Stripe retient le montant ET les frais dès l'ouverture, et il y a un
+      // DÉLAI DE RÉPONSE : ne pas le voir, c'est perdre par forfait. Le garde
+      // de rejeu lit déjà `charge.disputed`, mais RIEN n'alertait à l'ouverture.
+      await handleDisputeCreated(event.data.object as Stripe.Dispute);
+      break;
+    }
     case 'customer.subscription.deleted': {
       // Round 22 #3 — user a cancel (ou expiration after cancel_at_period_end).
       // Nullify les fields wallet auto-renew côté DB.
@@ -179,6 +199,196 @@ async function handleWalletRecurringInvoice(
     invoiceId: invoice.id,
     newBalance: result.balanceAfterCents,
   }, 'wallet recurring topup processed');
+}
+
+/**
+ * Retrouve la commande concernée par un remboursement ou un litige.
+ *
+ * ⚠️ DEUX CHEMINS, ET L'ORDRE COMPTE. On cherche d'abord l'`OrderEvent` qui
+ * porte CE `refundId` : c'est le rattachement exact, celui qui survit même
+ * quand `paymentIntentId` a été réécrit depuis (le fallback de reprise de
+ * paiement l'écrase, cf. `handlePaymentSucceeded`). Le repli par
+ * `paymentIntentId` couvre les remboursements créés directement au dashboard
+ * Stripe, qu'on n'a jamais enregistrés.
+ */
+async function trouverCommandePourPaiement(input: {
+  refundId?: string;
+  paymentIntentId: string | null;
+}): Promise<{ id: string; amountCents: number } | null> {
+  if (input.refundId) {
+    // `contains` sur le JSON : `data` est une colonne String, et un id Stripe
+    // (`re_…`) est unique — pas d'ambiguïté possible.
+    const evt = await prisma.orderEvent.findFirst({
+      where: { kind: 'REFUND_ISSUED', data: { contains: input.refundId } },
+      select: { order: { select: { id: true, amountCents: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (evt?.order) return evt.order;
+  }
+  if (input.paymentIntentId) {
+    return prisma.order.findUnique({
+      where: { paymentIntentId: input.paymentIntentId },
+      select: { id: true, amountCents: true },
+    });
+  }
+  return null;
+}
+
+/** `payment_intent` d'un objet Stripe : soit l'id, soit l'objet étendu. */
+function idPaymentIntent(v: string | Stripe.PaymentIntent | null | undefined): string | null {
+  if (!v) return null;
+  return typeof v === 'string' ? v : v.id;
+}
+
+/**
+ * `charge.refund.updated` — le remboursement qu'on croyait rendu ne l'est pas.
+ *
+ * Ne réagit qu'aux issues TERMINALES et NÉGATIVES (`failed`, `canceled`) :
+ * `succeeded` et `pending` ne changent rien à ce qu'on a déjà enregistré.
+ */
+async function handleRefundUpdated(refund: Stripe.Refund): Promise<void> {
+  if (refund.status !== 'failed' && refund.status !== 'canceled') {
+    logStripe.info({ refundId: refund.id, status: refund.status }, 'charge.refund.updated — issue non terminale, rien à faire');
+    return;
+  }
+
+  const order = await trouverCommandePourPaiement({
+    refundId: refund.id,
+    paymentIntentId: idPaymentIntent(refund.payment_intent),
+  });
+  if (!order) {
+    // Un remboursement échoué qu'on ne sait pas rattacher reste une nouvelle
+    // d'argent : on ne lève PAS (Stripe rejouerait sans fin) mais on alerte.
+    logStripe.error({ refundId: refund.id }, 'charge.refund.updated : commande introuvable');
+    await sendCriticalAlert({
+      severity: 'warning',
+      title: 'Remboursement ÉCHOUÉ sur une commande introuvable',
+      body:
+        `Le remboursement ${refund.id} est passé à « ${refund.status} » — l'argent est revenu chez ` +
+        "Plio — mais aucune commande ne lui correspond. Vérifie dans Stripe à qui il appartenait.",
+      context: { refundId: refund.id, amountCents: refund.amount },
+    });
+    return;
+  }
+
+  // ⚠️ GARDE NON ATOMIQUE, ET C'EST DIT ICI PARCE QUE ÇA COMPTE.
+  // Lecture-puis-écriture, sans contrainte d'unicité : deux livraisons
+  // concurrentes du même event — ou une livraison Stripe pendant un rejeu
+  // /admin/webhooks — lisent toutes deux `deja = null` et créent DEUX
+  // `REFUND_FAILED`.
+  //
+  // Ce doublon est aujourd'hui INOFFENSIF, et un jet précédent se trompait en
+  // écrivant qu'il ferait « compter l'argent deux fois ». Ce qui le rend
+  // inoffensif n'est pas ce garde : c'est que la réconciliation accumule les
+  // `refundId` annulés dans un `Set` et fait un `continue` — jamais une
+  // soustraction (`refundsAnnulesDe`, `lib/finances/refund-amount.ts`). Le
+  // coût réel d'une course est donc deux lignes de timeline et deux alertes.
+  //
+  // ⚠️ CE `Set` EST L'INVARIANT. Le jour où quelqu'un le remplace par une
+  // somme (« combien d'argent est revenu ? »), le double-comptage devient
+  // réel — et un commentaire qui aurait certifié qu'un garde l'empêche est
+  // exactement le mécanisme de #357. Un test le verrouille.
+  const deja = await prisma.orderEvent.findFirst({
+    where: { orderId: order.id, kind: 'REFUND_FAILED', data: { contains: refund.id } },
+    select: { id: true },
+  });
+  if (deja) {
+    logStripe.info({ refundId: refund.id, orderId: order.id }, 'charge.refund.updated — déjà enregistré');
+    return;
+  }
+
+  const raison = refund.failure_reason ?? refund.status;
+  // ⚠️ ALERTE APRÈS L'ÉCRITURE ICI, et c'est l'inverse des chemins de
+  // soumission — à dessein. Là-bas, l'écriture pouvait échouer pour la même
+  // cause que l'incident (base indisponible) et emporter l'alerte. Ici la
+  // trace est ce qui rend le montant à la réconciliation : la perdre en
+  // gardant l'alerte laisserait un tableau faux avec un message qui dit le
+  // contraire. Et `withErrorHandler` fait rejouer Stripe si l'écriture lève.
+  await prisma.orderEvent.create({
+    data: {
+      orderId: order.id,
+      kind: 'REFUND_FAILED',
+      data: JSON.stringify({ refundId: refund.id, amountCents: refund.amount, raison }),
+    },
+  });
+  await sendCriticalAlert({
+    severity: 'critical',
+    title: 'Remboursement ÉCHOUÉ — le client attend un argent qu\'il n\'a pas reçu',
+    body:
+      `Commande ${order.id} (${referencePlio(order.id)}) — le remboursement ${refund.id} de ` +
+      `${formatCents(refund.amount)} est passé à « ${refund.status} » (${raison}). L'argent est ` +
+      "REVENU chez Plio.\n\nLe client a déjà reçu un courriel annonçant ce remboursement : " +
+      "contacte-le, et réémets le remboursement par un autre moyen. Aucun courriel automatique " +
+      "n'est envoyé pour cet échec.",
+    context: { orderId: order.id, refundId: refund.id, amountCents: refund.amount, raison },
+    actionUrl: `/admin/orders/${order.id}`,
+    actionLabel: 'Voir la commande',
+  });
+}
+
+/**
+ * `charge.dispute.created` — contestation bancaire.
+ *
+ * ⚠️ TRACE ET ALERTE SEULEMENT, AUCUN CALCUL D'ARGENT. Un litige n'est pas un
+ * remboursement : Stripe RETIENT le montant en attendant l'issue, qui peut
+ * être gagnée. Le soustraire de la réconciliation supposerait une perte qui
+ * n'est pas acquise. Le sens d'erreur qui reste — le tableau continue
+ * d'afficher une rétention que Plio n'a plus — est celui qu'on tolère
+ * (sur-signaler), et cette alerte le rend visible.
+ *
+ * Ce qui compte ici est le DÉLAI : sans réponse avant l'échéance, le litige
+ * est perdu par forfait.
+ */
+async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
+  const order = await trouverCommandePourPaiement({
+    paymentIntentId: idPaymentIntent(dispute.payment_intent),
+  });
+  if (!order) {
+    logStripe.error({ disputeId: dispute.id }, 'charge.dispute.created : commande introuvable');
+    await sendCriticalAlert({
+      // ⚠️ `critical` ET NON `warning`. Le rattachement d'un litige n'a qu'une
+      // ancre — `paymentIntentId` — et c'est la clé que le fallback de reprise
+      // de paiement RÉÉCRIT : un client qui reprend son paiement puis conteste
+      // le PREMIER débit arrive exactement ici. Ce qui se perd alors est un
+      // DÉLAI DE RÉPONSE, pas une ligne de tableau : sans réponse avant
+      // l'échéance, le litige est perdu par forfait.
+      severity: 'critical',
+      title: 'Contestation bancaire sur une commande introuvable — DÉLAI DE RÉPONSE',
+      body:
+        `Litige ${dispute.id} (${formatCents(dispute.amount)}, motif : ${dispute.reason}) — aucune ` +
+        "commande ne lui correspond, probablement parce que le PaymentIntent a été réécrit par une " +
+        "reprise de paiement. Retrouve-le dans Stripe et réponds AVANT l'échéance.",
+      context: { disputeId: dispute.id, amountCents: dispute.amount },
+    });
+    return;
+  }
+
+  const deja = await prisma.orderEvent.findFirst({
+    where: { orderId: order.id, kind: 'PAYMENT_DISPUTED', data: { contains: dispute.id } },
+    select: { id: true },
+  });
+  if (deja) return;
+
+  await prisma.orderEvent.create({
+    data: {
+      orderId: order.id,
+      kind: 'PAYMENT_DISPUTED',
+      data: JSON.stringify({ disputeId: dispute.id, amountCents: dispute.amount, raison: dispute.reason }),
+    },
+  });
+  await sendCriticalAlert({
+    severity: 'critical',
+    title: 'Paiement CONTESTÉ — délai de réponse',
+    body:
+      `Commande ${order.id} (${referencePlio(order.id)}) — contestation de ${formatCents(dispute.amount)} ` +
+      `(motif : ${dispute.reason}). Stripe retient le montant ET les frais. Réponds dans Stripe AVANT ` +
+      "l'échéance : sans réponse, le litige est perdu par forfait.\n\n" +
+      "⚠️ Ce blocage est PERMANENT côté rejeu : `charge.disputed` reste vrai même après une " +
+      'contestation gagnée.',
+    context: { orderId: order.id, disputeId: dispute.id, amountCents: dispute.amount },
+    actionUrl: `/admin/orders/${order.id}`,
+    actionLabel: 'Voir la commande',
+  });
 }
 
 async function handleWalletSubscriptionDeleted(sub: Stripe.Subscription): Promise<void> {

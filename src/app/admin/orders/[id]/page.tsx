@@ -20,7 +20,7 @@ import { numeroFournisseurConnu } from '@/lib/orders/uncertain-marker';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { parseItemsSnapshot } from '@/lib/orders/items';
 import { extractTracking } from '@/lib/orders/timeline';
-import { refundAmountCentsOf } from '@/lib/finances/refund-amount';
+import { dejaRembourseCents } from '@/lib/finances/refund-amount';
 // Round 38 #1 — Source canonique (Round 37 #5 extract)
 import { STATUS_LABELS } from '@/lib/orders/status-labels';
 import { Icon } from '@/components/ui/Icon';
@@ -57,6 +57,8 @@ const EVENT_LABEL: Record<OrderEventKind, { title: string; type: string; dot: st
   MANUAL_ORDER_CREATED: { title: 'Commande créée depuis un devis sur mesure', type: 'MANUAL_ORDER_CREATED', dot: 'submitted', icon: '✎' },
   SINALITE_SUBMIT_UNCERTAIN: { title: 'Soumission partie sans réponse — issue inconnue', type: 'SINALITE_SUBMIT_UNCERTAIN', dot: 'failed', icon: '?' },
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: { title: 'Incertitude levée manuellement', type: 'SINALITE_SUBMIT_UNCERTAIN_CLEARED', dot: 'submitted', icon: '✓' },
+  REFUND_FAILED: { title: 'Remboursement ÉCHOUÉ — argent revenu chez Plio', type: 'REFUND_FAILED', dot: 'failed', icon: '↩' },
+  PAYMENT_DISPUTED: { title: 'Paiement contesté auprès de la banque', type: 'PAYMENT_DISPUTED', dot: 'failed', icon: '⚖' },
 };
 
 export default async function AdminOrderDetailPage({
@@ -103,12 +105,16 @@ export default async function AdminOrderDetailPage({
 
   // §8.5 — restant remboursable : somme des REFUND_ISSUED (montant réel via
   // data.amountCents ; fallback total pour les vieux events), plafonnée au total.
-  const alreadyRefundedCents = Math.min(
-    order.amountCents,
-    order.events
-      .filter((e) => e.kind === 'REFUND_ISSUED')
-      .reduce((s, e) => s + refundAmountCentsOf({ data: e.data, order: { amountCents: order.amountCents } }), 0),
-  );
+  //
+  // ⚠️ LES REMBOURSEMENTS DÉMENTIS NE COMPTENT PAS. `markRefundIssued` écrit à
+  // la CRÉATION du refund ; un `REFUND_FAILED` dit que Stripe l'a annulé et que
+  // l'argent est revenu chez Plio. Sans cette déduction, la fiche affichait
+  // « Déjà remboursé : 890 $ / 890 $ » et un bouton « Rembourser » GRISÉ, alors
+  // que l'alerte venait de dire « réémets le remboursement » et que l'API
+  // l'accepterait (elle lit Stripe, pas les events). L'admin partait au
+  // dashboard, ce nouveau refund n'écrivait aucun `REFUND_ISSUED`, et la ligne
+  // de réconciliation ne se refermait jamais.
+  const alreadyRefundedCents = dejaRembourseCents(order.events, order.amountCents);
 
   return (
     <div className="adm-shell">

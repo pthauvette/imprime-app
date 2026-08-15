@@ -73,6 +73,26 @@ export function describeEvent(event: DescribableEvent): string | null {
     return message ?? null;
   }
 
+  if (event.kind === 'REFUND_FAILED') {
+    // Le montant compte autant que la cause : c'est ce que le client attend
+    // toujours, et ce que Plio détient sans le savoir.
+    const cents = parsed.amountCents as number | undefined;
+    const raison = parsed.raison as string | undefined;
+    const parts: string[] = [];
+    if (typeof cents === 'number') parts.push(`Montant NON rendu : ${(cents / 100).toFixed(2)} $ CAD`);
+    if (raison) parts.push(`Cause : ${raison}`);
+    return parts.join(' · ') || null;
+  }
+
+  if (event.kind === 'PAYMENT_DISPUTED') {
+    const cents = parsed.amountCents as number | undefined;
+    const raison = parsed.raison as string | undefined;
+    const parts: string[] = [];
+    if (typeof cents === 'number') parts.push(`Montant contesté : ${(cents / 100).toFixed(2)} $ CAD`);
+    if (raison) parts.push(`Motif : ${raison}`);
+    return parts.join(' · ') || null;
+  }
+
   if (event.kind === 'CANCEL_REQUESTED') {
     const reason = parsed.reason as string | undefined;
     return reason ? `Raison : ${reason}` : null;
@@ -97,4 +117,6 @@ export const KIND_LABELS: Record<OrderEventKind, string> = {
   MANUAL_ORDER_CREATED: 'Commande créée depuis un devis sur mesure',
   SINALITE_SUBMIT_UNCERTAIN: 'Soumission partie sans réponse',
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'Incertitude levée par un admin',
+  REFUND_FAILED: 'Remboursement ÉCHOUÉ — argent revenu chez Plio',
+  PAYMENT_DISPUTED: 'Paiement contesté auprès de la banque',
 };

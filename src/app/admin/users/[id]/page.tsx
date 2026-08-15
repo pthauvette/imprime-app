@@ -48,6 +48,8 @@ const EVENT_DOT: Record<OrderEventKind, string> = {
   MANUAL_ORDER_CREATED: 'commerce',
   SINALITE_SUBMIT_UNCERTAIN: 'security',
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'commerce',
+  REFUND_FAILED: 'security',
+  PAYMENT_DISPUTED: 'security',
 };
 
 const EVENT_LABEL: Record<OrderEventKind, string> = {
@@ -61,6 +63,8 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
   MANUAL_ORDER_CREATED: 'Commande créée depuis un devis sur mesure',
   SINALITE_SUBMIT_UNCERTAIN: 'Soumission partie sans réponse — issue inconnue',
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'Incertitude levée manuellement',
+  REFUND_FAILED: 'Remboursement ÉCHOUÉ — argent revenu chez Plio',
+  PAYMENT_DISPUTED: 'Paiement contesté auprès de la banque',
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -966,6 +970,8 @@ function eventIcon(k: OrderEventKind): string {
     MANUAL_ORDER_CREATED: '✎',
     SINALITE_SUBMIT_UNCERTAIN: '?',
     SINALITE_SUBMIT_UNCERTAIN_CLEARED: '✓',
+    REFUND_FAILED: '↩',
+    PAYMENT_DISPUTED: '⚖',
   }[k] ?? '·';
 }
 

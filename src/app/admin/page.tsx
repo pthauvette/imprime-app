@@ -32,6 +32,8 @@ const EVENT_DOT: Record<OrderEventKind, string> = {
   MANUAL_ORDER_CREATED: 'submitted',
   SINALITE_SUBMIT_UNCERTAIN: 'failed',
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'submitted',
+  REFUND_FAILED: 'failed',
+  PAYMENT_DISPUTED: 'failed',
 };
 
 const EVENT_LABEL: Record<OrderEventKind, string> = {
@@ -45,6 +47,8 @@ const EVENT_LABEL: Record<OrderEventKind, string> = {
   MANUAL_ORDER_CREATED: 'commande créée depuis un devis',
   SINALITE_SUBMIT_UNCERTAIN: 'soumission sans réponse — à vérifier au portail',
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'incertitude levée manuellement',
+  REFUND_FAILED: 'remboursement ÉCHOUÉ — le client attend toujours',
+  PAYMENT_DISPUTED: 'paiement contesté — délai de réponse',
 };
 
 export default async function AdminDashboard() {
@@ -672,6 +676,8 @@ function eventIcon(k: OrderEventKind): string {
     MANUAL_ORDER_CREATED: '✎',
     SINALITE_SUBMIT_UNCERTAIN: '?',
     SINALITE_SUBMIT_UNCERTAIN_CLEARED: '✓',
+    REFUND_FAILED: '↩',
+    PAYMENT_DISPUTED: '⚖',
   }[k] ?? '·';
 }
 

@@ -29,7 +29,20 @@ const EVENT_LABELS: Record<string, string> = {
   REFUND_ISSUED: '↩ Remboursement émis',
   ERROR: '⚠ Erreur',
   CANCEL_REQUESTED: '⚠ Annulation demandée',
+  MANUAL_ORDER_CREATED: '✎ Commande créée depuis un devis sur mesure',
 };
+
+/**
+ * ⚠️ LIBELLÉ DE REPLI NEUTRE — NE JAMAIS REVENIR À `?? ev.kind`.
+ *
+ * Ce repli imprimait l'IDENTIFIANT TECHNIQUE dans un PDF téléchargeable par le
+ * client : c'est la régression [49] (`CANCEL_REQUESTED`), rejouée telle quelle
+ * par `SINALITE_SUBMIT_UNCERTAIN` une fois #582/#583 déployés. Compléter la
+ * table à chaque nouveau kind ne suffit pas — cette table est
+ * `Record<string, …>`, donc tsc ne signale RIEN quand une entrée manque. Le
+ * seul correctif durable est que l'oubli ne soit plus lisible.
+ */
+export const LIBELLE_REPLI = '• Mise à jour';
 
 export interface TimelinePdfInput {
   order: Order;
@@ -131,7 +144,7 @@ export async function generateTimelinePdf(input: TimelinePdfInput): Promise<Uint
   } else {
     for (const ev of input.events) {
       if (y < MARGIN + 30) break; // Truncate si page débord — single-page PDF for MVP
-      const label = EVENT_LABELS[ev.kind] ?? ev.kind;
+      const label = EVENT_LABELS[ev.kind] ?? LIBELLE_REPLI;
       page.drawText(label, { x: MARGIN, y, size: 10, font: fontBold });
       page.drawText(formatDateTime(ev.createdAt), {
         x: MARGIN + 200, y, size: 9, font: fontMono, color: rgb(0.4, 0.4, 0.4),

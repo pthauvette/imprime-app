@@ -196,3 +196,93 @@ describe('⚠️ CE QUE LE CHIFFRE NE PEUT PAS VOIR — sous-estimation connue',
     expect(r.contientIncertain).toBe(false);
   });
 });
+
+/**
+ * Rapprochement des remboursements ANNULÉS par Stripe.
+ *
+ * `markRefundIssued` écrit à la CRÉATION du refund. Un `REFUND_FAILED`
+ * (webhook `charge.refund.updated`) dit que celui-ci n'a jamais atterri et que
+ * l'argent est revenu chez Plio. Sans ce rapprochement, la ligne calculait
+ * `montant − montant = 0` et disparaissait : la seule surface capable de voir
+ * cet argent affichait zéro.
+ */
+describe('un remboursement ANNULÉ par Stripe ne compte plus comme rendu', () => {
+  const refundFailed = (id: string, cents: number) =>
+    ({ kind: 'REFUND_FAILED', data: JSON.stringify({ refundId: id, amountCents: cents, raison: 'expired_or_canceled' }) });
+  const refundAvecId = (id: string, cents: number) =>
+    ({ kind: 'REFUND_ISSUED', data: JSON.stringify({ refundId: id, amountCents: cents }) });
+
+  it('⚠️ LE CAS QUI MOTIVE CE LOT : refund intégral créé puis échoué → tout est retenu', () => {
+    const r = calculerNonReconcilie([
+      cmd({ amountCents: 89000, events: [refundAvecId('re_1', 89000), refundFailed('re_1', 89000)] }),
+    ]);
+    expect(r.totalRetenuCents).toBe(89000);
+  });
+
+  it('un SEUL des deux remboursements échoue → seul celui-là est réintégré', () => {
+    const r = calculerNonReconcilie([
+      cmd({ amountCents: 10000, events: [
+        refundAvecId('re_ok', 4000),
+        refundAvecId('re_ko', 6000),
+        refundFailed('re_ko', 6000),
+      ] }),
+    ]);
+    expect(r.totalRetenuCents).toBe(6000);
+  });
+
+  it('l’échec ne rattache que SON refund, pas les autres', () => {
+    const r = calculerNonReconcilie([
+      cmd({ amountCents: 10000, events: [refundAvecId('re_ok', 10000), refundFailed('re_autre', 5000)] }),
+    ]);
+    expect(r.totalRetenuCents).toBe(0);
+  });
+
+  it('un REFUND_FAILED sans REFUND_ISSUED correspondant (refund dashboard) n’invente rien', () => {
+    const r = calculerNonReconcilie([cmd({ amountCents: 5000, events: [refundFailed('re_x', 5000)] })]);
+    expect(r.totalRetenuCents).toBe(5000);
+  });
+
+  it('⚠️ un REFUND_FAILED ne doit PAS tomber dans la branche des frais d’annulation', () => {
+    // La branche `else` lisait `cancelFeeCents` sur tout événement non-refund :
+    // un `REFUND_FAILED` n'en porte pas, donc 0 — mais l'oubli du `continue`
+    // rendrait le code dépendant de cette absence.
+    const r = calculerNonReconcilie([
+      cmd({ amountCents: 5000, events: [{ kind: 'REFUND_FAILED', data: JSON.stringify({ refundId: 're_1', cancelFeeCents: 5000 }) }] }),
+    ]);
+    expect(r.totalRetenuCents).toBe(5000);
+  });
+
+  it('un REFUND_FAILED illisible n’annule personne, et ne fait pas planter', () => {
+    const r = calculerNonReconcilie([
+      cmd({ amountCents: 5000, events: [refundAvecId('re_1', 5000), { kind: 'REFUND_FAILED', data: '{cassé' }] }),
+    ]);
+    expect(r.totalRetenuCents).toBe(0);
+  });
+});
+
+describe('M1 — l’invariant qui rend un doublon inoffensif', () => {
+  it('⚠️ DEUX REFUND_FAILED pour le MÊME refund → même résultat qu’un seul', () => {
+    // Le garde d'idempotence du handler est une lecture-puis-écriture, donc
+    // NON atomique : deux livraisons concurrentes créent deux événements. Ce
+    // qui rend ça inoffensif n'est pas le garde, c'est que la réconciliation
+    // accumule dans un `Set` et fait un `continue` — jamais une soustraction.
+    //
+    // Le jour où quelqu'un remplace ce `Set` par une somme, le double-comptage
+    // devient réel. Ce test est la seule chose qui s'y oppose.
+    const unSeul = calculerNonReconcilie([
+      cmd({ amountCents: 89000, events: [
+        { kind: 'REFUND_ISSUED', data: JSON.stringify({ refundId: 're_1', amountCents: 89000 }) },
+        { kind: 'REFUND_FAILED', data: JSON.stringify({ refundId: 're_1', amountCents: 89000 }) },
+      ] }),
+    ]);
+    const enDouble = calculerNonReconcilie([
+      cmd({ amountCents: 89000, events: [
+        { kind: 'REFUND_ISSUED', data: JSON.stringify({ refundId: 're_1', amountCents: 89000 }) },
+        { kind: 'REFUND_FAILED', data: JSON.stringify({ refundId: 're_1', amountCents: 89000 }) },
+        { kind: 'REFUND_FAILED', data: JSON.stringify({ refundId: 're_1', amountCents: 89000 }) },
+      ] }),
+    ]);
+    expect(enDouble.totalRetenuCents).toBe(unSeul.totalRetenuCents);
+    expect(enDouble.totalRetenuCents).toBe(89000);
+  });
+});
