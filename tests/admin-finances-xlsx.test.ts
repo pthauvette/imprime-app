@@ -135,7 +135,17 @@ describe('GET /api/admin/finances/export', () => {
     ] as never);
     // Un refund de 40,00 $ sur une commande vivante (montant réel dans data).
     vi.mocked(prisma.orderEvent.findMany).mockResolvedValue([
-      { data: JSON.stringify({ amountCents: 4000 }), order: { amountCents: 10522 } },
+      // ⚠️ `kind` ET `createdAt` SONT REQUIS DEPUIS QUE LES DÉMENTIS SONT
+      // CHARGÉS. La requête ramène volontairement des événements HORS période
+      // (un remboursement de mai peut être démenti en juillet) : le filtre
+      // temporel vit donc côté JS, et une fixture sans `createdAt` se fait
+      // écarter — ce que ce test a justement attrapé.
+      {
+        kind: 'REFUND_ISSUED',
+        createdAt: new Date(),
+        data: JSON.stringify({ refundId: 're_1', amountCents: 4000 }),
+        order: { amountCents: 10522 },
+      },
     ] as never);
 
     const GET = await importFresh();
@@ -146,12 +156,21 @@ describe('GET /api/admin/finances/export', () => {
     // Cherche les lignes par libellé (col A) et lit la valeur (col B).
     const byLabel = (label: string): number | undefined => {
       for (let r = 2; r <= apercu.rowCount; r++) {
-        if (apercu.getCell(`A${r}`).value === label) return apercu.getCell(`B${r}`).value as number;
+        // Correspondance par PRÉFIXE : le libellé porte désormais une mention
+        // (« démentis exclus, vérité d'aujourd'hui ») qui rend la divergence
+        // avec le rapport de taxes lisible dans le fichier lui-même.
+        if (String(apercu.getCell(`A${r}`).value ?? '').startsWith(label)) {
+          return apercu.getCell(`B${r}`).value as number;
+        }
       }
       return undefined;
     };
     expect(byLabel('Revenu brut (CAD)')).toBeCloseTo(210.44, 2);
     expect(byLabel('Remboursements (période)')).toBeCloseTo(-40, 2);
+    // …et la mention de la règle temporelle est bien présente.
+    const libelles: string[] = [];
+    for (let r = 2; r <= apercu.rowCount; r++) libelles.push(String(apercu.getCell(`A${r}`).value ?? ''));
+    expect(libelles.some((l) => l.includes('vérité d’aujourd’hui'))).toBe(true);
     expect(byLabel('Revenu net (CAD)')).toBeCloseTo(170.44, 2);
   });
 

@@ -13,6 +13,19 @@
  * potentiellement large) — purge réduit la taille DB sans toucher
  * l'audit financier.
  *
+ * ⚠️ « SANS TOUCHER L'AUDIT FINANCIER » ÉTAIT DEVENU FAUX. Depuis #584,
+ * `admin/finances` reconstruit l'argent encaissé et non rendu À PARTIR DES
+ * ÉVÉNEMENTS : une commande CANCELLED correctement remboursée en 2024
+ * perdait son `REFUND_ISSUED` à la purge et RÉAPPARAISSAIT à plein montant
+ * dans l'encadré « encaissé non réconcilié ». Le tableau bâti pour montrer
+ * l'argent retenu se serait mis à inventer des rétentions, une par vieille
+ * commande, jusqu'à noyer les vraies.
+ *
+ * Les kinds FINANCIERS sont donc exclus de la purge. Ils sont peu nombreux
+ * (0 à 3 par commande) et portent la seule trace du mouvement d'argent —
+ * exactement ce que l'obligation de conservation fiscale de 6 ans vise, alors
+ * que la rétention de 2 ans ici cible le bruit de timeline.
+ *
  * Schedule : mensuel 1er du mois 9h UTC (après les autres mensuel à 5-8h).
  *
  * Safety :
@@ -35,6 +48,17 @@ export const dynamic = 'force-dynamic';
 
 const RETENTION_YEARS = 2;
 const TERMINAL_STATUSES = ['DELIVERED', 'CANCELLED', 'FAILED'] as const;
+/**
+ * Kinds JAMAIS purgés : ils portent la trace d'un mouvement d'argent, et
+ * `admin/finances` reconstruit la réconciliation à partir d'eux.
+ *
+ * ⚠️ NE PAS RÉDUIRE CETTE LISTE SANS REGARDER `lib/finances/refund-amount.ts`
+ * ET `lib/finances/encaisse-non-reconcilie.ts`. Retirer `REFUND_ISSUED` fait
+ * réapparaître d'anciennes commandes à plein montant ; retirer `REFUND_FAILED`
+ * fait DISPARAÎTRE de vraies rétentions (le remboursement démenti redevient
+ * un remboursement valide).
+ */
+const KINDS_FINANCIERS = ['REFUND_ISSUED', 'REFUND_FAILED', 'PAYMENT_DISPUTED'] as const;
 const MAX_DELETE_PER_RUN = 5000;
 
 export async function GET(req: NextRequest) {
@@ -69,7 +93,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Count d'abord (audit) avant delete (sauf si dryRun)
     const countToDelete = await prisma.orderEvent.count({
-      where: { orderId: { in: orderIds } },
+      where: { orderId: { in: orderIds }, kind: { notIn: [...KINDS_FINANCIERS] } },
     });
 
     let deletedEvents = 0;
@@ -81,7 +105,7 @@ export async function GET(req: NextRequest) {
       // 5000 servent vraiment juste de "spread" — on n'a pas de orders
       // avec > 100 events réalistement).
       const result = await prisma.orderEvent.deleteMany({
-        where: { orderId: { in: orderIds } },
+        where: { orderId: { in: orderIds }, kind: { notIn: [...KINDS_FINANCIERS] } },
       });
       deletedEvents = result.count;
       if (deletedEvents > MAX_DELETE_PER_RUN) {

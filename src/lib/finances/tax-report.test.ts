@@ -22,7 +22,7 @@ describe('computeTaxReport — NET des remboursements + split TPS/TVQ', () => {
   });
 
   it('refund TOTAL → taxe/subtotal/charged à 0 (vente exclue de la remise)', () => {
-    const refunds = [{ orderId: 'o1', data: JSON.stringify({ amountCents: 12147 }), order: { amountCents: 12147 } }];
+    const refunds = [{ orderId: 'o1', data: JSON.stringify({ amountCents: 12147 }), order: { amountCents: 12147, subtotalCents: 10563, taxCents: 1584, shipProvince: 'QC' } }];
     const { summary, rows } = computeTaxReport([qcOrder()], refunds);
     expect(summary.totalTaxCents).toBe(0);
     expect(summary.totalSubtotalCents).toBe(0);
@@ -32,7 +32,7 @@ describe('computeTaxReport — NET des remboursements + split TPS/TVQ', () => {
   });
 
   it('refund PARTIEL (50 %) → taxe scalée ~50 %, split somme au net', () => {
-    const refunds = [{ orderId: 'o1', data: JSON.stringify({ amountCents: 6074 }), order: { amountCents: 12147 } }];
+    const refunds = [{ orderId: 'o1', data: JSON.stringify({ amountCents: 6074 }), order: { amountCents: 12147, subtotalCents: 10563, taxCents: 1584, shipProvince: 'QC' } }];
     const { summary, rows } = computeTaxReport([qcOrder()], refunds);
     // netFactor = 1 − 6074/12147 ≈ 0,5 → taxe nette ≈ 824¢.
     expect(summary.totalTaxCents).toBeGreaterThan(800);
@@ -41,7 +41,7 @@ describe('computeTaxReport — NET des remboursements + split TPS/TVQ', () => {
   });
 
   it('refund > montant chargé → plafonné (jamais de valeur négative)', () => {
-    const refunds = [{ orderId: 'o1', data: JSON.stringify({ amountCents: 99999 }), order: { amountCents: 12147 } }];
+    const refunds = [{ orderId: 'o1', data: JSON.stringify({ amountCents: 99999 }), order: { amountCents: 12147, subtotalCents: 10563, taxCents: 1584, shipProvince: 'QC' } }];
     const { summary } = computeTaxReport([qcOrder()], refunds);
     expect(summary.totalTaxCents).toBe(0);
     expect(summary.totalSubtotalCents).toBe(0);

@@ -22,7 +22,7 @@ import { withErrorHandler } from '@/lib/api-helpers';
 import { requireAdmin } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { recordAdminAudit } from '@/lib/db/admin-audit';
-import { refundAmountCentsOf, PAID_STATUSES } from '@/lib/finances/refund-amount';
+import { PAID_STATUSES, sommeRemboursementsValidesCents } from '@/lib/finances/refund-amount';
 import ExcelJS from 'exceljs';
 
 export const runtime = 'nodejs';
@@ -81,16 +81,26 @@ export const GET = withErrorHandler(async (req: Request) => {
   });
 
   // Refunds émis dans la période sur des commandes VIVANTES (chemin /refund).
-  // Montant réel via refundAmountCentsOf → « Revenu net » = brut − refunds.
+  // « Revenu net » = brut − remboursements RÉELLEMENT rendus.
+  // ⚠️ `REFUND_FAILED` CHARGÉ SANS BORNE DE PÉRIODE, et le filtre temporel
+  // se fait ensuite en JS. Un remboursement émis en mai peut être démenti en
+  // juillet : le borner en SQL perdrait le démenti, et l'export soustrairait
+  // un remboursement qui n'a jamais eu lieu.
+  //
+  // Même règle que le tableau de bord — VÉRITÉ D'AUJOURD'HUI, puisque cet
+  // export sert au pilotage. Le rapport de taxes applique la règle inverse
+  // (chaque événement dans sa période) parce qu'il est une déclaration.
   const refundEvents = await prisma.orderEvent.findMany({
     where: {
-      kind: 'REFUND_ISSUED',
-      createdAt: { gte: start, lt: end },
-      order: { status: { in: [...PAID_STATUSES] } },
+      kind: { in: ['REFUND_ISSUED', 'REFUND_FAILED'] },
+      order: {
+        status: { in: [...PAID_STATUSES] },
+        events: { some: { kind: 'REFUND_ISSUED', createdAt: { gte: start, lt: end } } },
+      },
     },
     include: { order: { select: { amountCents: true } } },
   });
-  const refundsCents = refundEvents.reduce((s, e) => s + refundAmountCentsOf(e), 0);
+  const refundsCents = sommeRemboursementsValidesCents(refundEvents, { debut: start, fin: end }).totalCents;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Plio';
@@ -131,7 +141,11 @@ export const GET = withErrorHandler(async (req: Request) => {
     { label: 'Au', value: end },
     { label: 'Nombre de commandes', value: orders.length },
     { label: 'Revenu brut (CAD)', value: revenue / 100 },
-    { label: 'Remboursements (période)', value: -refundsCents / 100 },
+    // ⚠️ LA DIVERGENCE ASSUMÉE DOIT ÊTRE LISIBLE DANS LE FICHIER. Le rapport
+    // de taxes applique la règle inverse (chaque événement dans sa période) ;
+    // sans cette mention, quelqu'un comparera un jour les deux chiffres et
+    // conclura à un bug.
+    { label: 'Remboursements (période) — démentis exclus, vérité d’aujourd’hui', value: -refundsCents / 100 },
     { label: 'Revenu net (CAD)', value: netRevenue / 100 },
     { label: 'Sous-total brut (HT)', value: subtotal / 100 },
     { label: 'Livraison brute', value: shipping / 100 },
