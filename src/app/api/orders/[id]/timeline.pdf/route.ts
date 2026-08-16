@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { visiblePourClient } from '@/lib/orders/event-visibility';
 import { generateTimelinePdf } from '@/lib/print/timeline-pdf';
 import { logEmail as log } from '@/lib/logger';
 
@@ -44,13 +45,23 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
   }
 
+  // ⚠️ MÊME FILTRE QUE LA TIMELINE WEB, ET IL MANQUAIT ICI.
+  // Cette route rendait TOUS les événements, sans notion de `kind` : la
+  // timeline web était étanche (`showErrors={isAdmin}`) et ce PDF ne l'était
+  // pas. `SINALITE_SUBMIT_UNCERTAIN`, livré et déployé, s'y imprimait en
+  // littéral brut faute de libellé — régression [49] rejouée, parce que la
+  // liste des internes vivait en dur dans un composant.
+  const evenements = isAdmin
+    ? order.events
+    : order.events.filter((e) => visiblePourClient(e.kind));
+
   try {
     const customerName = order.user.name
       ?? [order.user.firstName, order.user.lastName].filter(Boolean).join(' ').trim()
       ?? null;
     const pdfBytes = await generateTimelinePdf({
       order,
-      events: order.events,
+      events: evenements,
       customer: { name: customerName, email: order.user.email },
     });
 

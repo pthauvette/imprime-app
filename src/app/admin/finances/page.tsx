@@ -202,7 +202,7 @@ export default async function AdminFinancesPage({
         // lui, une annulation dont les frais couvrent TOUTE la charge (donc
         // sans remboursement Stripe, donc sans `REFUND_ISSUED`) s'affichait
         // entière comme retenue.
-        events: { where: { kind: 'ERROR' }, select: { kind: true, data: true } },
+        events: { where: { kind: { in: ['REFUND_FAILED', 'ERROR'] } }, select: { kind: true, data: true } },
       },
       orderBy: { amountCents: 'desc' },
       take: PLAFOND_RECONCILIATION,
@@ -219,7 +219,7 @@ export default async function AdminFinancesPage({
       },
       select: {
         id: true, status: true, amountCents: true, paidAt: true,
-        events: { where: { kind: { in: ['REFUND_ISSUED', 'ERROR'] } }, select: { kind: true, data: true } },
+        events: { where: { kind: { in: ['REFUND_ISSUED', 'REFUND_FAILED', 'ERROR'] } }, select: { kind: true, data: true } },
       },
       orderBy: { amountCents: 'desc' },
       take: PLAFOND_RECONCILIATION,

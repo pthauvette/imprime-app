@@ -40,3 +40,67 @@ export function refundAmountCentsOf(ev: RefundEventLike): number {
   }
   return ev.order?.amountCents ?? 0;
 }
+
+/**
+ * `refundId` des remboursements que Stripe a ANNULÉS (`REFUND_FAILED`).
+ *
+ * ⚠️ SOURCE UNIQUE, ET C'EST LE POINT. Trois surfaces doivent savoir qu'un
+ * `REFUND_ISSUED` peut avoir été démenti : la réconciliation financière, le
+ * restant remboursable de la fiche admin, et `/api/admin/orders/[id]/refund`
+ * — qui, lui, l'apprend de Stripe (`r.status !== 'failed'`) et non des events.
+ *
+ * Sans ce partage, la fiche affichait « Déjà remboursé : 890 $ / 890 $ » et un
+ * bouton « Rembourser » GRISÉ, sur une commande dont l'alerte venait de dire
+ * « réémets le remboursement ». L'admin partait alors au dashboard Stripe —
+ * ce que l'alerte lui demande — et ce nouveau remboursement n'écrivant aucun
+ * `REFUND_ISSUED`, la ligne de réconciliation ne se refermait JAMAIS.
+ */
+export function refundsAnnulesDe(events: { kind: string; data: string | null }[]): Set<string> {
+  const annules = new Set<string>();
+  for (const e of events) {
+    if (e.kind !== 'REFUND_FAILED' || !e.data) continue;
+    try {
+      const id = (JSON.parse(e.data) as { refundId?: unknown }).refundId;
+      if (typeof id === 'string' && id) annules.add(id);
+    } catch {
+      // Un `REFUND_FAILED` illisible ne peut annuler personne nommément.
+    }
+  }
+  return annules;
+}
+
+/** Ce `REFUND_ISSUED` a-t-il été démenti par un `REFUND_FAILED` ? */
+export function refundEstAnnule(ev: { data: string | null }, annules: Set<string>): boolean {
+  if (!ev.data || annules.size === 0) return false;
+  try {
+    const id = (JSON.parse(ev.data) as { refundId?: unknown }).refundId;
+    return typeof id === 'string' && annules.has(id);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Montant DÉJÀ REMBOURSÉ d'une commande, remboursements démentis exclus.
+ *
+ * ⚠️ EXTRAIT DE LA FICHE ADMIN POUR ÊTRE ÉPROUVÉ. Le calcul vivait en ligne
+ * dans un Server Component, donc hors de portée des tests (`environment:
+ * 'node'`, ni RTL ni jsdom installés) : une campagne de mutation a montré
+ * qu'on pouvait retirer la déduction des `REFUND_FAILED` sans faire rougir
+ * quoi que ce soit. C'est pourtant elle qui décide si le bouton
+ * « Rembourser » est cliquable sur une commande dont le remboursement a
+ * échoué — c'est-à-dire exactement quand l'admin en a besoin.
+ *
+ * Plafonné au total de la commande : §8.5, un cumul d'events ne doit pas
+ * dépasser ce qui a été encaissé.
+ */
+export function dejaRembourseCents(
+  events: { kind: string; data: string | null }[],
+  amountCents: number,
+): number {
+  const annules = refundsAnnulesDe(events);
+  const somme = events
+    .filter((e) => e.kind === 'REFUND_ISSUED' && !refundEstAnnule(e, annules))
+    .reduce((s, e) => s + refundAmountCentsOf({ data: e.data, order: { amountCents } }), 0);
+  return Math.min(amountCents, somme);
+}

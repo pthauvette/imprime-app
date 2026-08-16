@@ -11,6 +11,7 @@
  */
 
 import type { OrderEventKind } from '@/lib/db/orders';
+import { visiblePourClient } from '@/lib/orders/event-visibility';
 import { describeEvent, KIND_LABELS } from '@/lib/orders/event-describe';
 import { formatDate } from '@/lib/format';
 
@@ -45,6 +46,8 @@ const KIND_TONES: Record<OrderEventKind, 'success' | 'danger' | 'info' | 'warnin
   MANUAL_ORDER_CREATED: 'info',
   SINALITE_SUBMIT_UNCERTAIN: 'danger',
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: 'info',
+  REFUND_FAILED: 'danger',
+  PAYMENT_DISPUTED: 'danger',
 };
 
 const KIND_DOTS: Record<OrderEventKind, string> = {
@@ -58,6 +61,8 @@ const KIND_DOTS: Record<OrderEventKind, string> = {
   MANUAL_ORDER_CREATED: '✎',
   SINALITE_SUBMIT_UNCERTAIN: '?',
   SINALITE_SUBMIT_UNCERTAIN_CLEARED: '✓',
+  REFUND_FAILED: '↩',
+  PAYMENT_DISPUTED: '⚖',
 };
 
 const TONE_COLORS: Record<'success' | 'danger' | 'info' | 'warning' | 'muted', { bg: string; color: string }> = {
@@ -73,8 +78,9 @@ function timeShort(d: Date): string {
 }
 
 export default function OrderEventsTimeline({ events, showErrors = false }: Props) {
-  const INTERNES = ['ERROR', 'SINALITE_SUBMIT_UNCERTAIN', 'SINALITE_SUBMIT_UNCERTAIN_CLEARED'];
-  const visible = showErrors ? events : events.filter((e) => !INTERNES.includes(e.kind));
+  // Liste PARTAGÉE avec le PDF d'historique (`lib/orders/event-visibility.ts`).
+  // Elle vivait ici en dur, et la seconde surface client ne la connaissait pas.
+  const visible = showErrors ? events : events.filter((e) => visiblePourClient(e.kind));
 
   if (visible.length === 0) {
     return (

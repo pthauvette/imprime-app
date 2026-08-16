@@ -45,6 +45,17 @@ export const ORDER_EVENT_KIND = [
   // chez le fournisseur. État à lever par un humain, jamais par le temps.
   'SINALITE_SUBMIT_UNCERTAIN',
   'SINALITE_SUBMIT_UNCERTAIN_CLEARED',
+  // ⚠️ UN REMBOURSEMENT ENREGISTRÉ N'EST PAS UN REMBOURSEMENT ATTERRI.
+  // `markRefundIssued` est appelé à la CRÉATION du refund Stripe, qui répond
+  // `pending` puis peut passer à `failed` des jours plus tard (carte fermée,
+  // banque qui refuse le retour). L'argent revient alors chez Plio, le client
+  // attend toujours, et RIEN n'amendait l'événement `REFUND_ISSUED` : nos
+  // tableaux affichaient « remboursé ». Ce kind est l'amendement.
+  'REFUND_FAILED',
+  // Contestation bancaire. Stripe retient le montant ET les frais dès
+  // l'ouverture, et il y a un DÉLAI DE RÉPONSE : ne pas le voir, c'est perdre
+  // par forfait.
+  'PAYMENT_DISPUTED',
 ] as const;
 export type OrderEventKind = (typeof ORDER_EVENT_KIND)[number];
 

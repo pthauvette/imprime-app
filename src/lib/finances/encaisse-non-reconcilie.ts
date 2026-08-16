@@ -27,6 +27,21 @@
  * qu'utilise `/api/admin/orders/[id]/refund` — trop coûteuse pour un rendu de
  * page (un appel réseau par commande candidate).
  *
+ * ⚠️ CE QUE `REFUND_FAILED` NE CORRIGE QUE PARTIELLEMENT. Le handler
+ * `charge.refund.updated` rend l'argent d'un remboursement démenti — mais
+ * SEULEMENT ici et sur la fiche admin. Un remboursement partiel échoué sur une
+ * commande VIVANTE (livrée, geste commercial, carte fermée depuis) écrit bien
+ * un `REFUND_FAILED` que personne d'autre ne lit : le revenu net du dashboard,
+ * l'export XLSX et surtout le RAPPORT DE TAXES continuent de soustraire un
+ * remboursement qui n'a jamais eu lieu.
+ *
+ * ⚠️ ET LE SENS DE CETTE ERREUR-LÀ N'EST PAS CELUI QU'ON TOLÈRE ICI. Soustraire
+ * un remboursement fantôme réduit le revenu net, donc l'assiette TPS/TVQ : Plio
+ * remet MOINS que dû. Ce n'est pas du sur-signalement, c'est une
+ * SOUS-DÉCLARATION, et c'est le seul endroit où l'erreur sort vers l'extérieur.
+ * Préexistant et non aggravé — mais l'information existe désormais et n'est
+ * branchée nulle part ailleurs.
+ *
  * Conséquence assumée : ce tableau SUR-SIGNALE. Une ligne peut être déjà
  * réglée au dashboard. C'est le bon sens d'erreur pour un écart de caisse —
  * une ligne à vérifier est actionnable, une ligne absente ne l'est pas.
@@ -39,6 +54,8 @@
  * commandes, sans attendre la moindre montée en charge. Le test censé
  * verrouiller ce comportement le décrivait comme correct.
  */
+
+import { refundsAnnulesDe, refundEstAnnule } from './refund-amount';
 
 /** Statuts où une commande est réputée voidée — donc hors du revenu. */
 export const STATUTS_VOIDES = ['CANCELLED', 'FAILED'] as const;
@@ -108,6 +125,14 @@ export function calculerNonReconcilie(commandes: CommandeVoidee[]): {
   for (const c of commandes) {
     if (c.paidAt === null) continue;
 
+    // ⚠️ PREMIÈRE PASSE : les remboursements que Stripe a ANNULÉS.
+    // `markRefundIssued` écrit à la CRÉATION du refund ; un `REFUND_FAILED`
+    // (webhook `charge.refund.updated`) dit que celui-ci n'a jamais atterri et
+    // que l'argent est revenu chez Plio. Sans ce rapprochement, la ligne
+    // calculait `montant − montant = 0` et disparaissait — c'est-à-dire que la
+    // seule surface capable de voir cet argent affichait zéro.
+    const refundsAnnules = refundsAnnulesDe(c.events);
+
     let rembourseCents = 0;
     let fraisRetenusCents = 0;
     let montantIncertain = false;
@@ -120,6 +145,8 @@ export function calculerNonReconcilie(commandes: CommandeVoidee[]): {
         parsed = {};
       }
       if (e.kind === 'REFUND_ISSUED') {
+        // Remboursement annulé par Stripe → il n'a rien rendu du tout.
+        if (refundEstAnnule(e, refundsAnnules)) continue;
         const montant = nombre(parsed.amountCents);
         // ⚠️ PAS DE REPLI SUR LE TOTAL DE LA COMMANDE. Un montant illisible
         // veut dire « on ne sait pas », pas « tout a été rendu ». On compte 0
@@ -127,6 +154,12 @@ export function calculerNonReconcilie(commandes: CommandeVoidee[]): {
         if (montant === null) montantIncertain = true;
         else rembourseCents += montant;
       } else if (e.kind === 'ERROR') {
+        // `REFUND_FAILED` n'a PAS de branche ici : il est entièrement traité en
+        // première passe. Un jet précédent ajoutait un `continue` explicite ;
+        // une campagne de mutation l'a montré MORT — le `else if` ci-dessous
+        // est spécifique à `ERROR`, donc rien ne peut y tomber par accident.
+        // Le garder laissait croire à une protection qui n'existait pas.
+        //
         // Frais retenus par `cancel` (event ERROR, `action: 'manual-cancel'`).
         //
         // ⚠️ `else if` ET NON `else` : un `else` nu soustrayait `cancelFeeCents`
